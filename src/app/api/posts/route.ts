@@ -8,7 +8,7 @@ export async function GET() {
             orderBy: { scheduledAt: 'asc' },
             include: {
                 _count: {
-                    select: { submissions: true },
+                    select: { checkins: true },
                 },
             },
         }),
@@ -28,7 +28,7 @@ export async function GET() {
             originalUrl: post.originalUrl,
             thumbnailUrl: post.thumbnailUrl,
             scheduledAt: post.scheduledAt.toISOString(),
-            successfulCheckins: post._count.submissions,
+            successfulCheckins: post._count.checkins,
             totalEmployees,
         })),
     });
@@ -60,6 +60,8 @@ export async function POST(request: Request) {
             thumbnailUrl: parsed.data.thumbnailUrl || null,
             description: parsed.data.description,
             scheduledAt: parsed.data.scheduledAt,
+            team: parsed.data.team || null,
+            start_at: parsed.data.start_at || new Date(),
         },
     });
 
@@ -75,3 +77,4 @@ export async function POST(request: Request) {
         { status: 201 }
     );
 }
+

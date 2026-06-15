@@ -13,10 +13,10 @@ export default async function DashboardPage() {
 
   // Count completed posts for this user
   const completedCount = userId 
-    ? await db.submission.count({
+    ? await db.checkin.count({
         where: {
           userId,
-          status: { in: ["APPROVED", "AUTO_VERIFIED"] }
+          status: { in: ["APPROVED", "AUTO_APPROVED"] }
         }
       })
     : 0;
@@ -30,7 +30,7 @@ export default async function DashboardPage() {
   const userName = session?.user?.name || "Thành viên";
 
   // Fetch recent check-ins across the entire company for the Activity Feed
-  const recentSubmissions = await db.submission.findMany({
+  const recentCheckins = await db.checkin.findMany({
     take: 5,
     orderBy: { submittedAt: 'desc' },
     include: {
@@ -43,13 +43,14 @@ export default async function DashboardPage() {
     }
   });
 
-  const activityFeed = recentSubmissions.map(sub => ({
+  const activityFeed = recentCheckins.map(sub => ({
     id: sub.id,
     userName: sub.user?.name || "Thành viên ẩn danh",
     userImage: sub.user?.image || null,
     postTitle: sub.post?.title || "Bài viết mới",
     submittedAt: sub.submittedAt.toISOString()
   }));
+
 
   return (
     <DashboardOverview 

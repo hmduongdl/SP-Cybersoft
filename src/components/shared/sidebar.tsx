@@ -16,9 +16,11 @@ export function Sidebar() {
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
     { label: "Calendar", href: "/calendar", icon: "calendar_today", adminOnly: false },
     { label: "List View", href: "/posts", icon: "list_alt", adminOnly: false },
+    { label: "Duyệt Bài", href: "/admin/queue", icon: "rate_review", adminOnly: true },
     { label: "Reports", href: "/admin/analytics", icon: "analytics", adminOnly: true },
     { label: "Admin", href: "/admin/posts", icon: "settings", adminOnly: true },
   ];
+
 
   const filteredItems = navItems.filter((item) => !item.adminOnly || role === "ADMIN");
 

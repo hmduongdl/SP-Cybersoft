@@ -13,7 +13,7 @@ export default async function PostsPage() {
   const postsFromDb = await db.post.findMany({
     orderBy: { scheduledAt: 'asc' },
     include: {
-      submissions: {
+      checkins: {
         where: { userId },
         select: { status: true },
       },
@@ -22,13 +22,11 @@ export default async function PostsPage() {
 
   // Map to frontend Post structure
   const posts = postsFromDb.map(post => {
-    // If the user has a submission, check its status
-    const userSubmission = post.submissions[0];
+    // If the user has a checkin, check its status
+    const userCheckin = post.checkins[0];
     let status = "PENDING";
     
-    if (userSubmission && userSubmission.status === "APPROVED") {
-      status = "COMPLETED";
-    } else if (userSubmission && userSubmission.status === "AUTO_VERIFIED") {
+    if (userCheckin && (userCheckin.status === "APPROVED" || userCheckin.status === "AUTO_APPROVED")) {
       status = "COMPLETED";
     }
 
@@ -43,12 +41,12 @@ export default async function PostsPage() {
     };
   });
 
-  // Fetch completed submissions across the company to build avatars for Calendar
+  // Fetch completed checkins across the company to build avatars for Calendar
   // Group by date
-  const allSubmissions = await db.submission.findMany({
+  const allCheckins = await db.checkin.findMany({
     where: {
       status: {
-        in: ["APPROVED", "AUTO_VERIFIED"],
+        in: ["APPROVED", "AUTO_APPROVED"],
       },
     },
     include: {
@@ -63,7 +61,7 @@ export default async function PostsPage() {
 
   const completedAvatarsByDate: Record<string, any[]> = {};
 
-  allSubmissions.forEach(sub => {
+  allCheckins.forEach(sub => {
     if (!sub.post || !sub.user) return;
     const dateKey = format(new Date(sub.post.scheduledAt), "yyyy-MM-dd");
     if (!completedAvatarsByDate[dateKey]) {
@@ -86,3 +84,4 @@ export default async function PostsPage() {
     </div>
   );
 }
+

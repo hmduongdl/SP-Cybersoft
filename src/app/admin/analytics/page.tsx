@@ -26,7 +26,7 @@ export default async function AnalyticsPage() {
   const posts = await db.post.findMany({
     orderBy: { scheduledAt: 'asc' },
     include: {
-      submissions: {
+      checkins: {
         select: { userId: true, status: true, submittedAt: true }
       }
     }
@@ -68,29 +68,29 @@ export default async function AnalyticsPage() {
     const isExpired = now > deadline;
     const dateKey = format(postTime, "yyyy-MM-dd");
 
-    const validSubmissions = post.submissions.filter(s => s.status === "APPROVED" || s.status === "AUTO_VERIFIED");
+    const validCheckins = post.checkins.filter(s => s.status === "APPROVED" || s.status === "AUTO_APPROVED");
     
     // Trend logic
     if (trendByDay[dateKey]) {
       trendByDay[dateKey].expected += users.length;
-      trendByDay[dateKey].actual += validSubmissions.length;
+      trendByDay[dateKey].actual += validCheckins.length;
     }
 
     if (isExpired) {
       totalCompanyExpectedShares += users.length;
-      totalCompanyActualShares += validSubmissions.length;
+      totalCompanyActualShares += validCheckins.length;
 
       postPerformance.push({
         id: post.id,
         title: post.title,
-        completionRate: (validSubmissions.length / users.length) * 100,
+        completionRate: (validCheckins.length / users.length) * 100,
         expected: users.length,
-        actual: validSubmissions.length
+        actual: validCheckins.length
       });
 
       users.forEach(u => {
         userPerformanceMap[u.id].total++;
-        const didCheckIn = validSubmissions.some(s => s.userId === u.id);
+        const didCheckIn = validCheckins.some(s => s.userId === u.id);
         if (didCheckIn) {
           userPerformanceMap[u.id].completed++;
         } else {
@@ -143,3 +143,4 @@ export default async function AnalyticsPage() {
     </div>
   );
 }
+

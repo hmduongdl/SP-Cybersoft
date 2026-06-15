@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import { PostListView } from "@/components/modules/tasks/post-list-view";
 import { PostCalendarView } from "@/components/modules/tasks/post-calendar-view";
-import { PostCheckinModal } from "@/components/modules/tasks/post-checkin-modal";
+import { SubmitCheckinModal } from "@/components/SubmitCheckinModal";
 import { LayoutList, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+
 
 export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate }: { posts: any[], completedAvatarsByDate: any }) {
   const [view, setView] = useState<"LIST" | "CALENDAR">("LIST");
@@ -72,7 +73,7 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
       )}
 
       {selectedPost && (
-        <PostCheckinModal 
+        <SubmitCheckinModal 
           post={selectedPost} 
           isOpen={!!selectedPost} 
           onClose={handleModalClose} 

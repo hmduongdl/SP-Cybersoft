@@ -15,8 +15,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Upsert submission for MANUAL
-    const submission = await db.submission.upsert({
+    // Upsert checkin for MANUAL
+    const checkin = await db.checkin.upsert({
       where: {
         userId_postId: {
           userId: session.user.id,
@@ -27,6 +27,7 @@ export async function POST(request: Request) {
         status: "PENDING",
         evidenceType: "MANUAL_SCREENSHOT",
         evidenceUrl: base64Image, // Storing base64 for mockup purposes
+        image_url: base64Image,
       },
       create: {
         userId: session.user.id,
@@ -34,10 +35,12 @@ export async function POST(request: Request) {
         status: "PENDING",
         evidenceType: "MANUAL_SCREENSHOT",
         evidenceUrl: base64Image,
+        image_url: base64Image,
       },
     });
 
-    return NextResponse.json({ success: true, submission });
+    return NextResponse.json({ success: true, submission: checkin });
+
   } catch (error: any) {
     console.error("Manual upload error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

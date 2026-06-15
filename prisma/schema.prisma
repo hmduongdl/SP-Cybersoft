@@ -12,11 +12,11 @@ enum UserRole {
   USER
 }
 
-enum SubmissionStatus {
+enum CheckinStatus {
+  AUTO_APPROVED
   PENDING
   APPROVED
   REJECTED
-  AUTO_VERIFIED
 }
 
 enum EvidenceType {
@@ -25,18 +25,20 @@ enum EvidenceType {
 }
 
 model User {
-  id          String       @id @default(cuid())
-  name        String?
-  email       String       @unique
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
   emailVerified DateTime?
-  image       String?
-  passwordHash String?
-  role        UserRole     @default(USER)
-  active      Boolean      @default(true)
-  accounts    Account[]
-  submissions Submission[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  image         String?
+  passwordHash  String?
+  role          UserRole  @default(USER)
+  active        Boolean   @default(true)
+  department    String?
+  avatar        String?
+  accounts      Account[]
+  checkins      Checkin[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Account {
@@ -60,34 +62,43 @@ model Account {
 }
 
 model Post {
-  id           String       @id @default(cuid())
+  id           String    @id @default(cuid())
   title        String
-  description  String       @db.Text
+  description  String    @db.Text
   originalUrl  String
   thumbnailUrl String?
   scheduledAt  DateTime
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  submissions  Submission[]
+  start_at     DateTime  @default(now())
+  team         String?
+  is_archived  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  checkins     Checkin[]
 
   @@index([scheduledAt])
 }
 
-model Submission {
-  id           String           @id @default(cuid())
-  userId       String
-  postId       String
-  status       SubmissionStatus @default(AUTO_VERIFIED)
-  evidenceType EvidenceType
-  evidenceUrl  String
-  submittedAt  DateTime         @default(now())
-  note         String?          @db.Text
+model Checkin {
+  id            String        @id @default(cuid())
+  userId        String        @map("user_id")
+  postId        String        @map("post_id")
+  image_url     String
+  exif_time     DateTime?
+  status        CheckinStatus @default(PENDING)
+  reject_reason String?
+  is_ai_flagged Boolean       @default(false)
+  ai_confidence Float?
+  evidenceType  EvidenceType
+  evidenceUrl   String
+  submittedAt   DateTime      @default(now())
+  note          String?       @db.Text
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
   @@index([submittedAt])
   @@index([status])
-  @@index([postId])
 }

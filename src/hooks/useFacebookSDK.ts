@@ -26,6 +26,12 @@ export function useFacebookSDK() {
       if (prevInit) prevInit();
 
       const appId = process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || "";
+      if (!appId) {
+        console.error(
+          "Facebook SDK Error: NEXT_PUBLIC_FACEBOOK_APP_ID is not defined. " +
+          "Please verify your environment variables on Vercel or in your local environment."
+        );
+      }
       window.FB.init({
         appId: appId,
         cookie: true,

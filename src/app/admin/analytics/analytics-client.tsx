@@ -27,6 +27,8 @@ export default function AnalyticsClient({
 }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   const handleSendReminder = (user: any) => {
     toast.success(`Đã gửi email nhắc nhở thành công tới ${user.name}!`);
@@ -35,7 +37,13 @@ export default function AnalyticsClient({
   const handleExportExcel = async () => {
     try {
       toast.loading("Đang xuất file Excel...", { id: "excel-export" });
-      const response = await fetch("/api/export");
+      
+      const params = new URLSearchParams();
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+      
+      const query = params.toString() ? `?${params.toString()}` : "";
+      const response = await fetch(`/api/admin/export-excel${query}`);
       if (!response.ok) throw new Error("Xuất báo cáo thất bại");
       
       const blob = await response.blob();
@@ -45,7 +53,7 @@ export default function AnalyticsClient({
       
       const date = new Date();
       const formattedDate = `${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}.${date.getFullYear()}`;
-      a.download = `${formattedDate} - Báo Cáo Công Việc Like Share.xlsx`;
+      a.download = `${formattedDate} - Bao Cao Cong Viec Like Share.xlsx`;
       
       document.body.appendChild(a);
       a.click();
@@ -194,7 +202,7 @@ export default function AnalyticsClient({
       </section>
 
       {/* Export Section */}
-      <section className="bg-surface-container-highest/20 p-lg rounded-2xl border border-primary/10 flex flex-col md:flex-row justify-between items-center gap-lg">
+      <section className="bg-surface-container-highest/20 p-lg rounded-2xl border border-primary/10 flex flex-col lg:flex-row justify-between items-center gap-lg">
         <div className="flex gap-4 items-center">
           <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-secondary">
             <span className="material-symbols-outlined text-3xl">description</span>
@@ -206,14 +214,39 @@ export default function AnalyticsClient({
             </p>
           </div>
         </div>
-        <button 
-          onClick={handleExportExcel}
-          className="bg-[#1D6F42] hover:bg-[#155331] text-white px-xl py-md rounded-xl font-title-md flex items-center gap-3 transition-all transform active:scale-95 shadow-md shadow-[#1D6F42]/20 font-semibold"
-        >
-          <span className="material-symbols-outlined">download</span>
-          Xuất file báo cáo Excel
-        </button>
+
+        {/* Date Filters & Export button */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto">
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col flex-1">
+              <label className="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Từ ngày</label>
+              <input 
+                type="date" 
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex flex-col flex-1">
+              <label className="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Đến ngày</label>
+              <input 
+                type="date" 
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+          <button 
+            onClick={handleExportExcel}
+            className="bg-[#1D6F42] hover:bg-[#155331] text-white px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all transform active:scale-95 shadow-md shadow-[#1D6F42]/10"
+          >
+            <span className="material-symbols-outlined text-[16px]">download</span>
+            Xuất Báo Cáo Excel
+          </button>
+        </div>
       </section>
+
 
       {/* User Completion Table */}
       <section className="bg-white rounded-2xl card-shadow border border-outline-variant/10 overflow-hidden">

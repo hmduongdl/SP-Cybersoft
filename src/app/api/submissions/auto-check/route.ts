@@ -62,8 +62,8 @@ export async function POST(request: Request) {
 
     // 4. Kiểm tra trùng lặp & Ghi nhận DB qua Prisma Transaction
     try {
-      const submission = await db.$transaction(async (tx) => {
-        const existing = await tx.submission.findUnique({
+      const checkin = await db.$transaction(async (tx) => {
+        const existing = await tx.checkin.findUnique({
           where: {
             userId_postId: {
               userId: session.user.id,
@@ -76,13 +76,14 @@ export async function POST(request: Request) {
           throw new Error("DUPLICATE_SUBMISSION");
         }
 
-        return tx.submission.create({
+        return tx.checkin.create({
           data: {
             userId: session.user.id,
             postId: postId,
-            status: "AUTO_VERIFIED",
+            status: "AUTO_APPROVED",
             evidenceType: "AUTO_FB",
             evidenceUrl: "FACEBOOK_AUTO_CHECK",
+            image_url: "FACEBOOK_AUTO_CHECK",
           },
         });
       });
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: "Tự động xác minh chia sẻ thành công.",
-        data: submission,
+        data: checkin,
       });
     } catch (txError: any) {
       if (txError.message === "DUPLICATE_SUBMISSION") {
@@ -101,6 +102,7 @@ export async function POST(request: Request) {
       }
       throw txError;
     }
+
   } catch (error: any) {
     console.error("Auto check error:", error);
     return NextResponse.json(

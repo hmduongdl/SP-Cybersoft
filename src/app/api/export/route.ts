@@ -11,13 +11,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch users and their submissions
+    // Fetch users and their checkins
     const users = await db.user.findMany({
       where: { role: 'USER', active: true },
       include: {
-        submissions: {
+        checkins: {
           where: {
-            status: { in: ['APPROVED', 'AUTO_VERIFIED'] }
+            status: { in: ['APPROVED', 'AUTO_APPROVED'] }
           }
         }
       }
@@ -34,17 +34,18 @@ export async function GET(request: Request) {
     // Build data rows
     const departments = ["Marketing", "Tech", "HR", "Sales"];
     const exportData = users.map((u, index) => {
-      const completed = u.submissions.length;
+      const completed = u.checkins.length;
       const missed = Math.max(0, totalExpectedPosts - completed);
       const rate = totalExpectedPosts === 0 ? 0 : (completed / totalExpectedPosts);
 
       let autoCount = 0;
       let manualCount = 0;
-      u.submissions.forEach(s => {
+      u.checkins.forEach(s => {
         if (s.evidenceType === 'AUTO_FB') autoCount++;
         else manualCount++;
       });
-      const mainMethod = u.submissions.length === 0 ? "Chưa tham gia" : (autoCount >= manualCount ? "Tự Động" : "Thủ Công");
+      const mainMethod = u.checkins.length === 0 ? "Chưa tham gia" : (autoCount >= manualCount ? "Tự Động" : "Thủ Công");
+
 
       return {
         stt: index + 1,
