@@ -1,15 +1,15 @@
 "use client";
 
 import React from "react";
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
   LineChart, Line
 } from "recharts";
-import { 
+import {
   TrendingUp, AlertTriangle, CheckCircle, BarChart3, Users, Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner";
 
 type Props = {
   totalPostsThisMonth: number;
@@ -36,7 +36,7 @@ export default function AnalyticsClient({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Toaster position="top-right" richColors />
-      
+
       {/* Header */}
       <header className="pb-4 border-b border-slate-200 dark:border-slate-800">
         <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Thống Kê & Hiệu Suất</h1>
@@ -65,9 +65,9 @@ export default function AnalyticsClient({
           <div className="flex items-end gap-3">
             <p className="text-4xl font-bold text-slate-800 dark:text-slate-100">{companyAvg.toFixed(1)}%</p>
             {companyAvg >= 80 ? (
-              <span className="text-sm text-emerald-500 font-medium flex items-center mb-1"><TrendingUp className="w-4 h-4 mr-1"/> Tốt</span>
+              <span className="text-sm text-emerald-500 font-medium flex items-center mb-1"><TrendingUp className="w-4 h-4 mr-1" /> Tốt</span>
             ) : (
-              <span className="text-sm text-amber-500 font-medium flex items-center mb-1"><AlertTriangle className="w-4 h-4 mr-1"/> Cần cải thiện</span>
+              <span className="text-sm text-amber-500 font-medium flex items-center mb-1"><AlertTriangle className="w-4 h-4 mr-1" /> Cần cải thiện</span>
             )}
           </div>
         </div>
@@ -94,7 +94,7 @@ export default function AnalyticsClient({
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Bar Chart */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6">Tỷ lệ hoàn thành theo Phòng ban</h3>
@@ -102,10 +102,10 @@ export default function AnalyticsClient({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={departmentChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dx={-10} domain={[0, 100]} />
-                <RechartsTooltip 
-                  cursor={{fill: 'rgba(241, 245, 249, 0.5)'}}
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} domain={[0, 100]} />
+                <RechartsTooltip
+                  cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
                   formatter={(value: number) => [`${value}%`, 'Tỷ lệ hoàn thành']}
                 />
@@ -126,13 +126,13 @@ export default function AnalyticsClient({
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} dx={-10} domain={[0, 100]} />
-                <RechartsTooltip 
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} domain={[0, 100]} />
+                <RechartsTooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
                   formatter={(value: number) => [`${value}%`, 'Tỷ lệ hoàn thành']}
                 />
-                <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={4} dot={{r: 6, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff'}} activeDot={{r: 8}} />
+                <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={4} dot={{ r: 6, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -150,7 +150,7 @@ export default function AnalyticsClient({
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Chi Tiết Hiệu Suất Nhân Sự</h3>
           </div>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -206,7 +206,7 @@ export default function AnalyticsClient({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       {(isRed || isAmber) ? (
-                        <button 
+                        <button
                           onClick={() => handleSendReminder(user)}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-xs font-semibold rounded-lg transition-colors"
                         >
