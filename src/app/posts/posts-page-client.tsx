@@ -1,0 +1,84 @@
+"use client";
+
+import React, { useState } from "react";
+import { PostListView } from "@/components/modules/tasks/post-list-view";
+import { PostCalendarView } from "@/components/modules/tasks/post-calendar-view";
+import { PostCheckinModal } from "@/components/modules/tasks/post-checkin-modal";
+import { LayoutList, Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Toaster } from "sonner";
+
+export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate }: { posts: any[], completedAvatarsByDate: any }) {
+  const [view, setView] = useState<"LIST" | "CALENDAR">("LIST");
+  const [posts, setPosts] = useState(initialPosts);
+  
+  const [selectedPost, setSelectedPost] = useState<any | null>(null);
+
+  const handleCheckIn = (post: any) => {
+    setSelectedPost(post);
+  };
+
+  const handleModalClose = () => {
+    setSelectedPost(null);
+  };
+
+  const handleModalSuccess = () => {
+    if (selectedPost) {
+      setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED" } : p));
+    }
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <Toaster position="top-right" richColors />
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+        <div>
+          <p className="text-sm uppercase tracking-[0.3em] text-indigo-500 dark:text-indigo-400 font-bold mb-2">Bảng tin</p>
+          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Danh Sách Bài Share</h1>
+          <p className="mt-2 text-slate-500 dark:text-slate-400 text-lg">Quản lý và cập nhật tiến độ công việc mạng xã hội.</p>
+        </div>
+
+        {/* View Toggle */}
+        <div className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-sm">
+          <button
+            onClick={() => setView("LIST")}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300",
+              view === "LIST"
+                ? "bg-white text-indigo-600 shadow-md dark:bg-slate-700 dark:text-indigo-400 scale-100"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:scale-105"
+            )}
+          >
+            <LayoutList className="w-4 h-4" /> Danh Sách
+          </button>
+          <button
+            onClick={() => setView("CALENDAR")}
+            className={cn(
+              "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300",
+              view === "CALENDAR"
+                ? "bg-white text-indigo-600 shadow-md dark:bg-slate-700 dark:text-indigo-400 scale-100"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:scale-105"
+            )}
+          >
+            <CalendarIcon className="w-4 h-4" /> Lịch Trình
+          </button>
+        </div>
+      </header>
+
+      {view === "LIST" ? (
+        <PostListView posts={posts} onCheckIn={handleCheckIn} />
+      ) : (
+        <PostCalendarView posts={posts} completedAvatarsByDate={completedAvatarsByDate} onCheckIn={handleCheckIn} />
+      )}
+
+      {selectedPost && (
+        <PostCheckinModal 
+          post={selectedPost} 
+          isOpen={!!selectedPost} 
+          onClose={handleModalClose} 
+          onSuccess={handleModalSuccess} 
+        />
+      )}
+    </div>
+  );
+}
