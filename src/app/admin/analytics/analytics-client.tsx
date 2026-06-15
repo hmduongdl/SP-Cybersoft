@@ -107,7 +107,7 @@ export default function AnalyticsClient({
                 <RechartsTooltip
                   cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-                  formatter={(value: number) => [`${value}%`, 'Tỷ lệ hoàn thành']}
+                  formatter={(value: any) => [`${value}%`, 'Tỷ lệ hoàn thành']}
                 />
                 <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={50}>
                   {departmentChartData.map((entry, index) => (
@@ -130,7 +130,7 @@ export default function AnalyticsClient({
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} domain={[0, 100]} />
                 <RechartsTooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-                  formatter={(value: number) => [`${value}%`, 'Tỷ lệ hoàn thành']}
+                  formatter={(value: any) => [`${value}%`, 'Tỷ lệ hoàn thành']}
                 />
                 <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={4} dot={{ r: 6, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
               </LineChart>

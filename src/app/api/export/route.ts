@@ -122,6 +122,7 @@ export async function GET(request: Request) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
         });
       }
+      }
 
       // Cell formatting
       dataRow.eachCell((cell, colNumber) => {
@@ -143,7 +144,8 @@ export async function GET(request: Request) {
     // Auto-fit Column Widths
     worksheet.columns.forEach((column) => {
       let maxLength = 0;
-      column.eachCell({ includeEmpty: true }, (cell) => {
+      if (column.eachCell) {
+        column.eachCell({ includeEmpty: true }, (cell) => {
         const columnLength = cell.value ? cell.value.toString().length : 10;
         if (columnLength > maxLength) {
           maxLength = columnLength;
