@@ -1,0 +1,361 @@
+<!DOCTYPE html><html class="light" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Active Posts | TeamSync HR</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#e2dfff",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#6cf8bb",
+                    "on-secondary-container": "#00714d",
+                    "tertiary-container": "#a44100",
+                    "surface-tint": "#4d44e3",
+                    "inverse-on-surface": "#eaf1ff",
+                    "primary-container": "#4f46e5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#0b1c30",
+                    "inverse-surface": "#213145",
+                    "on-tertiary-fixed": "#351000",
+                    "tertiary-fixed": "#ffdbcc",
+                    "on-primary-fixed": "#0f0069",
+                    "tertiary": "#7e3000",
+                    "surface-bright": "#f8f9ff",
+                    "surface-dim": "#cbdbf5",
+                    "outline-variant": "#c7c4d8",
+                    "on-surface": "#0b1c30",
+                    "surface": "#f8f9ff",
+                    "on-error-container": "#93000a",
+                    "error": "#ba1a1a",
+                    "primary": "#3525cd",
+                    "background": "#f8f9ff",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "on-surface-variant": "#464555",
+                    "on-secondary-fixed": "#002113",
+                    "surface-container": "#e5eeff",
+                    "outline": "#777587",
+                    "on-tertiary-container": "#ffd2be",
+                    "secondary-fixed-dim": "#4edea3",
+                    "on-secondary-fixed-variant": "#005236",
+                    "surface-container-high": "#dce9ff",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#eff4ff",
+                    "on-tertiary": "#ffffff",
+                    "secondary": "#006c49",
+                    "surface-container-highest": "#d3e4fe",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "inverse-primary": "#c3c0ff",
+                    "secondary-fixed": "#6ffbbe",
+                    "on-primary-container": "#dad7ff",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "surface-variant": "#d3e4fe",
+                    "on-tertiary-fixed-variant": "#7b2f00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "sm": "8px",
+                    "container-max": "1280px",
+                    "margin-desktop": "32px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "2xl": "48px",
+                    "3xl": "64px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "body-sm": ["Inter"],
+                    "headline-md": ["Geist"],
+                    "label-md": ["Geist"],
+                    "body-md": ["Inter"],
+                    "title-md": ["Geist"],
+                    "title-lg": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "label-sm": ["Geist"],
+                    "headline-lg-mobile": ["Geist"],
+                    "display-lg": ["Geist"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        body {
+            background-color: #f8f9ff;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #c7c4d8;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="font-body-md text-on-surface antialiased">
+<!-- SideNavBar (Shared Component) -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden md:flex flex-col bg-on-background dark:bg-on-background border-r border-outline-variant/10 shadow-xl z-50">
+<div class="flex flex-col h-full py-lg">
+<div class="px-6 mb-8">
+<div class="font-headline-md text-headline-md font-bold text-surface dark:text-surface-bright mb-1">TeamSync HR</div>
+<div class="font-label-md text-label-md text-outline-variant/60">Modern Workspace</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface dark:text-outline-variant hover:dark:text-surface-bright hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface dark:text-outline-variant hover:dark:text-surface-bright hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary bg-primary border-l-4 border-primary scale-[0.98] transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span class="font-label-md text-label-md">List View</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface dark:text-outline-variant hover:dark:text-surface-bright hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label-md text-label-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface dark:text-outline-variant hover:dark:text-surface-bright hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Admin</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<div class="bg-surface-variant/10 rounded-xl p-4 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold">
+                        JD
+                    </div>
+<div>
+<div class="font-label-md text-label-md text-surface">Jane Doe</div>
+<div class="text-[10px] text-outline-variant uppercase tracking-wider">HR Manager</div>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Shared Component) -->
+<header class="h-16 w-full sticky top-0 z-40 bg-surface dark:bg-on-background border-b border-outline-variant/20 shadow-sm md:pl-64">
+<div class="flex justify-between items-center px-lg w-full h-full">
+<div class="flex items-center flex-1">
+<div class="relative w-full max-w-md focus-within:ring-2 focus-within:ring-primary/50 rounded-lg">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant" data-icon="search">search</span>
+<input class="w-full bg-surface-container-low border-none rounded-lg py-2 pl-10 pr-4 focus:ring-0 font-body-sm text-body-sm" placeholder="Search check-ins..." type="text">
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-surface-container transition-colors relative">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<div class="h-8 w-px bg-outline-variant/30 hidden sm:block"></div>
+<div class="flex items-center gap-3 pl-2">
+<img alt="User profile avatar" class="w-8 h-8 rounded-full border border-outline-variant/20" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCX4oRffX8XBk_v6_Febk4CtuvkUM4vjLp2PQMPM70k3vwNsXCE7A4fsAX45I2BPZxS5ZSkMfvtbXGniuJ-fL1tlwcRzGsgK2lhG5B-ZyXUB34FDyUdTm73OCU5R-J25UE8z15nwih18pkb0oVv_q7K3idO4KkyXRpQ_xmOM5PNzKkcpl_X6iVHoxdlqVvcb7AT9xWr1j1NzZLGlf2a8khInA18dnP3nRHgDXHrqH3JEQiP-E25bzEdHmob-538u91S36DQNhFrTtg">
+<span class="font-label-md text-label-md hidden lg:block">Jane Doe</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 min-h-screen p-md md:p-xl lg:p-2xl">
+<!-- Header Section -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-md mb-xl">
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface mb-xs">Active Posts</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage and respond to current employee feedback cycles.</p>
+</div>
+<div class="flex flex-wrap items-center gap-sm">
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-primary text-on-primary shadow-md">All</button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-white border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors">Pending</button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-white border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors">Completed</button>
+<button class="px-4 py-2 rounded-full font-label-md text-label-md bg-white border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors">Expired</button>
+</div>
+</div>
+<!-- Bento/Grid Layout -->
+<div class="flex flex-col gap-4">
+<!-- Card 1: Pending Check-in -->
+<div class="group bg-white rounded-xl p-4 flex items-center gap-lg border border-outline-variant/20 hover:shadow-md transition-all">
+  <div class="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
+    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHRY7-51IXiTJ8GtvYGsygWPTPNo9MVDs3k2ByxSBIXZY-qVh6X3GbQBs3q7GbQl4cuPDDOE4uUPSglkG75oggJweaU3uB1cqi6s8yvlfUfw-L-E87QsBHspU6GdXoEzC6Pu22YTQbIiuKeDO4gy7LuDFvLhQeWeLtzqm2aJ-q19FdG-OQqCbRQTsN2T9gGlp3dyQu5U6yvAoVo5WyeJj8k32JNi-kUg0_Ymyb6s0PghSB-Lm3diuiGNc5YkwNR2rhf9OKSPV90LY">
+  </div>
+  <div class="flex-1 min-w-0">
+    <h3 class="font-title-md text-title-md text-on-surface truncate">Quarterly Performance Review Feedback</h3>
+    <p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 mb-2">Please share your thoughts on the new review process and suggest improvements.</p>
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-[18px]" data-icon="timer">timer</span>
+      <span class="font-label-md text-label-md text-primary countdown" data-time="64800">18:00:00</span>
+    </div>
+  </div>
+  <div class="flex flex-col items-end gap-2">
+    <span class="bg-tertiary-fixed text-on-tertiary-fixed-variant px-3 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1">
+      <span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span>
+      18h remaining
+    </span>
+    <button class="px-6 py-2 bg-primary hover:bg-primary-container text-on-primary rounded-lg font-label-md text-label-md transition-all">Submit Check-in</button>
+  </div>
+</div>
+<!-- Card 2: Completed Check-in -->
+<div class="group bg-white rounded-xl p-4 flex items-center gap-lg border border-outline-variant/20 opacity-90">
+  <div class="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0 grayscale">
+    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqQyw7OK_2C4_Twme5YepnBrdadP0cAMaJnabdOOL3op9tgXs2OyWpZW67Rfb80k_jhRwa6-dc9EbuckM8zGRcw1JJpZoLbwFV45DJ7qYuNxZzZ4O70w4Rg8iZOFzdH3ScKX19rll5q6FLPcWzrdKeC5jcV01eEWoY513cSNdPVq98whJe2XJFHtIT_6vcvtH7TcaxRIfVr503rVBjYdytFUUPULNHKVljRKXFYjaurJznBs4VhxU_06r_bDZ7wr-3kmLzkSSo2tw">
+  </div>
+  <div class="flex-1 min-w-0">
+    <h3 class="font-title-md text-title-md text-on-surface truncate">Hybrid Work Policy Pulse Check</h3>
+    <p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 mb-2">Quick 2-minute survey about the new 3-day office requirement.</p>
+    <div class="flex items-center gap-2 opacity-50">
+      <span class="material-symbols-outlined text-on-surface-variant text-[18px]" data-icon="timer">timer</span>
+      <span class="font-label-md text-label-md text-on-surface-variant">00:00:00</span>
+    </div>
+  </div>
+  <div class="flex flex-col items-end gap-2">
+    <span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1">
+      <span class="material-symbols-outlined text-[14px]" data-icon="check_circle">check_circle</span>
+      Completed
+    </span>
+    <button class="px-6 py-2 bg-surface-container-highest text-outline rounded-lg font-label-md text-label-md cursor-not-allowed" disabled="">Submitted</button>
+  </div>
+</div>
+<!-- Card 3: Urgency / Pending -->
+<div class="group bg-white rounded-xl p-4 flex items-center gap-lg border border-outline-variant/20 hover:shadow-md transition-all">
+  <div class="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
+    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUA2Q5G1ZeLIPMKKg4yNUnIaWlstfUa3fo_2KDXrzV7-6dHNaYrS6nG5t9oTXZm0-7WLQie1j-3kwBkAkOIpPeXJcmLMckVPCV7d_TVkHwb0uIZ14OUSoELD-MqEHx28rs-CY_SjlDq0I5Y0yKOElQ5F_5BQPS6YYefNITZj23R_NljUq096KWC-3vNlVbYNdcg35D1Rnyx4N_7HI8B5Pg7Vfp9jCxR1Y--PyMlLhWkeXqktk5FX4GWKj5N57x_qQZOcju6jw_gm0">
+  </div>
+  <div class="flex-1 min-w-0">
+    <h3 class="font-title-md text-title-md text-on-surface truncate">Office Catering Preferences - Q3</h3>
+    <p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 mb-2">Vote for your favorite vendors for the upcoming team lunches.</p>
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-error text-[18px]" data-icon="timer">timer</span>
+      <span class="font-label-md text-label-md text-error countdown" data-time="7200">02:00:00</span>
+    </div>
+  </div>
+  <div class="flex flex-col items-end gap-2">
+    <span class="bg-error-container text-on-error-container px-3 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1">
+      <span class="material-symbols-outlined text-[14px]" data-icon="priority_high">priority_high</span>
+      2h remaining
+    </span>
+    <button class="px-6 py-2 bg-primary hover:bg-primary-container text-on-primary rounded-lg font-label-md text-label-md transition-all">Submit Check-in</button>
+  </div>
+</div>
+<!-- Card 4: New Post -->
+<div class="group bg-white rounded-xl p-4 flex items-center gap-lg border border-outline-variant/20 hover:shadow-md transition-all">
+  <div class="w-32 h-20 rounded-lg overflow-hidden flex-shrink-0">
+    <img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtzeegxL6zERqfbU8ARolMimwg_k5HkVcoKcDGKBfgm7iWGnAtpvZebXyYdUdCsYjSR18rjvdI7ABs9L5SiU_BGxaDl7b3VZ_NxMib4nSq6AUY73MKEA3aBXX5fIY0zE4xjg_Xjb8LXpX0AvqHIDvsDDaAD9Yh-mHF7wbl87fwc_BED1bIJ8DHTYczoyBbWO19kHTapYld78VfGzP454ET5WBd_-97MfF1DsvD_u-xay6OpU3v0RkoFGMm3mRqwObvPQRQ0rLtEsI">
+  </div>
+  <div class="flex-1 min-w-0">
+    <h3 class="font-title-md text-title-md text-on-surface truncate">Team Building Activity Poll</h3>
+    <p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 mb-2">Select your preferred activity for the August off-site event.</p>
+    <div class="flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary text-[18px]" data-icon="timer">timer</span>
+      <span class="font-label-md text-label-md text-primary countdown" data-time="169200">47:00:00</span>
+    </div>
+  </div>
+  <div class="flex flex-col items-end gap-2">
+    <span class="bg-primary-fixed text-on-primary-fixed-variant px-3 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1">
+      <span class="material-symbols-outlined text-[14px]" data-icon="new_releases">new_releases</span>
+      47h remaining
+    </span>
+    <button class="px-6 py-2 bg-primary hover:bg-primary-container text-on-primary rounded-lg font-label-md text-label-md transition-all">Submit Check-in</button>
+  </div>
+</div>
+<!-- Empty State / Add New (Visual placeholder) -->
+<div class="border-2 border-dashed border-outline-variant/50 rounded-xl flex items-center p-4 gap-lg group cursor-pointer hover:border-primary hover:bg-primary/5 transition-all">
+  <div class="w-32 h-20 rounded-lg bg-surface-container flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
+    <span class="material-symbols-outlined text-outline group-hover:text-primary" data-icon="add" style="font-size: 32px;">add</span>
+  </div>
+  <div class="flex-1">
+    <div class="font-title-md text-title-md text-on-surface-variant">Create New Post</div>
+    <div class="font-label-sm text-label-sm text-outline">Available for Admin only</div>
+  </div>
+</div>
+</div>
+<!-- Pagination / Load More -->
+<div class="mt-2xl flex justify-center">
+<button class="flex items-center gap-2 px-6 py-3 rounded-xl border border-outline-variant font-label-md text-label-md text-on-surface-variant hover:bg-white hover:shadow-md transition-all">
+                Load more active posts
+                <span class="material-symbols-outlined" data-icon="expand_more">expand_more</span>
+</button>
+</div>
+</main>
+<script>
+        // Micro-interaction: Countdown Timer Logic
+        function updateCountdowns() {
+            const timers = document.querySelectorAll('.countdown');
+            timers.forEach(timer => {
+                let seconds = parseInt(timer.getAttribute('data-time'));
+                if (seconds > 0) {
+                    seconds--;
+                    timer.setAttribute('data-time', seconds);
+                    
+                    const h = Math.floor(seconds / 3600).toString().padStart(2, '0');
+                    const m = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
+                    const s = (seconds % 60).toString().padStart(2, '0');
+                    
+                    timer.innerText = `${h}:${m}:${s}`;
+                }
+            });
+        }
+
+        setInterval(updateCountdowns, 1000);
+
+        // Sidebar active state logic (handled by style_active_navigation already in HTML)
+        // This is just a placeholder for potential interactive filtering
+        const filters = document.querySelectorAll('button[class*="rounded-full"]');
+        filters.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filters.forEach(b => {
+                    b.classList.remove('bg-primary', 'text-on-primary', 'shadow-md');
+                    b.classList.add('bg-white', 'border', 'border-outline-variant', 'text-on-surface-variant');
+                });
+                btn.classList.add('bg-primary', 'text-on-primary', 'shadow-md');
+                btn.classList.remove('bg-white', 'border', 'border-outline-variant', 'text-on-surface-variant');
+            });
+        });
+    </script>
+
+
+</body></html>

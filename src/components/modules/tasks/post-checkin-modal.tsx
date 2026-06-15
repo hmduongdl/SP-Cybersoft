@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useRef } from "react";
-import { X, Facebook, UploadCloud, Loader2, CheckCircle2, Image as ImageIcon } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
 import { useFacebookSDK, sharePost } from "@/hooks/useFacebookSDK";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { differenceInSeconds, format } from "date-fns";
+import { vi } from "date-fns/locale";
 
 type Post = {
   id: string;
@@ -32,6 +33,72 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Time remaining states
+  const [timeLeft, setTimeLeft] = useState("24:00:00");
+  const [elapsedPercentage, setElapsedPercentage] = useState(0);
+  const [isExpired, setIsExpired] = useState(false);
+  const [deadlineText, setDeadlineText] = useState("");
+
+  // Fetch colleague avatars dynamically for the post's date
+  const [colleagueAvatars, setColleagueAvatars] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Reset preview
+    setPreviewImage(null);
+
+    // Calculate deadline
+    const scheduled = new Date(post.scheduledAt);
+    const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
+    setDeadlineText(format(deadline, "dd MMM, hh:mm a", { locale: vi }));
+
+    const calculateTimer = () => {
+      const now = new Date();
+      const diffSeconds = differenceInSeconds(deadline, now);
+
+      if (diffSeconds <= 0) {
+        setIsExpired(true);
+        setTimeLeft("00:00:00");
+        setElapsedPercentage(100);
+        return;
+      }
+
+      const h = Math.floor(diffSeconds / 3600);
+      const m = Math.floor((diffSeconds % 3600) / 60);
+      const s = diffSeconds % 60;
+      setTimeLeft(
+        `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+      );
+
+      // Percentage of 24 hours elapsed
+      const elapsed = 24 * 60 * 60 - diffSeconds;
+      const pct = Math.min(100, Math.max(0, (elapsed / (24 * 60 * 60)) * 100));
+      setElapsedPercentage(Math.round(pct));
+      setIsExpired(false);
+    };
+
+    calculateTimer();
+    const interval = setInterval(calculateTimer, 1000);
+
+    // Fetch colleague submissions
+    const fetchSubmissions = async () => {
+      try {
+        const dateKey = format(scheduled, "yyyy-MM-dd");
+        const res = await fetch(`/api/submissions/auto-check?date=${dateKey}`);
+        if (res.ok) {
+          const data = await res.json();
+          setColleagueAvatars(data.colleagues || []);
+        }
+      } catch (e) {
+        console.error("Lỗi khi tải danh sách đồng nghiệp check-in", e);
+      }
+    };
+    fetchSubmissions();
+
+    return () => clearInterval(interval);
+  }, [isOpen, post.scheduledAt]);
+
   if (!isOpen) return null;
 
   // AUTO FLOW
@@ -40,10 +107,10 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
       setIsAutoChecking(true);
       if (!loaded) throw new Error("Facebook SDK chưa được tải xong. Vui lòng thử lại sau giây lát.");
       
-      // Open Share Dialog
+      // Open Facebook Share Dialog
       await sharePost(post.originalUrl);
       
-      toast.loading("Đang tự động xác minh lượt chia sẻ...", { id: "fb-verify" });
+      const toastId = toast.loading("Đang tự động xác minh lượt chia sẻ...", { id: "fb-verify" });
       
       const res = await fetch("/api/submissions/auto-check", {
         method: "POST",
@@ -51,14 +118,17 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
         body: JSON.stringify({ postId: post.id })
       });
       
-      if (!res.ok) throw new Error("Lỗi cập nhật trên server");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Không tìm thấy lượt chia sẻ công khai của bạn cho bài viết này.");
+      }
       
-      toast.success("Xác minh thành công rực rỡ! Bạn đã check-in thành công.", { id: "fb-verify" });
+      toast.success("Xác minh thành công! Bạn đã check-in thành công.", { id: "fb-verify" });
       onSuccess();
       onClose();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Hành động chia sẻ bị hủy hoặc có lỗi xảy ra.", { id: "fb-verify" });
+      toast.error(err.message || "Hành động chia sẻ bị hủy hoặc không thể xác minh lượt chia sẻ.", { id: "fb-verify" });
     } finally {
       setIsAutoChecking(false);
     }
@@ -72,12 +142,12 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
   };
 
   const processFile = (file: File) => {
-    if (!["image/jpeg", "image/png"].includes(file.type)) {
-      toast.error("Chỉ hỗ trợ định dạng JPG hoặc PNG.");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Chỉ hỗ trợ định dạng JPG, PNG hoặc WEBP.");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Dung lượng ảnh phải dưới 5MB.");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Dung lượng ảnh phải dưới 10MB.");
       return;
     }
 
@@ -109,7 +179,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
     if (!previewImage) return;
     try {
       setIsManualUploading(true);
-      toast.loading("Đang tải ảnh lên...", { id: "manual-upload" });
+      toast.loading("Đang gửi minh chứng...", { id: "manual-upload" });
       
       const res = await fetch("/api/submissions/manual", {
         method: "POST",
@@ -117,9 +187,12 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
         body: JSON.stringify({ postId: post.id, base64Image: previewImage })
       });
 
-      if (!res.ok) throw new Error("Lỗi cập nhật trên server");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Gửi minh chứng thất bại");
+      }
       
-      toast.success("Đã gửi minh chứng thành công! Vui lòng chờ Admin duyệt.", { id: "manual-upload" });
+      toast.success("Đã gửi minh chứng thành công! Vui lòng chờ Admin phê duyệt.", { id: "manual-upload" });
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -131,72 +204,74 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-on-background/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in">
+      {/* Modal Container */}
+      <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative border border-outline-variant/20 animate-in zoom-in-95 duration-200">
         
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-          <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Xác minh Check-in</h3>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Close Button */}
+        <button 
+          className="absolute top-4 right-4 text-outline hover:text-on-surface transition-colors z-30" 
+          onClick={onClose}
+        >
+          <span className="material-symbols-outlined">close</span>
+        </button>
 
-        <div className="p-6 overflow-y-auto max-h-[80vh] space-y-8">
-          
-          {/* Post Info */}
-          <div className="flex gap-4">
-            <div className="w-24 h-24 shrink-0 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-              {post.thumbnailUrl ? (
-                <img src={post.thumbnailUrl} alt={post.title} className="w-full h-full object-cover" />
-              ) : (
-                <ImageIcon className="w-8 h-8 text-slate-400" />
-              )}
-            </div>
-            <div className="flex flex-col gap-1">
-              <h4 className="text-lg font-bold text-slate-900 dark:text-white line-clamp-2">{post.title}</h4>
-              <a href={post.originalUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-indigo-500 hover:text-indigo-600 underline line-clamp-1 break-all">
-                {post.originalUrl}
+        {/* Left: Main Content Area */}
+        <div className="flex-1 p-xl md:p-3xl border-r border-outline-variant/10 max-h-[85vh] overflow-y-auto">
+          {/* Header */}
+          <div className="mb-2xl pr-6">
+            <div className="flex items-center gap-sm mb-sm flex-wrap">
+              <h3 className="font-headline-md text-headline-md text-on-surface">{post.title}</h3>
+              <a 
+                href={post.originalUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-primary hover:bg-primary/10 p-1 rounded-md transition-all flex items-center"
+              >
+                <span className="material-symbols-outlined text-[20px]">open_in_new</span>
               </a>
-              {post.description && (
-                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg mt-2 border border-amber-100 dark:border-amber-800/30">
-                  <span className="font-semibold">Lời nhắn:</span> {post.description}
-                </p>
-              )}
+            </div>
+            
+            <div className="bg-surface-container-low p-md rounded-xl border border-outline-variant/20 flex items-start gap-md mt-md">
+              <span className="material-symbols-outlined text-primary mt-0.5">info</span>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                <span className="font-bold">Yêu cầu từ Admin:</span> {post.description || "Hãy share bài viết công khai kèm hashtag chung của chiến dịch nội bộ."}
+              </p>
             </div>
           </div>
 
-          <div className="w-full h-px bg-slate-100 dark:bg-slate-800" />
-
-          {/* Action Buttons */}
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Action Sections */}
+          <div className="space-y-lg">
             
-            {/* Auto FB Checkin */}
-            <div className="flex flex-col gap-4">
-              <div className="space-y-1">
-                <h5 className="font-semibold text-slate-800 dark:text-slate-200">1. Chia sẻ tự động</h5>
-                <p className="text-xs text-slate-500">Hệ thống sẽ bật popup chia sẻ và tự động kiểm tra.</p>
+            {/* Auto Action (Facebook share) */}
+            <div className="p-lg bg-[#1877F2]/5 rounded-2xl border border-[#1877F2]/10 flex flex-col gap-md">
+              <div>
+                <h4 className="font-title-md text-title-md text-on-surface flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[#1877F2] text-[20px]">bolt</span>
+                  Cách 1: Chia sẻ & Tự động duyệt qua Facebook
+                </h4>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  Kích hoạt popup chia sẻ trực tiếp của Facebook. Hệ thống sẽ kiểm tra và phê duyệt ngay lập tức.
+                </p>
               </div>
-              <button
-                onClick={handleAutoCheckin}
-                disabled={isAutoChecking || isManualUploading}
-                className="w-full py-4 px-6 rounded-2xl font-semibold flex items-center justify-center gap-3 text-white transition-all hover:-translate-y-0.5 shadow-lg shadow-blue-500/30 bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-50 disabled:hover:translate-y-0"
+              <button 
+                onClick={handleAutoCheckin} 
+                disabled={isAutoChecking || isManualUploading || isExpired}
+                className="w-full bg-[#1877F2] text-white hover:bg-[#166FE5] py-3.5 rounded-xl font-label-md text-label-md font-bold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isAutoChecking ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Facebook className="w-6 h-6 fill-white" />
-                )}
-                Chia sẻ & Tự động Duyệt
+                <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                </svg>
+                {isAutoChecking ? "Đang xác minh..." : "Chia sẻ & Tự động Duyệt (Facebook)"}
               </button>
             </div>
 
-            {/* Manual Upload Checkin */}
-            <div className="flex flex-col gap-4">
-              <div className="space-y-1">
-                <h5 className="font-semibold text-slate-800 dark:text-slate-200">2. Hoặc tải lên thủ công</h5>
-                <p className="text-xs text-slate-500">Nếu nút tự động lỗi, hãy tải ảnh chụp màn hình.</p>
-              </div>
+            {/* Manual Action (Upload Image) */}
+            <div>
+              <h4 className="font-title-md text-title-md text-on-surface mb-sm flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-outline text-[20px]">backup</span>
+                Cách 2: Tải lên minh chứng thủ công (Dự phòng)
+              </h4>
               
               {!previewImage ? (
                 <div
@@ -205,43 +280,118 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
-                    "w-full h-32 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors group",
-                    isDragging ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20" : "border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 hover:border-indigo-400"
+                    "dashed-border min-h-[180px] flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-low transition-colors p-xl text-center group rounded-2xl",
+                    isDragging ? "bg-primary/5 border-primary" : "border-outline-variant/30"
                   )}
                 >
-                  <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-indigo-500 transition-colors" />
-                  <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Nhấn chọn ảnh hoặc Kéo thả</span>
-                  <span className="text-xs text-slate-400">JPG, PNG (Tối đa 5MB)</span>
-                  <input type="file" ref={fileInputRef} className="hidden" accept="image/jpeg, image/png" onChange={handleFileChange} />
+                  <div className="w-14 h-14 bg-primary-fixed/30 rounded-full flex items-center justify-center mb-md group-hover:scale-110 transition-transform">
+                    <span className="material-symbols-outlined text-primary text-3xl">cloud_upload</span>
+                  </div>
+                  <p className="font-title-md text-title-md text-on-surface mb-xs">Kéo thả ảnh chụp màn hình vào đây hoặc click để chọn</p>
+                  <p className="font-body-sm text-body-sm text-outline">Định dạng hỗ trợ: JPG, PNG, WEBP (Tối đa 10MB)</p>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/jpeg, image/png, image/webp" 
+                    onChange={handleFileChange} 
+                  />
                 </div>
               ) : (
-                <div className="relative w-full h-32 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-slate-100 group">
-                  <img src={previewImage} alt="Preview" className="w-full h-full object-contain" />
-                  <button
-                    onClick={() => setPreviewImage(null)}
-                    className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                  <div className="absolute inset-0 border-2 border-indigo-500 rounded-2xl pointer-events-none" />
-                </div>
-              )}
+                <div className="space-y-md">
+                  <div className="relative group rounded-2xl overflow-hidden border border-outline-variant/30 bg-slate-50 flex items-center justify-center">
+                    <img alt="Screenshot preview" className="max-h-[200px] object-contain" src={previewImage}/>
+                    <div className="absolute inset-0 bg-on-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-md">
+                      <button 
+                        className="bg-error text-white px-lg py-2 rounded-lg flex items-center gap-2 font-semibold hover:bg-error-container" 
+                        onClick={() => setPreviewImage(null)}
+                      >
+                        <span className="material-symbols-outlined">delete</span>
+                        <span>Gỡ bỏ</span>
+                      </button>
+                    </div>
+                  </div>
 
-              {previewImage && (
-                <button
-                  onClick={handleManualSubmit}
-                  disabled={isAutoChecking || isManualUploading}
-                  className="w-full py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 text-white bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all disabled:opacity-50 shadow-md"
-                >
-                  {isManualUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                  Gửi xác minh thủ công
-                </button>
+                  <button 
+                    onClick={handleManualSubmit}
+                    disabled={isManualUploading || isExpired}
+                    className="w-full bg-primary hover:bg-primary-container text-white py-3 rounded-xl font-label-md text-label-md font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                  >
+                    {isManualUploading ? "Đang gửi..." : "Gửi minh chứng để phê duyệt"}
+                  </button>
+                </div>
               )}
             </div>
 
           </div>
+        </div>
+
+        {/* Right: Sidebar Info */}
+        <div className="w-full md:w-72 bg-surface-container-low p-xl flex flex-col gap-2xl justify-between border-l border-outline-variant/10">
+          
+          {/* Expiration Timer widget */}
+          <div className="space-y-md">
+            <div className="flex items-center gap-sm text-on-surface">
+              <span className="material-symbols-outlined text-primary">schedule</span>
+              <span className="font-label-md text-label-md uppercase tracking-wider font-bold">Thời hạn check-in</span>
+            </div>
+            
+            <div className="bg-on-background rounded-2xl p-lg text-center shadow-lg border border-primary/20">
+              <div className="font-display-lg text-3xl font-bold text-secondary tracking-tight">
+                {isExpired ? "00:00:00" : timeLeft}
+              </div>
+              <p className="font-label-sm text-[10px] text-surface-variant mt-xs uppercase tracking-wide">Giờ : Phút : Giây còn lại</p>
+            </div>
+            
+            <div>
+              <div className="h-2 w-full bg-outline-variant/20 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "h-full rounded-full transition-all duration-1000",
+                    elapsedPercentage >= 90 ? "bg-error" : elapsedPercentage >= 75 ? "bg-tertiary" : "bg-secondary"
+                  )} 
+                  style={{ width: `${elapsedPercentage}%` }}
+                />
+              </div>
+              <p className="font-body-sm text-[11px] text-outline-variant mt-sm">Đã trôi qua {elapsedPercentage}% thời gian (mốc 24h)</p>
+            </div>
+          </div>
+
+          {/* Submissions Stats */}
+          <div className="space-y-lg">
+            <div>
+              <span className="font-label-sm text-[11px] text-outline block mb-xs font-semibold">Đồng nghiệp đã check-in</span>
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-2.5 overflow-hidden">
+                  {colleagueAvatars.slice(0, 3).map((a, idx) => (
+                    <img 
+                      key={idx} 
+                      alt={a.name} 
+                      title={a.name} 
+                      className="h-7 w-7 rounded-full border-2 border-surface-container-low object-cover" 
+                      src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} 
+                    />
+                  ))}
+                  {colleagueAvatars.length > 3 && (
+                    <div className="h-7 w-7 rounded-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-bold text-[9px] text-primary">
+                      +{colleagueAvatars.length - 3}
+                    </div>
+                  )}
+                </div>
+                <span className="font-body-sm text-body-sm text-on-surface-variant italic">
+                  {colleagueAvatars.length > 0 ? `${colleagueAvatars.length} đồng nghiệp hoàn thành` : "Chưa ai check-in"}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-md bg-surface-bright rounded-xl border border-outline-variant/30">
+              <p className="font-label-sm text-xs text-outline mb-xs font-semibold">Hạn chót</p>
+              <p className="font-title-md text-sm text-on-surface font-bold">{deadlineText}</p>
+            </div>
+          </div>
 
         </div>
+
       </div>
     </div>
   );

@@ -1,13 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
   LineChart, Line
 } from "recharts";
-import {
-  TrendingUp, AlertTriangle, CheckCircle, BarChart3, Users, Mail
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast, Toaster } from "sonner";
 
@@ -28,90 +25,130 @@ export default function AnalyticsClient({
   trendChartData,
   userPerformanceList
 }: Props) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const handleSendReminder = (user: any) => {
-    toast.success(`Đã gửi email nhắc nhở tới ${user.name}!`);
+    toast.success(`Đã gửi email nhắc nhở thành công tới ${user.name}!`);
   };
 
+  const handleExportExcel = async () => {
+    try {
+      toast.loading("Đang xuất file Excel...", { id: "excel-export" });
+      const response = await fetch("/api/export");
+      if (!response.ok) throw new Error("Xuất báo cáo thất bại");
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      
+      const date = new Date();
+      const formattedDate = `${String(date.getMonth() + 1).padStart(2, "0")}.${String(date.getDate()).padStart(2, "0")}.${date.getFullYear()}`;
+      a.download = `${formattedDate} - Báo Cáo Công Việc Like Share.xlsx`;
+      
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success("Tải báo cáo Excel thành công!", { id: "excel-export" });
+    } catch (e: any) {
+      toast.error(e.message || "Có lỗi xảy ra khi xuất báo cáo", { id: "excel-export" });
+    }
+  };
+
+  // Pagination calculations
+  const totalEmployees = userPerformanceList.length;
+  const totalPages = Math.ceil(totalEmployees / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedEmployees = userPerformanceList.slice(startIndex, startIndex + itemsPerPage);
+
+  const pendingUsersCount = userPerformanceList.filter(u => u.rate < 90).length;
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-lg animate-in fade-in duration-300">
       <Toaster position="top-right" richColors />
 
-      {/* Header */}
-      <header className="pb-4 border-b border-slate-200 dark:border-slate-800">
-        <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Thống Kê & Hiệu Suất</h1>
-        <p className="mt-2 text-slate-500 dark:text-slate-400">Đánh giá hiệu suất chia sẻ bài viết của toàn bộ nhân sự</p>
-      </header>
+      {/* Breadcrumbs */}
+      <nav className="flex gap-2 text-label-sm text-outline text-xs">
+        <span>Dashboard</span>
+        <span>/</span>
+        <span className="text-primary font-semibold">Reports & Analytics</span>
+      </nav>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">Tổng bài viết tháng này</h3>
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-xl">
-              <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
+      {/* KPI Cards Section */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-lg">
+        {/* Card 1: Total Posts */}
+        <div className="bg-white p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-transform duration-300 border border-outline-variant/10">
+          <div>
+            <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Tổng bài viết tháng này</p>
+            <h3 className="font-headline-lg text-headline-lg text-primary">{totalPostsThisMonth}</h3>
+            <p className="font-label-sm text-label-sm text-secondary flex items-center gap-1 mt-2 text-xs font-semibold">
+              <span className="material-symbols-outlined text-[16px]">trending_up</span>
+              +12% so với tháng trước
+            </p>
           </div>
-          <p className="text-4xl font-bold text-slate-800 dark:text-slate-100">{totalPostsThisMonth}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">Tỷ lệ hoàn thành công ty</h3>
-            <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-xl">
-              <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-            </div>
-          </div>
-          <div className="flex items-end gap-3">
-            <p className="text-4xl font-bold text-slate-800 dark:text-slate-100">{companyAvg.toFixed(1)}%</p>
-            {companyAvg >= 80 ? (
-              <span className="text-sm text-emerald-500 font-medium flex items-center mb-1"><TrendingUp className="w-4 h-4 mr-1" /> Tốt</span>
-            ) : (
-              <span className="text-sm text-amber-500 font-medium flex items-center mb-1"><AlertTriangle className="w-4 h-4 mr-1" /> Cần cải thiện</span>
-            )}
+          <div className="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary">
+            <span className="material-symbols-outlined text-3xl">post_add</span>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm flex flex-col justify-between h-40 overflow-hidden">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-slate-500 dark:text-slate-400">Bài viết tương tác kém nhất</h3>
-            <div className="p-2 bg-rose-50 dark:bg-rose-900/30 rounded-xl">
-              <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+        {/* Card 2: Company Completion */}
+        <div className="bg-white p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-transform duration-300 border border-outline-variant/10">
+          <div className="flex-grow pr-2">
+            <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Tỷ lệ hoàn thành công ty</p>
+            <h3 className="font-headline-lg text-headline-lg text-on-surface">{companyAvg.toFixed(1)}%</h3>
+            <div className="w-full bg-surface-container-high h-2 rounded-full mt-3 overflow-hidden">
+              <div className="bg-secondary h-full rounded-full" style={{ width: `${companyAvg}%` }}></div>
             </div>
           </div>
-          <div className="space-y-2 overflow-y-auto pr-2 scrollbar-thin">
-            {worstPosts.length > 0 ? worstPosts.map((post, idx) => (
-              <div key={post.id} className="flex items-center justify-between">
-                <p className="text-xs font-medium text-slate-700 dark:text-slate-300 line-clamp-1 flex-1 pr-2">{idx + 1}. {post.title}</p>
-                <span className="text-xs font-bold text-rose-500 bg-rose-50 dark:bg-rose-900/20 px-2 py-0.5 rounded-md">{post.completionRate.toFixed(0)}%</span>
-              </div>
-            )) : (
-              <p className="text-sm text-slate-400 italic">Chưa có dữ liệu</p>
-            )}
+          <div className="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
+            <span className="material-symbols-outlined text-3xl">verified</span>
           </div>
         </div>
-      </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Card 3: Pending Users */}
+        <div className="bg-error-container p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-transform duration-300 border border-outline-variant/10">
+          <div>
+            <p className="font-label-sm text-label-sm text-on-error-container mb-1 uppercase tracking-wider text-xs">Nhân sự chưa đạt chỉ tiêu</p>
+            <h3 className="font-headline-lg text-headline-lg text-on-error-container">{pendingUsersCount}</h3>
+            <p className="font-label-sm text-label-sm text-on-error-container/80 flex items-center gap-1 mt-2 text-xs font-semibold">
+              <span className="material-symbols-outlined text-[16px]">warning</span>
+              Cần gửi thông báo nhắc nhở
+            </p>
+          </div>
+          <div className="w-12 h-12 rounded-xl bg-on-error flex items-center justify-center text-error">
+            <span className="material-symbols-outlined text-3xl">group_off</span>
+          </div>
+        </div>
+      </section>
 
-        {/* Bar Chart */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6">Tỷ lệ hoàn thành theo Phòng ban</h3>
-          <div className="h-72">
+      {/* Charts Section (Bento Style) */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+        {/* Department Completion Chart */}
+        <div className="bg-white p-lg rounded-2xl card-shadow border border-outline-variant/10">
+          <div className="flex justify-between items-center mb-xl">
+            <div>
+              <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Hiệu suất phòng ban</h4>
+              <p className="font-label-sm text-label-sm text-on-surface-variant">Tỷ lệ hoàn thành thực tế theo nhóm</p>
+            </div>
+            <button className="p-2 hover:bg-surface-container rounded-lg flex items-center justify-center">
+              <span className="material-symbols-outlined text-on-surface-variant">more_vert</span>
+            </button>
+          </div>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={departmentChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} domain={[0, 100]} />
+              <BarChart data={departmentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} domain={[0, 100]} />
                 <RechartsTooltip
                   cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
                   formatter={(value: any) => [`${value}%`, 'Tỷ lệ hoàn thành']}
                 />
-                <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={50}>
+                <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={40}>
                   {departmentChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.rate < 70 ? '#ef4444' : entry.rate < 90 ? '#f59e0b' : '#10b981'} />
+                    <Cell key={`cell-${index}`} fill={entry.rate < 70 ? '#ba1a1a' : entry.rate < 90 ? '#7e3000' : '#006c49'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -119,117 +156,177 @@ export default function AnalyticsClient({
           </div>
         </div>
 
-        {/* Line Chart */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 mb-6">Xu hướng Check-in Tuần này</h3>
-          <div className="h-72">
+        {/* Weekly Engagement Trends */}
+        <div className="bg-white p-lg rounded-2xl card-shadow border border-outline-variant/10 overflow-hidden">
+          <div className="flex justify-between items-center mb-xl">
+            <div>
+              <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Xu hướng Check-in tuần</h4>
+              <p className="font-label-sm text-label-sm text-on-surface-variant">Thống kê tỷ lệ thành công theo các ngày</p>
+            </div>
+            <div className="flex gap-2">
+              <span className="flex items-center gap-1 text-[10px] text-outline font-semibold">
+                <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span> Tỉ lệ
+              </span>
+            </div>
+          </div>
+          <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={trendChartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} dx={-10} domain={[0, 100]} />
+              <LineChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} domain={[0, 100]} />
                 <RechartsTooltip
                   contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
-                  formatter={(value: any) => [`${value}%`, 'Tỷ lệ hoàn thành']}
+                  formatter={(value: any) => [`${value}%`, 'Tỷ lệ check-in']}
                 />
-                <Line type="monotone" dataKey="rate" stroke="#4f46e5" strokeWidth={4} dot={{ r: 6, fill: '#4f46e5', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+                <Line 
+                  type="monotone" 
+                  dataKey="rate" 
+                  stroke="#3525cd" 
+                  strokeWidth={4} 
+                  dot={{ r: 5, fill: '#3525cd', strokeWidth: 2, stroke: '#fff' }} 
+                  activeDot={{ r: 7 }} 
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
+      </section>
 
-      </div>
-
-      {/* User Performance Table */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg">
-              <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Chi Tiết Hiệu Suất Nhân Sự</h3>
+      {/* Export Section */}
+      <section className="bg-surface-container-highest/20 p-lg rounded-2xl border border-primary/10 flex flex-col md:flex-row justify-between items-center gap-lg">
+        <div className="flex gap-4 items-center">
+          <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-secondary">
+            <span className="material-symbols-outlined text-3xl">description</span>
+          </div>
+          <div>
+            <h4 className="font-title-md text-title-md text-on-surface font-bold">Dữ liệu báo cáo sẵn sàng</h4>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Tải báo cáo chi tiết hiệu suất check-in của nhân viên định dạng Excel chuyên nghiệp.
+            </p>
           </div>
         </div>
+        <button 
+          onClick={handleExportExcel}
+          className="bg-[#1D6F42] hover:bg-[#155331] text-white px-xl py-md rounded-xl font-title-md flex items-center gap-3 transition-all transform active:scale-95 shadow-md shadow-[#1D6F42]/20 font-semibold"
+        >
+          <span className="material-symbols-outlined">download</span>
+          Xuất file báo cáo Excel
+        </button>
+      </section>
 
+      {/* User Completion Table */}
+      <section className="bg-white rounded-2xl card-shadow border border-outline-variant/10 overflow-hidden">
+        <div className="p-lg border-b border-outline-variant/10 flex justify-between items-center">
+          <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Chi tiết hiệu suất nhân sự</h4>
+        </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800/50">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nhân viên</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Phòng ban</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Nhiệm vụ</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Hoàn thành</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Bỏ lỡ</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Tỷ lệ</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Hành động</th>
+          <table className="w-full text-left">
+            <thead className="bg-surface-container-low">
+              <tr>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold">Thành viên</th>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold">Bộ phận</th>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold text-center">Nhiệm vụ</th>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold text-center">Hoàn thành</th>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold text-center">Bỏ lỡ</th>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold text-center">Tỷ lệ</th>
+                <th className="px-lg py-md font-label-md text-on-surface-variant font-bold text-right">Hành động</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {userPerformanceList.map((user) => {
+            <tbody className="divide-y divide-outline-variant/10">
+              {paginatedEmployees.map((user) => {
                 const isRed = user.rate < 70;
                 const isAmber = user.rate >= 70 && user.rate < 90;
-                const isGreen = user.rate >= 90;
+                
+                let rateBadgeClass = "bg-emerald-50 text-emerald-700";
+                if (isRed) {
+                  rateBadgeClass = "bg-rose-50 text-rose-700";
+                } else if (isAmber) {
+                  rateBadgeClass = "bg-amber-50 text-amber-700";
+                }
 
                 return (
-                  <tr key={user.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={user.id} className={cn("hover:bg-surface-container/30 transition-colors", isRed && "bg-rose-50/10")}>
+                    <td className="px-lg py-md">
                       <div className="flex items-center gap-3">
-                        <img src={user.image} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{user.name}</span>
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container border border-outline-variant/20">
+                          {user.image ? (
+                            <img className="w-full h-full object-cover" src={user.image} alt={user.name} />
+                          ) : (
+                            <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                              {user.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-title-md text-on-surface font-semibold">{user.name}</p>
+                          <p className="font-label-sm text-outline text-xs">{user.email}</p>
+                        </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-medium rounded-lg">
-                        {user.department}
+                    <td className="px-lg py-md font-body-sm text-on-surface-variant">{user.department}</td>
+                    <td className="px-lg py-md font-body-sm text-on-surface text-center">{user.total}</td>
+                    <td className="px-lg py-md font-body-sm text-emerald-600 font-bold text-center">{user.completed}</td>
+                    <td className="px-lg py-md font-body-sm text-rose-600 font-bold text-center">{user.missed}</td>
+                    <td className="px-lg py-md text-center">
+                      <span className={cn("px-2.5 py-1 rounded-lg text-xs font-bold", rateBadgeClass)}>
+                        {user.rate.toFixed(1)}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center font-medium text-slate-600 dark:text-slate-400">
-                      {user.total}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center font-bold text-emerald-600 dark:text-emerald-400">
-                      {user.completed}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center font-bold text-rose-500 dark:text-rose-400">
-                      {user.missed}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <div className="flex justify-center items-center">
-                        <span className={cn(
-                          "px-3 py-1 rounded-full text-xs font-bold",
-                          isRed && "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-                          isAmber && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                          isGreen && "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                        )}>
-                          {user.rate.toFixed(0)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <td className="px-lg py-md text-right">
                       {(isRed || isAmber) ? (
-                        <button
+                        <button 
                           onClick={() => handleSendReminder(user)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-xs font-semibold rounded-lg transition-colors"
+                          className="text-error font-bold hover:underline font-label-md text-xs flex items-center gap-1 ml-auto"
                         >
-                          <Mail className="w-3.5 h-3.5" /> Nhắc nhở
+                          <span className="material-symbols-outlined text-[16px]">campaign</span>
+                          Nhắc nhở
                         </button>
                       ) : (
-                        <span className="text-xs text-slate-400 italic">Đạt yêu cầu</span>
+                        <span className="text-outline-variant text-xs italic">Đạt chỉ tiêu</span>
                       )}
                     </td>
                   </tr>
-                )
+                );
               })}
-              {userPerformanceList.length === 0 && (
+
+              {totalEmployees === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-slate-500 italic">
-                    Chưa có dữ liệu nhân sự.
+                  <td colSpan={7} className="px-lg py-10 text-center text-on-surface-variant italic font-body-sm">
+                    Chưa có nhân sự nào trong hệ thống.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-      </div>
+
+        {/* Table Pagination */}
+        {totalEmployees > itemsPerPage && (
+          <div className="p-lg bg-surface-container-low flex justify-between items-center border-t border-outline-variant/10">
+            <p className="font-label-sm text-outline text-xs">
+              Hiển thị {startIndex + 1} - {Math.min(startIndex + itemsPerPage, totalEmployees)} trên {totalEmployees} nhân viên
+            </p>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 border border-outline-variant rounded-lg hover:bg-white disabled:opacity-50 flex items-center justify-center transition-all bg-white"
+              >
+                <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+              </button>
+              <button 
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 border border-outline-variant rounded-lg hover:bg-white disabled:opacity-50 flex items-center justify-center transition-all bg-white"
+              >
+                <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+
     </div>
   );
 }

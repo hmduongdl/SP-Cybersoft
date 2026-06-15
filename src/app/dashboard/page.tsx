@@ -1,16 +1,63 @@
+import { db } from "@/lib/db";
+import { auth } from "@/auth";
 import { DashboardOverview } from "@/components/modules/dashboard/dashboard-overview";
 
-export default function DashboardPage() {
-  return (
-    <div className="space-y-6">
-      <header className="flex flex-col gap-3 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-400">Bảng điều khiển</p>
-          <h1 className="mt-3 text-3xl font-semibold text-white">Tổng quan công việc</h1>
-        </div>
-      </header>
+export const dynamic = "force-dynamic";
 
-      <DashboardOverview />
-    </div>
+export default async function DashboardPage() {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  // Count total posts in system
+  const totalPostsCount = await db.post.count();
+
+  // Count completed posts for this user
+  const completedCount = userId 
+    ? await db.submission.count({
+        where: {
+          userId,
+          status: { in: ["APPROVED", "AUTO_VERIFIED"] }
+        }
+      })
+    : 0;
+
+  // Pending posts = total posts - completed
+  const pendingCount = Math.max(0, totalPostsCount - completedCount);
+
+  // Calculate total points (e.g. 100 points per completed check-in)
+  const totalPoints = completedCount * 100;
+
+  const userName = session?.user?.name || "Thành viên";
+
+  // Fetch recent check-ins across the entire company for the Activity Feed
+  const recentSubmissions = await db.submission.findMany({
+    take: 5,
+    orderBy: { submittedAt: 'desc' },
+    include: {
+      user: {
+        select: { name: true, image: true }
+      },
+      post: {
+        select: { title: true }
+      }
+    }
+  });
+
+  const activityFeed = recentSubmissions.map(sub => ({
+    id: sub.id,
+    userName: sub.user?.name || "Thành viên ẩn danh",
+    userImage: sub.user?.image || null,
+    postTitle: sub.post?.title || "Bài viết mới",
+    submittedAt: sub.submittedAt.toISOString()
+  }));
+
+  return (
+    <DashboardOverview 
+      userName={userName}
+      pendingCount={pendingCount}
+      completedCount={completedCount}
+      totalPoints={totalPoints}
+      activityFeed={activityFeed}
+    />
   );
 }

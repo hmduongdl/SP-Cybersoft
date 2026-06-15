@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Kinetic HR - Create New Post</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Geist:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "inverse-primary": "#c3c0ff",
+                        "outline-variant": "#c7c4d8",
+                        "surface-container": "#e5eeff",
+                        "surface-container-low": "#eff4ff",
+                        "inverse-surface": "#213145",
+                        "on-secondary-container": "#00714d",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-tertiary-container": "#ffd2be",
+                        "on-secondary-fixed-variant": "#005236",
+                        "surface-variant": "#d3e4fe",
+                        "on-primary-fixed": "#0f0069",
+                        "error": "#ba1a1a",
+                        "on-background": "#0b1c30",
+                        "background": "#f8f9ff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "on-error-container": "#93000a",
+                        "outline": "#777587",
+                        "inverse-on-surface": "#eaf1ff",
+                        "tertiary": "#7e3000",
+                        "surface-container-high": "#dce9ff",
+                        "secondary-fixed": "#6ffbbe",
+                        "on-tertiary": "#ffffff",
+                        "surface-tint": "#4d44e3",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "on-tertiary-fixed": "#351000",
+                        "surface": "#f8f9ff",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "surface-container-highest": "#d3e4fe",
+                        "surface-dim": "#cbdbf5",
+                        "primary": "#3525cd",
+                        "on-surface-variant": "#464555",
+                        "on-secondary-fixed": "#002113",
+                        "surface-container-lowest": "#ffffff",
+                        "primary-fixed": "#e2dfff",
+                        "primary-container": "#4f46e5",
+                        "secondary-container": "#6cf8bb",
+                        "on-primary-container": "#dad7ff",
+                        "on-error": "#ffffff",
+                        "on-surface": "#0b1c30",
+                        "error-container": "#ffdad6",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#a44100",
+                        "surface-bright": "#f8f9ff",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#7b2f00",
+                        "secondary-fixed-dim": "#4edea3",
+                        "secondary": "#006c49"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1280px",
+                        "margin-desktop": "32px",
+                        "3xl": "64px",
+                        "xs": "4px",
+                        "md": "16px",
+                        "xl": "32px",
+                        "sm": "8px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px",
+                        "lg": "24px",
+                        "2xl": "48px",
+                        "base": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Geist"],
+                        "display-lg": ["Geist"],
+                        "body-sm": ["Inter"],
+                        "title-lg": ["Geist"],
+                        "label-sm": ["Geist"],
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Geist"],
+                        "label-md": ["Geist"],
+                        "title-md": ["Geist"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, .font-geist { font-family: 'Geist', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+<!-- Sidebar (Shared Components Navigation) -->
+<aside class="fixed left-0 top-0 h-full flex flex-col z-40 bg-inverse-surface dark:bg-surface-container-lowest docked h-full w-64 shadow-2xl">
+<div class="px-lg py-xl">
+<h1 class="font-headline-md text-headline-md font-black text-white">Kinetic HR</h1>
+<p class="text-outline-variant font-label-md text-label-md opacity-80">HR Intelligence</p>
+</div>
+<nav class="flex-1 px-md space-y-sm">
+<a class="flex items-center gap-md text-outline-variant p-md hover:bg-surface-variant/10 hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-md text-outline-variant p-md hover:bg-surface-variant/10 hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+<a class="flex items-center gap-md text-outline-variant p-md hover:bg-surface-variant/10 hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">format_list_bulleted</span>
+<span class="font-label-md text-label-md">List View</span>
+</a>
+<a class="flex items-center gap-md text-outline-variant p-md hover:bg-surface-variant/10 hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">assessment</span>
+<span class="font-label-md text-label-md">Reports</span>
+</a>
+<a class="flex items-center gap-md bg-primary text-on-primary rounded-lg border-l-4 border-secondary-fixed p-md shadow-lg scale-105" href="#">
+<span class="material-symbols-outlined">admin_panel_settings</span>
+<span class="font-label-md text-label-md">Admin</span>
+</a>
+</nav>
+<div class="mt-auto px-md py-xl space-y-sm border-t border-white/10">
+<a class="flex items-center gap-md text-outline-variant p-md hover:bg-surface-variant/10 hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-label-md text-label-md">Settings</span>
+</a>
+<a class="flex items-center gap-md text-outline-variant p-md hover:bg-surface-variant/10 hover:text-white transition-all rounded-lg" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="font-label-md text-label-md">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 p-3xl max-w-7xl mx-auto">
+<!-- Header & Breadcrumbs -->
+<header class="mb-2xl">
+<nav aria-label="Breadcrumb" class="flex items-center text-label-sm text-outline mb-sm">
+<span class="hover:text-primary cursor-pointer transition-colors">Admin</span>
+<span class="material-symbols-outlined text-[16px] mx-xs">chevron_right</span>
+<span class="hover:text-primary cursor-pointer transition-colors">Posts</span>
+<span class="material-symbols-outlined text-[16px] mx-xs">chevron_right</span>
+<span class="text-on-surface font-semibold">Create New Post</span>
+</nav>
+<div class="flex justify-between items-end">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-background">Create New Post</h2>
+<p class="text-body-md text-on-surface-variant mt-xs">Schedule and publish company-wide announcements.</p>
+</div>
+<div class="flex gap-md">
+<button class="px-xl py-md rounded-lg border border-slate-200 text-on-surface font-semibold hover:bg-surface-container-low transition-all">Save Draft</button>
+<button class="px-xl py-md rounded-lg bg-primary text-on-primary font-semibold shadow-lg hover:opacity-90 active:scale-95 transition-all">Publish Post</button>
+</div>
+</div>
+</header>
+<!-- Main Form Grid (Bento Layout) -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- LEFT COLUMN: Post Content & Media -->
+<div class="col-span-8 space-y-gutter">
+<!-- Section: Post Content -->
+<section class="bg-white rounded-2xl p-lg shadow-sm">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-primary">edit_note</span>
+<h3 class="font-title-lg text-title-lg">Post Content</h3>
+</div>
+<div class="space-y-lg">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs">Post Title</label>
+<input class="w-full bg-white border border-slate-200 rounded-lg px-md py-md focus:border-primary focus:ring-3 focus:ring-primary-container/20 transition-all outline-none" placeholder="e.g., Q3 Town Hall Highlights" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs">Post URL / Link</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline-variant">link</span>
+<input class="w-full bg-white border border-slate-200 rounded-lg pl-3xl pr-md py-md focus:border-primary focus:ring-3 focus:ring-primary-container/20 transition-all outline-none" placeholder="https://internal.kinetic.hr/posts/..." type="url"/>
+</div>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs">Brief Description / Instructions</label>
+<textarea class="w-full bg-white border border-slate-200 rounded-lg px-md py-md focus:border-primary focus:ring-3 focus:ring-primary-container/20 transition-all outline-none resize-none" placeholder="Tell employees why this post matters..." rows="4"></textarea>
+</div>
+</div>
+</section>
+<!-- Section: Media Upload -->
+<section class="bg-white rounded-2xl p-lg shadow-sm">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-primary">image</span>
+<h3 class="font-title-lg text-title-lg">Post Thumbnail</h3>
+</div>
+<div class="border-2 border-dashed border-outline-variant rounded-2xl p-3xl flex flex-col items-center justify-center bg-surface-container-lowest hover:bg-surface-container-low transition-colors cursor-pointer group">
+<div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-md group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-[32px]">cloud_upload</span>
+</div>
+<p class="font-title-md text-title-md text-on-background">Drag and drop your media here</p>
+<p class="text-label-sm text-on-surface-variant mt-xs">Support for PNG, JPG, or MP4 up to 50MB (16:9 recommended)</p>
+<button class="mt-lg px-lg py-sm bg-white border border-slate-200 rounded-lg font-label-md text-label-md shadow-sm hover:border-primary transition-colors">Browse Files</button>
+</div>
+</section>
+</div>
+<!-- RIGHT COLUMN: Scheduling & Targeting -->
+<div class="col-span-4 space-y-gutter">
+<!-- Section: Scheduling -->
+<section class="bg-white rounded-2xl p-lg shadow-sm border border-transparent hover:border-primary-container/30 transition-all">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-primary">schedule</span>
+<h3 class="font-title-lg text-title-lg">Scheduling</h3>
+</div>
+<!-- Validation Message -->
+<div class="mb-lg p-md bg-primary-container/10 border border-primary-container/20 rounded-xl flex gap-md">
+<span class="material-symbols-outlined text-primary">info</span>
+<p class="text-label-sm text-primary leading-tight">
+                            Note: System policy allows maximum of <strong>2 posts</strong> per day to maintain high engagement levels.
+                        </p>
+</div>
+<div class="space-y-lg">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs">Start Date</label>
+<input class="w-full bg-white border border-slate-200 rounded-lg px-md py-md focus:border-primary transition-all outline-none" type="date"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-xs">Start Time (24h Clock)</label>
+<input class="w-full bg-white border border-slate-200 rounded-lg px-md py-md focus:border-primary transition-all outline-none" type="time"/>
+</div>
+<div class="flex items-center gap-sm pt-sm">
+<input class="rounded text-primary focus:ring-primary h-4 w-4" id="auto-archive" type="checkbox"/>
+<label class="text-label-sm text-on-surface-variant" for="auto-archive">Auto-archive after 24 hours</label>
+</div>
+</div>
+</section>
+<!-- Section: Targeting -->
+<section class="bg-white rounded-2xl p-lg shadow-sm">
+<div class="flex items-center gap-sm mb-lg">
+<span class="material-symbols-outlined text-primary">groups</span>
+<h3 class="font-title-lg text-title-lg">Targeting</h3>
+</div>
+<div class="space-y-md">
+<p class="text-label-sm text-on-surface-variant">Select which teams or groups will receive this post.</p>
+<div class="space-y-sm">
+<label class="flex items-center justify-between p-md border border-slate-200 rounded-xl hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">language</span>
+<span class="font-label-md text-label-md">All Employees</span>
+</div>
+<input checked="" class="rounded text-primary focus:ring-primary h-5 w-5" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-md border border-slate-200 rounded-xl hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">code</span>
+<span class="font-label-md text-label-md">Tech Team</span>
+</div>
+<input class="rounded text-primary focus:ring-primary h-5 w-5" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-md border border-slate-200 rounded-xl hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">trending_up</span>
+<span class="font-label-md text-label-md">Sales &amp; Revenue</span>
+</div>
+<input class="rounded text-primary focus:ring-primary h-5 w-5" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-md border border-slate-200 rounded-xl hover:bg-surface-container-low cursor-pointer transition-colors">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-on-surface-variant">campaign</span>
+<span class="font-label-md text-label-md">Marketing</span>
+</div>
+<input class="rounded text-primary focus:ring-primary h-5 w-5" type="checkbox"/>
+</label>
+</div>
+</div>
+</section>
+</div>
+</div>
+<!-- Section: Post Management Table (Separate Card Below) -->
+<section class="mt-2xl bg-white rounded-2xl shadow-sm overflow-hidden border border-slate-100">
+<div class="p-lg border-b border-slate-100 flex justify-between items-center">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary">list_alt</span>
+<h3 class="font-title-lg text-title-lg">Recent &amp; Scheduled Posts</h3>
+</div>
+<div class="flex gap-sm">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline text-sm">search</span>
+<input class="pl-xl pr-md py-sm bg-surface-container-lowest border border-slate-200 rounded-full text-sm outline-none focus:border-primary transition-all" placeholder="Search posts..." type="text"/>
+</div>
+<button class="p-sm hover:bg-surface-container-low rounded-lg transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Thumbnail</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Post Title</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Start Date</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant">Target Groups</th>
+<th class="px-lg py-md font-label-md text-label-md text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100">
+<!-- Table Row 1 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors group">
+<td class="px-lg py-md">
+<div class="w-16 h-10 rounded-lg bg-slate-200 overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="A cinematic, wide-angle shot of a modern office meeting room with a large screen displaying business data. The lighting is soft and corporate, with a clean and professional color palette of muted blues and warm wood tones. The atmosphere is focused and collaborative, perfectly representing the Q3 Town Hall theme of a tech-forward HR platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAafsKPRmYGxqkiSG5_30hx74zPybTb_nrhKj0QY86mrXOvtBXwNg6ugTWqTyb4N3HVDDzMAzjCrsgRuRjy5X42cLieczVUMP_v87UptJil9eVp8lZ6xUMzVUVctDvRvhG1i2_NY5luOML3_4gyS2-o1CEx-KdSD_PEU92EGBuHoqyi1ENHppABt6yBPbvAuptxervhpn_hNUbCgac81QOxr0g6-EFc6shX5qGM4uqH5McCJtJLx35oucZFZKoI3eXM_xnI43FGro0"/>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="font-title-md text-on-background group-hover:text-primary transition-colors">Q3 Performance Update</span>
+</td>
+<td class="px-lg py-md">
+<div class="flex flex-col">
+<span class="text-body-md">Oct 12, 2023</span>
+<span class="text-label-sm text-outline">09:00 AM</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="flex flex-wrap gap-xs">
+<span class="px-md py-xs bg-secondary-container/20 text-on-secondary-container text-label-sm rounded-full">All Teams</span>
+</div>
+</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-sm">
+<button class="p-sm hover:bg-primary/10 hover:text-primary rounded-full transition-all">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-sm hover:bg-error/10 hover:text-error rounded-full transition-all">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Table Row 2 -->
+<tr class="hover:bg-surface-container-low/50 transition-colors group">
+<td class="px-lg py-md">
+<div class="w-16 h-10 rounded-lg bg-slate-200 overflow-hidden relative">
+<img class="w-full h-full object-cover" data-alt="A vibrant and energetic scene of tech developers working together on a complex coding project in a modern, open-plan workspace. The lighting is bright and inspiring, with accents of indigo and emerald reflecting the kinetic HR brand. High-resolution textures and a soft shallow depth of field create a premium SaaS aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8erdhxN2vzHlIlSj9_n_dCuY6pxBIlItO2HXnsTxB2xBrNzV_dY1G7BwOQqaZrz3H8aTInkH_aOOAJCfPX9TzfUGYS4IgRVbyVfFI0vAxR_Vrz7hTEDaAZIM3WjpQNSRuikBSi9ozczrw6fXKoBi_9otgYMOm0q37Mtkq8OvdasUewNj2nhtcDj1KGWMq2Nu4L0OEReEHtso69nveVf2cqO4yalhtKqcwUl6XNKhB9LNLiGERtjQWRuXpjw-VlvMC1hzGFRImtN4"/>
+</div>
+</td>
+<td class="px-lg py-md">
+<span class="font-title-md text-on-background group-hover:text-primary transition-colors">Tech Team Hackathon</span>
+</td>
+<td class="px-lg py-md">
+<div class="flex flex-col">
+<span class="text-body-md">Oct 14, 2023</span>
+<span class="text-label-sm text-outline">10:30 AM</span>
+</div>
+</td>
+<td class="px-lg py-md">
+<div class="flex flex-wrap gap-xs">
+<span class="px-md py-xs bg-primary-container/10 text-primary text-label-sm rounded-full">Tech</span>
+<span class="px-md py-xs bg-tertiary-fixed text-on-tertiary-fixed-variant text-label-sm rounded-full">Design</span>
+</div>
+</td>
+<td class="px-lg py-md text-right">
+<div class="flex justify-end gap-sm">
+<button class="p-sm hover:bg-primary/10 hover:text-primary rounded-full transition-all">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-sm hover:bg-error/10 hover:text-error rounded-full transition-all">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-lg py-md bg-surface-container-lowest border-t border-slate-100 flex items-center justify-between">
+<span class="text-label-sm text-on-surface-variant">Showing 2 of 24 posts</span>
+<div class="flex gap-sm">
+<button class="p-xs rounded border border-slate-200 hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined text-sm">chevron_left</span></button>
+<button class="p-xs rounded border border-slate-200 hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined text-sm">chevron_right</span></button>
+</div>
+</div>
+</section>
+</main>
+<!-- Micro-interaction Scripts -->
+<script>
+        // Simple visual feedback for form focus
+        document.querySelectorAll('input, textarea, select').forEach(el => {
+            el.addEventListener('focus', () => {
+                el.closest('section')?.classList.add('ring-1', 'ring-primary/20', 'border-primary/20');
+            });
+            el.addEventListener('blur', () => {
+                el.closest('section')?.classList.remove('ring-1', 'ring-primary/20', 'border-primary/20');
+            });
+        });
+
+        // Date picker default
+        const today = new Date().toISOString().split('T')[0];
+        document.querySelector('input[type="date"]').value = today;
+
+        // Button hover lift effect
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => {
+            btn.addEventListener('mouseenter', () => {
+                if(!btn.classList.contains('active:scale-95')) {
+                    btn.style.transform = 'translateY(-1px)';
+                }
+            });
+            btn.addEventListener('mouseleave', () => {
+                btn.style.transform = 'translateY(0)';
+            });
+        });
+    </script>
+</body></html>

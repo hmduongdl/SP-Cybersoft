@@ -2,54 +2,53 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, LayoutList, BarChart3, Settings, X, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useLayout } from "./layout-context";
+import { useSession } from "next-auth/react";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen, role, setRole } = useLayout();
+  const { data: session } = useSession();
 
   const navItems = [
-    { label: "Tổng quan", href: "/dashboard", icon: Home, adminOnly: false },
-    { label: "Lịch Công Việc", href: "/calendar", icon: Calendar, adminOnly: false },
-    { label: "Danh Sách Bài Share", href: "/posts", icon: LayoutList, adminOnly: false },
-    { label: "Báo Cáo Chi Tiết", href: "/admin/reports", icon: BarChart3, adminOnly: true },
-    { label: "Quản Lý Bài Viết", href: "/admin/posts", icon: Settings, adminOnly: true },
+    { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
+    { label: "Calendar", href: "/calendar", icon: "calendar_today", adminOnly: false },
+    { label: "List View", href: "/posts", icon: "list_alt", adminOnly: false },
+    { label: "Reports", href: "/admin/analytics", icon: "analytics", adminOnly: true },
+    { label: "Admin", href: "/admin/posts", icon: "settings", adminOnly: true },
   ];
 
   const filteredItems = navItems.filter((item) => !item.adminOnly || role === "ADMIN");
 
+  const userDisplayName = session?.user?.name || (role === "ADMIN" ? "Administrator" : "Thành viên Demo");
+  const userRoleText = role === "ADMIN" ? "System Admin" : (session?.user?.role || "Team Member");
+  const userImage = session?.user?.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuDVv15Bee8DJDvdJp7cpaPdeO-dM2zHY2Q33pS0dIsrjihSBeFazi0lQN1AAC3ImyUbK5iu2s-BPPmVwFOVNoRTzCBbi3_DQ3jEJ7fP8NVuUl7jI2jKRDfMW15Ha2ucfjU1J3F5Ihoe1nWV8p-7DRlMbZDXm4wJeeijJhj1uLseEUvqXTxtv5sU9Lw254bmA9DgqRk2X77CnFr2zeg3rAoPW__HJ-lq5ZOaxX3H1wQozGI7oI25yKP2yqfEWyEN3R-7Dng-UdPUbXs";
+
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-200 border-r border-slate-800/80">
-      {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800/80">
+    <div className="flex flex-col h-full bg-on-background border-r border-outline-variant/10 shadow-xl py-lg">
+      {/* Brand Logo Area */}
+      <div className="px-lg mb-3xl flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-base">
-            KS
-          </div>
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-headline-md">TS</div>
           <div>
-            <h1 className="font-semibold text-sm leading-tight text-white">Kinetic HR</h1>
-            <p className="text-[10px] text-slate-400">Share Check-in Shell</p>
+            <h1 className="font-headline-md text-headline-md font-bold text-surface">TeamSync HR</h1>
+            <p className="font-label-sm text-label-sm text-outline-variant">Modern Workspace</p>
           </div>
         </div>
-        
         {/* Close Button on Mobile */}
         <button
-          className="md:hidden p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition"
+          className="md:hidden p-1 rounded-lg hover:bg-white/10 text-outline-variant hover:text-white transition"
           onClick={() => setSidebarOpen(false)}
         >
-          <X className="h-5 w-5" />
+          <span className="material-symbols-outlined">close</span>
         </button>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto">
-        <p className="px-3 text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">
-          Menu chính
-        </p>
-        {filteredItems.map(({ label, href, icon: Icon }) => {
+      {/* Navigation Links */}
+      <nav className="flex-grow space-y-1">
+        {filteredItems.map(({ label, href, icon }) => {
           const isActive = pathname === href || pathname.startsWith(href + "/");
           return (
             <Link
@@ -58,44 +57,55 @@ export function Sidebar() {
               onClick={() => setSidebarOpen(false)}
               className={twMerge(
                 clsx(
-                  "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 group relative",
+                  "flex items-center gap-3 px-4 py-3 transition-all duration-200",
                   isActive
-                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/15"
-                    : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                    ? "text-on-primary bg-primary border-l-4 border-primary sidebar-active scale-[0.98]"
+                    : "text-surface-variant hover:text-white hover:bg-primary/20"
                 )
               )}
             >
-              <Icon className={twMerge(clsx("h-5 w-5 transition-transform duration-200 group-hover:scale-105", isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"))} />
-              <span>{label}</span>
-              {isActive && (
-                <span className="absolute left-0 top-1/3 bottom-1/3 w-1 bg-white rounded-r" />
-              )}
+              <span className="material-symbols-outlined">{icon}</span>
+              <span className="font-label-md text-label-md">{label}</span>
             </Link>
           );
         })}
       </nav>
 
-      {/* Admin/User Role Simulation Switcher in Sidebar (Developer helper) */}
-      <div className="p-4 border-t border-slate-800/80 bg-slate-950/40">
-        <div className="flex flex-col gap-2 rounded-xl bg-slate-900/60 border border-slate-800 p-3">
+      {/* Admin/User Role Switcher in Sidebar (Developer helper) */}
+      <div className="px-lg my-md">
+        <div className="flex flex-col gap-2 rounded-xl bg-surface/5 border border-outline-variant/10 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400">Chế độ giả lập:</span>
-            {role === "ADMIN" ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
-                <ShieldCheck className="h-3 w-3" /> Admin
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400 border border-blue-500/20">
-                <ShieldAlert className="h-3 w-3" /> User
-              </span>
-            )}
+            <span className="text-[11px] font-semibold text-outline-variant">Role Sim:</span>
+            <span className={clsx(
+              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border",
+              role === "ADMIN" 
+                ? "bg-secondary-container/20 text-secondary border-secondary/20" 
+                : "bg-primary-fixed/20 text-primary-fixed border-primary-fixed/30"
+            )}>
+              {role}
+            </span>
           </div>
           <button
             onClick={() => setRole(role === "ADMIN" ? "USER" : "ADMIN")}
-            className="mt-1 w-full rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-[11px] py-1.5 px-2 font-medium transition"
+            className="w-full rounded-lg bg-surface/10 hover:bg-surface/20 text-white text-[11px] py-1 px-2 font-medium transition"
           >
-            Đổi sang {role === "ADMIN" ? "User" : "Admin"}
+            Switch to {role === "ADMIN" ? "User" : "Admin"}
           </button>
+        </div>
+      </div>
+
+      {/* User Context */}
+      <div className="px-lg mt-auto">
+        <div className="flex items-center gap-3 p-3 bg-surface/5 rounded-xl">
+          <img 
+            alt="User profile avatar" 
+            className="w-10 h-10 rounded-full border border-outline-variant/20 object-cover" 
+            src={userImage}
+          />
+          <div className="overflow-hidden">
+            <p className="font-label-md text-label-md text-surface truncate">{userDisplayName}</p>
+            <p className="font-label-sm text-label-sm text-outline-variant truncate">{userRoleText}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -103,8 +113,8 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop Sidebar (Permanent, width 260px) */}
-      <aside className="hidden md:block w-[260px] h-screen sticky top-0 flex-shrink-0 z-20">
+      {/* Desktop Sidebar (Permanent, width 256px) */}
+      <aside className="hidden md:flex w-64 h-screen fixed left-0 top-0 flex-col z-50">
         {sidebarContent}
       </aside>
 
@@ -119,7 +129,7 @@ export function Sidebar() {
       >
         {/* Backdrop overlay */}
         <div
-          className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-on-background/60 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
         
@@ -127,7 +137,7 @@ export function Sidebar() {
         <aside
           className={twMerge(
             clsx(
-              "absolute top-0 bottom-0 left-0 w-[260px] shadow-2xl transition-transform duration-300 ease-in-out transform",
+              "absolute top-0 bottom-0 left-0 w-64 shadow-2xl transition-transform duration-300 ease-in-out transform",
               sidebarOpen ? "translate-x-0" : "-translate-x-full"
             )
           )}

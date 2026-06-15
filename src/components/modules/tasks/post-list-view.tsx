@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Clock, Lock, CheckCircle2, AlertCircle } from "lucide-react";
-import { formatDistanceToNow, differenceInSeconds } from "date-fns";
+import { differenceInSeconds } from "date-fns";
 import { cn } from "@/lib/utils";
 
 type Post = {
@@ -15,10 +14,10 @@ type Post = {
   status: "PENDING" | "COMPLETED" | "EXPIRED";
 };
 
-const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => void }) => {
-  const [timeLeft, setTimeLeft] = useState("");
+const PostRowCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => void }) => {
+  const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [isExpired, setIsExpired] = useState(false);
-  const [urgency, setUrgency] = useState<"normal" | "amber" | "red">("normal");
+  const [remainingHours, setRemainingHours] = useState(24);
 
   useEffect(() => {
     const calculateTime = () => {
@@ -30,24 +29,19 @@ const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => 
       if (diffSeconds <= 0) {
         setIsExpired(true);
         setTimeLeft("00:00:00");
-        setUrgency("red");
+        setRemainingHours(0);
         return;
       }
 
       const h = Math.floor(diffSeconds / 3600);
       const m = Math.floor((diffSeconds % 3600) / 60);
       const s = diffSeconds % 60;
+      
       setTimeLeft(
         `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
       );
-
-      if (diffSeconds < 3600) {
-        setUrgency("red");
-      } else if (diffSeconds < 6 * 3600) {
-        setUrgency("amber");
-      } else {
-        setUrgency("normal");
-      }
+      setRemainingHours(h);
+      setIsExpired(false);
     };
 
     calculateTime();
@@ -56,89 +50,110 @@ const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => 
   }, [post.scheduledAt]);
 
   const isCompleted = post.status === "COMPLETED";
-  const disabled = isCompleted || isExpired;
+
+  // Determine badge styling based on completion, expiration, and urgency
+  let badgeClass = "bg-primary-fixed text-on-primary-fixed-variant";
+  let badgeIcon = "new_releases";
+  let badgeText = `${remainingHours}h còn lại`;
+
+  if (isCompleted) {
+    badgeClass = "bg-secondary-container text-on-secondary-container";
+    badgeIcon = "check_circle";
+    badgeText = "Hoàn thành";
+  } else if (isExpired) {
+    badgeClass = "bg-error-container text-on-error-container";
+    badgeIcon = "lock";
+    badgeText = "Quá hạn 24h";
+  } else if (remainingHours <= 2) {
+    badgeClass = "bg-error-container text-on-error-container animate-pulse";
+    badgeIcon = "priority_high";
+    badgeText = "Gấp! Còn 2h";
+  } else if (remainingHours <= 6) {
+    badgeClass = "bg-tertiary-fixed text-on-tertiary-fixed-variant";
+    badgeIcon = "schedule";
+    badgeText = "Sắp hết hạn";
+  }
+
+  // Timer color
+  let timerTextClass = "text-primary";
+  let timerIcon = "timer";
+  if (isCompleted) {
+    timerTextClass = "text-on-surface-variant opacity-50";
+  } else if (isExpired) {
+    timerTextClass = "text-error";
+    timerIcon = "lock";
+  } else if (remainingHours <= 2) {
+    timerTextClass = "text-error font-bold";
+  }
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl bg-white/70 backdrop-blur-md border border-white/20 shadow-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl dark:bg-slate-900/70 dark:border-slate-800">
+    <div className={cn(
+      "group bg-white rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center gap-lg border border-outline-variant/20 hover:shadow-md transition-all duration-300",
+      isCompleted && "opacity-90"
+    )}>
       {/* Thumbnail */}
-      <div className="relative aspect-video w-full overflow-hidden bg-slate-200 dark:bg-slate-800">
+      <div className={cn(
+        "w-full md:w-32 h-36 md:h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container-low border border-outline-variant/10",
+        isCompleted && "grayscale"
+      )}>
         {post.thumbnailUrl ? (
-          <img
-            src={post.thumbnailUrl}
+          <img 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+            src={post.thumbnailUrl} 
             alt={post.title}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-400">
+          <div className="w-full h-full flex items-center justify-center bg-primary/5 text-primary text-xs font-semibold">
             No Image
-          </div>
-        )}
-        {/* Status Badge Overlays */}
-        {isCompleted && (
-          <div className="absolute top-3 right-3 bg-emerald-500/90 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm shadow-sm">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Đã hoàn thành
-          </div>
-        )}
-        {isExpired && !isCompleted && (
-          <div className="absolute top-3 right-3 bg-rose-500/90 text-white px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 backdrop-blur-sm shadow-sm">
-            <Lock className="w-3.5 h-3.5" /> Quá hạn
           </div>
         )}
       </div>
 
-      <div className="p-5 flex flex-col gap-4">
-        {/* Content */}
-        <div>
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 line-clamp-2 leading-tight">
-            {post.title}
-          </h3>
-          {post.description && (
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400 line-clamp-2 italic border-l-2 border-indigo-200 dark:border-indigo-800 pl-2">
-              "{post.description}"
-            </p>
-          )}
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <h3 className="font-title-md text-title-md text-on-surface truncate group-hover:text-primary transition-colors">
+          {post.title}
+        </h3>
+        <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-1 mb-2">
+          {post.description || "Hãy thực hiện chia sẻ bài viết này lên mạng xã hội và check-in."}
+        </p>
+        <div className="flex items-center gap-2">
+          <span className={cn("material-symbols-outlined text-[18px]", timerTextClass)}>{timerIcon}</span>
+          <span className={cn("font-label-md text-label-md", timerTextClass)}>
+            {isCompleted ? "00:00:00" : timeLeft}
+          </span>
         </div>
+      </div>
 
-        {/* Countdown Timer */}
-        {!isCompleted && (
-          <div
-            className={cn(
-              "flex items-center gap-2 text-sm font-medium p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 transition-colors",
-              urgency === "normal" && "text-emerald-600 dark:text-emerald-400",
-              urgency === "amber" && "text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20",
-              urgency === "red" && "text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 animate-pulse"
-            )}
+      {/* Action / Badges */}
+      <div className="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto gap-2 pt-2 md:pt-0 border-t md:border-t-0 border-outline-variant/10">
+        <span className={cn("px-3 py-1 rounded-full font-label-sm text-label-sm flex items-center gap-1", badgeClass)}>
+          <span className="material-symbols-outlined text-[14px]">{badgeIcon}</span>
+          {badgeText}
+        </span>
+        
+        {isCompleted ? (
+          <button 
+            className="px-6 py-2 bg-surface-container-highest text-outline rounded-lg font-label-md text-label-md cursor-not-allowed" 
+            disabled
           >
-            <Clock className="w-4 h-4" />
-            <span>Còn lại: {timeLeft}</span>
-          </div>
+            Đã check-in
+          </button>
+        ) : isExpired ? (
+          <button 
+            className="px-6 py-2 bg-surface-container-highest text-outline rounded-lg font-label-md text-label-md cursor-not-allowed" 
+            disabled
+          >
+            Đã khóa
+          </button>
+        ) : (
+          <button 
+            onClick={() => onCheckIn(post)}
+            className="px-6 py-2 bg-primary hover:bg-primary-container text-white rounded-lg font-label-md text-label-md transition-all active:scale-95 shadow-sm hover:shadow"
+          >
+            Check-in
+          </button>
         )}
-
-        {/* Action Button */}
-        <button
-          disabled={disabled}
-          onClick={() => onCheckIn(post)}
-          className={cn(
-            "mt-auto w-full py-2.5 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center gap-2 focus:ring-2 focus:ring-offset-2",
-            isCompleted
-              ? "bg-slate-100 text-emerald-600 cursor-not-allowed dark:bg-slate-800 dark:text-emerald-500"
-              : isExpired
-              ? "bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800"
-              : "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98] focus:ring-indigo-500"
-          )}
-        >
-          {isCompleted ? (
-            <>
-              <CheckCircle2 className="w-5 h-5" /> Đã hoàn thành
-            </>
-          ) : isExpired ? (
-            <>
-              <Lock className="w-5 h-5" /> Quá hạn 24h
-            </>
-          ) : (
-            "Bắt đầu Check-in"
-          )}
-        </button>
       </div>
     </div>
   );
@@ -150,57 +165,66 @@ export function PostListView({ posts, onCheckIn }: { posts: Post[], onCheckIn?: 
   const filteredPosts = posts.filter((post) => {
     if (filter === "ALL") return true;
     if (filter === "COMPLETED") return post.status === "COMPLETED";
-    
-    // Evaluate expired real-time or just based on status if we update status
+
     const scheduled = new Date(post.scheduledAt);
     const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
     const isActuallyExpired = new Date() > deadline;
 
     if (filter === "EXPIRED") return isActuallyExpired && post.status !== "COMPLETED";
     if (filter === "PENDING") return !isActuallyExpired && post.status !== "COMPLETED";
-    
+
     return true;
   });
 
   return (
-    <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {[
-          { id: "ALL", label: "Tất cả" },
-          { id: "PENDING", label: "Chưa share" },
-          { id: "COMPLETED", label: "Đã share" },
-          { id: "EXPIRED", label: "Quá hạn" },
-        ].map((f) => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id as any)}
-            className={cn(
-              "whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300",
-              filter === f.id
-                ? "bg-slate-900 text-white shadow-md dark:bg-indigo-500"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-800"
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+    <div className="space-y-lg animate-in fade-in duration-300">
+      {/* Header section with Filter Buttons */}
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-md mb-xl">
+        <div>
+          <h2 className="font-headline-lg text-headline-lg text-on-background mb-xs">Danh sách bài viết</h2>
+          <p className="font-body-md text-body-md text-on-surface-variant">Thực hiện Like, Share bài truyền thông nội bộ và check-in đúng hạn.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-sm">
+          {[
+            { id: "ALL", label: "Tất cả" },
+            { id: "PENDING", label: "Chưa hoàn thành" },
+            { id: "COMPLETED", label: "Đã check-in" },
+            { id: "EXPIRED", label: "Quá hạn" }
+          ].map((f) => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id as any)}
+              className={cn(
+                "px-4 py-2 rounded-full font-label-md text-label-md border transition-all duration-200",
+                filter === f.id
+                  ? "bg-primary text-white border-primary shadow-sm"
+                  : "bg-white border-outline-variant text-on-surface-variant hover:bg-surface-container-low"
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid containing list rows */}
       {filteredPosts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="flex flex-col gap-4">
           {filteredPosts.map((post) => (
-            <PostCard key={post.id} post={post} onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)} />
+            <PostRowCard 
+              key={post.id} 
+              post={post} 
+              onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)} 
+            />
           ))}
         </div>
       ) : (
-        <div className="py-20 text-center flex flex-col items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 text-slate-400">
-            <AlertCircle className="w-8 h-8" />
+        <div className="py-20 text-center flex flex-col items-center justify-center bg-white rounded-2xl border border-outline-variant/10 shadow-sm">
+          <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center mb-4 text-outline-variant">
+            <span className="material-symbols-outlined text-4xl">folder_open</span>
           </div>
-          <h3 className="text-lg font-medium text-slate-800 dark:text-slate-200">Không có bài viết nào</h3>
-          <p className="text-slate-500 mt-1">Danh sách theo bộ lọc hiện tại đang trống.</p>
+          <h3 className="font-title-lg text-title-lg text-on-background">Không có bài viết nào</h3>
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-1">Không tìm thấy bài viết nào theo bộ lọc hiện tại.</p>
         </div>
       )}
     </div>

@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Reports &amp; Analytics | TeamSync HR</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-fixed": "#e2dfff",
+                    "error-container": "#ffdad6",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#6cf8bb",
+                    "on-secondary-container": "#00714d",
+                    "tertiary-container": "#a44100",
+                    "surface-tint": "#4d44e3",
+                    "inverse-on-surface": "#eaf1ff",
+                    "primary-container": "#4f46e5",
+                    "surface-container-lowest": "#ffffff",
+                    "on-background": "#0b1c30",
+                    "inverse-surface": "#213145",
+                    "on-tertiary-fixed": "#351000",
+                    "tertiary-fixed": "#ffdbcc",
+                    "on-primary-fixed": "#0f0069",
+                    "tertiary": "#7e3000",
+                    "surface-bright": "#f8f9ff",
+                    "surface-dim": "#cbdbf5",
+                    "outline-variant": "#c7c4d8",
+                    "on-surface": "#0b1c30",
+                    "surface": "#f8f9ff",
+                    "on-error-container": "#93000a",
+                    "error": "#ba1a1a",
+                    "primary": "#3525cd",
+                    "background": "#f8f9ff",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "on-surface-variant": "#464555",
+                    "on-secondary-fixed": "#002113",
+                    "surface-container": "#e5eeff",
+                    "outline": "#777587",
+                    "on-tertiary-container": "#ffd2be",
+                    "secondary-fixed-dim": "#4edea3",
+                    "on-secondary-fixed-variant": "#005236",
+                    "surface-container-high": "#dce9ff",
+                    "on-secondary": "#ffffff",
+                    "surface-container-low": "#eff4ff",
+                    "on-tertiary": "#ffffff",
+                    "secondary": "#006c49",
+                    "surface-container": "#e5eeff",
+                    "surface-container-highest": "#d3e4fe",
+                    "primary-fixed-dim": "#c3c0ff",
+                    "inverse-primary": "#c3c0ff",
+                    "secondary-fixed": "#6ffbbe",
+                    "on-primary-container": "#dad7ff",
+                    "on-primary": "#ffffff",
+                    "on-primary-fixed-variant": "#3323cc",
+                    "surface-variant": "#d3e4fe",
+                    "on-tertiary-fixed-variant": "#7b2f00"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "base": "4px",
+                    "sm": "8px",
+                    "container-max": "1280px",
+                    "margin-desktop": "32px",
+                    "gutter": "24px",
+                    "xs": "4px",
+                    "lg": "24px",
+                    "2xl": "48px",
+                    "3xl": "64px",
+                    "xl": "32px",
+                    "md": "16px",
+                    "margin-mobile": "16px"
+            },
+            "fontFamily": {
+                    "body-sm": ["Inter"],
+                    "headline-md": ["Geist"],
+                    "label-md": ["Geist"],
+                    "body-md": ["Inter"],
+                    "title-md": ["Geist"],
+                    "title-lg": ["Geist"],
+                    "headline-lg": ["Geist"],
+                    "label-sm": ["Geist"],
+                    "headline-lg-mobile": ["Geist"],
+                    "display-lg": ["Geist"],
+                    "body-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .chart-bar { transition: height 1s ease-out; }
+        .chart-line-dot { transition: transform 0.3s ease; }
+        .chart-line-dot:hover { transform: scale(1.5); }
+        .tonal-elevation {
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- Desktop Side Navigation -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden md:flex flex-col bg-on-background border-r border-outline-variant/10 shadow-xl z-50">
+<div class="flex flex-col h-full py-lg">
+<div class="px-lg mb-2xl">
+<h1 class="font-headline-md text-headline-md font-bold text-surface">TeamSync HR</h1>
+<p class="font-label-sm text-label-sm text-outline-variant opacity-70">Modern Workspace</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span class="font-label-md text-label-md">List View</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary bg-primary border-l-4 border-primary transition-transform active:scale-[0.98]" href="#">
+<span class="material-symbols-outlined" data-icon="analytics" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-label-md text-label-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Admin</span>
+</a>
+</nav>
+<div class="px-lg mt-auto pt-lg border-t border-outline-variant/10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional headshot of a senior HR administrator in a modern office setting. The lighting is soft and natural, emphasizing a trustworthy and approachable persona. The background is a clean, slightly blurred corporate interior with a palette of soft greys and blues." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDd3sykvNwgOHK71kCi8yiEse-faAfO5qpm89Ffxjst9RWTPs17NJaNj48py-ah4CpZVr17tEv6HlSGBkc4E5xEjBOxHAnKzpg3R5esPMH4-q2OVfzFdoHzCtHITM2ctI7BiTg59jf9uHLSF4tpcka6xElq_A4efZRXk6teo_RC5uL0DqV6vpgzDttOLgkfP7LRC9UHHg2ad8g-jX-MGVwI39oUFgYqf9Go4UsiI0ntOt5HB2s90S2VGL1hmeib3J-EwtLn5JB_uyo"/>
+</div>
+<div>
+<p class="font-label-md text-label-md text-surface">Admin User</p>
+<p class="font-label-sm text-label-sm text-outline-variant">System Manager</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="md:pl-64 min-h-screen">
+<!-- Top Navigation -->
+<header class="h-16 w-full sticky top-0 z-40 bg-surface border-b border-outline-variant/20 shadow-sm">
+<div class="flex justify-between items-center px-lg w-full h-full">
+<div class="flex items-center gap-4">
+<button class="md:hidden p-2 hover:bg-surface-container rounded-full">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h2 class="font-title-lg text-title-lg font-bold text-on-surface">Reports &amp; Analytics</h2>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="bg-surface-container-low border-none rounded-full pl-10 pr-4 py-2 text-label-md focus:ring-2 focus:ring-primary/50 w-64" placeholder="Search analytics..." type="text"/>
+</div>
+<button class="p-2 hover:bg-surface-container rounded-full relative">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="notifications">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-surface"></span>
+</button>
+</div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-lg max-w-[1440px] mx-auto space-y-lg">
+<!-- Breadcrumbs -->
+<nav class="flex gap-2 text-label-sm text-outline">
+<span>Dashboard</span>
+<span>/</span>
+<span class="text-primary font-semibold">Reports &amp; Analytics</span>
+</nav>
+<!-- KPI Cards Section -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-lg">
+<!-- Total Posts -->
+<div class="bg-surface-container-lowest p-lg rounded-2xl tonal-elevation flex items-center justify-between group hover:translate-y-[-2px] transition-transform">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider">Total Posts this Month</p>
+<h3 class="font-headline-lg text-headline-lg text-primary">1,284</h3>
+<p class="font-label-sm text-label-sm text-secondary flex items-center gap-1 mt-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="trending_up">trending_up</span>
+                            +12% from last month
+                        </p>
+</div>
+<div class="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-3xl" data-icon="post_add">post_add</span>
+</div>
+</div>
+<!-- Completion % -->
+<div class="bg-surface-container-lowest p-lg rounded-2xl tonal-elevation flex items-center justify-between group hover:translate-y-[-2px] transition-transform">
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider">Company Completion %</p>
+<h3 class="font-headline-lg text-headline-lg text-on-surface">86.4%</h3>
+<div class="w-full bg-surface-container-high h-2 rounded-full mt-3 overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 86.4%"></div>
+</div>
+</div>
+<div class="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-3xl" data-icon="verified">verified</span>
+</div>
+</div>
+<!-- Pending Users (Alert) -->
+<div class="bg-error-container p-lg rounded-2xl tonal-elevation flex items-center justify-between group hover:translate-y-[-2px] transition-transform">
+<div>
+<p class="font-label-sm text-label-sm text-on-error-container mb-1 uppercase tracking-wider">Pending Users</p>
+<h3 class="font-headline-lg text-headline-lg text-on-error-container">42</h3>
+<p class="font-label-sm text-label-sm text-on-error-container/80 flex items-center gap-1 mt-2">
+<span class="material-symbols-outlined text-[16px]" data-icon="warning">warning</span>
+                            Require immediate follow-up
+                        </p>
+</div>
+<div class="w-12 h-12 rounded-xl bg-on-error flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-3xl" data-icon="group_off">group_off</span>
+</div>
+</div>
+</section>
+<!-- Charts Section (Bento Style) -->
+<section class="grid grid-cols-1 lg:grid-cols-2 gap-lg">
+<!-- Bar Chart: Department Completion -->
+<div class="bg-surface-container-lowest p-lg rounded-2xl tonal-elevation border border-outline-variant/10">
+<div class="flex justify-between items-center mb-xl">
+<div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Department Completion</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Real-time engagement by team</p>
+</div>
+<button class="p-2 hover:bg-surface-container rounded-lg">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="more_vert">more_vert</span>
+</button>
+</div>
+<div class="flex items-end justify-between h-64 gap-4 px-4">
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative group h-full flex flex-col justify-end">
+<div class="chart-bar bg-primary w-full rounded-t-lg" style="height: 92%;"></div>
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-on-background text-surface px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">92%</div>
+</div>
+<span class="font-label-sm text-[10px] text-outline truncate w-full text-center">Tech</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative group h-full flex flex-col justify-end">
+<div class="chart-bar bg-primary w-full rounded-t-lg" style="height: 78%;"></div>
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-on-background text-surface px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">78%</div>
+</div>
+<span class="font-label-sm text-[10px] text-outline truncate w-full text-center">Sales</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative group h-full flex flex-col justify-end">
+<div class="chart-bar bg-primary w-full rounded-t-lg" style="height: 85%;"></div>
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-on-background text-surface px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">85%</div>
+</div>
+<span class="font-label-sm text-[10px] text-outline truncate w-full text-center">Marketing</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative group h-full flex flex-col justify-end">
+<div class="chart-bar bg-primary w-full rounded-t-lg" style="height: 64%;"></div>
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-on-background text-surface px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">64%</div>
+</div>
+<span class="font-label-sm text-[10px] text-outline truncate w-full text-center">Support</span>
+</div>
+<div class="flex flex-col items-center flex-1 gap-2">
+<div class="w-full bg-primary-container/20 rounded-t-lg relative group h-full flex flex-col justify-end">
+<div class="chart-bar bg-primary w-full rounded-t-lg" style="height: 89%;"></div>
+<div class="absolute -top-8 left-1/2 -translate-x-1/2 bg-on-background text-surface px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">89%</div>
+</div>
+<span class="font-label-sm text-[10px] text-outline truncate w-full text-center">HR</span>
+</div>
+</div>
+</div>
+<!-- Line Chart: Weekly Trends -->
+<div class="bg-surface-container-lowest p-lg rounded-2xl tonal-elevation border border-outline-variant/10 overflow-hidden">
+<div class="flex justify-between items-center mb-xl">
+<div>
+<h4 class="font-title-lg text-title-lg text-on-surface">Weekly Engagement Trends</h4>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Social share volume across 4 weeks</p>
+</div>
+<div class="flex gap-2">
+<span class="flex items-center gap-1 text-[10px] text-outline">
+<span class="w-2 h-2 rounded-full bg-primary"></span> Current
+                            </span>
+<span class="flex items-center gap-1 text-[10px] text-outline">
+<span class="w-2 h-2 rounded-full bg-outline-variant"></span> Target
+                            </span>
+</div>
+</div>
+<div class="relative h-64 w-full">
+<svg class="w-full h-full preserve-aspect-ratio-none" viewbox="0 0 500 200">
+<!-- Background Grid -->
+<line class="text-outline/10" stroke="currentColor" stroke-width="1" x1="0" x2="500" y1="50" y2="50"></line>
+<line class="text-outline/10" stroke="currentColor" stroke-width="1" x1="0" x2="500" y1="100" y2="100"></line>
+<line class="text-outline/10" stroke="currentColor" stroke-width="1" x1="0" x2="500" y1="150" y2="150"></line>
+<!-- Trend Line -->
+<path d="M0,180 L100,140 L200,160 L300,90 L400,60 L500,40" fill="none" stroke="url(#lineGradient)" stroke-linecap="round" stroke-width="4"></path>
+<defs>
+<lineargradient id="lineGradient" x1="0" x2="1" y1="0" y2="0">
+<stop offset="0%" stop-color="#3525cd"></stop>
+<stop offset="100%" stop-color="#4edea3"></stop>
+</lineargradient>
+</defs>
+<!-- Data Points -->
+<circle class="chart-line-dot cursor-pointer" cx="100" cy="140" fill="#3525cd" r="6"></circle>
+<circle class="chart-line-dot cursor-pointer" cx="200" cy="160" fill="#3525cd" r="6"></circle>
+<circle class="chart-line-dot cursor-pointer" cx="300" cy="90" fill="#3525cd" r="6"></circle>
+<circle class="chart-line-dot cursor-pointer" cx="400" cy="60" fill="#3525cd" r="6"></circle>
+<circle class="chart-line-dot cursor-pointer" cx="500" cy="40" fill="#4edea3" r="6"></circle>
+</svg>
+<div class="flex justify-between mt-4 px-2 text-label-sm text-outline">
+<span>Week 1</span>
+<span>Week 2</span>
+<span>Week 3</span>
+<span>Week 4</span>
+<span>Live</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Export Section -->
+<section class="bg-surface-container-highest/30 p-lg rounded-2xl border border-primary/10 flex flex-col md:flex-row justify-between items-center gap-lg">
+<div class="flex gap-4 items-center">
+<div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-3xl" data-icon="description">description</span>
+</div>
+<div>
+<h4 class="font-title-md text-title-md text-on-surface">Data Export Ready</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">The file will be saved as <span class="font-mono text-primary bg-primary/10 px-2 py-0.5 rounded">mm.dd.yyyy - Báo Cáo Công Việc Like Share</span></p>
+</div>
+</div>
+<button class="bg-[#1D6F42] hover:bg-[#155331] text-white px-xl py-md rounded-xl font-title-md flex items-center gap-3 transition-all transform active:scale-95 shadow-md shadow-[#1D6F42]/20">
+<span class="material-symbols-outlined" data-icon="download">download</span>
+                    Export Excel Report
+                </button>
+</section>
+<!-- User Completion Table -->
+<section class="bg-surface-container-lowest rounded-2xl tonal-elevation border border-outline-variant/10 overflow-hidden">
+<div class="p-lg border-b border-outline-variant/10 flex justify-between items-center">
+<h4 class="font-title-lg text-title-lg text-on-surface">User Completion Table</h4>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 px-3 py-1.5 border border-outline-variant rounded-lg text-label-md hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[18px]" data-icon="filter_list">filter_list</span>
+                            Filter
+                        </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead class="bg-surface-container-low">
+<tr>
+<th class="px-lg py-md font-label-md text-on-surface-variant">Employee</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant">Dept</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant">Shares Completed</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant">Missed Posts</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant">% Rate</th>
+<th class="px-lg py-md font-label-md text-on-surface-variant text-right">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-outline-variant/10">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A high-resolution, professional portrait of a young female corporate executive with a warm, confident smile. She is wearing a modern tailored blazer. The background is a minimalist tech office with vibrant green plants and soft, clean lighting reflecting a high-trust, productive environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAB72RdZEqfpfZzche_xi9l26buApLdvI4-gRhoj2BBky3ksvFbeyimLIz8tI5Z4986HHh6dIiCMmbx3kpD-AJto15SEKz1aAlQRERCmvNDWxfZI5CytcdqYVPigTX2j9WNtRoE0Shtl4Vk2drfH4bJexFk9wfChs4y7As7hbH493jNa_zIXEfMg6XjZWt7qaM_qYFjhxKSYF4MGyA5lFgw8VL7Acu1ZGetIZdiYKas3THxwwCy4DfWTDMV7_PMR8a5P75DOodC-0"/>
+</div>
+<div>
+<p class="font-title-md text-on-surface">Alex Rivera</p>
+<p class="font-label-sm text-outline">alex.r@teamsync.hr</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">Design</td>
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">142</td>
+<td class="px-lg py-md font-body-md text-on-surface">3</td>
+<td class="px-lg py-md">
+<span class="px-2 py-1 rounded-lg text-label-sm font-bold bg-emerald-50 text-emerald-700">97.8%</span>
+</td>
+<td class="px-lg py-md text-right">
+<button class="text-primary hover:underline font-label-md">Details</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A portrait of a male software engineer in a bright, modern studio. He wears casual but professional attire. The style is clean and minimalist, using a bright palette with deep indigo accents. The mood is creative and technically sophisticated." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDNGqWvAwdWGdpayE813kT1PAYjN2yb_RZw6ChZFgOLBLpgyfzr6uYpIUQgoAI0_HjlEcMMbMgNDCNl_TsU3KM8S59A4cr7xXwzQpwq21nHcgoJ0wPVzUiRsNdd8frqYoGknOF4Hd2gymmBJ8AB8Q4M5q_0-OuBFhz0vC-4QfnvD1av9ZsuJHMomnIZZb_eNVzPxvFPSO-QwkcBzYPNlKeh6Mhd5Eux7IUUwTfUXJ2Z07yUKA-rSSGj0GPA2ZeO1LIIS04E_tMdQOM"/>
+</div>
+<div>
+<p class="font-title-md text-on-surface">Jordan Smith</p>
+<p class="font-label-sm text-outline">jordan.s@teamsync.hr</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">Tech</td>
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">128</td>
+<td class="px-lg py-md font-body-md text-on-surface">17</td>
+<td class="px-lg py-md">
+<span class="px-2 py-1 rounded-lg text-label-sm font-bold bg-amber-50 text-amber-700">88.2%</span>
+</td>
+<td class="px-lg py-md text-right">
+<button class="text-primary hover:underline font-label-md">Details</button>
+</td>
+</tr>
+<!-- Row 3 (Alert State) -->
+<tr class="hover:bg-surface-container/50 transition-colors bg-rose-50/20">
+<td class="px-lg py-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A detailed portrait of a diverse male employee looking thoughtfully at the camera. The background is a sun-drenched, open-plan workspace with high-end furniture. The aesthetic is clean corporate minimalism with soft, warm tones that create a human-centric feel." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBG49MO9kGyaK5J2DYAQtSNE8fbnOt_e1A9fbCIOk0GXvz5GMsRJHfa9yJC31_-Q3sbXzXC0qRvzMoMyV1nJaszw0T-y9W5Vh4s89ms5Nm-SG1wCsOu_y455GH_dUMzL1ORbARyk2ZNFOwWdVmj7DfQTMfnDpK1_ekMFmwEGucUsgiawqbG7uvAyRjbMuWDEuyp5qCqAm0UlfK95-9eDg-cGnPAsYypNv3U7OALeSHH2QDIHWDfDY4b_5m0e8uKHBGA64DnUWEyTyQ"/>
+</div>
+<div>
+<p class="font-title-md text-on-surface">Marcus Chen</p>
+<p class="font-label-sm text-outline">marcus.c@teamsync.hr</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">Marketing</td>
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">45</td>
+<td class="px-lg py-md font-body-md text-on-surface">100</td>
+<td class="px-lg py-md">
+<span class="px-2 py-1 rounded-lg text-label-sm font-bold bg-rose-50 text-rose-700">31.0%</span>
+</td>
+<td class="px-lg py-md text-right">
+<button class="text-error font-bold hover:underline font-label-md">Nudge User</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container/50 transition-colors">
+<td class="px-lg py-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover" data-alt="A profile photo of a female manager in a modern, bright executive suite. The lighting is crisp and clear, highlighting a professional and reliable personality. The color theme is based on sophisticated neutral tones with a subtle pop of indigo." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAFcHK4JQTVGIDEpNOknsgZCAK1GteHL2rXsGtSqxvDpeKvtJOfjtTpHoNSFfNLlPf3R98OE7aMeI46kj11QFGJ55oMzmUUVCneLsgKkyPUZNlxE1IoBW2utL2ZOvDboPVmccYlOqqYXJV57O-Mh0gTSV_BN0avbr3MDXO1ev2sVsv3y9pe3RhpwaHX5uMUozk7ROK33eOrbTfCc-74dz9XPLutDJy_RDSefYHZpqMzpsZ-jEw70kJGCyzJUNKzrJditkboXFfZKoY"/>
+</div>
+<div>
+<p class="font-title-md text-on-surface">Sarah Lopez</p>
+<p class="font-label-sm text-outline">sarah.l@teamsync.hr</p>
+</div>
+</div>
+</td>
+<td class="px-lg py-md font-body-md text-on-surface-variant">HR</td>
+<td class="px-lg py-md font-body-md text-on-surface font-semibold">145</td>
+<td class="px-lg py-md font-body-md text-on-surface">0</td>
+<td class="px-lg py-md">
+<span class="px-2 py-1 rounded-lg text-label-sm font-bold bg-emerald-50 text-emerald-700">100%</span>
+</td>
+<td class="px-lg py-md text-right">
+<button class="text-primary hover:underline font-label-md">Details</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-lg bg-surface-container-low flex justify-between items-center">
+<p class="font-label-sm text-outline">Showing 1-4 of 124 employees</p>
+<div class="flex gap-2">
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-white disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="p-2 border border-outline-variant rounded-lg hover:bg-white">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer -->
+<footer class="p-lg border-t border-outline-variant/10 text-center text-label-sm text-outline">
+            © 2024 TeamSync HR Management Portal. Built for HR Post Share (Admin v2.1)
+        </footer>
+</main>
+<!-- Floating Action Button for Support -->
+<button class="fixed bottom-lg right-lg w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg hover:shadow-xl hover:scale-105 transition-all flex items-center justify-center z-50">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<script>
+        // Simple Interaction logic
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Dashboard Initialized');
+            
+            // Interaction for export button
+            const exportBtn = document.querySelector('button.bg-\\[\\#1D6F42\\]');
+            exportBtn.addEventListener('click', () => {
+                const date = new Date();
+                const formattedDate = `${String(date.getMonth() + 1).padStart(2, '0')}.${String(date.getDate()).padStart(2, '0')}.${date.getFullYear()}`;
+                alert(`Preparing export: ${formattedDate} - Báo Cáo Công Việc Like Share.xlsx`);
+            });
+        });
+    </script>
+</body></html>

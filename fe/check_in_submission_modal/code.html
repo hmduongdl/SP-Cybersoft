@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TeamSync HR - Check-in Tool</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "primary-fixed": "#e2dfff",
+            "error-container": "#ffdad6",
+            "on-error": "#ffffff",
+            "secondary-container": "#6cf8bb",
+            "on-secondary-container": "#00714d",
+            "tertiary-container": "#a44100",
+            "surface-tint": "#4d44e3",
+            "inverse-on-surface": "#eaf1ff",
+            "primary-container": "#4f46e5",
+            "surface-container-lowest": "#ffffff",
+            "on-background": "#0b1c30",
+            "inverse-surface": "#213145",
+            "on-tertiary-fixed": "#351000",
+            "tertiary-fixed": "#ffdbcc",
+            "on-primary-fixed": "#0f0069",
+            "tertiary": "#7e3000",
+            "surface-bright": "#f8f9ff",
+            "surface-dim": "#cbdbf5",
+            "outline-variant": "#c7c4d8",
+            "on-surface": "#0b1c30",
+            "surface": "#f8f9ff",
+            "on-error-container": "#93000a",
+            "error": "#ba1a1a",
+            "primary": "#3525cd",
+            "background": "#f8f9ff",
+            "tertiary-fixed-dim": "#ffb695",
+            "on-surface-variant": "#464555",
+            "on-secondary-fixed": "#002113",
+            "surface-container": "#e5eeff",
+            "outline": "#777587",
+            "on-tertiary-container": "#ffd2be",
+            "secondary-fixed-dim": "#4edea3",
+            "on-secondary-fixed-variant": "#005236",
+            "surface-container-high": "#dce9ff",
+            "on-secondary": "#ffffff",
+            "surface-container-low": "#eff4ff",
+            "on-tertiary": "#ffffff",
+            "secondary": "#006c49",
+            "surface-container-highest": "#d3e4fe",
+            "primary-fixed-dim": "#c3c0ff",
+            "inverse-primary": "#c3c0ff",
+            "secondary-fixed": "#6ffbbe",
+            "on-primary-container": "#dad7ff",
+            "on-primary": "#ffffff",
+            "on-primary-fixed-variant": "#3323cc",
+            "surface-variant": "#d3e4fe",
+            "on-tertiary-fixed-variant": "#7b2f00"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "base": "4px",
+            "sm": "8px",
+            "container-max": "1280px",
+            "margin-desktop": "32px",
+            "gutter": "24px",
+            "xs": "4px",
+            "lg": "24px",
+            "2xl": "48px",
+            "3xl": "64px",
+            "xl": "32px",
+            "md": "16px",
+            "margin-mobile": "16px"
+          },
+          "fontFamily": {
+            "body-sm": ["Inter"],
+            "headline-md": ["Geist"],
+            "label-md": ["Geist"],
+            "body-md": ["Inter"],
+            "title-md": ["Geist"],
+            "title-lg": ["Geist"],
+            "headline-lg": ["Geist"],
+            "label-sm": ["Geist"],
+            "headline-lg-mobile": ["Geist"],
+            "display-lg": ["Geist"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+            "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+            "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "500"}],
+            "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+            "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+            "title-lg": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+            "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+            "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+            "headline-lg-mobile": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+            "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+            "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .modal-overlay {
+      background: rgba(11, 28, 48, 0.4);
+      backdrop-filter: blur(8px);
+    }
+    .dashed-border {
+      background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='16' ry='16' stroke='%23C7C4D8' stroke-width='2' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+      border-radius: 1rem;
+    }
+    @keyframes pulse-countdown {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-countdown {
+      animation: pulse-countdown 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md antialiased overflow-x-hidden">
+<!-- SideNavBar Anchor -->
+<aside class="h-screen w-64 fixed left-0 top-0 hidden md:flex flex-col bg-on-background border-r border-outline-variant/10 shadow-xl py-lg z-50">
+<div class="px-lg mb-2xl">
+<h1 class="font-headline-md text-headline-md font-bold text-surface dark:text-surface-bright">TeamSync HR</h1>
+<p class="font-body-sm text-body-sm text-outline-variant/60">Modern Workspace</p>
+</div>
+<nav class="flex-1 space-y-sm">
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-md text-label-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today">calendar_today</span>
+<span class="font-label-md text-label-md">Calendar</span>
+</a>
+<!-- Active Link for List View -->
+<a class="flex items-center gap-3 px-4 py-3 text-on-primary bg-primary border-l-4 border-primary scale-[0.98] transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="list_alt">list_alt</span>
+<span class="font-label-md text-label-md">List View</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-label-md text-label-md">Reports</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-surface-variant hover:text-surface hover:bg-primary/20 transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">Admin</span>
+</a>
+</nav>
+</aside>
+<!-- TopNavBar Anchor -->
+<header class="h-16 w-full sticky top-0 z-40 bg-surface border-b border-outline-variant/20 shadow-sm">
+<div class="flex justify-between items-center px-lg md:pl-72 w-full h-full">
+<div class="flex items-center gap-md">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline" data-icon="search">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border border-outline-variant/30 rounded-lg focus:ring-2 focus:ring-primary/50 outline-none transition-all w-64" placeholder="Search tasks..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-lg">
+<button class="text-on-surface-variant hover:bg-surface-container transition-colors p-2 rounded-full">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full overflow-hidden border border-outline-variant">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="A professional headshot of a young female HR manager with a warm smile, set against a blurred modern office background. She has soft, natural lighting on her face, conveying trust and approachability in a corporate setting. The colors are muted and professional with subtle blue and gray tones." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAoHSyvuRy0Dx4N3-K3PmXMTEJX3e7p4Zp0WjV6Jo4Dt6PMlU3PwisDD8DoM0zG_l8RzNGq0kEzfZFzkquSEYYqu4QFiFlqs4aEa-uIiGAYth7t3JRPoaySaUSIiAmGtX6TpxMeWoPVkWr3T7lBXQfmG0s21-sr-z2YTQywwvlsLiQFWoyNBN1-_i6X2flcaq8qVgj6l0sRIUKU2kp3FbQeRYl4vKEaiUOJr-URslHQ4b5nHbXFRQE0f9qEFCRN9DQ0icqJLdNQY68"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas (List View Background) -->
+<main class="md:pl-64 min-h-screen pt-sm pb-2xl">
+<div class="px-lg mx-auto max-w-container-max mt-lg">
+<div class="flex justify-between items-end mb-xl">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-on-surface">Weekly Check-ins</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Manage and track your team's periodic updates.</p>
+</div>
+</div>
+<!-- List View Items -->
+<div class="grid grid-cols-1 gap-md">
+<!-- Sample Rows to set the context -->
+<div class="bg-surface-container-lowest p-lg rounded-2xl shadow-sm border border-outline-variant/10 flex items-center justify-between">
+<div class="flex items-center gap-md">
+<div class="p-3 bg-primary-fixed text-primary rounded-xl">
+<span class="material-symbols-outlined" data-icon="description">description</span>
+</div>
+<div>
+<p class="font-title-md text-title-md">Q3 Strategy Alignment</p>
+<p class="font-label-sm text-label-sm text-outline">Due: Oct 24, 2023</p>
+</div>
+</div>
+<button class="bg-primary text-on-primary px-lg py-2 rounded-lg font-label-md text-label-md hover:shadow-lg transition-all" onclick="toggleModal(true)">Check-in Now</button>
+</div>
+<div class="bg-surface-container-lowest p-lg rounded-2xl shadow-sm border border-outline-variant/10 flex items-center justify-between opacity-60">
+<div class="flex items-center gap-md">
+<div class="p-3 bg-secondary-container text-on-secondary-container rounded-xl">
+<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span>
+</div>
+<div>
+<p class="font-title-md text-title-md">Design System Audit</p>
+<p class="font-label-sm text-label-sm text-outline">Completed</p>
+</div>
+</div>
+<span class="bg-secondary-fixed text-on-secondary-fixed-variant px-3 py-1 rounded-full font-label-sm text-label-sm">Done</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Check-in Modal Overlay -->
+<div class="fixed inset-0 z-[60] flex items-center justify-center p-md modal-overlay opacity-0 pointer-events-none transition-opacity duration-300" id="checkinModal">
+<!-- Modal Container -->
+<div class="bg-surface-container-lowest w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col md:flex-row relative">
+<!-- Close Button -->
+<button class="absolute top-4 right-4 text-outline hover:text-on-surface transition-colors z-10" onclick="toggleModal(false)">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+<!-- Left: Main Content Area -->
+<div class="flex-1 p-xl md:p-3xl border-r border-outline-variant/10">
+<!-- Header -->
+<div class="mb-2xl">
+<div class="flex items-center gap-sm mb-sm">
+<h3 class="font-headline-md text-headline-md text-on-surface" id="modalTitle">Weekly Team Sync Post</h3>
+<button class="text-primary hover:bg-primary-fixed p-1 rounded-md transition-all flex items-center">
+<span class="material-symbols-outlined" data-icon="open_in_new">open_in_new</span>
+</button>
+</div>
+<div class="bg-surface-container-low p-md rounded-xl border border-outline-variant/20 flex items-start gap-md">
+<span class="material-symbols-outlined text-primary mt-0.5" data-icon="info">info</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+<span class="font-bold">Admin Instructions:</span> Please upload a high-resolution screenshot of your project dashboard showing current progress and KPIs. Submissions must be legible and unedited.
+            </p>
+</div>
+</div>
+<!-- Upload Area -->
+<div class="space-y-lg" id="uploadSection">
+<label class="block font-label-md text-label-md text-on-surface mb-sm">Verification Media</label>
+<!-- Dropzone -->
+<div class="dashed-border min-h-[220px] flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-low transition-colors p-xl text-center group" id="dropzone" onclick="simulateUpload()">
+<div class="w-16 h-16 bg-primary-fixed/30 rounded-full flex items-center justify-center mb-md group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="cloud_upload">cloud_upload</span>
+</div>
+<p class="font-title-md text-title-md text-on-surface mb-xs">Drag screenshot here or click to select</p>
+<p class="font-body-sm text-body-sm text-outline">Supported formats: JPG, PNG, WEBP (Max 10MB)</p>
+</div>
+<!-- Preview State (Hidden by default) -->
+<div class="hidden relative group rounded-2xl overflow-hidden border border-outline-variant/30" id="previewArea">
+<img alt="Screenshot preview" class="w-full aspect-video object-cover" data-alt="A detailed digital screenshot of a SaaS analytics dashboard. It features colorful bar charts in indigo and teal, showing upward growth trends. The UI is clean, with dark mode elements and white text, displayed on a high-resolution screen with crisp typography and subtle shadows. Professional and data-driven aesthetic." id="previewImage" src=""/>
+<div class="absolute inset-0 bg-on-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-md">
+<button class="bg-error text-on-error px-lg py-2 rounded-lg flex items-center gap-2" onclick="removePreview()">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+<span>Remove</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Submission Action -->
+<div class="mt-3xl">
+<button class="w-full bg-primary text-on-primary py-4 rounded-xl font-label-md text-label-md text-lg hover:shadow-primary-fixed/40 shadow-lg active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed" id="confirmBtn">
+            Confirm Submission
+          </button>
+</div>
+</div>
+<!-- Right: Sidebar Info -->
+<div class="w-full md:w-72 bg-surface-container-low p-xl flex flex-col gap-2xl">
+<!-- Timer -->
+<div>
+<div class="flex items-center gap-sm mb-md text-on-surface">
+<span class="material-symbols-outlined text-primary" data-icon="schedule">schedule</span>
+<span class="font-label-md text-label-md uppercase tracking-wider">Submission Window</span>
+</div>
+<div class="bg-on-background rounded-2xl p-lg text-center shadow-lg border border-primary/20">
+<div class="font-display-lg text-display-lg text-secondary animate-countdown" id="countdown">14:22</div>
+<p class="font-label-sm text-label-sm text-surface-variant mt-xs">Hours : Minutes Remaining</p>
+</div>
+<div class="mt-lg">
+<div class="h-2 w-full bg-outline-variant/20 rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-3/4 rounded-full"></div>
+</div>
+<p class="font-body-sm text-body-sm text-outline-variant mt-sm">75% time elapsed</p>
+</div>
+</div>
+<!-- Status & Stats -->
+<div class="space-y-lg">
+<div>
+<span class="font-label-sm text-label-sm text-outline block mb-xs">Submissions Received</span>
+<div class="flex items-center gap-2">
+<div class="flex -space-x-3">
+<img alt="Team 1" class="h-8 w-8 rounded-full border-2 border-surface-container-low" data-alt="Close-up portrait of a male executive in his 40s, wearing a charcoal suit. He has a confident, relaxed expression, illuminated by natural office lighting. The background is a blurred corporate lobby with warm wood accents and glass partitions. Professional photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZ2GklDBimjNfDZJ64xOyhT33sGVdIxmMtAtAR4EAjpl1I644ZPPrsvqZVkZ2JilQkf5P9yLx9gmbhhZf8KVh3neG476GF2K2HjIa3r1EDuAiBkDxFdks8i3IIk5bY5YUEMlWAdQUcsY_4GOzwx14A5i-IdjJ-jVe8mjLzykDpt_22vPwa1JCkQJw1i5n-d6Zo5XoJtZH6UpDXdVanUb80_U_pIuzxF_9m5G83Y8sVPoFO4jBrxTSFKQp4ME4bBtk2qnJf3_t8chs"/>
+<img alt="Team 2" class="h-8 w-8 rounded-full border-2 border-surface-container-low" data-alt="A portrait of a cheerful female creative professional with curly hair. She is wearing a mustard yellow sweater and laughing subtly. The setting is a bright, airy studio with soft, diffused sunlight. Vibrant yet professional atmosphere with high-key lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXYoPWCqDktp69ZwlLF67jvmK1-Ww658LJ8fsOrA8YTxMt0a8NvfrBmt-X-MpaEhpG2L-6FKH1ttpgzwN0Ro6lYQI5zVy8u-SD8EIdOaaAHnCaBAir2rZ7bxOdjZUFjIGMFgNssXNuXY3X4HGUBrx57jFEZt-Mx86_VL8KuBQGJdydSb-8lWyWuff8Vb4L8GvWiayXeLl-2lwK4a2myWNWBARwy5ENI3ZRHzG3xAq9cqirygBmmZgv5ewS1qknIX-i_478Hbzcgx0"/>
+<div class="h-8 w-8 rounded-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-label-sm text-label-sm text-on-primary-fixed">+8</div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant italic">10 colleagues finished</span>
+</div>
+</div>
+<div class="p-md bg-surface-bright rounded-xl border border-outline-variant/30">
+<p class="font-label-sm text-label-sm text-outline mb-xs">Deadline</p>
+<p class="font-title-md text-title-md text-on-surface">Oct 25, 11:59 PM</p>
+</div>
+</div>
+<!-- Locked Variant Trigger (For Demo) -->
+<div class="mt-auto pt-lg border-t border-outline-variant/20">
+<button class="w-full py-2 px-3 bg-surface-container text-outline hover:text-on-surface rounded-lg font-label-sm text-label-sm transition-all border border-outline-variant/30" onclick="toggleLockedState()">
+            Demo: Toggle Lock State
+          </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+    function toggleModal(show) {
+      const modal = document.getElementById('checkinModal');
+      if (show) {
+        modal.classList.remove('pointer-events-none', 'opacity-0');
+        modal.classList.add('opacity-100');
+        document.body.style.overflow = 'hidden';
+      } else {
+        modal.classList.add('opacity-0', 'pointer-events-none');
+        modal.classList.remove('opacity-100');
+        document.body.style.overflow = '';
+      }
+    }
+
+    function simulateUpload() {
+      // Simulate choosing a file
+      const dropzone = document.getElementById('dropzone');
+      const previewArea = document.getElementById('previewArea');
+      const previewImg = document.getElementById('previewImage');
+      
+      // In a real app, this would be a file input trigger
+      // Here we just toggle visibility
+      dropzone.classList.add('hidden');
+      previewArea.classList.remove('hidden');
+      previewImg.src = "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=800";
+    }
+
+    function removePreview() {
+      const dropzone = document.getElementById('dropzone');
+      const previewArea = document.getElementById('previewArea');
+      
+      previewArea.classList.add('hidden');
+      dropzone.classList.remove('hidden');
+    }
+
+    let isLocked = false;
+    function toggleLockedState() {
+      const btn = document.getElementById('confirmBtn');
+      const countdown = document.getElementById('countdown');
+      const uploadSection = document.getElementById('uploadSection');
+
+      isLocked = !isLocked;
+
+      if (isLocked) {
+        btn.innerHTML = '<span class="material-symbols-outlined align-middle mr-2" data-icon="lock">lock</span> Locked - Expired (24h)';
+        btn.classList.remove('bg-primary', 'hover:shadow-primary-fixed/40');
+        btn.classList.add('bg-outline-variant', 'text-surface-variant');
+        btn.disabled = true;
+        countdown.innerText = "00:00";
+        countdown.classList.remove('text-secondary', 'animate-countdown');
+        countdown.classList.add('text-error');
+        uploadSection.style.opacity = '0.5';
+        uploadSection.style.pointerEvents = 'none';
+      } else {
+        btn.innerHTML = 'Confirm Submission';
+        btn.classList.add('bg-primary', 'hover:shadow-primary-fixed/40');
+        btn.classList.remove('bg-outline-variant', 'text-surface-variant');
+        btn.disabled = false;
+        countdown.innerText = "14:22";
+        countdown.classList.add('text-secondary', 'animate-countdown');
+        countdown.classList.remove('text-error');
+        uploadSection.style.opacity = '1';
+        uploadSection.style.pointerEvents = 'auto';
+      }
+    }
+
+    // Modal closes on backdrop click
+    document.getElementById('checkinModal').addEventListener('click', function(e) {
+      if (e.target === this) toggleModal(false);
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') toggleModal(false);
+    });
+  </script>
+</body></html>

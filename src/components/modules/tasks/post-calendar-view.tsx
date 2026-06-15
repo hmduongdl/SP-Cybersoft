@@ -13,10 +13,9 @@ import {
   endOfWeek,
   eachDayOfInterval,
   isSameMonth,
-  isSameDay,
   isToday,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle } from "lucide-react";
+import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
 type Post = {
@@ -68,34 +67,35 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
   };
 
   const days = getDaysInView();
-  const weekDays = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "CN"];
+  const weekDays = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 
   const renderSinglePost = (post: Post) => {
     const isCompleted = post.status === "COMPLETED";
     return (
       <div
-        className="group relative w-full h-full cursor-pointer overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800"
+        className="group absolute inset-0 cursor-pointer overflow-hidden"
         onClick={() => onCheckIn(post)}
         title={post.title}
       >
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-15 transition-all duration-300 group-hover:opacity-100 group-hover:scale-110"
+          className="absolute inset-0 bg-cover bg-center opacity-10 transition-all duration-500 group-hover:scale-110"
           style={{ backgroundImage: `url(${post.thumbnailUrl || ""})` }}
         />
-        <div className="absolute inset-0 flex items-center justify-center transition-opacity group-hover:opacity-0 bg-black/5 dark:bg-black/20 group-hover:bg-black/40">
-          {isCompleted ? (
-            <div className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md">
-              <CheckCircle2 className="w-5 h-5" />
-            </div>
-          ) : (
-            <div className="w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md animate-pulse">
-              <AlertCircle className="w-5 h-5" />
-            </div>
-          )}
-        </div>
-        {/* Tooltip on hover */}
-        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent text-white opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end min-h-[50%]">
-          <p className="text-xs font-semibold line-clamp-2">{post.title}</p>
+        <div className="relative p-2 h-full flex flex-col justify-between z-10">
+          <div className="flex justify-end">
+            {isCompleted ? (
+              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-label-sm text-[10px] font-semibold border border-emerald-200">
+                Đã share
+              </span>
+            ) : (
+              <span className="px-2 py-0.5 rounded-full bg-primary-fixed/30 text-primary font-label-sm text-[10px] font-semibold border border-primary-fixed/50 animate-pulse">
+                Check-in
+              </span>
+            )}
+          </div>
+          <p className="text-[10px] font-semibold text-on-surface line-clamp-2 leading-tight bg-white/60 p-1 rounded backdrop-blur-[2px]">
+            {post.title}
+          </p>
         </div>
       </div>
     );
@@ -103,7 +103,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
 
   const renderDoublePosts = (post1: Post, post2: Post) => {
     return (
-      <div className="relative w-full h-full rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 shadow-inner">
+      <div className="relative w-full h-full overflow-hidden bg-slate-50/50">
         {/* Top Right Triangle */}
         <div
           className="absolute inset-0 cursor-pointer transition-all duration-300 z-10 hover:z-30 hover:brightness-110 group/p1"
@@ -112,18 +112,15 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
           title={post1.title}
         >
           <div
-            className="absolute inset-0 bg-cover bg-center opacity-30 transition-all duration-300 group-hover/p1:opacity-100 group-hover/p1:scale-110"
+            className="absolute inset-0 bg-cover bg-center opacity-10 transition-all duration-300 group-hover/p1:opacity-30 group-hover/p1:scale-110"
             style={{ backgroundImage: `url(${post1.thumbnailUrl || ""})` }}
           />
-          <div className="absolute top-[25%] right-[25%] -translate-x-1/2 -translate-y-1/2 transition-opacity group-hover/p1:opacity-0">
+          <div className="absolute top-[25%] right-[25%] -translate-x-1/2 -translate-y-1/2">
              {post1.status === "COMPLETED" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 drop-shadow-md" />
+              <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
             ) : (
-              <AlertCircle className="w-5 h-5 text-rose-500 drop-shadow-md" />
+              <span className="material-symbols-outlined text-primary text-sm">pending</span>
             )}
-          </div>
-          <div className="absolute inset-0 flex items-start justify-end p-2 opacity-0 group-hover/p1:opacity-100 bg-black/30 transition-opacity pointer-events-none">
-             <p className="text-[10px] text-white font-medium max-w-[60%] text-right line-clamp-2 leading-tight drop-shadow-md mt-6">{post1.title}</p>
           </div>
         </div>
 
@@ -135,25 +132,22 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
           title={post2.title}
         >
           <div
-            className="absolute inset-0 bg-cover bg-center opacity-30 transition-all duration-300 group-hover/p2:opacity-100 group-hover/p2:scale-110"
+            className="absolute inset-0 bg-cover bg-center opacity-10 transition-all duration-300 group-hover/p2:opacity-30 group-hover/p2:scale-110"
             style={{ backgroundImage: `url(${post2.thumbnailUrl || ""})` }}
           />
-          <div className="absolute bottom-[25%] left-[25%] translate-x-1/2 translate-y-1/2 transition-opacity group-hover/p2:opacity-0">
+          <div className="absolute bottom-[25%] left-[25%] translate-x-1/2 translate-y-1/2">
              {post2.status === "COMPLETED" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-500 drop-shadow-md" />
+              <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
             ) : (
-              <AlertCircle className="w-5 h-5 text-rose-500 drop-shadow-md" />
+              <span className="material-symbols-outlined text-primary text-sm">pending</span>
             )}
-          </div>
-          <div className="absolute inset-0 flex items-end justify-start p-2 opacity-0 group-hover/p2:opacity-100 bg-black/30 transition-opacity pointer-events-none">
-             <p className="text-[10px] text-white font-medium max-w-[60%] text-left line-clamp-2 leading-tight drop-shadow-md mb-6">{post2.title}</p>
           </div>
         </div>
 
-        {/* Divider line for aesthetics */}
+        {/* Diagonal Separator */}
         <div className="absolute inset-0 pointer-events-none z-25">
           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-            <line x1="0" y1="0" x2="100" y2="100" stroke="rgba(255,255,255,0.4)" strokeWidth="0.5" />
+            <line x1="0" y1="0" x2="100" y2="100" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
           </svg>
         </div>
       </div>
@@ -168,18 +162,18 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
     const extraCount = avatars.length - 3;
 
     return (
-      <div className="absolute bottom-1 right-1 flex -space-x-1.5 z-40 pointer-events-none">
-        {displayAvatars.map((a, i) => (
+      <div className="absolute bottom-1 right-1 flex -space-x-2 z-40 pointer-events-none">
+        {displayAvatars.map((a) => (
           <div
             key={a.id}
-            className="relative w-5 h-5 rounded-full border border-white dark:border-slate-900 bg-slate-200 overflow-hidden shadow-sm pointer-events-auto"
+            className="relative w-5 h-5 rounded-full border border-white bg-slate-200 overflow-hidden shadow-sm pointer-events-auto"
             title={a.name}
           >
             <img src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} alt={a.name} className="w-full h-full object-cover" />
           </div>
         ))}
         {extraCount > 0 && (
-          <div className="relative w-5 h-5 rounded-full border border-white dark:border-slate-900 bg-slate-800 text-[9px] text-white flex items-center justify-center font-medium shadow-sm z-10 pointer-events-auto">
+          <div className="relative w-5 h-5 rounded-full border border-white bg-primary text-[8px] text-white flex items-center justify-center font-bold shadow-sm z-10 pointer-events-auto">
             +{extraCount}
           </div>
         )}
@@ -187,102 +181,114 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
     );
   };
 
+  const formattedMonthYear = viewMode === "MONTH"
+    ? format(currentDate, "MMMM yyyy", { locale: vi })
+    : `Tuần của ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM", { locale: vi })}`;
+
   return (
-    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl">
-      {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 min-w-[180px]">
-            {viewMode === "MONTH"
-              ? format(currentDate, "MMMM yyyy")
-              : `Week of ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "MMM d")}`}
-          </h2>
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
-            <button onClick={prev} className="p-1.5 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors">
-              <ChevronLeft className="w-5 h-5" />
+    <div className="space-y-lg animate-in fade-in duration-300">
+      {/* Calendar Header Controls */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl">
+        <div className="space-y-sm">
+          <h2 className="font-headline-lg text-headline-lg text-on-background capitalize">{formattedMonthYear}</h2>
+          <div className="flex items-center gap-xs">
+            <button 
+              onClick={prev} 
+              className="p-1 hover:bg-surface-container rounded-full transition-colors flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-[20px]">chevron_left</span>
             </button>
-            <button onClick={today} className="px-3 py-1.5 text-sm font-medium rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition-colors">
+            <button 
+              onClick={today} 
+              className="px-4 py-1.5 bg-surface-container text-primary font-label-md rounded-lg hover:bg-surface-container-high transition-colors font-semibold"
+            >
               Hôm nay
             </button>
-            <button onClick={next} className="p-1.5 rounded-md hover:bg-white dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors">
-              <ChevronRight className="w-5 h-5" />
+            <button 
+              onClick={next} 
+              className="p-1 hover:bg-surface-container rounded-full transition-colors flex items-center justify-center"
+            >
+              <span className="material-symbols-outlined text-[20px]">chevron_right</span>
             </button>
           </div>
         </div>
 
-        {/* View Toggles */}
-        <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-          <button
-            onClick={() => setViewMode("MONTH")}
+        {/* View Mode Toggle */}
+        <div className="flex items-center bg-surface-container-low p-xs rounded-xl border border-outline-variant/20 shadow-sm">
+          <button 
+            onClick={() => setViewMode("WEEK")} 
             className={cn(
-              "px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-              viewMode === "MONTH" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              "px-lg py-1.5 font-label-md rounded-lg transition-all font-semibold", 
+              viewMode === "WEEK" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50"
             )}
           >
-            Tháng
+            Theo tuần
           </button>
-          <button
-            onClick={() => setViewMode("WEEK")}
+          <button 
+            onClick={() => setViewMode("MONTH")} 
             className={cn(
-              "px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-200",
-              viewMode === "WEEK" ? "bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+              "px-lg py-1.5 font-label-md rounded-lg transition-all font-semibold", 
+              viewMode === "MONTH" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50"
             )}
           >
-            Tuần
+            Theo tháng
           </button>
         </div>
       </div>
 
-      {/* Grid Header */}
-      <div className="grid grid-cols-7 gap-2 mb-2">
-        {weekDays.map((day) => (
-          <div key={day} className="text-center font-semibold text-xs text-slate-400 uppercase tracking-wider py-2">
-            {day}
-          </div>
-        ))}
-      </div>
-
-      {/* Calendar Grid */}
-      <div className={cn("grid grid-cols-7 gap-2", viewMode === "MONTH" ? "auto-rows-[1fr]" : "")}>
-        {days.map((day, idx) => {
-          const dateKey = format(day, "yyyy-MM-dd");
-          const dayPosts = posts.filter((p) => format(new Date(p.scheduledAt), "yyyy-MM-dd") === dateKey);
-          
-          const isCurrentMonth = isSameMonth(day, currentDate);
-          const isCurrentDay = isToday(day);
-
-          return (
-            <div
-              key={idx}
-              className={cn(
-                "relative min-h-[130px] rounded-2xl border p-2 transition-colors flex flex-col",
-                isCurrentDay ? "border-indigo-500/50 bg-indigo-50/30 dark:bg-indigo-900/10 dark:border-indigo-500/30" : "border-slate-100 dark:border-slate-800/60 bg-white dark:bg-slate-900/40",
-                !isCurrentMonth && viewMode === "MONTH" ? "opacity-40 grayscale-[0.5]" : ""
-              )}
-            >
-              {/* Date Number */}
-              <div className="flex justify-between items-start mb-2 z-10 relative pointer-events-none">
-                <span
-                  className={cn(
-                    "text-sm font-semibold w-6 h-6 flex items-center justify-center rounded-full",
-                    isCurrentDay ? "bg-indigo-600 text-white shadow-md shadow-indigo-500/20" : "text-slate-700 dark:text-slate-300"
-                  )}
-                >
-                  {format(day, "d")}
-                </span>
-              </div>
-
-              {/* Content Box */}
-              <div className="flex-1 w-full relative min-h-[80px]">
-                {dayPosts.length === 1 && renderSinglePost(dayPosts[0])}
-                {dayPosts.length >= 2 && renderDoublePosts(dayPosts[0], dayPosts[1])}
-              </div>
-
-              {/* Avatars */}
-              {viewMode === "MONTH" && renderAvatars(dateKey)}
+      {/* Calendar Table Layout */}
+      <div className="bg-white rounded-2xl shadow-lg border border-outline-variant/10 overflow-hidden">
+        {/* Day Names Header */}
+        <div className="grid grid-cols-7 border-b border-outline-variant/10 bg-surface-container-low/50">
+          {weekDays.map((day) => (
+            <div key={day} className="py-2.5 text-center font-label-md text-outline text-xs uppercase tracking-wider font-bold">
+              {day}
             </div>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Grid Cells */}
+        <div className="grid grid-cols-7 divide-x divide-y divide-outline-variant/10 border-t border-outline-variant/10">
+          {days.map((day, idx) => {
+            const dateKey = format(day, "yyyy-MM-dd");
+            const dayPosts = posts.filter((p) => format(new Date(p.scheduledAt), "yyyy-MM-dd") === dateKey);
+
+            const isCurrentMonth = isSameMonth(day, currentDate);
+            const isCurrentDay = isToday(day);
+
+            return (
+              <div
+                key={idx}
+                className={cn(
+                  "relative min-h-[140px] flex flex-col p-2 hover:bg-surface-container-low transition-colors duration-250",
+                  !isCurrentMonth && viewMode === "MONTH" ? "bg-surface-container-lowest/30 opacity-40" : "bg-white",
+                  isCurrentDay && "bg-indigo-50/20 border-2 border-indigo-500/20"
+                )}
+              >
+                {/* Cell Date Number */}
+                <div className="flex justify-between items-start mb-2 z-20">
+                  <span
+                    className={cn(
+                      "text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full",
+                      isCurrentDay ? "bg-primary text-white" : "text-on-surface"
+                    )}
+                  >
+                    {format(day, "d")}
+                  </span>
+                </div>
+
+                {/* Content Box (Posts inside Cell) */}
+                <div className="flex-1 w-full relative min-h-[80px] z-10 rounded-lg overflow-hidden border border-outline-variant/5">
+                  {dayPosts.length === 1 && renderSinglePost(dayPosts[0])}
+                  {dayPosts.length >= 2 && renderDoublePosts(dayPosts[0], dayPosts[1])}
+                </div>
+
+                {/* Avatar overlays */}
+                {viewMode === "MONTH" && renderAvatars(dateKey)}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
