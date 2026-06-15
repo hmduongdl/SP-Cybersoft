@@ -122,7 +122,6 @@ export async function GET(request: Request) {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
         });
       }
-      }
 
       // Cell formatting
       dataRow.eachCell((cell, colNumber) => {
@@ -146,11 +145,12 @@ export async function GET(request: Request) {
       let maxLength = 0;
       if (column.eachCell) {
         column.eachCell({ includeEmpty: true }, (cell) => {
-        const columnLength = cell.value ? cell.value.toString().length : 10;
-        if (columnLength > maxLength) {
-          maxLength = columnLength;
-        }
-      });
+          const columnLength = cell.value ? cell.value.toString().length : 10;
+          if (columnLength > maxLength) {
+            maxLength = columnLength;
+          }
+        });
+      }
       // Add padding to max length
       column.width = Math.min(Math.max(maxLength + 2, 15), 50);
     });

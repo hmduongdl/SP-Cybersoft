@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import PostsPageClient from "./posts-page-client";
 import { auth } from "@/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function PostsPage() {
   const session = await auth();
   const userId = session?.user?.id;

@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, startOfWeek, endOfWeek, subDays } from "date-fns";
 import AnalyticsClient from "./analytics-client";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AnalyticsPage() {
   const now = new Date();
   const monthStart = startOfMonth(now);

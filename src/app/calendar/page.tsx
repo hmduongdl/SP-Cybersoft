@@ -1,6 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Calendar as CalendarIcon, Clock } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default function CalendarPage() {
   return (
     <div className="space-y-6">

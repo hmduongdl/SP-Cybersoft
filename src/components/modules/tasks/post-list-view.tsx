@@ -144,7 +144,7 @@ const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => 
   );
 };
 
-export function PostListView({ posts }: { posts: Post[] }) {
+export function PostListView({ posts, onCheckIn }: { posts: Post[], onCheckIn?: (post: Post) => void }) {
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "COMPLETED" | "EXPIRED">("ALL");
 
   const filteredPosts = posts.filter((post) => {
@@ -191,7 +191,7 @@ export function PostListView({ posts }: { posts: Post[] }) {
       {filteredPosts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPosts.map((post) => (
-            <PostCard key={post.id} post={post} onCheckIn={(p) => console.log("Check-in", p)} />
+            <PostCard key={post.id} post={post} onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)} />
           ))}
         </div>
       ) : (
