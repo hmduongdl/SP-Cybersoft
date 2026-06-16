@@ -60,9 +60,8 @@ export function Sidebar() {
         {/* Brand Logo Area */}
         <div className="px-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-indigo-600 to-indigo-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(99,102,241,0.3)] select-none">
-              AI
-              <div className="absolute inset-0 rounded-xl border border-indigo-400/20 animate-pulse" />
+            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden select-none">
+              <img src="/SPlogo-white.png" alt="SPS AI" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">

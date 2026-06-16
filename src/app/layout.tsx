@@ -10,6 +10,10 @@ import ClientLayoutWrapper from "./client-layout-wrapper";
 export const metadata: Metadata = {
   title: "SPS AI Check-in Tool",
   description: "Modern employee post sharing and check-in management tool",
+  icons: {
+    icon: "/songphuong.vn.png",
+    apple: "/songphuong.vn.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

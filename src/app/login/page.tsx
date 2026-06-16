@@ -11,8 +11,8 @@ export default function LoginPage() {
 
         <div className="z-10">
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center">
-              <span className="material-symbols-outlined text-white text-[24px]">hub</span>
+            <div className="w-10 h-10 rounded-xl overflow-hidden">
+              <img src="/SPlogo-white.png" alt="SPS AI" className="w-full h-full object-contain" />
             </div>
             <h1 className="font-headline-md text-headline-md font-bold tracking-tight text-white">SPS AI</h1>
           </div>
