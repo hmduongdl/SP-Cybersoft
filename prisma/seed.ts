@@ -25,8 +25,7 @@ async function main() {
       password,
       role: "ADMIN",
       department: "SALES",
-      hope_stars: 5,
-      is_onboarded: true,
+      is_first_login: false,
     },
   });
   console.log(`✓ Đã tạo Admin: ${admin.name} (${admin.email})`);
@@ -40,8 +39,7 @@ async function main() {
       password,
       role: "USER",
       department: "TECH",
-      hope_stars: 1,
-      is_onboarded: false,
+      is_first_login: true,
     },
   });
   console.log(`✓ Đã tạo User: ${user.name} (${user.email})`);
