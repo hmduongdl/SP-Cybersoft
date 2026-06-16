@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import type { z } from "zod";
@@ -13,9 +13,9 @@ interface ManagedPost {
   id: string;
   title: string;
   description: string;
-  originalUrl: string;
-  thumbnailUrl: string | null;
-  scheduledAt: string;
+  url: string;
+  thumbnail_url: string | null;
+  start_at: string;
   successfulCheckins: number;
   totalEmployees: number;
 }
@@ -60,10 +60,10 @@ export function PostTaskAdmin() {
     resolver: zodResolver(postTaskSchema),
     defaultValues: {
       title: "",
-      originalUrl: "",
-      thumbnailUrl: "",
+      url: "",
+      thumbnail_url: "",
       description: "",
-      scheduledAt: toDateTimeValue(selectedDate, selectedTime),
+      start_at: toDateTimeValue(selectedDate, selectedTime),
     },
   });
 
@@ -83,7 +83,7 @@ export function PostTaskAdmin() {
   }, []);
 
   useEffect(() => {
-    setValue("scheduledAt", toDateTimeValue(selectedDate, selectedTime), {
+    setValue("start_at", toDateTimeValue(selectedDate, selectedTime), {
       shouldValidate: true,
       shouldDirty: true,
     });
@@ -148,15 +148,15 @@ export function PostTaskAdmin() {
     setSelectedTime("09:00");
     reset({
       title: "",
-      originalUrl: "",
-      thumbnailUrl: "",
+      url: "",
+      thumbnail_url: "",
       description: "",
-      scheduledAt: toDateTimeValue(today, "09:00"),
+      start_at: toDateTimeValue(today, "09:00"),
     });
   }
 
   function editPost(post: ManagedPost) {
-    const scheduledAt = new Date(post.scheduledAt);
+    const scheduledAt = new Date(post.start_at);
     const dateKey = getLocalDateKey(scheduledAt);
     const time = `${String(scheduledAt.getHours()).padStart(2, "0")}:00`;
 
@@ -165,10 +165,10 @@ export function PostTaskAdmin() {
     setSelectedTime(time);
     reset({
       title: post.title,
-      originalUrl: post.originalUrl,
-      thumbnailUrl: post.thumbnailUrl ?? "",
+      url: post.url,
+      thumbnail_url: post.thumbnail_url ?? "",
       description: post.description,
-      scheduledAt: toDateTimeValue(dateKey, time),
+      start_at: toDateTimeValue(dateKey, time),
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -256,19 +256,19 @@ export function PostTaskAdmin() {
                 </div>
                 
                 <div>
-                  <label className="block font-label-md text-label-md text-on-surface mb-xs" htmlFor="originalUrl">Link bài viết gốc Facebook</label>
+                  <label className="block font-label-md text-label-md text-on-surface mb-xs" htmlFor="url">Link bài viết gốc Facebook</label>
                   <div className="relative">
                     <span className="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline-variant">link</span>
                     <input 
-                      {...register("originalUrl")}
+                      {...register("url")}
                       className="w-full bg-white border border-slate-200 rounded-lg pl-3xl pr-md py-md focus:border-primary focus:ring-3 focus:ring-primary-container/20 transition-all outline-none text-on-background" 
                       placeholder="https://www.facebook.com/..." 
                       type="url"
-                      id="originalUrl"
+                      id="url"
                     />
                   </div>
-                  {errors.originalUrl?.message && (
-                    <p className="mt-1 text-xs text-error font-medium">{errors.originalUrl.message}</p>
+                  {errors.url?.message && (
+                    <p className="mt-1 text-xs text-error font-medium">{errors.url.message}</p>
                   )}
                 </div>
 
@@ -295,19 +295,19 @@ export function PostTaskAdmin() {
                 <h3 className="font-title-lg text-title-lg text-on-background">Thumbnail hiển thị</h3>
               </div>
               <div>
-                <label className="block font-label-md text-label-md text-on-surface mb-xs" htmlFor="thumbnailUrl">Đường dẫn ảnh Thumbnail (URL)</label>
+                <label className="block font-label-md text-label-md text-on-surface mb-xs" htmlFor="thumbnail_url">Đường dẫn ảnh Thumbnail (URL)</label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2 text-outline-variant">image</span>
                   <input 
-                    {...register("thumbnailUrl")}
+                    {...register("thumbnail_url")}
                     className="w-full bg-white border border-slate-200 rounded-lg pl-3xl pr-md py-md focus:border-primary focus:ring-3 focus:ring-primary-container/20 transition-all outline-none text-on-background" 
                     placeholder="https://example.com/image.jpg" 
                     type="url"
-                    id="thumbnailUrl"
+                    id="thumbnail_url"
                   />
                 </div>
-                {errors.thumbnailUrl?.message && (
-                  <p className="mt-1 text-xs text-error font-medium">{errors.thumbnailUrl.message}</p>
+                {errors.thumbnail_url?.message && (
+                  <p className="mt-1 text-xs text-error font-medium">{errors.thumbnail_url.message}</p>
                 )}
               </div>
             </section>
@@ -340,7 +340,7 @@ export function PostTaskAdmin() {
                 </div>
               )}
 
-              <input type="hidden" {...register("scheduledAt")} />
+              <input type="hidden" {...register("start_at")} />
               <div className="space-y-lg">
                 <div>
                   <label className="block font-label-md text-label-md text-on-surface mb-xs">Ngày đăng</label>
@@ -470,8 +470,8 @@ export function PostTaskAdmin() {
                   <tr key={post.id} className="hover:bg-surface-container-low/50 transition-colors group">
                     <td className="px-lg py-md">
                       <div className="w-16 h-10 rounded-lg bg-slate-100 border border-outline-variant/10 overflow-hidden relative">
-                        {post.thumbnailUrl ? (
-                          <img className="w-full h-full object-cover" src={post.thumbnailUrl} alt="" />
+                        {post.thumbnail_url ? (
+                          <img className="w-full h-full object-cover" src={post.thumbnail_url} alt="" />
                         ) : (
                           <div className="w-full h-full bg-primary/5 text-primary text-[9px] flex items-center justify-center font-bold">No Image</div>
                         )}
@@ -484,7 +484,7 @@ export function PostTaskAdmin() {
                     </td>
                     <td className="px-lg py-md">
                       <div className="flex flex-col">
-                        <span className="text-body-sm text-on-background font-semibold">{formatDateTime(post.scheduledAt)}</span>
+                        <span className="text-body-sm text-on-background font-semibold">{formatDateTime(post.start_at)}</span>
                       </div>
                     </td>
                     <td className="px-lg py-md">

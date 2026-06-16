@@ -21,10 +21,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         where: { id },
         data: {
             title: parsed.data.title,
-            url: parsed.data.originalUrl,
-            thumbnail_url: parsed.data.thumbnailUrl || null,
+            url: parsed.data.url,
+            thumbnail_url: parsed.data.thumbnail_url || null,
             description: parsed.data.description,
-            start_at: parsed.data.scheduledAt,
+            start_at: parsed.data.start_at,
         },
     });
 

@@ -1,100 +1,71 @@
-# Project Plan: Kinetic HR - Post Share Check-in System
+# Teamwork Check-in System Plan
 
-## 1. Project Overview
-Kinetic HR is a specialized web tool designed to streamline and verify employee engagement with company social media posts. The system allows administrators to schedule "Share Tasks," and provides employees with a structured interface to submit proof of their shares within a strict 24-hour window.
+## Phase 1 — Database schema
 
-Verification is powered by EXIF date extraction on both client-side and server-side to guarantee authentic screenshot uploads, along with on-demand Gemini AI Vision checks.
+Ba bảng cốt lõi, bao gồm các trường quan trọng hỗ trợ luồng upload ảnh và tự động check-in.
 
----
+**Posts**: `id`, `title`, `url`, `thumbnail_url`, `description`, `start_at (DateTime)`, `team (Enum: ALL, TECH, SALES, MARKETING)`, `is_archived (Boolean)`
 
-## 2. Phase 1 — Database Schema
+**Users**: `id`, `username`, `name`, `email`, `role (Enum: ADMIN, USER)`, `department`, `avatar_url`
 
-The core database consists of three relational tables managed via Prisma:
+**Checkins**: `id`, `user_id (FK)`, `post_id (FK)`, `image_url` (để lưu ảnh màn hình bằng Base64 hoặc Cloud URL), `exif_time (DateTime, nullable)`, `submitted_at (DateTime)`, `status (Enum: AUTO_APPROVED, PENDING, APPROVED, REJECTED)`, `reject_reason (String, nullable)`, `reviewed_by (FK -> Users)`
 
-### **Posts**
-- `id` (String, Primary Key)
-- `title` (String)
-- `url` (String)
-- `thumbnail_url` (String, Nullable)
-- `description` (String)
-- `start_at` (DateTime) - Timestamp of scheduling
-- `team` (Enum: `ALL` | `TECH` | `SALES` | `MARKETING`)
-- `is_archived` (Boolean, Default: false)
-
-### **Users**
-- `id` (String, Primary Key)
-- `name` (String, Nullable)
-- `email` (String, Unique)
-- `role` (Enum: `ADMIN` | `USER`)
-- `department` (String, Nullable)
-- `avatar_url` (String, Nullable)
-
-### **Checkins**
-- `id` (String, Primary Key)
-- `user_id` (String, Foreign Key → Users)
-- `post_id` (String, Foreign Key → Posts)
-- `image_url` (String) - Screenshot reference url
-- `exif_time` (DateTime, Nullable) - Extracted DateTimeOriginal from EXIF
-- `submitted_at` (DateTime, Default: now)
-- `status` (Enum: `AUTO_APPROVED` | `PENDING` | `APPROVED` | `REJECTED`)
-- `reject_reason` (String, Nullable)
-- `is_ai_flagged` (Boolean, Default: false)
-- `ai_confidence` (Float, Nullable)
-- `reviewed_by` (String, Nullable, Foreign Key → Users)
+Trường quan trọng nhất là `exif_time` — nullable vì không phải ảnh nào cũng có EXIF, và `status` là trung tâm của toàn bộ luồng phê duyệt và kiểm duyệt (verify flow).
 
 ---
 
-## 3. Phase 2 — Submit Flow (User Side)
+## Phase 2 — Submit flow (User side)
 
-The check-in submission process features a client-side stepper modal:
-1. **Discovery & Task Selection**: User clicks an active post. The Submission Modal opens and calculates a countdown remaining of the 24h window since `post.start_at`.
-2. **Drag & Drop Upload**: The user uploads the screenshot (formats: `.png`, `.jpg`, `.jpeg`, `.webp` < 10MB).
-3. **Client-Side EXIF Parse**: The modal uses the browser-side `exifr` library to read `DateTimeOriginal` from the image's metadata.
-   - If EXIF matches the 24h window, it displays a green "EXIF Hợp lệ" badge.
-   - If EXIF is outside the window or missing, a warning badge is shown ("Không có EXIF" / "Quá giới hạn 24 giờ").
-4. **Attestation Checkboxes**: The user must check two confirmation boxes to unlock the "Nộp bằng chứng" button.
-5. **Dynamic Success States**: Shows "Đã Tự Động Duyệt" if the client expects auto-approval, or "Đang chờ Duyệt" if falling back to the admin queue.
+Phân tích cách người dùng nộp minh chứng (Submit Check-in):
 
----
+1. **Auto Check-in**:
+   - Nếu User sử dụng nút Auto Check-in (không cần upload ảnh), hệ thống xử lý API `/api/submissions/auto-check` để kiểm tra điều kiện thời gian (trong vòng 24h từ `start_at`).
+   - Nếu hợp lệ, hệ thống tự động ghi nhận Checkin với `status: "AUTO_APPROVED"` và `image_url: "AUTO_CHECKIN"`.
 
-## 4. Phase 3 — EXIF Server-Side Validation
-
-The server exposes a secure endpoint at `POST /api/checkins`:
-1. **Security & Validation**: Checks User session. Verifies the target `Post` exists, and the user hasn't already submitted a checkin for it.
-2. **File Processing**: Stores image (using Local Upload or Cloud storage) and obtains `image_url`.
-3. **Server-Side Metadata Parse**: Reads image buffer with Node `exifr`.
-4. **Window Check**:
-   - Compares extracted `exif_time` against `[post.start_at, post.start_at + 24 hours]`.
-   - If valid: sets `status = AUTO_APPROVED`.
-   - If missing EXIF or outside window: sets `status = PENDING`.
-5. **Database Transaction**: Inserts `Checkin` record and returns status to the frontend client.
+2. **Manual Upload**:
+   - Người dùng tải ảnh lên qua giao diện `SubmitCheckinModal`.
+   - Client sử dụng thư viện `exifr` để trích xuất `DateTimeOriginal` từ ảnh.
+   - Gửi file ảnh (hoặc Base64) kèm `postId` lên API `/api/submissions/manual`.
+   - Hệ thống tạo (hoặc cập nhật) Checkin với `status: "PENDING"`, chờ Admin duyệt.
 
 ---
 
-## 5. Phase 4 — Admin Moderation & AI Queue
+## Phase 3 — EXIF Validation & Security
 
-The Admin Console contains the **Kiểm duyệt Hàng đợi** (Queue) view:
-- **Filters**: Tab selector for `Chờ Duyệt (Pending)`, `Đã Tự Động Duyệt (Auto Approved)`, and `Đã Duyệt / Từ Chối (Reviewed)`. Combines with Name/Post Search and Department filters.
-- **Moderation Actions**:
-  - **Duyệt**: Instant 1-click status change to `APPROVED`.
-  - **Từ Chối**: Displays an inline popover requiring the admin to choose or input a rejection reason (preset: *Ảnh sai nội dung*, *Ảnh bị mờ*, *Ảnh nộp trùng*), setting status to `REJECTED`.
-  - **Batch Actions**: Allows selecting multiple cards to approve or reject them collectively via a single bottom-docked toolbar.
-- **Gemini AI Vision Scan**:
-  - Admin triggers **"AI Quét Ảnh"** on-demand for any pending check-in.
-  - Call API `/api/admin/ai-scan` which forwards the base64 image data to `gemini-2.5-flash-preview-09-2025` to evaluate:
-    1. Public share state (globe icon) visibility on Facebook.
-    2. Shared URL matches `post.url` and title matches `post.title`.
-    3. Indicators of Photoshop template manipulation.
-  - Automatically updates database flags `is_ai_flagged` and `ai_confidence` and updates the Admin UI reactively.
+Bảo mật và chống gian lận thông qua dữ liệu EXIF của ảnh chụp màn hình:
+
+- Hệ thống Backend hiện đang lưu trữ `image_url` (trong phiên bản hiện tại là dạng Base64 giả lập để kiểm thử).
+- Tương lai (khi tích hợp Cloudinary / Vercel Blob), sẽ lưu URL thực tế và có thể xử lý file từ buffer.
+- `exif_time` được dùng để kiểm tra thời gian chụp thực tế của màn hình (nếu ảnh có hỗ trợ). Việc này giúp phát hiện ảnh cũ được tái sử dụng để chống gian lận.
 
 ---
 
-## 6. Phase 5 — Corporate Reporting & Exports
+## Phase 4 — Admin Queue & Moderation
 
-- **Excel Report Generation**: API Route `/api/admin/export-excel` generates structured workbooks with `exceljs`.
-- **Date Filtering**: Supports `start_date` and `end_date` parameters.
-- **Format**:
-  - Title: *"BÁO CÁO CÔNG VIỆC THỰC HIỆN LIKE & SHARE BÀI VIẾT TEAMWORK"* styled with navy blue background and white bold fonts.
-  - Auto-fit column widths and alternating zebra row colors.
-  - Standard columns: STT, Email/Employee ID, Employee Name, Department, Expected Posts, Shares Completed, Completion Rate %, Auto Approved Count, Approved Count, Rejected Count.
-  - File name: `[MM].[DD].[YYYY] - Bao Cao Cong Viec Like Share.xlsx`.
+Trang quản lý kiểm duyệt tại `/admin/queue`:
+
+1. **Giao diện Quản lý Hàng đợi (Queue)**:
+   - Các bài nộp ở trạng thái `PENDING` được hiển thị rõ ràng trên một lưới thẻ (Grid).
+   - Mỗi thẻ bài nộp có ảnh Thumbnail, thông tin nhân sự và nút chức năng (Duyệt/Từ chối).
+
+2. **Kiểm duyệt thủ công (Manual Review)**:
+   - Admin có thể bấm "Từ chối" và cung cấp lý do (Reject Reason) như "Ảnh mờ", "Sai bài viết", v.v.
+   - Dữ liệu Checkin sẽ được cập nhật sang `status: "REJECTED"` và lưu `reject_reason`.
+
+3. **Gemini AI Vision Scan (Tích hợp AI)**:
+   - Quét ảnh bằng chứng on-demand thông qua nút "AI Quét Ảnh".
+   - Gọi API Route `/api/admin/ai-scan` tới model `gemini-2.5-flash-preview-09-2025`.
+   - Kết quả phân tích (Valid/Invalid) sẽ giúp Admin đánh giá nhanh hơn bằng cách làm nổi bật sự bất thường (AI Flagged).
+
+---
+
+## Phase 5 — Reporting & Export
+
+Thống kê và xuất báo cáo:
+
+- API `/api/admin/export-excel` hỗ trợ xuất báo cáo định dạng Excel bằng `exceljs`.
+- Báo cáo chi tiết gồm các cột: `Mã NV/Email`, `Họ tên`, `Phòng ban`, `Bài viết Share`, `Tình trạng` và `Lý do từ chối (nếu có)`.
+- Thiết kế Excel chuẩn doanh nghiệp với Header tô đậm, canh lề, màu sắc thẩm mỹ.
+
+---
+**Status**: Cập nhật thành công sơ đồ luồng hệ thống theo cấu trúc dữ liệu mới nhất (đã fix toàn bộ Type Errors và đồng bộ Prisma Schema).
