@@ -1,0 +1,422 @@
+/**
+ * POST /api/checkins
+ *
+ * Nhận multipart form-data từ frontend SubmitCheckinModal, thực hiện toàn bộ
+ * pipeline kiểm tra minh chứng checkin:
+ *
+ *  1. Xác thực phiên đăng nhập (NextAuth session)
+ *  2. Parse & validate multipart form-data (post_id + image_file)
+ *  3. Kiểm tra Post tồn tại và chưa hết hạn cửa sổ 24h
+ *  4. Kiểm tra User chưa từng nộp checkin cho Post này (chống spam)
+ *  5. Validate file ảnh (loại file, dung lượng)
+ *  6. Upload ảnh qua upload adapter (local / Cloudinary / Vercel Blob)
+ *  7. Phân tích EXIF server-side bằng exifr — KHÔNG tin kết quả từ client
+ *  8. Xác định trạng thái: AUTO_APPROVED | PENDING
+ *  9. Tạo bản ghi Checkin trong database
+ * 10. Trả về JSON { success, status, exif_time, message }
+ */
+
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { db } from "@/lib/db";
+import { uploadImage } from "@/lib/upload";
+import exifr from "exifr";
+
+// Cho phép body size lớn hơn mặc định 4 MB của Next.js
+export const dynamic = "force-dynamic";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+] as const;
+
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
+const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 giờ tính bằng milliseconds
+
+// ─── Helper: parse EXIF từ Buffer ─────────────────────────────────────────────
+
+interface ExifResult {
+  /** Thời gian gốc trích xuất từ EXIF. null nếu không tìm thấy hoặc lỗi parse. */
+  exifTime: Date | null;
+  /** true nếu tìm thấy timestamp hợp lệ trong EXIF */
+  exifFound: boolean;
+  /** Tên tag tìm thấy, dùng để debug */
+  sourceTag: string | null;
+}
+
+async function parseExifFromBuffer(buffer: Buffer): Promise<ExifResult> {
+  // Mặc định trả về "không tìm thấy" — lỗi sẽ bị bắt ở catch-block
+  const empty: ExifResult = { exifTime: null, exifFound: false, sourceTag: null };
+
+  try {
+    // Chỉ trích xuất các tag liên quan đến timestamp để nhanh hơn
+    const meta = await exifr.parse(buffer, {
+      pick: ["DateTimeOriginal", "CreateDate", "DateTimeDigitized", "DateTime"],
+      // Tắt tất cả các segment không cần thiết để tránh lỗi với ảnh chụp màn hình
+      tiff: true,
+      xmp: false,
+      icc: false,
+      iptc: false,
+      jfif: false,
+      ihdr: false,
+    });
+
+    if (!meta) return empty;
+
+    // Ưu tiên: DateTimeOriginal > CreateDate > DateTimeDigitized > DateTime
+    const candidates: Array<{ tag: string; value: unknown }> = [
+      { tag: "DateTimeOriginal", value: meta.DateTimeOriginal },
+      { tag: "CreateDate", value: meta.CreateDate },
+      { tag: "DateTimeDigitized", value: meta.DateTimeDigitized },
+      { tag: "DateTime", value: meta.DateTime },
+    ];
+
+    for (const { tag, value } of candidates) {
+      if (!value) continue;
+
+      // exifr thường trả về Date object trực tiếp
+      if (value instanceof Date && !isNaN(value.getTime())) {
+        return { exifTime: value, exifFound: true, sourceTag: tag };
+      }
+
+      // Fallback: thử parse string (format EXIF cũ "YYYY:MM:DD HH:MM:SS")
+      if (typeof value === "string") {
+        // Chuẩn hoá format EXIF "2024:06:15 14:30:00" → "2024-06-15T14:30:00"
+        const normalised = value
+          .trim()
+          .replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3")
+          .replace(" ", "T");
+        const parsed = new Date(normalised);
+        if (!isNaN(parsed.getTime())) {
+          return { exifTime: parsed, exifFound: true, sourceTag: tag };
+        }
+      }
+    }
+
+    return empty;
+  } catch (err) {
+    // Ảnh chụp màn hình / file không có EXIF sẽ ném lỗi parse — đây là
+    // trường hợp bình thường, không phải lỗi hệ thống. Log ở warn level.
+    console.warn("[checkins] EXIF parse skipped (no metadata or unsupported format):", err instanceof Error ? err.message : err);
+    return empty;
+  }
+}
+
+// ─── Helper: xác định CheckinStatus và ai_confidence ─────────────────────────
+
+interface StatusResult {
+  status: "AUTO_APPROVED" | "PENDING";
+  /** [0, 1] — độ tin cậy hệ thống, lưu để admin review */
+  aiConfidence: number;
+  /** Lý do kèm theo, dùng trong response message */
+  reason: "exif_valid" | "exif_out_of_window" | "no_exif";
+}
+
+function determineStatus(
+  exifFound: boolean,
+  exifTime: Date | null,
+  postStartAt: Date
+): StatusResult {
+  if (!exifFound || !exifTime) {
+    return {
+      status: "PENDING",
+      aiConfidence: 0.25,
+      reason: "no_exif",
+    };
+  }
+
+  const startMs = postStartAt.getTime();
+  const endMs = startMs + WINDOW_MS;
+  const takenMs = exifTime.getTime();
+  const isWithinWindow = takenMs >= startMs && takenMs <= endMs;
+
+  if (isWithinWindow) {
+    return {
+      status: "AUTO_APPROVED",
+      aiConfidence: 0.97,
+      reason: "exif_valid",
+    };
+  }
+
+  return {
+    status: "PENDING",
+    aiConfidence: 0.5,
+    reason: "exif_out_of_window",
+  };
+}
+
+// ─── Tạo message trả về cho frontend ──────────────────────────────────────────
+
+function buildMessage(reason: StatusResult["reason"]): string {
+  switch (reason) {
+    case "exif_valid":
+      return "Tự động xác thực thành công! Dữ liệu EXIF hợp lệ và nằm trong cửa sổ 24h.";
+    case "exif_out_of_window":
+      return "Ảnh có dữ liệu EXIF nhưng thời gian chụp nằm ngoài cửa sổ 24h. Chuyển sang hàng đợi duyệt thủ công.";
+    case "no_exif":
+      return "Không phát hiện thông tin EXIF (có thể là ảnh chụp màn hình). Chuyển sang hàng đợi duyệt thủ công.";
+  }
+}
+
+// ─── Route Handler ────────────────────────────────────────────────────────────
+
+export async function POST(request: Request) {
+  // ── 1. Xác thực phiên đăng nhập ──────────────────────────────────────────
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { success: false, error: "Bạn cần đăng nhập để nộp minh chứng." },
+      { status: 401 }
+    );
+  }
+
+  const userId = session.user.id;
+
+  try {
+    // ── 2. Parse multipart form-data ────────────────────────────────────────
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Dữ liệu form không hợp lệ hoặc không phải multipart/form-data." },
+        { status: 400 }
+      );
+    }
+
+    const postId = (formData.get("post_id") ?? formData.get("postId")) as string | null;
+    const imageFile = (formData.get("image_file") ?? formData.get("image")) as File | null;
+
+    if (!postId || typeof postId !== "string" || postId.trim() === "") {
+      return NextResponse.json(
+        { success: false, error: "Thiếu trường post_id." },
+        { status: 400 }
+      );
+    }
+
+    if (!imageFile || typeof imageFile.arrayBuffer !== "function") {
+      return NextResponse.json(
+        { success: false, error: "Thiếu trường image_file hoặc file không hợp lệ." },
+        { status: 400 }
+      );
+    }
+
+    // ── 3a. Validate file type ───────────────────────────────────────────────
+    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(imageFile.type)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Định dạng ảnh không được hỗ trợ: "${imageFile.type}". Chỉ chấp nhận JPG, PNG, WEBP.`,
+        },
+        { status: 422 }
+      );
+    }
+
+    // ── 3b. Validate file size ───────────────────────────────────────────────
+    if (imageFile.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Dung lượng ảnh (${(imageFile.size / 1024 / 1024).toFixed(1)} MB) vượt quá giới hạn 10 MB.`,
+        },
+        { status: 422 }
+      );
+    }
+
+    // ── 4a. Kiểm tra Post tồn tại ────────────────────────────────────────────
+    const post = await db.post.findUnique({
+      where: { id: postId.trim() },
+      select: {
+        id: true,
+        title: true,
+        start_at: true,
+        is_archived: true,
+      },
+    });
+
+    if (!post) {
+      return NextResponse.json(
+        { success: false, error: "Bài viết không tồn tại hoặc đã bị xoá." },
+        { status: 404 }
+      );
+    }
+
+    if (post.is_archived) {
+      return NextResponse.json(
+        { success: false, error: "Bài viết này đã bị archive, không thể nộp thêm minh chứng." },
+        { status: 410 }
+      );
+    }
+
+    // ── 4b. Kiểm tra cửa sổ 24h của Post ────────────────────────────────────
+    // Người dùng không được nộp sau khi cửa sổ đã đóng.
+    // (Nếu muốn cho phép nộp muộn để admin duyệt, hãy bỏ block này.)
+    const windowEndMs = new Date(post.start_at).getTime() + WINDOW_MS;
+    if (Date.now() > windowEndMs) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Cửa sổ nộp bài 24h đã kết thúc. Vui lòng liên hệ HR Admin nếu cần hỗ trợ.",
+        },
+        { status: 422 }
+      );
+    }
+
+    // ── 4c. Kiểm tra trùng lặp (chống spam) ─────────────────────────────────
+    const existingCheckin = await db.checkin.findFirst({
+      where: {
+        user_id: userId,
+        post_id: post.id,
+      },
+      select: { id: true, status: true },
+    });
+
+    if (existingCheckin) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Bạn đã nộp minh chứng cho bài viết này rồi. Mỗi người chỉ được nộp một lần.",
+          existing: {
+            id: existingCheckin.id,
+            status: existingCheckin.status,
+          },
+        },
+        { status: 409 } // 409 Conflict
+      );
+    }
+
+    // ── 5. Đọc buffer ảnh (một lần, dùng chung cho EXIF và upload) ───────────
+    const arrayBuffer = await imageFile.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // ── 6. Upload ảnh ────────────────────────────────────────────────────────
+    // Chạy song song với EXIF parse để tối ưu latency
+    const uploadFilename = `${userId}_${post.id}_${Date.now()}${
+      imageFile.name ? "." + imageFile.name.split(".").pop()?.toLowerCase() : ".jpg"
+    }`;
+
+    const [uploadResult, exifResult] = await Promise.allSettled([
+      uploadImage(buffer, uploadFilename, imageFile.type),
+      parseExifFromBuffer(buffer),
+    ]);
+
+    // Upload thất bại → dừng lại, không tạo bản ghi DB
+    if (uploadResult.status === "rejected") {
+      console.error("[checkins] Upload failed:", uploadResult.reason);
+      return NextResponse.json(
+        { success: false, error: "Không thể tải ảnh lên. Vui lòng thử lại sau." },
+        { status: 503 }
+      );
+    }
+
+    const { url: imageUrl } = uploadResult.value;
+
+    // EXIF parse thất bại hoàn toàn (không phải "không tìm thấy tag") → fallback PENDING
+    const exif: ExifResult =
+      exifResult.status === "fulfilled"
+        ? exifResult.value
+        : { exifTime: null, exifFound: false, sourceTag: null };
+
+    // ── 7. Xác định trạng thái Checkin ──────────────────────────────────────
+    const { status, aiConfidence, reason } = determineStatus(
+      exif.exifFound,
+      exif.exifTime,
+      new Date(post.start_at)
+    );
+
+    // ── 8. Tạo bản ghi Checkin ───────────────────────────────────────────────
+    const checkin = await db.checkin.create({
+      data: {
+        user_id: userId,
+        post_id: post.id,
+        image_url: imageUrl,
+        exif_time: exif.exifTime ?? null,
+        status,
+        ai_confidence: aiConfidence,
+        is_ai_flagged: status === "PENDING" && !exif.exifFound,
+        // reviewed_by và reject_reason để null, chờ admin điền
+      },
+    });
+
+    // ── 9. Trả về kết quả ────────────────────────────────────────────────────
+    return NextResponse.json(
+      {
+        success: true,
+        status,
+        exif_time: exif.exifTime ? exif.exifTime.toISOString() : null,
+        exif_found: exif.exifFound,
+        exif_source_tag: exif.sourceTag,
+        image_url: imageUrl,
+        checkin_id: checkin.id,
+        message: buildMessage(reason),
+      },
+      { status: 201 }
+    );
+
+  } catch (err: unknown) {
+    // Lỗi không mong đợi (DB connection, v.v.)
+    const message = err instanceof Error ? err.message : "Lỗi hệ thống không xác định.";
+    console.error("[checkins] Unexpected error:", err);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.",
+        // Chỉ expose chi tiết khi development để tránh rò rỉ thông tin
+        ...(process.env.NODE_ENV === "development" && { debug: message }),
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// ─── GET /api/checkins?post_id=... ────────────────────────────────────────────
+// Trả về danh sách checkin của user hiện tại, tuỳ chọn lọc theo post_id
+
+export async function GET(request: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { success: false, error: "Bạn cần đăng nhập." },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const postId = searchParams.get("post_id");
+
+    const checkins = await db.checkin.findMany({
+      where: {
+        user_id: session.user.id,
+        ...(postId ? { post_id: postId } : {}),
+      },
+      select: {
+        id: true,
+        post_id: true,
+        status: true,
+        exif_time: true,
+        submitted_at: true,
+        image_url: true,
+        reject_reason: true,
+        ai_confidence: true,
+        post: {
+          select: { id: true, title: true, start_at: true },
+        },
+      },
+      orderBy: { submitted_at: "desc" },
+    });
+
+    return NextResponse.json({ success: true, checkins });
+  } catch (err) {
+    console.error("[checkins GET] Error:", err);
+    return NextResponse.json(
+      { success: false, error: "Không thể tải danh sách checkin." },
+      { status: 500 }
+    );
+  }
+}

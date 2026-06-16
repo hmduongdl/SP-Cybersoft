@@ -1,172 +1,218 @@
+/**
+ * prisma/seed.ts — Khởi tạo dữ liệu mẫu cho môi trường phát triển.
+ * Chạy bằng: npx prisma db seed
+ */
+
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("Bắt đầu khởi tạo dữ liệu mẫu...");
+  console.log("🌱 Bắt đầu khởi tạo dữ liệu mẫu...");
 
-  // 1. Xóa dữ liệu cũ để tránh trùng lặp
+  // ── 1. Xoá dữ liệu cũ (thứ tự đúng theo foreign key) ──────────────────────
   await prisma.checkin.deleteMany({});
-  await prisma.account.deleteMany({});
   await prisma.post.deleteMany({});
   await prisma.user.deleteMany({});
 
-  // 2. Tạo mật khẩu mẫu băm sẵn
-  const passwordHash = await bcrypt.hash("password123", 10);
+  // ── 2. Hash mật khẩu mẫu ───────────────────────────────────────────────────
+  const defaultPassword = await bcrypt.hash("Password1", 10);
+  const adminPassword   = await bcrypt.hash("Admin@12345", 10);
 
-  // 3. Tạo dữ liệu người dùng
+  // ── 3. Tạo tài khoản ───────────────────────────────────────────────────────
   const admin = await prisma.user.create({
     data: {
-      name: "Quản trị viên HR",
-      email: "admin@example.com",
-      role: "ADMIN",
-      passwordHash,
-      department: "HR",
-      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=250&auto=format&fit=crop",
+      username:      "admin",
+      name:          "Quản trị viên HR",
+      full_name:     "Quản trị viên HR",
+      email:         process.env.ADMIN_EMAIL ?? "admin@example.com",
+      password:      adminPassword,
+      role:          "ADMIN",
+      department:    "HR",
+      is_first_login: false,
+      avatar_url:    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=250&auto=format&fit=crop",
     },
   });
 
   const user1 = await prisma.user.create({
     data: {
-      name: "Nguyễn Văn A",
-      email: "user1@example.com",
-      role: "USER",
-      passwordHash,
-      department: "Marketing",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250&auto=format&fit=crop",
+      username:      "mkt_user",
+      name:          "Nguyễn Văn A",
+      full_name:     "Nguyễn Văn A",
+      email:         "mkt_user@example.com",
+      password:      defaultPassword,
+      role:          "USER",
+      department:    "Marketing",
+      is_first_login: false,
+      avatar_url:    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=250&auto=format&fit=crop",
     },
   });
 
   const user2 = await prisma.user.create({
     data: {
-      name: "Trần Thị B",
-      email: "user2@example.com",
-      role: "USER",
-      passwordHash,
-      department: "Tech",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250&auto=format&fit=crop",
+      username:      "tech_user",
+      name:          "Trần Thị B",
+      full_name:     "Trần Thị B",
+      email:         "tech_user@example.com",
+      password:      defaultPassword,
+      role:          "USER",
+      department:    "Tech",
+      is_first_login: false,
+      avatar_url:    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=250&auto=format&fit=crop",
     },
   });
 
   const user3 = await prisma.user.create({
     data: {
-      name: "Lê Văn C",
-      email: "user3@example.com",
-      role: "USER",
-      passwordHash,
-      department: "Sales",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=250&auto=format&fit=crop",
+      username:      "sales_user",
+      name:          "Lê Văn C",
+      full_name:     "Lê Văn C",
+      email:         "sales_user@example.com",
+      password:      defaultPassword,
+      role:          "USER",
+      department:    "Sales",
+      is_first_login: false,
+      avatar_url:    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=250&auto=format&fit=crop",
     },
   });
 
-  console.log("Đã tạo người dùng mẫu:", { 
-    admin: admin.email, 
-    user1: user1.email, 
-    user2: user2.email, 
-    user3: user3.email 
+  const user4 = await prisma.user.create({
+    data: {
+      username:      "demo_user",
+      name:          "Phạm Thị D",
+      full_name:     "Phạm Thị D",
+      email:         "demo_user@example.com",
+      password:      defaultPassword,
+      role:          "USER",
+      department:    "Other",
+      is_first_login: true, // Người dùng này chưa làm onboarding — để test flow
+    },
   });
 
-  // 4. Tạo dữ liệu bài viết
-  const now = new Date();
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const twoDaysAgo = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+  console.log("✅ Đã tạo users:", {
+    admin:      admin.username,
+    mkt_user:  user1.username,
+    tech_user:  user2.username,
+    sales_user: user3.username,
+    demo_user:  user4.username,
+  });
+
+  // ── 4. Tạo bài viết mẫu ────────────────────────────────────────────────────
+  const now        = new Date();
+  const oneDayAgo  = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const twoDaysAgo = new Date(now.getTime() - 2  * 24 * 60 * 60 * 1000);
 
   const post1 = await prisma.post.create({
     data: {
-      title: "Tin tức nội bộ: Kỷ niệm 5 năm thành lập Kinetic HR",
-      description: "Hãy chia sẻ bài viết kỷ niệm hành trình 5 năm phát triển của công ty để lan tỏa năng lượng tích cực!",
-      originalUrl: "https://www.facebook.com/kinetic-hr/posts/101",
-      thumbnailUrl: "https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=600&auto=format&fit=crop",
-      scheduledAt: twoDaysAgo,
-      start_at: twoDaysAgo,
-      team: "All Employees",
+      title:       "Kỷ niệm 5 năm thành lập — Hành trình phát triển cùng nhau",
+      description: "Hãy chia sẻ bài viết kỷ niệm hành trình 5 năm phát triển để lan tỏa năng lượng tích cực!",
+      url:         "https://www.facebook.com/kinetic-hr/posts/101",
+      thumbnail_url: "https://images.unsplash.com/photo-1511578314322-379afb476865?q=80&w=600&auto=format&fit=crop",
+      start_at:    twoDaysAgo,
+      team:        "ALL",
       is_archived: true,
     },
   });
 
   const post2 = await prisma.post.create({
     data: {
-      title: "Thông báo tuyển dụng: Tìm kiếm đồng đội Marketing",
-      description: "Kinetic HR đang tìm kiếm chuyên viên Marketing sáng tạo. Đồng nghiệp chung tay share bài viết này nhé!",
-      originalUrl: "https://www.facebook.com/kinetic-hr/posts/102",
-      thumbnailUrl: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=600&auto=format&fit=crop",
-      scheduledAt: oneDayAgo,
-      start_at: oneDayAgo,
-      team: "Marketing",
+      title:       "Tuyển dụng: Tìm kiếm đồng đội Marketing sáng tạo",
+      description: "Kinetic HR đang tìm chuyên viên Marketing. Đồng nghiệp share bài này giúp công ty nhé!",
+      url:         "https://www.facebook.com/kinetic-hr/posts/102",
+      thumbnail_url: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=600&auto=format&fit=crop",
+      start_at:    oneDayAgo,
+      team:        "MARKETING",
       is_archived: false,
     },
   });
 
   const post3 = await prisma.post.create({
     data: {
-      title: "Workshop kỹ năng: Khai phóng năng lực cá nhân",
-      description: "Workshop định kỳ tháng này dành riêng cho Tech team. Share bài viết giới thiệu chủ đề của tuần này nào!",
-      originalUrl: "https://www.facebook.com/kinetic-hr/posts/103",
-      thumbnailUrl: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=600&auto=format&fit=crop",
-      scheduledAt: now,
-      start_at: now,
-      team: "Tech",
+      title:       "Workshop tháng 6: Khai phóng năng lực cá nhân",
+      description: "Workshop định kỳ dành cho Tech team. Share bài giới thiệu chủ đề tuần này nào!",
+      url:         "https://www.facebook.com/kinetic-hr/posts/103",
+      thumbnail_url: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=600&auto=format&fit=crop",
+      start_at:    now, // Bài đang trong cửa sổ 24h → có thể test nộp bài
+      team:        "TECH",
       is_archived: false,
     },
   });
 
-  console.log("Đã tạo bài viết mẫu:", { 
-    post1: post1.title, 
-    post2: post2.title, 
-    post3: post3.title 
+  console.log("✅ Đã tạo posts:", {
+    post1: post1.title,
+    post2: post2.title,
+    post3: post3.title,
   });
 
-  // 5. Tạo dữ liệu lượt check-in
-  // Bài viết 1 (đã kết thúc, tự động duyệt duyệt thông qua exif)
+  // ── 5. Tạo dữ liệu checkin mẫu ────────────────────────────────────────────
+  // post1 (đã archive): user1 AUTO_APPROVED, user2 APPROVED
   await prisma.checkin.create({
     data: {
-      userId: user1.id,
-      postId: post1.id,
-      image_url: "/uploads/seed_user1_post1.jpg",
-      exif_time: new Date(twoDaysAgo.getTime() + 2 * 60 * 60 * 1000), // Check-in sau 2 tiếng
-      status: "AUTO_APPROVED",
-      evidenceType: "AUTO_FB",
-      evidenceUrl: "FACEBOOK_AUTO_CHECK",
+      user_id:      user1.id,
+      post_id:      post1.id,
+      image_url:    "/uploads/seed_mkt_post1.jpg",
+      exif_time:    new Date(twoDaysAgo.getTime() + 2 * 60 * 60 * 1000),
+      status:       "AUTO_APPROVED",
       ai_confidence: 0.98,
+      is_ai_flagged: false,
     },
   });
 
-  // Bài viết 1 (nhân viên 2 duyệt thủ công)
   await prisma.checkin.create({
     data: {
-      userId: user2.id,
-      postId: post1.id,
-      image_url: "/uploads/seed_user2_post1.jpg",
-      exif_time: new Date(twoDaysAgo.getTime() + 4 * 60 * 60 * 1000),
-      status: "APPROVED",
-      evidenceType: "MANUAL_SCREENSHOT",
-      evidenceUrl: "/uploads/seed_user2_post1.jpg",
+      user_id:      user2.id,
+      post_id:      post1.id,
+      image_url:    "/uploads/seed_tech_post1.jpg",
+      exif_time:    new Date(twoDaysAgo.getTime() + 4 * 60 * 60 * 1000),
+      status:       "APPROVED",
+      reviewed_by:  admin.id,
       ai_confidence: 0.89,
+      is_ai_flagged: false,
     },
   });
 
-  // Bài viết 2 (đang chờ duyệt, có nghi vấn từ AI)
+  // post2: user1 PENDING (không có EXIF — ảnh chụp màn hình)
   await prisma.checkin.create({
     data: {
-      userId: user1.id,
-      postId: post2.id,
-      image_url: "/uploads/seed_user1_post2.jpg",
-      exif_time: null, // Không có thông tin EXIF
-      status: "PENDING",
-      evidenceType: "MANUAL_SCREENSHOT",
-      evidenceUrl: "/uploads/seed_user1_post2.jpg",
+      user_id:      user1.id,
+      post_id:      post2.id,
+      image_url:    "/uploads/seed_mkt_post2.jpg",
+      exif_time:    null,
+      status:       "PENDING",
       is_ai_flagged: true,
-      ai_confidence: 0.35,
+      ai_confidence: 0.25,
     },
   });
 
-  console.log("Khởi tạo dữ liệu mẫu hoàn tất thành công!");
+  // post2: user3 REJECTED
+  await prisma.checkin.create({
+    data: {
+      user_id:       user3.id,
+      post_id:       post2.id,
+      image_url:     "/uploads/seed_sales_post2.jpg",
+      exif_time:     null,
+      status:        "REJECTED",
+      reviewed_by:   admin.id,
+      reject_reason: "Ảnh không hiển thị bài viết đúng yêu cầu.",
+      is_ai_flagged:  true,
+      ai_confidence:  0.15,
+    },
+  });
+
+  console.log("✅ Đã tạo checkins mẫu.");
+  console.log("\n🎉 Khởi tạo dữ liệu hoàn tất!");
+  console.log("\n📋 Tài khoản để test:");
+  console.log("   Admin  : username=admin        / password=Admin@12345");
+  console.log("   User 1 : username=mkt_user     / password=Password1");
+  console.log("   User 2 : username=tech_user    / password=Password1");
+  console.log("   User 3 : username=sales_user   / password=Password1");
+  console.log("   User 4 : username=demo_user    / password=Password1 (is_first_login=true)");
 }
 
 main()
   .catch((e) => {
-    console.error("Lỗi khi chạy seed:", e);
+    console.error("❌ Lỗi khi chạy seed:", e);
     process.exit(1);
   })
   .finally(async () => {

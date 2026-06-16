@@ -1,67 +1,100 @@
-# Project Brief: Kinetic HR - Post Share Check-in System
+# Project Plan: Kinetic HR - Post Share Check-in System
 
 ## 1. Project Overview
 Kinetic HR is a specialized web tool designed to streamline and verify employee engagement with company social media posts. The system allows administrators to schedule "Share Tasks," and provides employees with a structured interface to submit proof of their shares within a strict 24-hour window.
 
-## 2. Core Objectives
-- **Increase Social Reach**: Encourage employees to share company content consistently.
-- **Verification & Accountability**: Provide a structured "check-in" mechanism with screenshot proof.
-- **Data-Driven Insights**: Give HR admins visibility into engagement rates across departments and individuals.
-- **Automated Management**: Handle scheduling constraints and expiration logic automatically.
+Verification is powered by EXIF date extraction on both client-side and server-side to guarantee authentic screenshot uploads, along with on-demand Gemini AI Vision checks.
 
-## 3. Target Users
-- **Employees (Users)**: Access the dashboard to view active tasks, share content, and upload proof.
-- **HR Administrators (Admins)**: Create and schedule posts, manage teams, and export compliance reports.
+---
 
-## 4. Functional Requirements
+## 2. Phase 1 — Database Schema
 
-### 4.1 Post Management (Admin)
-- **Create Post**: Admin can input Title, URL/Link, Description, and Thumbnail.
-- **Scheduling**: Define Start Date and Start Time (24h clock).
-- **Constraints**: Maximum of 2 posts per day to prevent "share fatigue."
-- **Targeting**: Assign posts to specific teams (Tech, Sales, Marketing) or "All Employees."
-- **Auto-Archive**: Optional setting to archive tasks after their 24h window.
+The core database consists of three relational tables managed via Prisma:
 
-### 4.2 Check-in Workflow (User)
-- **Discovery**: Users view tasks in either a **List View** (chronological) or **Calendar View** (visual grid).
-- **Submission**: Users must click a specific post to open the **Submission Modal**.
-- **Proof of Work**: Users upload a screenshot as evidence of the share.
-- **Time Constraint**: Check-ins are only accepted within **24 hours** of the post's start time.
-- **Status Tracking**: Visual indicators for "Pending," "Completed," "Expired," and "Locked."
+### **Posts**
+- `id` (String, Primary Key)
+- `title` (String)
+- `url` (String)
+- `thumbnail_url` (String, Nullable)
+- `description` (String)
+- `start_at` (DateTime) - Timestamp of scheduling
+- `team` (Enum: `ALL` | `TECH` | `SALES` | `MARKETING`)
+- `is_archived` (Boolean, Default: false)
 
-### 4.3 Reporting & Analytics (Admin)
-- **KPI Dashboard**: View Total Posts, Company-wide Completion %, and Pending/Missed counts.
-- **Visual Trends**: Weekly engagement charts and departmental completion comparisons.
-- **User Activity Detail**: A granular table tracking every employee's share rate and missed posts.
-- **Exporting**: One-click Excel export with standardized naming convention: `mm.dd.yyyy - Báo Cáo Công Việc Like Share`.
+### **Users**
+- `id` (String, Primary Key)
+- `name` (String, Nullable)
+- `email` (String, Unique)
+- `role` (Enum: `ADMIN` | `USER`)
+- `department` (String, Nullable)
+- `avatar_url` (String, Nullable)
 
-## 5. User Interface Specifications
+### **Checkins**
+- `id` (String, Primary Key)
+- `user_id` (String, Foreign Key → Users)
+- `post_id` (String, Foreign Key → Posts)
+- `image_url` (String) - Screenshot reference url
+- `exif_time` (DateTime, Nullable) - Extracted DateTimeOriginal from EXIF
+- `submitted_at` (DateTime, Default: now)
+- `status` (Enum: `AUTO_APPROVED` | `PENDING` | `APPROVED` | `REJECTED`)
+- `reject_reason` (String, Nullable)
+- `is_ai_flagged` (Boolean, Default: false)
+- `ai_confidence` (Float, Nullable)
+- `reviewed_by` (String, Nullable, Foreign Key → Users)
 
-### 5.1 Design System (Kinetic HR)
-- **Theme**: Light Mode standard (SaaS Professional).
-- **Primary Color**: Indigo/Blue (#4F46E5) for actions and navigation.
-- **Success/Alert Colors**: Emerald for completion, Amber/Red for expiration warnings.
-- **Typography**: Geist Sans/Inter for clean, modern readability.
+---
 
-### 5.2 Key Interface Screens
-1. **Login**: Split-screen design with brand illustration and secure entry.
-2. **Dashboard**: High-level overview of pending shares and latest announcements.
-3. **List View**: A scanable list of active and upcoming post tasks.
-4. **Calendar View**: A unique grid featuring **diagonal split layouts** for days with 2 posts.
-5. **Admin Console**: Centralized form for post creation and team management.
-6. **Reports Center**: Comprehensive data visualization and export tools.
+## 3. Phase 2 — Submit Flow (User Side)
 
-## 6. Technical Specifications
-- **Framework**: Next.js 14 (App Router).
-- **Styling**: Tailwind CSS + Shadcn UI.
-- **Database**: 
-    - `Posts`: Metadata, targeting, and timestamps.
-    - `Checkins`: User ID, Post ID, Image reference, and submission time.
-    - `Users`: Roles (Admin/User), department, and profile data.
-- **Assets**: Cloud storage for screenshot proof images.
-- **Logic**: Server-side countdown validation to enforce the 24h submission lock.
+The check-in submission process features a client-side stepper modal:
+1. **Discovery & Task Selection**: User clicks an active post. The Submission Modal opens and calculates a countdown remaining of the 24h window since `post.start_at`.
+2. **Drag & Drop Upload**: The user uploads the screenshot (formats: `.png`, `.jpg`, `.jpeg`, `.webp` < 10MB).
+3. **Client-Side EXIF Parse**: The modal uses the browser-side `exifr` library to read `DateTimeOriginal` from the image's metadata.
+   - If EXIF matches the 24h window, it displays a green "EXIF Hợp lệ" badge.
+   - If EXIF is outside the window or missing, a warning badge is shown ("Không có EXIF" / "Quá giới hạn 24 giờ").
+4. **Attestation Checkboxes**: The user must check two confirmation boxes to unlock the "Nộp bằng chứng" button.
+5. **Dynamic Success States**: Shows "Đã Tự Động Duyệt" if the client expects auto-approval, or "Đang chờ Duyệt" if falling back to the admin queue.
 
-## 7. Success Metrics
-- 90%+ Completion Rate across targeted teams.
-- Reduction in manual follow-up time for HR staff.
-- Centralized audit trail of all company social media engagement.
+---
+
+## 4. Phase 3 — EXIF Server-Side Validation
+
+The server exposes a secure endpoint at `POST /api/checkins`:
+1. **Security & Validation**: Checks User session. Verifies the target `Post` exists, and the user hasn't already submitted a checkin for it.
+2. **File Processing**: Stores image (using Local Upload or Cloud storage) and obtains `image_url`.
+3. **Server-Side Metadata Parse**: Reads image buffer with Node `exifr`.
+4. **Window Check**:
+   - Compares extracted `exif_time` against `[post.start_at, post.start_at + 24 hours]`.
+   - If valid: sets `status = AUTO_APPROVED`.
+   - If missing EXIF or outside window: sets `status = PENDING`.
+5. **Database Transaction**: Inserts `Checkin` record and returns status to the frontend client.
+
+---
+
+## 5. Phase 4 — Admin Moderation & AI Queue
+
+The Admin Console contains the **Kiểm duyệt Hàng đợi** (Queue) view:
+- **Filters**: Tab selector for `Chờ Duyệt (Pending)`, `Đã Tự Động Duyệt (Auto Approved)`, and `Đã Duyệt / Từ Chối (Reviewed)`. Combines with Name/Post Search and Department filters.
+- **Moderation Actions**:
+  - **Duyệt**: Instant 1-click status change to `APPROVED`.
+  - **Từ Chối**: Displays an inline popover requiring the admin to choose or input a rejection reason (preset: *Ảnh sai nội dung*, *Ảnh bị mờ*, *Ảnh nộp trùng*), setting status to `REJECTED`.
+  - **Batch Actions**: Allows selecting multiple cards to approve or reject them collectively via a single bottom-docked toolbar.
+- **Gemini AI Vision Scan**:
+  - Admin triggers **"AI Quét Ảnh"** on-demand for any pending check-in.
+  - Call API `/api/admin/ai-scan` which forwards the base64 image data to `gemini-2.5-flash-preview-09-2025` to evaluate:
+    1. Public share state (globe icon) visibility on Facebook.
+    2. Shared URL matches `post.url` and title matches `post.title`.
+    3. Indicators of Photoshop template manipulation.
+  - Automatically updates database flags `is_ai_flagged` and `ai_confidence` and updates the Admin UI reactively.
+
+---
+
+## 6. Phase 5 — Corporate Reporting & Exports
+
+- **Excel Report Generation**: API Route `/api/admin/export-excel` generates structured workbooks with `exceljs`.
+- **Date Filtering**: Supports `start_date` and `end_date` parameters.
+- **Format**:
+  - Title: *"BÁO CÁO CÔNG VIỆC THỰC HIỆN LIKE & SHARE BÀI VIẾT TEAMWORK"* styled with navy blue background and white bold fonts.
+  - Auto-fit column widths and alternating zebra row colors.
+  - Standard columns: STT, Email/Employee ID, Employee Name, Department, Expected Posts, Shares Completed, Completion Rate %, Auto Approved Count, Approved Count, Rejected Count.
+  - File name: `[MM].[DD].[YYYY] - Bao Cao Cong Viec Like Share.xlsx`.

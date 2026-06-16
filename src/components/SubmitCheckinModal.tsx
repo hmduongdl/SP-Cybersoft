@@ -373,10 +373,11 @@ export function SubmitCheckinModal({
 
     try {
       const fd = new FormData();
-      fd.append("postId", post.id);
-      fd.append("image", file);
+      // Field names match POST /api/checkins spec
+      fd.append("post_id", post.id);
+      fd.append("image_file", file);
 
-      const res = await fetch("/api/checkin/submit", {
+      const res = await fetch("/api/checkins", {
         method: "POST",
         body: fd,
       });

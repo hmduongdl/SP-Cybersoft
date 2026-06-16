@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     // Fetch users and their checkins
     const users = await db.user.findMany({
-      where: { role: 'USER', active: true },
+      where: { role: 'USER' },
       include: {
         checkins: {
           where: {
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     const allPosts = await db.post.findMany();
     const now = new Date();
     const totalExpectedPosts = allPosts.filter(p => {
-      const deadline = new Date(p.scheduledAt.getTime() + 24 * 60 * 60 * 1000);
+      const deadline = new Date(p.start_at.getTime() + 24 * 60 * 60 * 1000);
       return now > deadline;
     }).length;
 

@@ -6,6 +6,27 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
+// Helper: Exponential Backoff Fetch for Gemini API
+async function fetchWithRetry(url: string, options: RequestInit, retries = 5, delay = 1000): Promise<Response> {
+  try {
+    const res = await fetch(url, options);
+    // If rate limit (429) or server error (5xx), try to retry
+    if ((res.status === 429 || res.status >= 500) && retries > 0) {
+      console.warn(`Gemini API returned status ${res.status}. Retrying in ${delay}ms... (${retries} retries left)`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, retries - 1, delay * 2);
+    }
+    return res;
+  } catch (error) {
+    if (retries > 0) {
+      console.warn(`Fetch error occurred. Retrying in ${delay}ms... (${retries} retries left)`, error);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return fetchWithRetry(url, options, retries - 1, delay * 2);
+    }
+    throw error;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     // 1. Authenticate & Authorize Admin
@@ -42,7 +63,7 @@ export async function POST(request: Request) {
 
     // 4. Load screenshot image file as base64
     let base64Image = "";
-    let mimeType = "image/jpeg";
+    let mimeType = "image/png"; // default to image/png as requested by prompt template
 
     if (checkin.image_url.startsWith("data:image/")) {
       const match = checkin.image_url.match(/^data:([^;]+);base64,(.+)$/);
@@ -50,8 +71,24 @@ export async function POST(request: Request) {
         mimeType = match[1];
         base64Image = match[2];
       }
+    } else if (checkin.image_url.startsWith("http://") || checkin.image_url.startsWith("https://")) {
+      try {
+        const imageRes = await fetch(checkin.image_url);
+        if (imageRes.ok) {
+          const arrayBuffer = await imageRes.arrayBuffer();
+          base64Image = Buffer.from(arrayBuffer).toString("base64");
+          const contentType = imageRes.headers.get("Content-Type");
+          if (contentType) {
+            mimeType = contentType;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch remote image url:", checkin.image_url, err);
+      }
     } else {
-      const filePath = path.join(process.cwd(), "public", checkin.image_url);
+      // Local file system upload
+      const cleanPath = checkin.image_url.startsWith("/") ? checkin.image_url.substring(1) : checkin.image_url;
+      const filePath = path.join(process.cwd(), "public", cleanPath);
       if (fs.existsSync(filePath)) {
         const fileBuffer = fs.readFileSync(filePath);
         base64Image = fileBuffer.toString("base64");
@@ -59,6 +96,7 @@ export async function POST(request: Request) {
         // Resolve mime type
         const ext = path.extname(filePath).toLowerCase();
         if (ext === ".png") mimeType = "image/png";
+        else if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg";
         else if (ext === ".webp") mimeType = "image/webp";
       }
     }
@@ -67,20 +105,20 @@ export async function POST(request: Request) {
     const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     
     let isValid = true;
-    let confidence = 0.95;
-    let analysisReason = "Ảnh chụp màn hình thể hiện bài viết đã được chia sẻ công khai thành công lên Facebook cá nhân. Thông tin bài viết trùng khớp hoàn toàn với tiêu đề yêu cầu.";
-
-    const prompt = `Hãy kiểm tra xem bức ảnh chụp màn hình này có thực sự là giao diện đã share bài đăng có tiêu đề '${checkin.post.title}' và đường link '${checkin.post.originalUrl}' lên Facebook cá nhân không? Hãy phân tích các yếu tố: có nút 'Đăng' đã nhấn không, chế độ công khai (quả địa cầu) có được bật không, tên tài khoản trùng khớp không.`;
+    let confidence = 95; // From 0 to 100 as requested
+    let reason = "Ảnh chụp màn hình thể hiện bài viết đã được chia sẻ công khai thành công lên Facebook cá nhân. Thông tin bài viết trùng khớp hoàn toàn với tiêu đề yêu cầu.";
 
     if (apiKey && base64Image) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
         
+        const textPrompt = `Hãy đóng vai trò là một chuyên gia kiểm duyệt nội dung. Hãy kiểm tra xem hình ảnh screenshot đính kèm này có phải là giao diện chụp màn hình của việc đã chia sẻ thành công liên kết '${checkin.post.url}' với tiêu đề bài viết '${checkin.post.title}' lên Facebook cá nhân hay không? Hãy phân tích kỹ các yếu tố: 1. Có hiển thị biểu tượng quả địa cầu (chế độ công khai) bên dưới tên tài khoản không? 2. Có đúng liên kết yêu cầu không? 3. Ảnh có dấu hiệu chỉnh sửa Photoshop cắt ghép không? Hãy chấm điểm tin cậy từ 0 đến 100 và trả về phản hồi dạng JSON ngắn gọn có cấu trúc: { "isValid": boolean, "confidence": number, "reason": string }.`;
+
         const apiBody = {
           contents: [
             {
               parts: [
-                { text: prompt },
+                { text: textPrompt },
                 {
                   inlineData: {
                     mimeType,
@@ -91,20 +129,11 @@ export async function POST(request: Request) {
             }
           ],
           generationConfig: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: "OBJECT",
-              properties: {
-                isValid: { type: "BOOLEAN" },
-                confidence: { type: "NUMBER" },
-                analysisReason: { type: "STRING" }
-              },
-              required: ["isValid", "confidence", "analysisReason"]
-            }
+            responseMimeType: "application/json"
           }
         };
 
-        const res = await fetch(url, {
+        const res = await fetchWithRetry(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(apiBody),
@@ -117,40 +146,47 @@ export async function POST(request: Request) {
             const parsedResult = JSON.parse(textResponse);
             isValid = parsedResult.isValid;
             confidence = parsedResult.confidence;
-            analysisReason = parsedResult.analysisReason;
+            reason = parsedResult.reason || parsedResult.analysisReason || "";
           }
         } else {
           console.warn("Gemini API returned non-200 status:", res.status);
+          const errorText = await res.text();
+          console.warn("Error content:", errorText);
         }
       } catch (apiError) {
         console.error("Gemini API call failed, falling back to mock:", apiError);
       }
     } else {
       // Smart Mock Fallback when Gemini API key is not configured or image base64 cannot be loaded
+      console.warn("Gemini API Key or base64 image missing. Using mock response.");
       const lowerUrl = checkin.image_url.toLowerCase();
-      if (lowerUrl.includes("fake") || lowerUrl.includes("invalid") || checkin.is_ai_flagged || checkin.ai_confidence && checkin.ai_confidence < 0.5) {
+      if (lowerUrl.includes("fake") || lowerUrl.includes("invalid") || checkin.is_ai_flagged) {
         isValid = false;
-        confidence = 0.38;
-        analysisReason = "AI phát hiện ảnh chụp màn hình có dấu hiệu bị chỉnh sửa (cắt ghép chữ). Ngoài ra, nút Đăng chưa được kích hoạt và biểu tượng chế độ công khai (quả địa cầu) bị thiếu.";
+        confidence = 38;
+        reason = "AI phát hiện ảnh chụp màn hình có dấu hiệu bị chỉnh sửa (cắt ghép chữ). Ngoài ra, nút Đăng chưa được kích hoạt và biểu tượng chế độ công khai (quả địa cầu) bị thiếu.";
       }
     }
 
     // 6. Update database record with AI results
+    // Convert confidence to score/percentage
+    // is_ai_flagged = true if !isValid
+    // ai_confidence = confidence (if it's 0-100, we can save it as is or divide by 100, let's store it normalized or as-is. Since DB uses float, if confidence is > 1 we can save it as confidence / 100)
+    const storedConfidence = confidence > 1 ? confidence / 100 : confidence;
+
     await db.checkin.update({
       where: { id: checkin.id },
       data: {
         is_ai_flagged: !isValid,
-        ai_confidence: confidence,
-        // Also save analysis reason to note for future inspection
-        note: `[AI Scan] ${analysisReason}` + (checkin.note ? `\n${checkin.note}` : ""),
+        ai_confidence: storedConfidence,
+        reject_reason: !isValid ? `[AI Scan] ${reason}` : null
       },
     });
 
     // 7. Return structured JSON response
     return NextResponse.json({
       isValid,
-      confidence,
-      analysisReason,
+      confidence: confidence > 1 ? confidence / 100 : confidence,
+      analysisReason: reason,
     });
 
   } catch (error: any) {
@@ -161,3 +197,4 @@ export async function POST(request: Request) {
     );
   }
 }
+

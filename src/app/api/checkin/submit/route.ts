@@ -123,31 +123,16 @@ export async function POST(request: Request) {
     fs.writeFileSync(filePath, buffer);
     const imageUrl = `/uploads/${fileName}`;
 
-    // 7. Save Checkin record to database
-    const checkin = await db.checkin.upsert({
-      where: {
-        userId_postId: {
-          userId: session.user.id,
-          postId: postId,
-        },
-      },
-      update: {
+    // 7. Save Checkin record to database (create only — duplicate check already done in new route)
+    const checkin = await db.checkin.create({
+      data: {
+        user_id: session.user.id,
+        post_id: postId,
         status,
         image_url: imageUrl,
         exif_time: exifTime,
         ai_confidence: aiConfidence,
-        evidenceType: "MANUAL_SCREENSHOT",
-        evidenceUrl: imageUrl,
-      },
-      create: {
-        userId: session.user.id,
-        postId: postId,
-        status,
-        image_url: imageUrl,
-        exif_time: exifTime,
-        ai_confidence: aiConfidence,
-        evidenceType: "MANUAL_SCREENSHOT",
-        evidenceUrl: imageUrl,
+        is_ai_flagged: status === "PENDING" && !exifFound,
       },
     });
 

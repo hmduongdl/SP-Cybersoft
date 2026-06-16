@@ -20,8 +20,7 @@ export default async function AdminQueuePage() {
           id: true,
           name: true,
           email: true,
-          image: true,
-          avatar: true,
+          avatar_url: true,
           department: true,
         },
       },
@@ -29,14 +28,13 @@ export default async function AdminQueuePage() {
         select: {
           id: true,
           title: true,
-          thumbnailUrl: true,
-          scheduledAt: true,
+          thumbnail_url: true,
           start_at: true,
         },
       },
     },
     orderBy: {
-      submittedAt: "desc",
+      submitted_at: "desc",
     },
   });
 

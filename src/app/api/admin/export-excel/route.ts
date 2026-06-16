@@ -15,28 +15,27 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const startDateStr = searchParams.get('startDate');
-    const endDateStr = searchParams.get('endDate');
+    const startDateStr = searchParams.get('startDate') || searchParams.get('start_date');
+    const endDateStr = searchParams.get('endDate') || searchParams.get('end_date');
 
     let postWhereClause: any = {};
     if (startDateStr || endDateStr) {
-      postWhereClause.scheduledAt = {};
+      postWhereClause.start_at = {};
       if (startDateStr) {
-        postWhereClause.scheduledAt.gte = new Date(`${startDateStr}T00:00:00`);
+        postWhereClause.start_at.gte = new Date(`${startDateStr}T00:00:00`);
       }
       if (endDateStr) {
-        postWhereClause.scheduledAt.lte = new Date(`${endDateStr}T23:59:59`);
+        postWhereClause.start_at.lte = new Date(`${endDateStr}T23:59:59`);
       }
     }
 
-    // Fetch all active users
+    // Fetch all users with checkins in range
     const users = await db.user.findMany({
-      where: { role: 'USER', active: true },
+      where: { role: 'USER' },
       include: {
         checkins: {
           where: {
-            status: { in: ['APPROVED', 'AUTO_APPROVED'] },
-            post: postWhereClause // Filter checkins within date range
+            post: Object.keys(postWhereClause).length ? postWhereClause : undefined,
           },
           include: {
             post: true
@@ -52,31 +51,33 @@ export async function GET(request: Request) {
     const totalExpectedPosts = posts.length;
 
     // Build data rows
-    const departments = ["Marketing", "Tech", "HR", "Sales"];
     const exportData = users.map((u, index) => {
-      const completed = u.checkins.length;
+      // Completed are those APPROVED or AUTO_APPROVED
+      const approvedCheckins = u.checkins.filter(c => c.status === 'APPROVED' || c.status === 'AUTO_APPROVED');
+      const completed = approvedCheckins.length;
       const rate = totalExpectedPosts === 0 ? 0 : (completed / totalExpectedPosts);
 
       let autoCount = 0;
       let manualCount = 0;
+      let rejectedCount = 0;
+
       u.checkins.forEach(c => {
         if (c.status === 'AUTO_APPROVED') autoCount++;
         else if (c.status === 'APPROVED') manualCount++;
+        else if (c.status === 'REJECTED') rejectedCount++;
       });
 
       return {
         stt: index + 1,
-        empId: `NV${u.id.substring(u.id.length - 4).toUpperCase()}`,
+        email: u.email,
         name: u.name || 'Unknown',
-        department: u.department || departments[index % departments.length],
+        department: u.department || 'N/A',
         expected: totalExpectedPosts,
         completed,
         rate,
         autoCount,
         manualCount,
-        note: completed === totalExpectedPosts && totalExpectedPosts > 0 
-          ? "Đạt chỉ tiêu" 
-          : (completed === 0 ? "Chưa hoàn thành" : "Hoàn thành một phần")
+        rejectedCount
       };
     });
 
@@ -85,11 +86,10 @@ export async function GET(request: Request) {
     const worksheet = workbook.addWorksheet('Báo Cáo Like Share');
 
     // Row 1: Large Main Title
-    const titleRow = worksheet.addRow(["BÁO CÁO CÔNG VIỆC THỰC HIỆN LIKE & SHARE BÀI VIẾT"]);
+    const titleRow = worksheet.addRow(["BÁO CÁO CÔNG VIỆC THỰC HIỆN LIKE & SHARE BÀI VIẾT TEAMWORK"]);
     worksheet.mergeCells('A1:J1');
     titleRow.height = 40;
     
-    // Navy Blue style for main title
     titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
     titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
     titleRow.getCell(1).fill = { 
@@ -118,15 +118,15 @@ export async function GET(request: Request) {
     // Row 4: Table Headers
     const headers = [
       "STT", 
-      "Mã Nhân Viên", 
-      "Họ và Tên", 
+      "Mã Nhân Viên / Email", 
+      "Họ và Tên Nhân Viên", 
       "Phòng Ban", 
-      "Tổng số bài cần share", 
-      "Số bài đã share", 
-      "Tỷ lệ hoàn thành (%)", 
-      "Số bài tự động duyệt (Auto Approved)", 
-      "Số bài duyệt thủ công", 
-      "Ghi chú"
+      "Tổng Số Bài Đăng Yêu Cầu", 
+      "Số Bài Đã Share Hoàn Thành", 
+      "Tỷ Lệ Hoàn Thành (%)", 
+      "Số Lần Duyệt Tự Động (Auto Approved)", 
+      "Số Lần Duyệt Thủ Công (Approved)", 
+      "Số Bài Bị Từ Chối (Rejected)"
     ];
     const headerRow = worksheet.addRow(headers);
     headerRow.height = 28;
@@ -151,7 +151,7 @@ export async function GET(request: Request) {
     exportData.forEach((row, idx) => {
       const dataRow = worksheet.addRow([
         row.stt,
-        row.empId,
+        row.email,
         row.name,
         row.department,
         row.expected,
@@ -159,7 +159,7 @@ export async function GET(request: Request) {
         row.rate,
         row.autoCount,
         row.manualCount,
-        row.note
+        row.rejectedCount
       ]);
       dataRow.height = 22;
 
@@ -186,7 +186,7 @@ export async function GET(request: Request) {
         }
 
         // Alignments
-        if ([1, 2, 5, 6, 7, 8, 9].includes(colNum)) {
+        if ([1, 5, 6, 7, 8, 9, 10].includes(colNum)) {
           cell.alignment = { vertical: 'middle', horizontal: 'center' };
         } else {
           cell.alignment = { vertical: 'middle', horizontal: 'left' };
