@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { UserRole, Team } from "@prisma/client";
 import type { DefaultSession } from "next-auth";
 
 declare module "next-auth" {
@@ -7,21 +7,25 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       hasFacebook: boolean;
-      is_first_login: boolean;
+      is_onboarded: boolean;
       department?: string | null;
       avatar_url?: string | null;
-      facebook_profile_url?: string | null;
+      facebook_link?: string | null;
+      username?: string | null;
+      phone?: string | null;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: UserRole;
-    is_first_login?: boolean;
+    is_onboarded?: boolean;
     full_name?: string | null;
-    gmail?: string | null;
+    email?: string | null;
     avatar_url?: string | null;
     department?: string | null;
-    facebook_profile_url?: string | null;
+    facebook_link?: string | null;
+    username?: string | null;
+    phone?: string | null;
   }
 }
 
@@ -30,10 +34,11 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     hasFacebook?: boolean;
-    is_first_login?: boolean;
+    is_onboarded?: boolean;
     department?: string | null;
     avatar_url?: string | null;
-    facebook_profile_url?: string | null;
+    facebook_link?: string | null;
+    username?: string | null;
+    phone?: string | null;
   }
 }
-

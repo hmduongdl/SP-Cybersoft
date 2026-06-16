@@ -1,50 +1,61 @@
-/**
- * prisma/seed.ts — Khởi tạo dữ liệu mẫu cho môi trường phát triển.
- * Chạy bằng: npx prisma db seed
- */
-
 import { PrismaClient } from "@prisma/client";
 import bcryptjs from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Bắt đầu dọn dẹp và khởi tạo dữ liệu gốc...");
+  console.log("=== Bắt đầu seed dữ liệu mẫu ===\n");
 
-  // ── 1. Xoá toàn bộ dữ liệu cũ (thứ tự đúng theo foreign key) ──────────────────────
+  // ── 1. Xoá dữ liệu cũ ──────────────────────────────────────────────────────
   await prisma.checkin.deleteMany({});
   await prisma.post.deleteMany({});
   await prisma.user.deleteMany({});
 
-  // ── 2. Hash mật khẩu admin bằng bcryptjs ─────────────────────────────────────
-  const adminPassword = await bcryptjs.hash("Ho@ngLong274", 10);
+  console.log("✓ Đã xoá dữ liệu cũ trong bảng Checkin, Post, User");
 
-  // ── 3. Tạo duy nhất tài khoản Admin ──────────────────────────────────────────
+  // ── 2. Hash mật khẩu ───────────────────────────────────────────────────────
+  const password = await bcryptjs.hash("12345678", 10);
+
+  // ── 3. Tạo tài khoản Admin ──────────────────────────────────────────────────
   const admin = await prisma.user.create({
     data: {
-      username:      "HMD27425",
-      name:          "Quản trị viên",
-      full_name:     "Quản trị viên Hệ Thống",
-      email:         "admin@kinetichr.com",
-      password:      adminPassword,
-      role:          "ADMIN",
-      department:    "HR",
-      is_first_login: false,
-      avatar_url:    "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=250&auto=format&fit=crop",
+      username: "admin_duong",
+      name: "Hoàng Minh Dương",
+      email: "admin@kinetichr.com",
+      password,
+      role: "ADMIN",
+      department: "SALES",
+      hope_stars: 5,
+      is_onboarded: true,
     },
   });
+  console.log(`✓ Đã tạo Admin: ${admin.name} (${admin.email})`);
 
-  console.log("✅ Đã làm sạch toàn bộ dữ liệu mẫu.");
-  console.log("✅ Đã tạo tài khoản Admin gốc.");
+  // ── 4. Tạo tài khoản User ───────────────────────────────────────────────────
+  const user = await prisma.user.create({
+    data: {
+      username: "loc_kỹ_thuật",
+      name: "Nguyễn Phước Lộc",
+      email: "sp.phuocloc@gmail.com",
+      password,
+      role: "USER",
+      department: "TECH",
+      hope_stars: 1,
+      is_onboarded: false,
+    },
+  });
+  console.log(`✓ Đã tạo User: ${user.name} (${user.email})`);
 
-  console.log("\n🎉 Khởi tạo dữ liệu hoàn tất!");
-  console.log("\n📋 Danh sách tài khoản:");
-  console.log("   Admin     : username=HMD27425 / password=Ho@ngLong274");
+  // ── 5. Tổng kết ────────────────────────────────────────────────────────────
+  console.log("\n=== Seed hoàn tất ===");
+  console.log("\nDanh sách tài khoản:");
+  console.log("  Admin: admin_duong / 12345678  (SALES, hope_stars=5, đã onboard)");
+  console.log("  User : loc_kỹ_thuật / 12345678 (TECH, hope_stars=1, chưa onboard)\n");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Lỗi khi chạy seed:", e);
+    console.error("Lỗi khi chạy seed:", e);
     process.exit(1);
   })
   .finally(async () => {

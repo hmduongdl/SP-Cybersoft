@@ -6,9 +6,14 @@ import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
 import { AIAssistant } from "@/components/AIAssistant";
 
+import { useSession } from "next-auth/react";
+import { OnboardingModal } from "@/components/OnboardingModal";
+
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const isLoginPage = pathname === "/login" || pathname === "/login/";
+  const isNotOnboarded = session?.user?.is_onboarded === false;
 
   if (isLoginPage) {
     return <div className="h-screen w-screen overflow-y-auto bg-surface">{children}</div>;
@@ -32,6 +37,9 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
 
       {/* Floating AI Assistant */}
       <AIAssistant />
+
+      {/* Full-screen blocking onboarding modal */}
+      {isNotOnboarded && <OnboardingModal />}
     </div>
   );
 }

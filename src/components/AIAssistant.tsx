@@ -15,7 +15,12 @@ interface QuotaStatus {
   usage_percent: number;
 }
 
+import { useSession } from "next-auth/react";
+
 export function AIAssistant() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -170,6 +175,8 @@ export function AIAssistant() {
       setIsLoading(false);
     }
   };
+
+  if (!isAdmin) return null;
 
   return (
     <>

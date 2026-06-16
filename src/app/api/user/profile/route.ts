@@ -19,19 +19,22 @@ export async function GET() {
         username: true,
         name: true,
         email: true,
-        gmail: true,
+        phone: true,
         department: true,
         avatar_url: true,
+        facebook_link: true,
       },
     });
 
     console.log("GET Profile — Dữ liệu từ database:", {
       id: user?.id,
+      username: user?.username,
       name: user?.name,
       email: user?.email,
-      gmail: user?.gmail,
+      phone: user?.phone,
       department: user?.department,
       avatar_url: user?.avatar_url,
+      facebook_link: user?.facebook_link,
     });
 
     return NextResponse.json({ user });
@@ -52,41 +55,40 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const name = typeof body.name === "string" ? body.name.trim() : "";
-    const department = typeof body.department === "string" ? body.department.trim() : "";
+    const email = typeof body.email === "string" ? body.email.trim() : undefined;
+    const phone = typeof body.phone === "string" ? body.phone.trim() : undefined;
+    const facebook_link = typeof body.facebook_link === "string" ? body.facebook_link.trim() : undefined;
     const avatar_url = typeof body.avatar_url === "string" ? body.avatar_url.trim() : undefined;
-    const facebook_profile_url = typeof body.facebook_profile_url === "string" ? body.facebook_profile_url.trim() : undefined;
 
     console.log("📥 PUT — Dữ liệu nhận từ client:", {
-      name,
-      department,
+      email,
+      phone,
+      facebook_link,
       avatar_url,
-      facebook_profile_url,
     });
 
-    if (!name || !department) {
-      return NextResponse.json(
-        { error: "Tên và phòng ban là bắt buộc." },
-        { status: 400 }
-      );
+    const updateData: Record<string, unknown> = {};
+
+    if (email !== undefined) {
+      if (!email) {
+        return NextResponse.json(
+          { error: "Email là bắt buộc." },
+          { status: 400 }
+        );
+      }
+      updateData.email = email;
     }
 
-    const updateData: {
-      name: string;
-      department: string;
-      avatar_url?: string | null;
-      facebook_profile_url?: string | null;
-    } = {
-      name,
-      department,
-    };
+    if (phone !== undefined) {
+      updateData.phone = phone || null;
+    }
+
+    if (facebook_link !== undefined) {
+      updateData.facebook_link = facebook_link || null;
+    }
 
     if (avatar_url !== undefined) {
       updateData.avatar_url = avatar_url || null;
-    }
-
-    if (facebook_profile_url !== undefined) {
-      updateData.facebook_profile_url = facebook_profile_url || null;
     }
 
     const [user] = await db.$transaction([
@@ -98,9 +100,9 @@ export async function PUT(request: Request) {
 
     console.log("Cập nhật DB thành công cho User:", {
       id: user.id,
-      name: user.name,
-      department: user.department,
-      avatar_url: user.avatar_url,
+      email: user.email,
+      phone: user.phone,
+      facebook_link: user.facebook_link,
     });
 
     return NextResponse.json({ success: true, user });

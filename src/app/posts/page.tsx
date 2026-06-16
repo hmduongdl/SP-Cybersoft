@@ -10,7 +10,7 @@ export default async function PostsPage() {
   const userId = session?.user?.id;
 
   // Fetch data concurrently for better performance
-  const [postsFromDb, allCheckins] = await Promise.all([
+  const [postsFromDb, allCheckins, currentUser] = await Promise.all([
     db.post.findMany({
       orderBy: { start_at: 'asc' },
       include: userId
@@ -36,7 +36,13 @@ export default async function PostsPage() {
           select: { start_at: true },
         },
       },
-    })
+    }),
+    userId
+      ? db.user.findUnique({
+          where: { id: userId },
+          select: { hope_stars: true, used_stars_this_month: true },
+        })
+      : Promise.resolve(null),
   ]);
 
   // Map to frontend Post structure
@@ -83,7 +89,12 @@ export default async function PostsPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <PostsPageClient posts={posts} completedAvatarsByDate={completedAvatarsByDate} />
+      <PostsPageClient
+        posts={posts}
+        completedAvatarsByDate={completedAvatarsByDate}
+        userHopeStars={currentUser?.hope_stars ?? 0}
+        userUsedStarsThisMonth={currentUser?.used_stars_this_month ?? 0}
+      />
     </div>
   );
 }

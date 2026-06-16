@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { differenceInSeconds } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Clock, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
+import { ExternalLink, Clock, CheckCircle2, AlertCircle, XCircle, Star } from "lucide-react";
+import { toast } from "sonner";
+import type { UseHopeStarResult } from "@/app/actions/hope-star-actions";
 
 type Post = {
   id: string;
@@ -15,12 +17,18 @@ type Post = {
   thumbnailUrl?: string | null;
   start_at: string;
   scheduledAt?: string;
-  team?: "ALL" | "TECH" | "SALES" | "MARKETING";
+  team?: "ALL" | "TECH" | "SALES";
   status: "PENDING" | "COMPLETED" | "EXPIRED";
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
 };
 
-const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => void }) => {
+const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUseHopeStar }: {
+  post: Post;
+  onCheckIn: (post: Post) => void;
+  userHopeStars?: number;
+  userUsedStarsThisMonth?: number;
+  onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
+}) => {
   const [timeLeft, setTimeLeft] = useState("24:00:00");
   const [isExpired, setIsExpired] = useState(false);
   const [remainingHours, setRemainingHours] = useState(24);
@@ -63,15 +71,35 @@ const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => 
   const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
   const isSubmitted = !!checkinState;
 
+  // Hope star state
+  const [isUsingHopeStar, setIsUsingHopeStar] = useState(false);
+  const hasStars = (userHopeStars ?? 0) > 0;
+  const canUseStarThisMonth = (userUsedStarsThisMonth ?? 0) < 3;
+  const canUseHopeStar = isExpired && !isSubmitted && hasStars && canUseStarThisMonth;
+
+  const handleUseHopeStarClick = useCallback(async () => {
+    if (!onUseHopeStar || !canUseHopeStar) return;
+    setIsUsingHopeStar(true);
+    try {
+      const result = await onUseHopeStar(post.id);
+      if (result.success) {
+        toast.success("Đã xóa lỗi check-in bằng Ngôi sao hy vọng!");
+      } else {
+        toast.error(result.error || "Không thể sử dụng Ngôi sao hy vọng.");
+      }
+    } catch {
+      toast.error("Đã xảy ra lỗi, vui lòng thử lại.");
+    } finally {
+      setIsUsingHopeStar(false);
+    }
+  }, [post.id, onUseHopeStar, canUseHopeStar]);
+
   // Team badge styling
   let teamBadgeClass = "bg-indigo-50 text-indigo-700 border-indigo-150";
   let teamLabel = "Tất cả";
   if (post.team === "TECH") {
     teamBadgeClass = "bg-blue-50 text-blue-700 border-blue-150";
     teamLabel = "Tech";
-  } else if (post.team === "MARKETING") {
-    teamBadgeClass = "bg-purple-50 text-purple-700 border-purple-150";
-    teamLabel = "Marketing";
   } else if (post.team === "SALES") {
     teamBadgeClass = "bg-pink-50 text-pink-700 border-pink-150";
     teamLabel = "Sales";
@@ -157,12 +185,28 @@ const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => 
       <div className="p-4 pt-0">
         {!isSubmitted ? (
           isExpired ? (
-            <button 
-              className="w-full rounded-lg bg-slate-100 text-slate-400 font-semibold py-2.5 text-center text-xs cursor-not-allowed border border-slate-200" 
-              disabled
-            >
-              Đã khoá (Quá 24 giờ)
-            </button>
+            <div className="space-y-2">
+              <button
+                className="w-full rounded-lg bg-slate-100 text-slate-400 font-semibold py-2.5 text-center text-xs cursor-not-allowed border border-slate-200"
+                disabled
+              >
+                Đã khoá (Quá 24 giờ)
+              </button>
+              {canUseHopeStar && (
+                <button
+                  onClick={handleUseHopeStarClick}
+                  disabled={isUsingHopeStar}
+                  className="w-full rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white font-semibold py-2.5 text-center text-xs transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 disabled:opacity-60"
+                >
+                  {isUsingHopeStar ? (
+                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                  ) : (
+                    <Star className="w-3.5 h-3.5 fill-white/30" />
+                  )}
+                  {isUsingHopeStar ? "Đang xử lý..." : `Sử dụng 1 Ngôi sao hy vọng (Còn ${userHopeStars} sao)`}
+                </button>
+              )}
+            </div>
           ) : (
             <button 
               onClick={() => onCheckIn(post)}
@@ -194,7 +238,13 @@ const PostCard = ({ post, onCheckIn }: { post: Post; onCheckIn: (post: Post) => 
   );
 };
 
-export function PostListView({ posts, onCheckIn }: { posts: Post[]; onCheckIn?: (post: Post) => void }) {
+export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar }: {
+  posts: Post[];
+  onCheckIn?: (post: Post) => void;
+  userHopeStars?: number;
+  userUsedStarsThisMonth?: number;
+  onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
+}) {
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "COMPLETED" | "EXPIRED">("ALL");
 
   const filteredPosts = posts.filter((post) => {
@@ -243,14 +293,39 @@ export function PostListView({ posts, onCheckIn }: { posts: Post[]; onCheckIn?: 
         </div>
       </div>
 
+      {/* Hope Stars Status Banner */}
+      {(userHopeStars > 0 || userUsedStarsThisMonth > 0) && (
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r from-amber-50 to-amber-50/60 border border-amber-200 shadow-sm">
+          <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 flex-shrink-0">
+            <Star className="w-4.5 h-4.5 fill-amber-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-800">
+              Ngôi sao hy vọng: {userHopeStars} sao
+            </p>
+            <p className="text-xs text-amber-600">
+              Đã sử dụng {userUsedStarsThisMonth}/3 lượt trong tháng này
+              {userUsedStarsThisMonth >= 3
+                ? " (đã đạt giới hạn)"
+                : userHopeStars > 0
+                ? " — Có thể xóa lỗi cho bài quá hạn"
+                : ""}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Grid Layout of cards - minimum 3 columns on Desktop */}
       {filteredPosts.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPosts.map((post) => (
-            <PostCard 
-              key={post.id} 
-              post={post} 
-              onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)} 
+            <PostCard
+              key={post.id}
+              post={post}
+              onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)}
+              userHopeStars={userHopeStars}
+              userUsedStarsThisMonth={userUsedStarsThisMonth}
+              onUseHopeStar={onUseHopeStar}
             />
           ))}
         </div>

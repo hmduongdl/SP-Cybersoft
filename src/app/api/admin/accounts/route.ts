@@ -11,15 +11,15 @@ const USER_SELECT = {
   id:            true,
   username:      true,
   name:          true,
-  full_name:     true,
   email:         true,
   role:          true,
   department:    true,
   avatar_url:    true,
-  is_first_login: true,
-  facebook_profile_url: true,
-  facebook_verified: true,
-  is_active: true,
+  hope_stars:    true,
+  used_stars_this_month: true,
+  is_onboarded:  true,
+  is_active:     true,
+  facebook_link: true,
 } as const;
 
 // ─── GET: List all accounts ────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         role:          role === "ADMIN" ? "ADMIN" : "USER",
         department:    department || "Other",
         avatar_url:    avatar_url || null,
-        is_first_login: true,
+        is_onboarded: false,
         is_active:     is_active !== undefined ? is_active : true,
       },
       select: USER_SELECT,
@@ -132,7 +132,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, name, email, role, department, avatar_url, password, is_active } =
+    const { id, username, name, email, role, department, avatar_url, password, is_active } =
       await request.json();
 
     if (!id) {
@@ -171,6 +171,22 @@ export async function PUT(request: Request) {
       finalEmail = trimmedEmail || user.email;
     }
 
+    // Kiểm tra username không trùng với tài khoản khác
+    let finalUsername = user.username;
+    if (username !== undefined) {
+      const trimmedUsername = username?.trim().toLowerCase() || "";
+      if (trimmedUsername && trimmedUsername !== user.username?.toLowerCase()) {
+        const conflict = await db.user.findUnique({ where: { username: trimmedUsername } });
+        if (conflict) {
+          return NextResponse.json(
+            { error: "Tên đăng nhập này đã được sử dụng bởi tài khoản khác." },
+            { status: 409 }
+          );
+        }
+      }
+      finalUsername = trimmedUsername || user.username;
+    }
+
     // Xử lý mật khẩu: chỉ hash và cập nhật nếu được gửi lên và có độ dài > 0
     const hashedPassword =
       password && password.length > 0 ? await bcrypt.hash(password, 10) : undefined;
@@ -178,6 +194,7 @@ export async function PUT(request: Request) {
     const updatedUser = await db.user.update({
       where: { id },
       data: {
+        username:   finalUsername,
         name:       name       !== undefined ? name       : user.name,
         email:      finalEmail,
         role:       role       !== undefined ? role       : user.role,

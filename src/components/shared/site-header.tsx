@@ -6,7 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Menu, User, Facebook, LogOut, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
-import { ProfileModal } from "./profile-modal";
+import { AccountModal } from "../AccountModal";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -87,7 +87,7 @@ export function SiteHeader() {
   const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
   const userImage = session?.user?.image || profile?.avatar_url || "/avatars/default.png";
   const isFacebookLinked = profile?.facebook_profile_url ? true : false;
-  const userDepartment = profile?.department || "HR";
+  const userDepartment = profile?.department || session?.user?.department || "";
 
   return (
     <>
@@ -239,7 +239,7 @@ export function SiteHeader() {
         </div>
       </header>
 
-      <ProfileModal isOpen={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
+      <AccountModal isOpen={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
     </>
   );
 }

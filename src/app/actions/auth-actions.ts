@@ -36,10 +36,10 @@ export async function authenticate(
       throw error;
     }
 
-    if (error instanceof AuthError) {
+     if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
-          return { error: "Email hoặc mật khẩu không chính xác." };
+          return { error: "Tên đăng nhập hoặc mật khẩu không chính xác!" };
         default:
           return { error: "Đã xảy ra lỗi hệ thống, vui lòng thử lại sau." };
       }
@@ -47,7 +47,7 @@ export async function authenticate(
 
     // Fallback error checks
     if (error.type === "CredentialsSignin" || error.message?.includes("CredentialsSignin")) {
-      return { error: "Email hoặc mật khẩu không chính xác." };
+      return { error: "Tên đăng nhập hoặc mật khẩu không chính xác!" };
     }
 
     console.error("Login error:", error);

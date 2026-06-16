@@ -25,18 +25,26 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === "loading") return;
 
+    const actualRole = session?.user?.role as Role;
+    const isActualAdmin = actualRole === "ADMIN";
+
     const savedRole = localStorage.getItem("simulated_role") as Role;
-    if (savedRole) {
+    if (savedRole && isActualAdmin) {
       setRole(savedRole);
-    } else if (session?.user?.role) {
-      const userRole = session.user.role as Role;
-      setRole(userRole);
-      localStorage.setItem("simulated_role", userRole);
+    } else {
+      const defaultRole = actualRole || "USER";
+      setRole(defaultRole);
+      localStorage.setItem("simulated_role", defaultRole);
     }
     setIsLoadingRole(false);
   }, [session, status]);
 
   const handleSetRole = (newRole: Role) => {
+    const actualRole = session?.user?.role as Role;
+    if (actualRole !== "ADMIN" && newRole === "ADMIN") {
+      // Chặn tuyệt đối user thường không được giả lập ADMIN
+      return;
+    }
     setRole(newRole);
     localStorage.setItem("simulated_role", newRole);
   };

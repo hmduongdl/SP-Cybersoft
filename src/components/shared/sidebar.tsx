@@ -50,7 +50,7 @@ export function Sidebar() {
 
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
   const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
-  const userRoleText = role === "ADMIN" ? "System Admin" : (session?.user?.role || "Team Member");
+  const userRole = profile?.department || session?.user?.department || "";
   const userImage = session?.user?.image || profile?.avatar_url || "/avatars/default.png";
 
   const sidebarContent = (
@@ -60,8 +60,8 @@ export function Sidebar() {
         {/* Brand Logo Area */}
         <div className="px-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative flex items-center justify-center w-10 h-10 rounded-xl overflow-hidden select-none">
-              <img src="/SPlogo-white.png" alt="SPS AI" className="w-full h-full object-contain" />
+            <div className="flex items-center justify-center w-12 h-12 select-none">
+              <img src="/SPlogo-white.png" alt="SPS Logo" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -113,28 +113,30 @@ export function Sidebar() {
       {/* Lower section */}
       <div className="flex flex-col gap-4">
         {/* Admin/User Role Switcher in Sidebar (Developer helper) */}
-        <div className="rounded-xl bg-slate-900/50 border border-slate-800/80 p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Role Sim:</span>
-            <span className={clsx(
-              "inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium border",
-              role === "ADMIN" 
-                ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/50" 
-                : "bg-indigo-950/50 text-indigo-400 border-indigo-800/50"
-            )}>
-              {role}
-            </span>
+        {session?.user?.role === "ADMIN" && (
+          <div className="rounded-xl bg-slate-900/50 border border-slate-800/80 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Role Sim:</span>
+              <span className={clsx(
+                "inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium border",
+                role === "ADMIN" 
+                  ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/50" 
+                  : "bg-indigo-950/50 text-indigo-400 border-indigo-800/50"
+              )}>
+                {role}
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setRole(role === "ADMIN" ? "USER" : "ADMIN");
+                window.location.href = "/dashboard";
+              }}
+              className="w-full rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 text-[11px] py-1.5 px-2 font-medium transition shadow-sm"
+            >
+              Switch to {role === "ADMIN" ? "User" : "Admin"}
+            </button>
           </div>
-          <button
-            onClick={() => {
-              setRole(role === "ADMIN" ? "USER" : "ADMIN");
-              window.location.href = "/dashboard";
-            }}
-            className="w-full rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 text-[11px] py-1.5 px-2 font-medium transition shadow-sm"
-          >
-            Switch to {role === "ADMIN" ? "User" : "Admin"}
-          </button>
-        </div>
+        )}
 
         {/* User Context */}
         {status === "loading" ? (
@@ -159,6 +161,9 @@ export function Sidebar() {
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
                 <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+                {userRole && (
+                  <p className="text-[10px] text-indigo-400/80 truncate font-medium">{userRole}</p>
+                )}
               </div>
             </div>
             <button

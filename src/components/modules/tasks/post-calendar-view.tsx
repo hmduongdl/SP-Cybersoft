@@ -29,7 +29,7 @@ type Post = {
   thumbnailUrl?: string | null;
   start_at: string;
   scheduledAt?: string;
-  team?: "ALL" | "TECH" | "SALES" | "MARKETING";
+  team?: "ALL" | "TECH" | "SALES";
   status: "PENDING" | "COMPLETED" | "EXPIRED";
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
 };
@@ -366,7 +366,6 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
             <span className={cn(
               "px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase border tracking-wider",
               hoveredPost.team === "TECH" ? "bg-blue-950 text-blue-400 border-blue-900/50" :
-              hoveredPost.team === "MARKETING" ? "bg-purple-950 text-purple-400 border-purple-900/50" :
               hoveredPost.team === "SALES" ? "bg-pink-950 text-pink-400 border-pink-900/50" :
               "bg-indigo-950 text-indigo-400 border-indigo-900/50"
             )}>

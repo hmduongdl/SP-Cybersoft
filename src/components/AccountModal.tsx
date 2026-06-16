@@ -4,27 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Building2, Loader2, X, Camera, Link } from "lucide-react";
+import { User, Mail, Building2, Loader2, X, Camera, Link, Phone, UserCircle } from "lucide-react";
 
-interface ProfileModalProps {
+interface AccountModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-
-
-export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
+export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [name, setName] = useState(session?.user?.name || "");
-  const [email, setEmail] = useState(session?.user?.email || "");
-  const [department, setDepartment] = useState("Other");
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
-  const [facebookLink, setFacebookLink] = useState(
-    (session?.user as any)?.facebook_profile_url || ""
-  );
+  const [name, setName] = useState(session?.user?.name ?? "");
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState(session?.user?.email ?? "");
+  const [department, setDepartment] = useState("");
+  const [phone, setPhone] = useState("");
+  const [facebookLink, setFacebookLink] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -34,12 +31,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   // Sync session data when it arrives
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      setName(session.user.name || "");
-      setEmail(session.user.email || "");
-      const deptFromSession = (session.user as any)?.department || "";
-      setDepartment(deptFromSession || "Other");
-      setAvatarUrl((session.user as any)?.avatar_url || null);
-      setFacebookLink((session.user as any)?.facebook_profile_url || "");
+      setName(session.user.name ?? "");
+      setEmail(session.user.email ?? "");
+      setDepartment((session.user as any)?.department ?? "");
+      setAvatarUrl((session.user as any)?.avatar_url ?? null);
     }
   }, [session, status]);
 
@@ -52,27 +47,19 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     async function loadData() {
       try {
-        const [profileRes, deptsRes] = await Promise.all([
-          fetch("/api/user/profile", { cache: "no-store" }),
-          fetch("/api/admin/departments")
-        ]);
+        const profileRes = await fetch("/api/user/profile", { cache: "no-store" });
         if (!active) return;
-
-        if (deptsRes.ok) {
-          const deptsData = await deptsRes.json();
-          if (deptsData.departments) {
-            setDepartments(deptsData.departments);
-          }
-        }
 
         if (profileRes.ok) {
           const data = await profileRes.json();
           if (data?.user) {
-            setName(data.user.name || name);
-            setEmail(data.user.email || email);
-            setDepartment(data.user.department || "Other");
-            setAvatarUrl(data.user.avatar_url || null);
-            setFacebookLink(data.user.facebook_profile_url || "");
+            setName(data.user.name ?? name);
+            setUsername(data.user.username ?? "");
+            setEmail(data.user.email ?? email);
+            setDepartment(data.user.department ?? "");
+            setAvatarUrl(data.user.avatar_url ?? null);
+            setFacebookLink(data.user.facebook_link ?? "");
+            setPhone(data.user.phone ?? "");
           }
         }
       } catch (error) {
@@ -106,9 +93,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      toast.error("Vui lòng nhập họ và tên.");
+    if (!email.trim()) {
+      toast.error("Vui lòng nhập email liên lạc.");
       return;
     }
 
@@ -126,20 +112,21 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         });
         if (!uploadRes.ok) {
           const errData = await uploadRes.json();
-          throw new Error(errData.error || "Tải ảnh đại diện thất bại.");
+          throw new Error(errData.error ?? "Tải ảnh đại diện thất bại.");
         }
         const uploadData = await uploadRes.json();
         finalAvatarUrl = uploadData.avatar_url;
         setAvatarUrl(finalAvatarUrl);
       }
 
-      // Update profile fields
-      const payload = {
-        name: trimmedName,
-        department: department,
-        facebook_profile_url: facebookLink.trim() || null,
-        ...(finalAvatarUrl !== undefined ? { avatar_url: finalAvatarUrl } : {}),
-      };
+      // Build payload — chỉ gửi các trường được phép cập nhật
+      const payload: Record<string, unknown> = {};
+      payload.email = email.trim();
+      payload.phone = phone.trim() || null;
+      payload.facebook_link = facebookLink.trim() || null;
+      if (finalAvatarUrl !== undefined) {
+        payload.avatar_url = finalAvatarUrl;
+      }
 
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -149,7 +136,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || "Cập nhật thất bại.");
+        throw new Error(data.error ?? "Cập nhật thất bại.");
       }
 
       if (update) {
@@ -160,9 +147,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       toast.success("Cập nhật thông tin cá nhân thành công!");
       router.refresh();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : "Lỗi khi lưu thông tin.";
       console.error(error);
-      toast.error(error.message || "Lỗi khi lưu thông tin.");
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -170,13 +158,21 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   if (!isOpen) return null;
 
+  const departmentLabel =
+    department === "SALES" ? "Phòng Kinh Doanh" : "Phòng Kỹ Thuật";
+  const departmentBadgeClass =
+    department === "SALES"
+      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+      : "bg-sky-50 text-sky-700 border-sky-200";
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div>
             <h2 className="text-xl font-semibold text-slate-800">Tài khoản cá nhân</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Chỉnh sửa thông tin công ty và phòng ban của bạn.</p>
+            <p className="text-sm text-slate-500 mt-0.5">Quản lý thông tin cá nhân của bạn.</p>
           </div>
           <button
             type="button"
@@ -195,13 +191,13 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             </div>
           ) : (
             <form onSubmit={handleSaveProfile} className="space-y-6">
-              {/* Avatar upload */}
+              {/* Avatar upload — chỉ cho phép tải file, không nhập URL */}
               <div className="flex items-center gap-5">
                 <div className="relative group">
                   <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center">
                     {avatarPreview || avatarUrl ? (
                       <img
-                        src={avatarPreview || avatarUrl!}
+                        src={avatarPreview ?? avatarUrl!}
                         alt="Avatar"
                         className="w-full h-full object-cover"
                       />
@@ -236,68 +232,98 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-6">
+              {/* Grid fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* KHÓA CỨNG: Họ và tên */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <User className="w-4 h-4 text-slate-400" /> Họ và tên
+                    <UserCircle className="w-4 h-4 text-slate-400" /> Họ và tên
                   </label>
                   <input
                     type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    required
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Mail className="w-4 h-4 text-slate-400" /> Email liên hệ
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
+                    value={name ?? ""}
                     readOnly
                     disabled
                     className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
                   />
                 </div>
 
+                {/* KHÓA CỨNG: Tên đăng nhập */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Link className="w-4 h-4 text-slate-400" /> Link Profile Facebook (Dùng để đối chiếu)
+                    <User className="w-4 h-4 text-slate-400" /> Tên đăng nhập
+                  </label>
+                  <input
+                    type="text"
+                    value={username ?? ""}
+                    readOnly
+                    disabled
+                    className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                {/* KHÓA CỨNG: Phòng ban — badge tĩnh */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
+                    <Building2 className="w-4 h-4 text-slate-400" /> Phòng ban
+                  </label>
+                  <div className="pt-1">
+                    <span
+                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border ${departmentBadgeClass}`}
+                    >
+                      {departmentLabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* CHO PHÉP SỬA: Email liên lạc (Gmail) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
+                    <Mail className="w-4 h-4 text-slate-400" /> Email liên lạc
+                  </label>
+                  <input
+                    type="email"
+                    value={email ?? ""}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="nguyenvana@gmail.com"
+                    disabled={saving}
+                    required
+                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  />
+                </div>
+
+                {/* CHO PHÉP SỬA: Link Facebook */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
+                    <Link className="w-4 h-4 text-slate-400" /> Link Facebook
                   </label>
                   <input
                     type="url"
-                    value={facebookLink}
+                    value={facebookLink ?? ""}
                     onChange={(e) => setFacebookLink(e.target.value)}
-                    placeholder="https://facebook.com/your-username"
+                    placeholder="https://facebook.com/username"
                     disabled={saving}
                     className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
+                {/* CHO PHÉP SỬA: Số điện thoại */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Building2 className="w-4 h-4 text-slate-400" /> Phòng ban
+                    <Phone className="w-4 h-4 text-slate-400" /> Số điện thoại
                   </label>
-                  <select
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
+                  <input
+                    type="tel"
+                    value={phone ?? ""}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="0901234567"
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-900"
-                  >
-                    {departments.map((dept) => (
-                      <option key={dept.id} value={dept.name}>
-                        {dept.name}
-                      </option>
-                    ))}
-                    <option value="Other">Khác</option>
-                  </select>
+                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  />
                 </div>
               </div>
 
+              {/* Actions */}
               <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
                 <button
                   type="button"

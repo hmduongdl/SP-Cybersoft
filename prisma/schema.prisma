@@ -7,6 +7,60 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ──────────────────────────────────────────────
+// ENUMS
+// ──────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+/// Chỉ 2 phòng ban cốt lõi: TECH (Kỹ thuật) và SALES (Kinh doanh)
+enum Team {
+  TECH
+  SALES
+}
+
+enum CheckinStatus {
+  AUTO_APPROVED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ──────────────────────────────────────────────
+// MODELS
+// ──────────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  username            String    @unique
+  name                String
+  email               String    @unique
+  password            String
+  phone               String?
+  role                UserRole  @default(USER)
+  department          Team      @default(TECH)
+  facebook_link       String?
+  avatar_url          String?
+  hope_stars          Int       @default(0)
+  used_stars_this_month Int     @default(0)
+  last_star_reset_at  DateTime?  @default(now())
+  is_onboarded        Boolean   @default(false)
+  is_active           Boolean   @default(true)
+  weekly_checkin_count Int      @default(0)
+
+  // Relations
+  checkins          Checkin[] @relation("UserCheckins")
+  reviewed_checkins Checkin[] @relation("AdminReviewedCheckins")
+
+  // Serverless-friendly indexes
+  @@index([username])
+  @@index([email])
+  @@index([department])
+}
+
 model Post {
   id            String    @id @default(uuid())
   title         String
@@ -14,45 +68,16 @@ model Post {
   thumbnail_url String?
   description   String
   start_at      DateTime
-  team          Team      @default(ALL)
+  team          String    @default("TECH")  // "TECH" | "SALES"
   is_archived   Boolean   @default(false)
   created_at    DateTime  @default(now())
-  checkins      Checkin[]
-}
 
-model User {
-  id                   String    @id @default(uuid())
-  username             String    @unique
-  is_first_login       Boolean   @default(true)
-  name                 String
-  full_name            String?
-  email                String    @unique
-  gmail                String?
-  facebook_profile_url String?
-  facebook_verified    Boolean   @default(false)
-  is_active            Boolean   @default(true)
-  password             String
-  role                 UserRole  @default(USER)
-  department           String
-  avatar_url           String?
-  daily_token_limit    Int       @default(100000)
-  tokens_used_today    Int       @default(0)
-  last_token_reset     DateTime  @default(now())
-  reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
-  checkins             Checkin[] @relation("UserCheckins")
+  // Relations
+  checkins Checkin[]
 
-  @@index([email])
-}
-
-model Department {
-  id   String @id @default(uuid())
-  name String @unique
-}
-
-model SystemSetting {
-  id    String @id @default(uuid())
-  key   String @unique
-  value String
+  @@index([team])
+  @@index([is_archived])
+  @@index([start_at])
 }
 
 model Checkin {
@@ -67,30 +92,22 @@ model Checkin {
   is_ai_flagged Boolean       @default(false)
   ai_confidence Float?
   reviewed_by   String?
-  post          Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  reviewer      User?         @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])
-  user          User          @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)
 
+  // Relations
+  post     Post  @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  reviewer User? @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])
+  user     User  @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)
+
+  // Serverless-friendly indexes
   @@index([user_id])
   @@index([post_id])
   @@index([status])
+  @@index([reviewed_by])
+  @@index([submitted_at])
 }
 
-enum UserRole {
-  ADMIN
-  USER
-}
-
-enum Team {
-  ALL
-  TECH
-  SALES
-  MARKETING
-}
-
-enum CheckinStatus {
-  AUTO_APPROVED
-  PENDING
-  APPROVED
-  REJECTED
+model SystemSetting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
 }

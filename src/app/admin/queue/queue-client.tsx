@@ -21,6 +21,7 @@ import {
   ExternalLink,
   CheckCircle2
 } from "lucide-react";
+import FacebookProfilePreview from "@/components/FacebookProfilePreview";
 import { cn } from "@/lib/utils";
 
 interface Checkin {
@@ -476,10 +477,8 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
               className="appearance-none w-full pr-8 pl-4 py-2 rounded-lg text-sm border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="ALL">Tất cả Phòng Ban</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Tech">Tech</option>
-              <option value="HR">HR</option>
-              <option value="Sales">Sales</option>
+              <option value="TECH">TECH</option>
+              <option value="SALES">SALES</option>
               <option value="Other">Khác</option>
             </select>
             <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
@@ -590,10 +589,8 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
                         <div>
                           <span className={cn(
                             "px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide border",
-                            item.user.department === "Tech" ? "bg-blue-50 text-blue-700 border-blue-150" :
-                            item.user.department === "Marketing" ? "bg-purple-50 text-purple-700 border-purple-150" :
-                            item.user.department === "Sales" ? "bg-pink-50 text-pink-700 border-pink-150" :
-                            item.user.department === "HR" ? "bg-teal-50 text-teal-700 border-teal-150" :
+                            item.user.department === "TECH" ? "bg-blue-50 text-blue-700 border-blue-150" :
+                            item.user.department === "SALES" ? "bg-pink-50 text-pink-700 border-pink-150" :
                             "bg-slate-50 text-slate-500 border-slate-150"
                           )}>
                             {item.user.department || "No Dept"}
@@ -603,15 +600,7 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
                         {/* Facebook Profile Link */}
                         <div>
                           {item.user.facebook_profile_url ? (
-                            <a
-                              href={item.user.facebook_profile_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-150 hover:bg-blue-100 hover:text-blue-700 transition-colors"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Ghé thăm Facebook
-                            </a>
+                            <FacebookProfilePreview facebookLink={item.user.facebook_profile_url} />
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-50 text-slate-400 border border-slate-150">
                               <ExternalLink className="w-3 h-3" />

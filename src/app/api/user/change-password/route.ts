@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       where: { id: session.user.id },
       data: {
         password: hashedPassword,
-        is_first_login: false,
+        is_onboarded: true,
       },
     });
 

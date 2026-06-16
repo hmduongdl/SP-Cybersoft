@@ -33,7 +33,7 @@ interface ManagedPost {
   thumbnail_url: string | null;
   start_at: string;
   is_archived: boolean;
-  team: "ALL" | "TECH" | "SALES" | "MARKETING";
+  team: "ALL" | "TECH" | "SALES";
   successfulCheckins: number;
   totalEmployees: number;
 }
@@ -85,7 +85,7 @@ export function PostTaskAdmin() {
     description: "",
     date: getLocalDateKey(new Date()),
     time: "09:00",
-    team: "ALL" as "ALL" | "TECH" | "SALES" | "MARKETING",
+    team: "ALL" as "ALL" | "TECH" | "SALES",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});

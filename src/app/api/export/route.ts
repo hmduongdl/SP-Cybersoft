@@ -32,8 +32,8 @@ export async function GET(request: Request) {
     }).length;
 
     // Build data rows
-    const departments = ["Marketing", "Tech", "HR", "Sales"];
-    const exportData = users.map((u, index) => {
+    let rowIndex = 0;
+    const exportData = users.map((u) => {
       const completed = u.checkins.length;
       const missed = Math.max(0, totalExpectedPosts - completed);
       const rate = totalExpectedPosts === 0 ? 0 : (completed / totalExpectedPosts);
@@ -46,12 +46,13 @@ export async function GET(request: Request) {
       });
       const mainMethod = u.checkins.length === 0 ? "Chưa tham gia" : (autoCount >= manualCount ? "Tự Động" : "Thủ Công");
 
+      rowIndex++;
 
       return {
-        stt: index + 1,
+        stt: rowIndex,
         empId: `NV${u.id.substring(u.id.length - 4).toUpperCase()}`,
         name: u.name || 'Unknown',
-        department: departments[index % departments.length], // Mock department
+        department: u.department || "Không",
         rate: rate,
         completed,
         missed,

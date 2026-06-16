@@ -3,31 +3,39 @@ import Credentials from "next-auth/providers/credentials";
 
 export const authConfig = {
   pages: {
-    signIn: "/login", // Trang đăng nhập tùy chỉnh
+    signIn: "/login",
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      
-      // Nếu chưa đăng nhập, NextAuth sẽ tự động chuyển hướng về trang /login
+
       if (!isLoggedIn) return false;
 
-      const isFirstLogin = auth?.user?.is_first_login;
-      const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding");
+      const pathname = nextUrl.pathname;
 
-      // Xử lý chuyển hướng Onboarding
-      if (isFirstLogin && !isOnboardingRoute) {
-        return Response.redirect(new URL("/onboarding", nextUrl));
-      }
-      if (!isFirstLogin && isOnboardingRoute) {
+      // Chuyển hướng route /onboarding về dashboard (Onboarding là popup modal)
+      if (pathname.startsWith("/onboarding")) {
         return Response.redirect(new URL("/dashboard", nextUrl));
       }
 
-      // Bảo vệ các đường dẫn Admin
-      const isOnAdminRoute = nextUrl.pathname.startsWith("/admin");
-      if (isOnAdminRoute) {
+      // Admin routes — yêu cầu role ADMIN
+      if (pathname.startsWith("/admin")) {
         if (auth.user?.role === "ADMIN") return true;
         return Response.redirect(new URL("/dashboard", nextUrl));
+      }
+
+      // Protected routes — yêu cầu đăng nhập
+      const isProtectedRoute =
+        pathname.startsWith("/dashboard") ||
+        pathname.startsWith("/calendar") ||
+        pathname.startsWith("/posts");
+
+      if (isProtectedRoute) {
+        // User chưa onboard → giữ ở dashboard để hiển thị popup Onboarding
+        if (!auth.user?.is_onboarded && !pathname.startsWith("/dashboard")) {
+          return Response.redirect(new URL("/dashboard", nextUrl));
+        }
+        return true;
       }
 
       return true;
@@ -36,12 +44,15 @@ export const authConfig = {
       if (user && user.id) {
         token.id = user.id;
         token.role = user.role ? user.role : "USER";
-        token.is_first_login = user.is_first_login ?? false;
+        token.is_onboarded = user.is_onboarded ?? false;
         token.hasFacebook = false;
         token.picture = user.image;
         token.name = user.name;
         token.department = user.department ?? "";
         token.avatar_url = user.avatar_url ?? null;
+        token.username = user.username ?? null;
+        token.phone = user.phone ?? null;
+        token.facebook_link = user.facebook_link ?? null;
       }
 
       if (token.id && token.hasFacebook === undefined) {
@@ -54,10 +65,13 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as any;
-        session.user.is_first_login = token.is_first_login as boolean;
+        session.user.is_onboarded = token.is_onboarded as boolean;
         session.user.hasFacebook = false;
         session.user.department = token.department as string;
         session.user.avatar_url = token.avatar_url as string | null;
+        session.user.username = token.username as string | null;
+        session.user.phone = token.phone as string | null;
+        session.user.facebook_link = token.facebook_link as string | null;
         if (token.picture) {
           session.user.image = token.picture as string;
         }
@@ -70,7 +84,6 @@ export const authConfig = {
     },
   },
   providers: [
-    // Khai báo cấu hình rỗng cho Credentials, logic validate sẽ nằm ở file Node runtime auth.ts
     Credentials({}),
   ],
 } satisfies NextAuthConfig;

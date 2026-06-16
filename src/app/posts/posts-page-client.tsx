@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { PostListView } from "@/components/modules/tasks/post-list-view";
 import { PostCalendarView } from "@/components/modules/tasks/post-calendar-view";
 import { SubmitCheckinModal } from "@/components/SubmitCheckinModal";
 import { LayoutList, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
+import { useHopeStar } from "@/app/actions/hope-star-actions";
 
 
-export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate }: { posts: any[], completedAvatarsByDate: any }) {
+export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate, userHopeStars = 0, userUsedStarsThisMonth = 0 }: { posts: any[], completedAvatarsByDate: any, userHopeStars?: number, userUsedStarsThisMonth?: number }) {
   const [view, setView] = useState<"LIST" | "CALENDAR">("LIST");
   const [posts, setPosts] = useState(initialPosts);
-  
+
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
 
   const handleCheckIn = (post: any) => {
@@ -28,6 +29,20 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
       setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED", checkinStatus: "PENDING" } : p));
     }
   };
+
+  const handleUseHopeStar = useCallback(async (postId: string) => {
+    const result = await useHopeStar(postId);
+    if (result.success) {
+      setPosts(prev =>
+        prev.map(p =>
+          p.id === postId
+            ? { ...p, status: "COMPLETED", checkinStatus: "APPROVED" }
+            : p
+        )
+      );
+    }
+    return result;
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -67,7 +82,13 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
       </header>
 
       {view === "LIST" ? (
-        <PostListView posts={posts} onCheckIn={handleCheckIn} />
+        <PostListView
+          posts={posts}
+          onCheckIn={handleCheckIn}
+          onUseHopeStar={handleUseHopeStar}
+          userHopeStars={userHopeStars}
+          userUsedStarsThisMonth={userUsedStarsThisMonth}
+        />
       ) : (
         <PostCalendarView posts={posts} completedAvatarsByDate={completedAvatarsByDate} onCheckIn={handleCheckIn} />
       )}

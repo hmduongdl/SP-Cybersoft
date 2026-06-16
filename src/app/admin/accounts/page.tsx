@@ -1,29 +1,31 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X, 
-  Lock, 
-  Users, 
-  ShieldCheck, 
-  UserX, 
-  AlertTriangle, 
-  Mail, 
-  Briefcase, 
+import {
+  Search,
+  Edit2,
+  Trash2,
+  Check,
+  X,
+  Lock,
+  Users,
+  ShieldCheck,
+  UserX,
+  AlertTriangle,
+  Mail,
+  Briefcase,
   Loader2,
   RefreshCw,
   UserCheck,
   UserPlus,
-  User
+  User,
+  Star
 } from "lucide-react";
 import { useLayout } from "@/components/shared/layout-context";
 import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
+import { AdminUserEditModal } from "@/components/AdminUserEditModal";
 
 interface UserAccount {
   id: string;
@@ -31,18 +33,17 @@ interface UserAccount {
   name: string | null;
   email: string;
   role: "ADMIN" | "USER";
-  is_active: boolean;
   department: string | null;
   avatar_url: string | null;
-  facebook_profile_url?: string | null;
-  facebook_verified?: boolean;
+  hope_stars: number;
+  used_stars_this_month: number;
+  is_active: boolean;
 }
 
 export default function AdminAccountsPage() {
   const { role } = useLayout();
   const { data: session } = useSession();
 
-  const [departments, setDepartments] = useState<{id: string, name: string}[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -62,30 +63,23 @@ export default function AdminAccountsPage() {
     email: "",
     password: "",
     role: "USER" as "ADMIN" | "USER",
-    department: "",
+    department: "TECH",
     avatar_url: "",
     is_active: true,
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Load accounts
   const fetchAccounts = async () => {
     try {
       setIsLoading(true);
-      const [usersRes, deptsRes] = await Promise.all([
-        fetch("/api/admin/accounts"),
-        fetch("/api/admin/departments")
-      ]);
+      const usersRes = await fetch("/api/admin/accounts");
       const data = await usersRes.json();
-      const deptsData = await deptsRes.json();
       if (!usersRes.ok) {
         throw new Error(data.error || "Không thể tải danh sách tài khoản.");
       }
       setUsers(data.users || []);
-      if (deptsRes.ok && deptsData.departments) {
-        setDepartments(deptsData.departments);
-      }
     } catch (error: any) {
       toast.error(error.message || "Lỗi khi lấy dữ liệu.");
     } finally {
@@ -118,20 +112,10 @@ export default function AdminAccountsPage() {
   // Open modal for editing user
   const handleOpenEditModal = (user: UserAccount) => {
     setEditingUser(user);
-    setFormData({
-      username: user.username || "",
-      name: user.name || "",
-      email: user.email,
-      password: "", // blank password to preserve existing
-      role: user.role,
-      department: user.department || "TECH",
-      avatar_url: user.avatar_url || "",
-      is_active: user.is_active,
-    });
     setShowFormModal(true);
   };
 
-  // Submit create or edit form
+  // Submit create form
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.email) {
@@ -202,36 +186,18 @@ export default function AdminAccountsPage() {
     }
   };
 
-  // Verify Facebook
-  const handleVerifyFacebook = async (id: string, verify: boolean) => {
-    try {
-      const res = await fetch(`/api/admin/accounts/${id}/verify-facebook`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ facebook_verified: verify }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      
-      toast.success(verify ? "Đã xác thực Facebook" : "Đã hủy xác thực Facebook");
-      fetchAccounts();
-    } catch (error: any) {
-      toast.error(error.message || "Lỗi khi xác thực Facebook");
-    }
-  };
-
   const filteredUsers = users.filter((user) => {
-    const matchesSearch = 
+    const matchesSearch =
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (user.department && user.department.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
-    
-    const matchesStatus = 
-      statusFilter === "ALL" || 
-      (statusFilter === "ACTIVE" && user.is_active) || 
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "ACTIVE" && user.is_active) ||
       (statusFilter === "INACTIVE" && !user.is_active);
 
     const matchesDept = deptFilter === "ALL" || user.department === deptFilter;
@@ -267,6 +233,19 @@ export default function AdminAccountsPage() {
   const userCount = users.filter(u => u.role === "USER").length;
   const inactiveCount = users.filter(u => !u.is_active).length;
 
+  // Department labels
+  const deptLabel = (dept: string | null) => {
+    if (dept === "TECH") return "Phòng Kỹ Thuật";
+    if (dept === "SALES") return "Phòng Kinh Doanh";
+    return dept || "Chưa xác định";
+  };
+
+  const deptBadgeClass = (dept: string | null) => {
+    if (dept === "TECH") return "bg-blue-50 text-blue-700 border-blue-200";
+    if (dept === "SALES") return "bg-pink-50 text-pink-700 border-pink-200";
+    return "bg-slate-100 text-slate-700 border-slate-200";
+  };
+
   return (
     <div className="space-y-6 pb-12 text-slate-900">
       <Toaster position="top-right" richColors />
@@ -275,9 +254,9 @@ export default function AdminAccountsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">Hệ thống</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-slate-900 tracking-tight">Quản Lý Tài Khoản</h1>
+          <h1 className="mt-2 text-3xl font-extrabold text-slate-900 tracking-tight">Quản Lý Thành Viên</h1>
           <p className="mt-1 text-sm text-slate-600">
-            Tạo mới, thiết lập vai trò (role) và quản lý tài khoản nhân viên.
+            Quản lý nhân sự, phòng ban và Ngôi sao hy vọng.
           </p>
         </div>
         <div>
@@ -348,7 +327,7 @@ export default function AdminAccountsPage() {
             </span>
             <input
               type="text"
-              placeholder="Tìm kiếm tài khoản..."
+              placeholder="Tìm kiếm thành viên..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
@@ -376,9 +355,8 @@ export default function AdminAccountsPage() {
               className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Phòng ban</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.name}>{dept.name}</option>
-              ))}
+              <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
+              <option value="SALES">Phòng Kinh Doanh (SALES)</option>
             </select>
           </div>
 
@@ -427,10 +405,9 @@ export default function AdminAccountsPage() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  <th className="px-6 py-4">Thành viên</th>
+                  <th className="px-6 py-4">Họ và tên</th>
                   <th className="px-6 py-4">Phòng ban</th>
-                  <th className="px-6 py-4">Facebook</th>
-                  <th className="px-6 py-4">Vai trò (Role)</th>
+                  <th className="px-6 py-4 text-center">Ngôi sao hy vọng</th>
                   <th className="px-6 py-4">Trạng thái</th>
                   <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
@@ -458,6 +435,11 @@ export default function AdminAccountsPage() {
                           <div>
                             <span className="font-semibold text-slate-900 flex items-center gap-1.5">
                               {user.name || "Chưa đặt tên"}
+                              {user.role === "ADMIN" && (
+                                <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-semibold">
+                                  ADMIN
+                                </span>
+                              )}
                               {isSelf && (
                                 <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">
                                   Bạn
@@ -465,7 +447,7 @@ export default function AdminAccountsPage() {
                               )}
                             </span>
                             <span className="text-xs text-slate-500 block mt-0.5 font-mono">
-                              @{user.username} • {user.email}
+                              @{user.username} &bull; {user.email}
                             </span>
                           </div>
                         </div>
@@ -473,45 +455,21 @@ export default function AdminAccountsPage() {
 
                       {/* Department */}
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
-                          <Briefcase className="h-3 w-3 text-slate-500" />
-                          {user.department || "Không"}
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border ${deptBadgeClass(user.department)}`}>
+                          <Briefcase className="h-3 w-3" />
+                          {deptLabel(user.department)}
                         </span>
                       </td>
 
-                      {/* Facebook */}
-                      <td className="px-6 py-4">
-                        {user.facebook_profile_url ? (
-                          <div className="flex flex-col gap-1">
-                            <a href={user.facebook_profile_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-800 text-xs truncate max-w-[120px] inline-block font-semibold">
-                              Xem Profile
-                            </a>
-                            <button
-                              onClick={() => handleVerifyFacebook(user.id, !user.facebook_verified)}
-                              className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 w-fit transition-colors ${
-                                user.facebook_verified 
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
-                                  : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
-                              }`}
-                            >
-                              <ShieldCheck className="w-3 h-3" />
-                              {user.facebook_verified ? "Đã xác thực" : "Duyệt ngay"}
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">Chưa cập nhật</span>
-                        )}
-                      </td>
-
-                      {/* Role */}
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
-                          user.role === "ADMIN" 
-                            ? "bg-purple-50 text-purple-700 border-purple-250" 
-                            : "bg-blue-50 text-blue-700 border-blue-250"
-                        }`}>
-                          {user.role}
-                        </span>
+                      {/* Hope Stars */}
+                      <td className="px-6 py-4 text-center">
+                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+                          <Star className={`h-4 w-4 ${user.hope_stars > 0 ? "text-amber-500 fill-amber-400" : "text-amber-300"}`} />
+                          <span className="font-bold text-amber-800 text-sm">{user.hope_stars}</span>
+                          <span className="text-[10px] text-amber-600 ml-1">
+                            (đã dùng {user.used_stars_this_month}/3)
+                          </span>
+                        </div>
                       </td>
 
                       {/* Status */}
@@ -560,11 +518,11 @@ export default function AdminAccountsPage() {
         )}
       </Card>
 
-      {/* MODAL: CREATE / EDIT ACCOUNT */}
-      {showFormModal && (
+      {/* MODAL: CREATE ACCOUNT */}
+      {showFormModal && !editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
-          <div 
+          <div
             onClick={() => !isSubmitting && setShowFormModal(false)}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
@@ -574,7 +532,7 @@ export default function AdminAccountsPage() {
             <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <User className="h-5 w-5 text-indigo-600" />
-                {editingUser ? "Cập Nhật Tài Khoản" : "Thêm Tài Khoản Mới"}
+                Thêm Tài Khoản Mới
               </h3>
               <button
                 onClick={() => setShowFormModal(false)}
@@ -599,7 +557,7 @@ export default function AdminAccountsPage() {
                     placeholder="name@company.com"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    disabled={!!editingUser || isSubmitting}
+                    disabled={isSubmitting}
                     className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
                   />
                 </div>
@@ -621,18 +579,13 @@ export default function AdminAccountsPage() {
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex justify-between">
-                    <span>Mật khẩu</span>
-                    {editingUser && (
-                      <span className="text-[10px] text-indigo-600 normal-case font-normal">
-                        (Để trống nếu muốn giữ nguyên mật khẩu cũ)
-                      </span>
-                    )}
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
+                    Mật khẩu
                   </label>
                   <input
                     type="password"
-                    placeholder={editingUser ? "•••••••• (Giữ nguyên)" : "Nhập mật khẩu tài khoản"}
-                    required={!editingUser}
+                    placeholder="Nhập mật khẩu tài khoản"
+                    required
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     disabled={isSubmitting}
@@ -640,60 +593,36 @@ export default function AdminAccountsPage() {
                   />
                 </div>
 
-                {/* Grid for Role & Department */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Role */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
-                      Vai trò (Role)
-                    </label>
-                    <select
-                      value={formData.role}
-                      onChange={(e) => setFormData({ ...formData, role: e.target.value as "ADMIN" | "USER" })}
-                      disabled={isSubmitting || (editingUser?.id === session?.user?.id)}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    >
-                      <option value="USER">USER (Nhân viên)</option>
-                      <option value="ADMIN">ADMIN (Quản trị)</option>
-                    </select>
-                    {editingUser?.id === session?.user?.id && (
-                      <p className="text-[10px] text-slate-500 mt-1">Bạn không thể tự đổi vai trò của mình</p>
-                    )}
-                  </div>
-
-                  {/* Department */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
-                      Phòng ban
-                    </label>
-                    <select
-                      value={formData.department}
-                      onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                      disabled={isSubmitting}
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    >
-                      <option value="TECH">Phòng Công Nghệ</option>
-                      <option value="SALES">Phòng Kinh Doanh</option>
-                      <option value="MARKETING">Phòng Marketing</option>
-                      <option value="HR">Phòng Nhân Sự</option>
-                      <option value="Other">Khác</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Avatar URL */}
+                {/* Department */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
-                    Đường dẫn ảnh đại diện (Avatar URL)
+                    Phòng ban
                   </label>
-                  <input
-                    type="url"
-                    placeholder="https://images.unsplash.com/... hoặc để trống"
-                    value={formData.avatar_url}
-                    onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
+                  <select
+                    value={formData.department}
+                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  />
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  >
+                    <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
+                    <option value="SALES">Phòng Kinh Doanh (SALES)</option>
+                  </select>
+                </div>
+
+                {/* Role */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
+                    Vai trò (Role)
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as "ADMIN" | "USER" })}
+                    disabled={isSubmitting}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  >
+                    <option value="USER">USER (Nhân viên)</option>
+                    <option value="ADMIN">ADMIN (Quản trị)</option>
+                  </select>
                 </div>
 
                 {/* Active Status */}
@@ -703,7 +632,7 @@ export default function AdminAccountsPage() {
                       type="checkbox"
                       checked={formData.is_active}
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                      disabled={isSubmitting || (editingUser?.id === session?.user?.id)}
+                      disabled={isSubmitting}
                       className="mt-1 w-5 h-5 rounded border-slate-200 text-indigo-600 focus:ring-indigo-500/30 bg-white transition-all cursor-pointer disabled:opacity-50"
                     />
                     <div>
@@ -711,9 +640,6 @@ export default function AdminAccountsPage() {
                       <p className="text-xs text-slate-500 mt-0.5">Tài khoản có thể đăng nhập vào hệ thống khi được bật</p>
                     </div>
                   </label>
-                  {editingUser?.id === session?.user?.id && (
-                    <p className="text-[10px] text-slate-500 mt-1.5 ml-8">Bạn không thể tự vô hiệu hóa tài khoản của mình</p>
-                  )}
                 </div>
               </div>
 
@@ -740,7 +666,7 @@ export default function AdminAccountsPage() {
                   ) : (
                     <>
                       <Check className="h-4.5 w-4.5" />
-                      <span>Lưu tài khoản</span>
+                      <span>Tạo tài khoản</span>
                     </>
                   )}
                 </button>
@@ -750,10 +676,20 @@ export default function AdminAccountsPage() {
         </div>
       )}
 
+      {/* ADMIN EDIT USER MODAL */}
+      {editingUser && (
+        <AdminUserEditModal
+          user={editingUser}
+          isOpen={!!editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={fetchAccounts}
+        />
+      )}
+
       {/* CONFIRMATION MODAL: DELETE USER */}
       {deletingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
+          <div
             onClick={() => !isSubmitting && setDeletingUser(null)}
             className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />

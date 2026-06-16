@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import bcrypt from "bcryptjs";
 
 export async function PATCH(req: Request) {
   try {
@@ -16,40 +15,30 @@ export async function PATCH(req: Request) {
 
     const {
       full_name,
-      gmail,
-      department,
+      username,
+      email,
+      phone,
+      facebook_link,
       avatar_url,
-      facebook_profile_url,
-      new_password,
     } = body;
 
-    if (!full_name || !gmail || !department || !new_password) {
+    if (!full_name || !username || !email) {
       return NextResponse.json(
-        { error: "Thiếu các thông tin bắt buộc" },
+        { error: "Thiếu các thông tin bắt buộc (Họ tên, Username, Email)" },
         { status: 400 }
       );
     }
-
-    if (new_password.length < 8 || !/\d/.test(new_password)) {
-      return NextResponse.json(
-        { error: "Mật khẩu phải có ít nhất 8 ký tự và bao gồm số" },
-        { status: 400 }
-      );
-    }
-
-    const passwordHash = await bcrypt.hash(new_password, 12);
 
     const updatedUser = await db.user.update({
       where: { id: userId },
       data: {
         name: full_name,
-        full_name,
-        gmail,
-        department,
+        username,
+        email,
+        phone: phone || null,
+        facebook_link: facebook_link || null,
         avatar_url: avatar_url || null,
-        facebook_profile_url: facebook_profile_url || null,
-        password: passwordHash,
-        is_first_login: false,
+        is_onboarded: true,
       },
     });
 

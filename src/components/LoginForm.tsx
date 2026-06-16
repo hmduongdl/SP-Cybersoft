@@ -36,7 +36,7 @@ export default function LoginForm() {
   // Initialize state with URL error if present
   const [state, formAction] = useActionState(authenticate, {
     error: urlError === "CredentialsSignin" 
-      ? "Email hoặc mật khẩu không chính xác." 
+      ? "Tên đăng nhập hoặc mật khẩu không chính xác!" 
       : urlError 
         ? "Đã xảy ra lỗi hệ thống, vui lòng thử lại sau." 
         : undefined,
@@ -47,7 +47,7 @@ export default function LoginForm() {
   const [forgotPasswordMsg, setForgotPasswordMsg] = useState(false);
 
   return (
-    <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-2xl shadow-2xl p-8 sm:p-10 relative z-10">
+    <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8 sm:p-10 relative z-10">
       {/* Logo for mobile */}
       <div className="text-center mb-8">
         <div className="inline-flex lg:hidden items-center gap-3 mb-6">
@@ -62,10 +62,18 @@ export default function LoginForm() {
 
       {/* Form */}
       <form action={formAction} className="space-y-6">
+        {/* Error Alert Display - Phải hiển thị nổi bật phía trên form */}
+        {state?.error && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-semibold flex gap-2 animate-shake">
+            <span className="material-symbols-outlined text-[16px] flex-shrink-0 text-red-500">error</span>
+            <span>Tên đăng nhập hoặc mật khẩu không chính xác!</span>
+          </div>
+        )}
+
         {/* Username Field */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase" htmlFor="username">
-            Tên đăng nhập hoặc Email
+          <label className="text-xs font-bold text-slate-300 tracking-wide uppercase" htmlFor="username">
+            TÊN ĐĂNG NHẬP (USERNAME)
           </label>
           <div className="relative group">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
@@ -75,7 +83,7 @@ export default function LoginForm() {
               className="w-full pl-12 pr-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               id="username"
               name="username"
-              placeholder="Nhập tên đăng nhập hoặc email"
+              placeholder="Nhập tên đăng nhập của bạn"
               required
               type="text"
             />
@@ -85,11 +93,11 @@ export default function LoginForm() {
         {/* Password Field */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase" htmlFor="password">
+            <label className="text-xs font-bold text-slate-300 tracking-wide uppercase" htmlFor="password">
               Mật khẩu
             </label>
             <button
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
               type="button"
               onClick={() => setForgotPasswordMsg(!forgotPasswordMsg)}
             >
@@ -101,7 +109,7 @@ export default function LoginForm() {
               lock
             </span>
             <input
-              className="w-full pl-12 pr-12 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full pl-12 pr-12 py-3.5 bg-slate-955/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               id="password"
               name="password"
               placeholder="Nhập mật khẩu"
@@ -128,7 +136,7 @@ export default function LoginForm() {
             type="checkbox"
             className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-600 focus:ring-offset-slate-900"
           />
-          <label htmlFor="remember_me" className="ml-2 block text-sm text-slate-300 cursor-pointer">
+          <label htmlFor="remember_me" className="ml-2 block text-sm text-slate-350 cursor-pointer font-medium">
             Ghi nhớ đăng nhập
           </label>
         </div>
@@ -140,14 +148,6 @@ export default function LoginForm() {
             <span>
               Tài khoản của bạn do Phòng Nhân sự (HR) cấp và quản lý. Vui lòng liên hệ trực tiếp với HR Admin để được cấp lại mật khẩu mới.
             </span>
-          </div>
-        )}
-
-        {/* Error Alert Display */}
-        {state?.error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium flex gap-2 animate-shake">
-            <span className="material-symbols-outlined text-[16px] flex-shrink-0 text-red-500">error</span>
-            <span>{state.error}</span>
           </div>
         )}
 
