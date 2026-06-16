@@ -1,18 +1,11 @@
 import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
 import Credentials from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@auth/prisma-adapter";
+import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 
-import { db } from "@/lib/db";
-
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
-  session: {
-    strategy: "jwt",
-  },
-  pages: {
-    signIn: "/login",
-  },
+  ...authConfig,
   providers: [
     Credentials({
       name: "Username and password",
@@ -38,7 +31,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (user && user.password) {
-          const isValidPassword = password === user.password;
+          const isValidPassword = await bcrypt.compare(password, user.password);
 
           if (!isValidPassword) {
             return null;
@@ -60,17 +53,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           adminUsername === username &&
           process.env.ADMIN_PASSWORD === password
         ) {
+          const passwordHash = await bcrypt.hash(password, 10);
           const adminUser = await db.user.upsert({
             where: { username: adminUsername },
             update: {
-              password: password,
+              password: passwordHash,
               role: "ADMIN",
             },
             create: {
               username: adminUsername,
               name: "Administrator",
               email: process.env.ADMIN_EMAIL || "admin@example.com",
-              password: password,
+              password: passwordHash,
               role: "ADMIN",
               department: "HR",
               is_first_login: false,
@@ -91,54 +85,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  callbacks: {
-    async signIn({ user }) {
-      return true; // Simple allow for now, adjust if active status is re-added
-    },
-    async jwt({ token, user, trigger, session }) {
-      if (trigger === "update" && session) {
-        if (session.is_first_login !== undefined) {
-          token.is_first_login = session.is_first_login;
-        }
-        if (session.name !== undefined) {
-          token.name = session.name;
-        }
-        if (session.image !== undefined) {
-          token.picture = session.image;
-        }
-      }
-
-      if (user && user.id) {
-        token.id = user.id;
-        token.role = "role" in user && user.role ? user.role : "USER";
-        token.is_first_login = "is_first_login" in user ? user.is_first_login : false;
-        token.hasFacebook = false;
-        token.picture = user.image;
-        token.name = user.name;
-      }
-
-      if (token.id && token.hasFacebook === undefined) {
-        token.hasFacebook = false;
-      }
-
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as any;
-        session.user.is_first_login = token.is_first_login as boolean;
-        session.user.hasFacebook = false;
-        if (token.picture) {
-          session.user.image = token.picture as string;
-        }
-        if (token.name) {
-          session.user.name = token.name as string;
-        }
-      }
-
-      return session;
-    },
-  },
 });
-

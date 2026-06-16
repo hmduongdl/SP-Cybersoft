@@ -37,6 +37,8 @@ model User {
   avatar_url           String?
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
   checkins             Checkin[] @relation("UserCheckins")
+
+  @@index([email])
 }
 
 model Department {

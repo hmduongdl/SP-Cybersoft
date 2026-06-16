@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     // Verify current password
-    const isMatch = currentPassword === user.password;
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) {
       return NextResponse.json(
         { error: "Mật khẩu hiện tại không chính xác." },
@@ -47,11 +47,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update new password
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
     await db.user.update({
       where: { id: session.user.id },
       data: {
-        password: newPassword,
+        password: hashedPassword,
         is_first_login: false,
       },
     });

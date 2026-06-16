@@ -92,12 +92,14 @@ export async function POST(request: Request) {
       }
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     const newUser = await db.user.create({
       data: {
         username:      trimmedUsername,
         name:          name || trimmedUsername,
         email:         trimmedEmail,
-        password:      password, // Plain text password
+        password:      hashedPassword,
         role:          role === "ADMIN" ? "ADMIN" : "USER",
         department:    department || "Other",
         avatar_url:    avatar_url || null,
@@ -191,7 +193,7 @@ export async function PUT(request: Request) {
 
     // Đổi mật khẩu nếu được cung cấp
     if (password) {
-      updateData.password = password;
+      updateData.password = await bcrypt.hash(password, 10);
     }
 
     const updatedUser = await db.user.update({

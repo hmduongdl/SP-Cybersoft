@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import NextAuth from "next-auth";
+import { authConfig } from "./auth.config";
 
-import { auth } from "@/auth";
+const { auth } = NextAuth(authConfig);
 
 const authOnlyRoutes = ["/dashboard", "/calendar", "/posts"];
 
