@@ -8,18 +8,24 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  // Count total posts in system
-  const totalPostsCount = await db.post.count();
-
-  // Count completed posts for this user
-  const completedCount = userId 
-    ? await db.checkin.count({
-        where: {
-          user_id: userId,
-          status: { in: ["APPROVED", "AUTO_APPROVED"] }
-        }
-      })
-    : 0;
+  // Fetch data concurrently for better performance
+  const [totalPostsCount, completedCount, recentCheckins] = await Promise.all([
+    db.post.count(),
+    userId ? db.checkin.count({
+      where: {
+        user_id: userId,
+        status: { in: ["APPROVED", "AUTO_APPROVED"] }
+      }
+    }) : Promise.resolve(0),
+    db.checkin.findMany({
+      take: 5,
+      orderBy: { submitted_at: 'desc' },
+      include: {
+        user: { select: { name: true, avatar_url: true } },
+        post: { select: { title: true } }
+      }
+    })
+  ]);
 
   // Pending posts = total posts - completed
   const pendingCount = Math.max(0, totalPostsCount - completedCount);
@@ -28,20 +34,6 @@ export default async function DashboardPage() {
   const totalPoints = completedCount * 100;
 
   const userName = session?.user?.name || "Thành viên";
-
-  // Fetch recent check-ins across the entire company for the Activity Feed
-  const recentCheckins = await db.checkin.findMany({
-    take: 5,
-    orderBy: { submitted_at: 'desc' },
-    include: {
-      user: {
-        select: { name: true, avatar_url: true }
-      },
-      post: {
-        select: { title: true }
-      }
-    }
-  });
 
   const activityFeed = recentCheckins.map(sub => ({
     id: sub.id,

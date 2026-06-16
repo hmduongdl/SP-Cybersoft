@@ -9,18 +9,35 @@ export default async function PostsPage() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  // Fetch all posts ordered by start_at
-  const postsFromDb = await db.post.findMany({
-    orderBy: { start_at: 'asc' },
-    include: userId
-      ? {
-          checkins: {
-            where: { user_id: userId },
-            select: { status: true },
-          },
-        }
-      : undefined,
-  });
+  // Fetch data concurrently for better performance
+  const [postsFromDb, allCheckins] = await Promise.all([
+    db.post.findMany({
+      orderBy: { start_at: 'asc' },
+      include: userId
+        ? {
+            checkins: {
+              where: { user_id: userId },
+              select: { status: true },
+            },
+          }
+        : undefined,
+    }),
+    db.checkin.findMany({
+      where: {
+        status: {
+          in: ["APPROVED", "AUTO_APPROVED"],
+        },
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, avatar_url: true },
+        },
+        post: {
+          select: { start_at: true },
+        },
+      },
+    })
+  ]);
 
   // Map to frontend Post structure
   const posts = postsFromDb.map(post => {
@@ -41,24 +58,6 @@ export default async function PostsPage() {
       start_at: post.start_at.toISOString(),
       status,
     };
-  });
-
-  // Fetch completed checkins across the company to build avatars for Calendar
-  // Group by date
-  const allCheckins = await db.checkin.findMany({
-    where: {
-      status: {
-        in: ["APPROVED", "AUTO_APPROVED"],
-      },
-    },
-    include: {
-      user: {
-        select: { id: true, name: true, avatar_url: true },
-      },
-      post: {
-        select: { start_at: true },
-      },
-    },
   });
 
   const completedAvatarsByDate: Record<string, any[]> = {};

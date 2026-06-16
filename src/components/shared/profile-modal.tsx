@@ -12,8 +12,10 @@ interface ProfileModalProps {
 
 interface UserProfile {
   id: string;
+  username: string;
   name: string | null;
   email: string;
+  gmail: string | null;
   department: string | null;
   facebook_profile_url: string | null;
   facebook_verified: boolean;
@@ -137,6 +139,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: profile.name,
+          email: profile.email,
+          gmail: profile.gmail,
           department: profile.department,
           facebook_profile_url: profile.facebook_profile_url,
         }),
@@ -316,16 +320,45 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                       />
                     </div>
 
+                    {/* Username */}
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <label className="text-xs font-bold text-slate-500 flex items-center gap-2 uppercase">
+                        <User className="w-4 h-4 text-slate-400" /> Tên đăng nhập (Username)
+                      </label>
+                      <input 
+                        type="text" 
+                        value={profile.username || ""}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed font-mono"
+                        disabled
+                      />
+                    </div>
+
                     {/* Email */}
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-500 flex items-center gap-2 uppercase">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                         <Mail className="w-4 h-4 text-slate-400" /> Email công việc
                       </label>
                       <input 
                         type="email" 
                         value={profile.email}
-                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed font-mono"
-                        disabled
+                        onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-900 font-mono"
+                        required
+                      />
+                    </div>
+
+                    {/* Gmail */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
+                        <Mail className="w-4 h-4 text-slate-400" /> Gmail cá nhân
+                      </label>
+                      <input 
+                        type="email" 
+                        value={profile.gmail || ""}
+                        onChange={(e) => setProfile({ ...profile, gmail: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-900 font-mono"
                       />
                     </div>
 
@@ -346,7 +379,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                         ) : null}
                       </div>
                       <input 
-                        type="url" 
+                        type="text" 
                         placeholder="https://facebook.com/your-username"
                         value={profile.facebook_profile_url || ""}
                         onChange={(e) => setProfile({ ...profile, facebook_profile_url: e.target.value })}

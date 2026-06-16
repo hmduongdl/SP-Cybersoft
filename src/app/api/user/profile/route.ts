@@ -14,8 +14,10 @@ export async function GET() {
       where: { id: session.user.id },
       select: {
         id: true,
+        username: true,
         name: true,
         email: true,
+        gmail: true,
         department: true,
         facebook_profile_url: true,
         facebook_verified: true,
@@ -40,7 +42,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, department, facebook_profile_url, avatar_url } = await request.json();
+    const { name, email, gmail, department, facebook_profile_url, avatar_url } = await request.json();
 
     // Reset verification status if they changed their facebook link
     const currentUser = await db.user.findUnique({ where: { id: session.user.id } });
@@ -56,6 +58,9 @@ export async function PUT(request: Request) {
       facebook_profile_url,
       facebook_verified,
     };
+    
+    if (email) updateData.email = email;
+    if (gmail !== undefined) updateData.gmail = gmail;
 
     if (avatar_url !== undefined) {
       updateData.avatar_url = avatar_url || null;
@@ -97,8 +102,8 @@ export async function POST(request: Request) {
     const ext = file.name ? "." + file.name.split(".").pop()?.toLowerCase() : ".jpg";
     const filename = `avatar_${session.user.id}_${Date.now()}${ext}`;
 
-    // Upload using pluggable adapter
-    const uploadResult = await uploadImage(buffer, filename, file.type);
+    // Upload directly to Vercel Blob using our new adapter
+    const uploadResult = await uploadImage(buffer, filename, file.type, "avatars");
 
     // Update user in database
     const user = await db.user.update({

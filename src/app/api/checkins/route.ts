@@ -300,7 +300,7 @@ export async function POST(request: Request) {
     }`;
 
     const [uploadResult, exifResult] = await Promise.allSettled([
-      uploadImage(buffer, uploadFilename, imageFile.type),
+      uploadImage(buffer, uploadFilename, imageFile.type, "checkins"),
       parseExifFromBuffer(buffer),
     ]);
 

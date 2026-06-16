@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import fs from "fs";
-import path from "path";
 import exifr from "exifr";
+import { uploadImage } from "@/lib/upload";
 
 export const dynamic = "force-dynamic";
 
@@ -110,18 +109,9 @@ export async function POST(request: Request) {
       aiConfidence = 0.3;
     }
 
-    // 6. Save image to local public/uploads directory
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-
-    const fileExtension = path.extname(imageFile.name) || ".jpg";
-    const fileName = `${session.user.id}_${postId}_${Date.now()}${fileExtension}`;
-    const filePath = path.join(uploadDir, fileName);
-
-    fs.writeFileSync(filePath, buffer);
-    const imageUrl = `/uploads/${fileName}`;
+    // 6. Save image to Vercel Blob using our adapter
+    const uploadResult = await uploadImage(buffer, imageFile.name || "checkin.jpg", imageFile.type, "checkins");
+    const imageUrl = uploadResult.url;
 
     // 7. Save Checkin record to database (create only — duplicate check already done in new route)
     const checkin = await db.checkin.create({
