@@ -17,15 +17,21 @@ import {
 } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Clock, CheckCircle2, AlertCircle, XCircle, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 type Post = {
   id: string;
   title: string;
   description: string;
-  originalUrl: string;
+  url: string;
+  originalUrl?: string;
+  thumbnail_url?: string | null;
   thumbnailUrl?: string | null;
-  scheduledAt: string;
+  start_at: string;
+  scheduledAt?: string;
+  team?: "ALL" | "TECH" | "SALES" | "MARKETING";
   status: "PENDING" | "COMPLETED" | "EXPIRED";
+  checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
 };
 
 type Avatar = {
@@ -43,6 +49,10 @@ type CalendarProps = {
 export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn }: CalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"MONTH" | "WEEK">("MONTH");
+  
+  // Floating tooltip state
+  const [hoveredPost, setHoveredPost] = useState<Post | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const next = () => {
     setCurrentDate((prev) => (viewMode === "MONTH" ? addMonths(prev, 1) : addWeeks(prev, 1)));
@@ -69,31 +79,56 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
   const days = getDaysInView();
   const weekDays = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
 
+  const handlePostMouseEnter = (post: Post, e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredPost(post);
+    setTooltipPos({
+      x: rect.left + window.scrollX + rect.width / 2,
+      y: rect.top + window.scrollY - 8,
+    });
+  };
+
+  const handlePostMouseLeave = () => {
+    setHoveredPost(null);
+  };
+
   const renderSinglePost = (post: Post) => {
-    const isCompleted = post.status === "COMPLETED";
+    const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
+    const isSubmitted = !!checkinState;
+    const thumbnailUrl = post.thumbnail_url || post.thumbnailUrl;
+
     return (
       <div
-        className="group absolute inset-0 cursor-pointer overflow-hidden"
+        className="group absolute inset-0 cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:shadow-inner"
         onClick={() => onCheckIn(post)}
-        title={post.title}
+        onMouseEnter={(e) => handlePostMouseEnter(post, e)}
+        onMouseLeave={handlePostMouseLeave}
       >
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-10 transition-all duration-500 group-hover:scale-110"
-          style={{ backgroundImage: `url(${post.thumbnailUrl || ""})` }}
-        />
-        <div className="relative p-2 h-full flex flex-col justify-between z-10">
+        {thumbnailUrl ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center opacity-40 transition-all duration-500 group-hover:scale-110"
+            style={{ backgroundImage: `url(${thumbnailUrl})` }}
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 to-indigo-100/30" />
+        )}
+        
+        {/* Overlay scrim */}
+        <div className="absolute inset-0 bg-slate-900/10 group-hover:bg-slate-900/5 transition-colors" />
+
+        <div className="relative p-2.5 h-full flex flex-col justify-between z-10">
           <div className="flex justify-end">
-            {isCompleted ? (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-label-sm text-[10px] font-semibold border border-emerald-200">
-                Đã share
+            {isSubmitted ? (
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-[9px] border border-emerald-600 shadow-sm">
+                Đã nộp
               </span>
             ) : (
-              <span className="px-2 py-0.5 rounded-full bg-primary-fixed/30 text-primary font-label-sm text-[10px] font-semibold border border-primary-fixed/50 animate-pulse">
-                Check-in
+              <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white font-bold text-[9px] border border-indigo-700 shadow-sm animate-pulse">
+                Share
               </span>
             )}
           </div>
-          <p className="text-[10px] font-semibold text-on-surface line-clamp-2 leading-tight bg-white/60 p-1 rounded backdrop-blur-[2px]">
+          <p className="text-[11px] font-bold text-slate-800 line-clamp-2 leading-tight bg-white/90 p-1.5 rounded-lg border border-slate-200/50 backdrop-blur-sm shadow-sm">
             {post.title}
           </p>
         </div>
@@ -102,52 +137,82 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
   };
 
   const renderDoublePosts = (post1: Post, post2: Post) => {
+    const checkinState1 = post1.checkinStatus || (post1.status === "COMPLETED" ? "APPROVED" : null);
+    const checkinState2 = post2.checkinStatus || (post2.status === "COMPLETED" ? "APPROVED" : null);
+
+    const thumb1 = post1.thumbnail_url || post1.thumbnailUrl;
+    const thumb2 = post2.thumbnail_url || post2.thumbnailUrl;
+
     return (
-      <div className="relative w-full h-full overflow-hidden bg-slate-50/50">
-        {/* Top Right Triangle */}
+      <div className="relative w-full h-full overflow-hidden bg-slate-100">
+        {/* Top-Left Half (Post 1) */}
         <div
-          className="absolute inset-0 cursor-pointer transition-all duration-300 z-10 hover:z-30 hover:brightness-110 group/p1"
-          style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%)" }}
+          className="absolute inset-0 cursor-pointer transition-all duration-200 z-10 origin-top-left hover:scale-[1.05] hover:z-30 hover:brightness-105 group/p1"
+          style={{ 
+            clipPath: "polygon(0 0, 100% 0, 0 100%)",
+            transformOrigin: "25% 25%" 
+          }}
           onClick={() => onCheckIn(post1)}
-          title={post1.title}
+          onMouseEnter={(e) => handlePostMouseEnter(post1, e)}
+          onMouseLeave={handlePostMouseLeave}
         >
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-10 transition-all duration-300 group-hover/p1:opacity-30 group-hover/p1:scale-110"
-            style={{ backgroundImage: `url(${post1.thumbnailUrl || ""})` }}
-          />
-          <div className="absolute top-[25%] right-[25%] -translate-x-1/2 -translate-y-1/2">
-             {post1.status === "COMPLETED" ? (
-              <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
+          {thumb1 ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-60 transition-all duration-300 group-hover/p1:opacity-85"
+              style={{ backgroundImage: `url(${thumb1})` }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-100/40 to-blue-200/30" />
+          )}
+          <div className="absolute top-[20%] left-[20%] z-20">
+             {checkinState1 === "APPROVED" || checkinState1 === "AUTO_APPROVED" ? (
+              <CheckCircle2 className="text-emerald-600 bg-white rounded-full w-5 h-5 shadow-sm" />
+            ) : checkinState1 === "PENDING" ? (
+              <Clock className="text-amber-600 bg-white rounded-full w-5 h-5 shadow-sm" />
+            ) : checkinState1 === "REJECTED" ? (
+              <XCircle className="text-rose-600 bg-white rounded-full w-5 h-5 shadow-sm" />
             ) : (
-              <span className="material-symbols-outlined text-primary text-sm">pending</span>
+              <span className="flex items-center justify-center w-5 h-5 bg-indigo-600 text-white rounded-full text-[9px] font-bold shadow-sm">1</span>
             )}
           </div>
         </div>
 
-        {/* Bottom Left Triangle */}
+        {/* Bottom-Right Half (Post 2) */}
         <div
-          className="absolute inset-0 cursor-pointer transition-all duration-300 z-20 hover:z-30 hover:brightness-110 group/p2"
-          style={{ clipPath: "polygon(0 0, 100% 100%, 0 100%)" }}
+          className="absolute inset-0 cursor-pointer transition-all duration-200 z-20 origin-bottom-right hover:scale-[1.05] hover:z-30 hover:brightness-105 group/p2"
+          style={{ 
+            clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
+            transformOrigin: "75% 75%" 
+          }}
           onClick={() => onCheckIn(post2)}
-          title={post2.title}
+          onMouseEnter={(e) => handlePostMouseEnter(post2, e)}
+          onMouseLeave={handlePostMouseLeave}
         >
-          <div
-            className="absolute inset-0 bg-cover bg-center opacity-10 transition-all duration-300 group-hover/p2:opacity-30 group-hover/p2:scale-110"
-            style={{ backgroundImage: `url(${post2.thumbnailUrl || ""})` }}
-          />
-          <div className="absolute bottom-[25%] left-[25%] translate-x-1/2 translate-y-1/2">
-             {post2.status === "COMPLETED" ? (
-              <span className="material-symbols-outlined text-emerald-500 text-sm">check_circle</span>
+          {thumb2 ? (
+            <div
+              className="absolute inset-0 bg-cover bg-center opacity-60 transition-all duration-300 group-hover/p2:opacity-85"
+              style={{ backgroundImage: `url(${thumb2})` }}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-100/40 to-purple-200/30" />
+          )}
+          <div className="absolute bottom-[20%] right-[20%] z-20">
+             {checkinState2 === "APPROVED" || checkinState2 === "AUTO_APPROVED" ? (
+              <CheckCircle2 className="text-emerald-600 bg-white rounded-full w-5 h-5 shadow-sm" />
+            ) : checkinState2 === "PENDING" ? (
+              <Clock className="text-amber-600 bg-white rounded-full w-5 h-5 shadow-sm" />
+            ) : checkinState2 === "REJECTED" ? (
+              <XCircle className="text-rose-600 bg-white rounded-full w-5 h-5 shadow-sm" />
             ) : (
-              <span className="material-symbols-outlined text-primary text-sm">pending</span>
+              <span className="flex items-center justify-center w-5 h-5 bg-indigo-600 text-white rounded-full text-[9px] font-bold shadow-sm">2</span>
             )}
           </div>
         </div>
 
-        {/* Diagonal Separator */}
+        {/* Diagonal Separator Line */}
         <div className="absolute inset-0 pointer-events-none z-25">
           <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-            <line x1="0" y1="0" x2="100" y2="100" stroke="rgba(0,0,0,0.1)" strokeWidth="0.5" />
+            <line x1="100" y1="0" x2="0" y2="100" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" />
           </svg>
         </div>
       </div>
@@ -162,7 +227,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
     const extraCount = avatars.length - 3;
 
     return (
-      <div className="absolute bottom-1 right-1 flex -space-x-2 z-40 pointer-events-none">
+      <div className="absolute bottom-1.5 right-1.5 flex -space-x-1.5 z-40 pointer-events-none">
         {displayAvatars.map((a) => (
           <div
             key={a.id}
@@ -173,7 +238,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
           </div>
         ))}
         {extraCount > 0 && (
-          <div className="relative w-5 h-5 rounded-full border border-white bg-primary text-[8px] text-white flex items-center justify-center font-bold shadow-sm z-10 pointer-events-auto">
+          <div className="relative w-5 h-5 rounded-full border border-white bg-indigo-600 text-[8px] text-white flex items-center justify-center font-bold shadow-sm z-10 pointer-events-auto">
             +{extraCount}
           </div>
         )}
@@ -186,40 +251,40 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
     : `Tuần của ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "d MMM", { locale: vi })}`;
 
   return (
-    <div className="space-y-lg animate-in fade-in duration-300">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* Calendar Header Controls */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-md mb-xl">
-        <div className="space-y-sm">
-          <h2 className="font-headline-lg text-headline-lg text-on-background capitalize">{formattedMonthYear}</h2>
-          <div className="flex items-center gap-xs">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-6">
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold text-slate-900 capitalize">{formattedMonthYear}</h2>
+          <div className="flex items-center gap-1.5">
             <button 
               onClick={prev} 
-              className="p-1 hover:bg-surface-container rounded-full transition-colors flex items-center justify-center"
+              className="p-1.5 bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-center shadow-sm"
             >
-              <span className="material-symbols-outlined text-[20px]">chevron_left</span>
+              <ChevronLeft className="w-4 h-4" />
             </button>
             <button 
               onClick={today} 
-              className="px-4 py-1.5 bg-surface-container text-primary font-label-md rounded-lg hover:bg-surface-container-high transition-colors font-semibold"
+              className="px-4 py-1.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
             >
               Hôm nay
             </button>
             <button 
               onClick={next} 
-              className="p-1 hover:bg-surface-container rounded-full transition-colors flex items-center justify-center"
+              className="p-1.5 bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-center shadow-sm"
             >
-              <span className="material-symbols-outlined text-[20px]">chevron_right</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center bg-surface-container-low p-xs rounded-xl border border-outline-variant/20 shadow-sm">
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shadow-sm">
           <button 
             onClick={() => setViewMode("WEEK")} 
             className={cn(
-              "px-lg py-1.5 font-label-md rounded-lg transition-all font-semibold", 
-              viewMode === "WEEK" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50"
+              "px-4 py-1.5 text-xs font-bold rounded-lg transition-all", 
+              viewMode === "WEEK" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
             )}
           >
             Theo tuần
@@ -227,8 +292,8 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
           <button 
             onClick={() => setViewMode("MONTH")} 
             className={cn(
-              "px-lg py-1.5 font-label-md rounded-lg transition-all font-semibold", 
-              viewMode === "MONTH" ? "bg-white text-primary shadow-sm" : "text-on-surface-variant hover:bg-white/50"
+              "px-4 py-1.5 text-xs font-bold rounded-lg transition-all", 
+              viewMode === "MONTH" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
             )}
           >
             Theo tháng
@@ -237,21 +302,21 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
       </div>
 
       {/* Calendar Table Layout */}
-      <div className="bg-white rounded-2xl shadow-lg border border-outline-variant/10 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-soft border border-slate-200 overflow-hidden">
         {/* Day Names Header */}
-        <div className="grid grid-cols-7 border-b border-outline-variant/10 bg-surface-container-low/50">
+        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50/50">
           {weekDays.map((day) => (
-            <div key={day} className="py-2.5 text-center font-label-md text-outline text-xs uppercase tracking-wider font-bold">
+            <div key={day} className="py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-wider">
               {day}
             </div>
           ))}
         </div>
 
         {/* Grid Cells */}
-        <div className="grid grid-cols-7 divide-x divide-y divide-outline-variant/10 border-t border-outline-variant/10">
+        <div className="grid grid-cols-7 divide-x divide-y divide-slate-100 border-t border-slate-100">
           {days.map((day, idx) => {
             const dateKey = format(day, "yyyy-MM-dd");
-            const dayPosts = posts.filter((p) => format(new Date(p.scheduledAt), "yyyy-MM-dd") === dateKey);
+            const dayPosts = posts.filter((p) => format(new Date(p.start_at || p.scheduledAt || new Date()), "yyyy-MM-dd") === dateKey);
 
             const isCurrentMonth = isSameMonth(day, currentDate);
             const isCurrentDay = isToday(day);
@@ -260,9 +325,9 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
               <div
                 key={idx}
                 className={cn(
-                  "relative min-h-[140px] flex flex-col p-2 hover:bg-surface-container-low transition-colors duration-250",
-                  !isCurrentMonth && viewMode === "MONTH" ? "bg-surface-container-lowest/30 opacity-40" : "bg-white",
-                  isCurrentDay && "bg-indigo-50/20 border-2 border-indigo-500/20"
+                  "relative min-h-[140px] flex flex-col p-2 hover:bg-slate-50/40 transition-colors duration-200",
+                  !isCurrentMonth && viewMode === "MONTH" ? "bg-slate-50/20 opacity-30" : "bg-white",
+                  isCurrentDay && "bg-indigo-50/10"
                 )}
               >
                 {/* Cell Date Number */}
@@ -270,7 +335,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
                   <span
                     className={cn(
                       "text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full",
-                      isCurrentDay ? "bg-primary text-white" : "text-on-surface"
+                      isCurrentDay ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600"
                     )}
                   >
                     {format(day, "d")}
@@ -278,7 +343,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
                 </div>
 
                 {/* Content Box (Posts inside Cell) */}
-                <div className="flex-1 w-full relative min-h-[80px] z-10 rounded-lg overflow-hidden border border-outline-variant/5">
+                <div className="flex-1 w-full relative min-h-[80px] z-10 rounded-lg overflow-hidden border border-slate-200/50">
                   {dayPosts.length === 1 && renderSinglePost(dayPosts[0])}
                   {dayPosts.length >= 2 && renderDoublePosts(dayPosts[0], dayPosts[1])}
                 </div>
@@ -290,6 +355,61 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
           })}
         </div>
       </div>
+
+      {/* Floating Hover Tooltip */}
+      {hoveredPost && (
+        <div 
+          className="fixed z-[999] -translate-x-1/2 -translate-y-full bg-slate-950/95 backdrop-blur-md text-white text-xs p-4 rounded-xl shadow-2xl border border-slate-800/80 w-64 pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95"
+          style={{ left: tooltipPos.x, top: tooltipPos.y }}
+        >
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <span className={cn(
+              "px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase border tracking-wider",
+              hoveredPost.team === "TECH" ? "bg-blue-950 text-blue-400 border-blue-900/50" :
+              hoveredPost.team === "MARKETING" ? "bg-purple-950 text-purple-400 border-purple-900/50" :
+              hoveredPost.team === "SALES" ? "bg-pink-950 text-pink-400 border-pink-900/50" :
+              "bg-indigo-950 text-indigo-400 border-indigo-900/50"
+            )}>
+              {hoveredPost.team || "ALL"}
+            </span>
+
+            {/* Checkin Status Badge inside Tooltip */}
+            {hoveredPost.checkinStatus === "APPROVED" || hoveredPost.checkinStatus === "AUTO_APPROVED" ? (
+              <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Đã duyệt
+              </span>
+            ) : hoveredPost.checkinStatus === "PENDING" ? (
+              <span className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" /> Chờ duyệt
+              </span>
+            ) : hoveredPost.checkinStatus === "REJECTED" ? (
+              <span className="text-[10px] font-bold text-rose-400 flex items-center gap-1">
+                <XCircle className="w-3.5 h-3.5" /> Bị từ chối
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" /> Chưa nộp
+              </span>
+            )}
+          </div>
+
+          <h4 className="font-bold text-sm text-slate-100 uppercase tracking-tight line-clamp-2 mb-1.5">
+            {hoveredPost.title}
+          </h4>
+
+          <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-2">
+            {hoveredPost.description || "Thực hiện like và chia sẻ bài viết này công khai."}
+          </p>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-900 pt-2">
+            <span>Bắt đầu: {format(new Date(hoveredPost.start_at || hoveredPost.scheduledAt || new Date()), "HH:mm dd/MM")}</span>
+            <span className="text-indigo-400 font-semibold flex items-center gap-0.5">
+              Click to action <ExternalLink className="w-2.5 h-2.5" />
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

@@ -19,7 +19,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
       <Sidebar />
 
       {/* Main Content Pane */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden md:pl-64">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden md:pl-[280px]">
         {/* Top Header */}
         <SiteHeader />
 

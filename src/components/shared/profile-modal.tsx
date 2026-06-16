@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { User, Mail, Shield, Building2, UploadCloud, X, Globe, Loader2 } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 interface ProfileModalProps {
@@ -24,6 +25,7 @@ interface UserProfile {
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const { data: session, update } = useSession();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"info" | "password">("info");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -48,7 +50,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setLoading(true);
       
       // Load departments
-      fetch("/api/admin/departments")
+      fetch("/api/admin/departments", { cache: "no-store" })
         .then(res => res.json())
         .then(data => {
           if (data.departments) setDepartments(data.departments);
@@ -56,7 +58,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         .catch(console.error);
 
       // Load user profile
-      fetch("/api/user/profile")
+      fetch("/api/user/profile", { cache: "no-store" })
         .then(res => {
           if (!res.ok) throw new Error("Không thể tải thông tin profile.");
           return res.json();
@@ -157,6 +159,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       }
 
       toast.success("Cập nhật thông tin thành công!");
+      router.refresh(); // Refresh Server Components (e.g. Header)
       onClose();
     } catch (error: any) {
       toast.error(error.message || "Lỗi khi lưu thông tin.");

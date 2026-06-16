@@ -25,7 +25,7 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
 
   const handleModalSuccess = () => {
     if (selectedPost) {
-      setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED" } : p));
+      setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED", checkinStatus: "PENDING" } : p));
     }
   };
 

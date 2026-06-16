@@ -57,6 +57,8 @@ export default async function PostsPage() {
       thumbnail_url: post.thumbnail_url,
       start_at: post.start_at.toISOString(),
       status,
+      team: post.team,
+      checkinStatus: userCheckin ? userCheckin.status : null,
     };
   });
 
