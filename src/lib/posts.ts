@@ -4,17 +4,16 @@ export const DAILY_POST_LIMIT = 2;
 
 export const postTaskSchema = z.object({
     title: z.string().trim().min(10, 'Tiêu đề phải có tối thiểu 10 ký tự.'),
-    originalUrl: z.string().trim().url('Link bài viết gốc phải là URL hợp lệ.'),
-    thumbnailUrl: z
+    url: z.string().trim().url('Link bài viết gốc phải là URL hợp lệ.'),
+    thumbnail_url: z
         .string()
         .trim()
         .url('Link ảnh thumbnail phải là URL hợp lệ.')
         .optional()
         .or(z.literal('')),
     description: z.string().trim().min(1, 'Vui lòng nhập lời nhắn hoặc yêu cầu kèm theo.'),
-    scheduledAt: z.coerce.date('Vui lòng chọn ngày giờ hiển thị bài viết.'),
+    start_at: z.coerce.date('Vui lòng chọn ngày giờ hiển thị bài viết.'),
     team: z.string().optional().nullable(),
-    start_at: z.coerce.date().optional().nullable(),
 });
 
 

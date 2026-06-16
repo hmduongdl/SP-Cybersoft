@@ -16,28 +16,32 @@ export async function POST(request: Request) {
     }
 
     // Upsert checkin for MANUAL
-    const checkin = await db.checkin.upsert({
+    const existing = await db.checkin.findFirst({
       where: {
-        userId_postId: {
-          userId: session.user.id,
-          postId: postId,
-        },
-      },
-      update: {
-        status: "PENDING",
-        evidenceType: "MANUAL_SCREENSHOT",
-        evidenceUrl: base64Image, // Storing base64 for mockup purposes
-        image_url: base64Image,
-      },
-      create: {
-        userId: session.user.id,
-        postId: postId,
-        status: "PENDING",
-        evidenceType: "MANUAL_SCREENSHOT",
-        evidenceUrl: base64Image,
-        image_url: base64Image,
+        user_id: session.user.id,
+        post_id: postId,
       },
     });
+
+    let checkin;
+    if (existing) {
+      checkin = await db.checkin.update({
+        where: { id: existing.id },
+        data: {
+          status: "PENDING",
+          image_url: base64Image,
+        },
+      });
+    } else {
+      checkin = await db.checkin.create({
+        data: {
+          user_id: session.user.id,
+          post_id: postId,
+          status: "PENDING",
+          image_url: base64Image,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, submission: checkin });
 

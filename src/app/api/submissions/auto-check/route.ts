@@ -21,22 +21,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Kiểm tra tài khoản đã liên kết Facebook chưa
-    const fbAccount = await db.account.findFirst({
-      where: {
-        userId: session.user.id,
-        provider: "facebook",
-      },
-    });
-
-    if (!fbAccount) {
-      return NextResponse.json(
-        { success: false, message: "Vui lòng liên kết tài khoản Facebook trước khi sử dụng tính năng auto check-in." },
-        { status: 400 }
-      );
-    }
-
-    // 2. Tìm kiếm bài viết
+    // 1. Tìm kiếm bài viết
     const post = await db.post.findUnique({
       where: { id: postId },
     });
@@ -48,9 +33,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Ràng buộc thời gian 24h
+    // 2. Ràng buộc thời gian 24h
     const serverTime = new Date();
-    const postTime = new Date(post.scheduledAt);
+    const postTime = new Date(post.start_at);
     const deadline = new Date(postTime.getTime() + 24 * 60 * 60 * 1000);
 
     if (serverTime > deadline) {
@@ -60,15 +45,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Kiểm tra trùng lặp & Ghi nhận DB qua Prisma Transaction
+    // 3. Kiểm tra trùng lặp & Ghi nhận DB qua Prisma Transaction
     try {
       const checkin = await db.$transaction(async (tx) => {
-        const existing = await tx.checkin.findUnique({
+        const existing = await tx.checkin.findFirst({
           where: {
-            userId_postId: {
-              userId: session.user.id,
-              postId: postId,
-            },
+            user_id: session.user.id,
+            post_id: postId,
           },
         });
 
@@ -78,12 +61,10 @@ export async function POST(request: Request) {
 
         return tx.checkin.create({
           data: {
-            userId: session.user.id,
-            postId: postId,
+            user_id: session.user.id,
+            post_id: postId,
             status: "AUTO_APPROVED",
-            evidenceType: "AUTO_FB",
-            evidenceUrl: "FACEBOOK_AUTO_CHECK",
-            image_url: "FACEBOOK_AUTO_CHECK",
+            image_url: "AUTO_CHECKIN",
           },
         });
       });

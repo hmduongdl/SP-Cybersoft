@@ -5,7 +5,7 @@ import { DAILY_POST_LIMIT, getDayRange, getLocalDateKey, postTaskSchema } from '
 export async function GET() {
     const [posts, totalEmployees] = await Promise.all([
         db.post.findMany({
-            orderBy: { scheduledAt: 'asc' },
+            orderBy: { start_at: 'asc' },
             include: {
                 _count: {
                     select: { checkins: true },
@@ -14,7 +14,6 @@ export async function GET() {
         }),
         db.user.count({
             where: {
-                active: true,
                 role: 'USER',
             },
         }),
@@ -25,9 +24,9 @@ export async function GET() {
             id: post.id,
             title: post.title,
             description: post.description,
-            originalUrl: post.originalUrl,
-            thumbnailUrl: post.thumbnailUrl,
-            scheduledAt: post.scheduledAt.toISOString(),
+            url: post.url,
+            thumbnail_url: post.thumbnail_url,
+            start_at: post.start_at.toISOString(),
             successfulCheckins: post._count.checkins,
             totalEmployees,
         })),
@@ -42,11 +41,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { start, end } = getDayRange(getLocalDateKey(parsed.data.scheduledAt));
+    const { start, end } = getDayRange(getLocalDateKey(parsed.data.start_at ?? new Date()));
 
     const densityCount = await db.post.count({
         where: {
-            scheduledAt: {
+            start_at: {
                 gte: start,
                 lt: end,
             },
@@ -56,12 +55,11 @@ export async function POST(request: Request) {
     const post = await db.post.create({
         data: {
             title: parsed.data.title,
-            originalUrl: parsed.data.originalUrl,
-            thumbnailUrl: parsed.data.thumbnailUrl || null,
+            url: parsed.data.url,
+            thumbnail_url: parsed.data.thumbnail_url || null,
             description: parsed.data.description,
-            scheduledAt: parsed.data.scheduledAt,
-            team: parsed.data.team || null,
-            start_at: parsed.data.start_at || new Date(),
+            start_at: parsed.data.start_at ?? new Date(),
+            team: (parsed.data.team as any) || 'ALL',
         },
     });
 
@@ -77,4 +75,3 @@ export async function POST(request: Request) {
         { status: 201 }
     );
 }
-

@@ -15,7 +15,7 @@ export default async function DashboardPage() {
   const completedCount = userId 
     ? await db.checkin.count({
         where: {
-          userId,
+          user_id: userId,
           status: { in: ["APPROVED", "AUTO_APPROVED"] }
         }
       })
@@ -32,10 +32,10 @@ export default async function DashboardPage() {
   // Fetch recent check-ins across the entire company for the Activity Feed
   const recentCheckins = await db.checkin.findMany({
     take: 5,
-    orderBy: { submittedAt: 'desc' },
+    orderBy: { submitted_at: 'desc' },
     include: {
       user: {
-        select: { name: true, image: true }
+        select: { name: true, avatar_url: true }
       },
       post: {
         select: { title: true }
@@ -46,9 +46,9 @@ export default async function DashboardPage() {
   const activityFeed = recentCheckins.map(sub => ({
     id: sub.id,
     userName: sub.user?.name || "Thành viên ẩn danh",
-    userImage: sub.user?.image || null,
+    userImage: sub.user?.avatar_url || null,
     postTitle: sub.post?.title || "Bài viết mới",
-    submittedAt: sub.submittedAt.toISOString()
+    submittedAt: sub.submitted_at.toISOString()
   }));
 
 

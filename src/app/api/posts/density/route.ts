@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const { start, end } = getDayRange(dateKey);
     const count = await db.post.count({
         where: {
-            scheduledAt: {
+            start_at: {
                 gte: start,
                 lt: end,
             },
