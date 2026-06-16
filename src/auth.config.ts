@@ -8,12 +8,28 @@ export const authConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isOnAdminRoute = nextUrl.pathname.startsWith("/admin");
       
-      if (isOnAdminRoute) {
-        if (isLoggedIn && auth.user.role === "ADMIN") return true;
-        return false; // Chặn truy cập nếu không phải Admin
+      // Nếu chưa đăng nhập, NextAuth sẽ tự động chuyển hướng về trang /login
+      if (!isLoggedIn) return false;
+
+      const isFirstLogin = auth?.user?.is_first_login;
+      const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding");
+
+      // Xử lý chuyển hướng Onboarding
+      if (isFirstLogin && !isOnboardingRoute) {
+        return Response.redirect(new URL("/onboarding", nextUrl));
       }
+      if (!isFirstLogin && isOnboardingRoute) {
+        return Response.redirect(new URL("/dashboard", nextUrl));
+      }
+
+      // Bảo vệ các đường dẫn Admin
+      const isOnAdminRoute = nextUrl.pathname.startsWith("/admin");
+      if (isOnAdminRoute) {
+        if (auth.user?.role === "ADMIN") return true;
+        return Response.redirect(new URL("/dashboard", nextUrl));
+      }
+
       return true;
     },
     async jwt({ token, user, trigger, session }) {

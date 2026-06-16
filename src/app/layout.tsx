@@ -4,7 +4,7 @@ import "./globals.css";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
 import { LayoutProvider } from "@/components/shared/layout-context";
-import { SessionProvider } from "next-auth/react";
+import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import ClientLayoutWrapper from "./client-layout-wrapper";
 
 export const metadata: Metadata = {
@@ -23,13 +23,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className="h-full antialiased overflow-hidden">
-        <SessionProvider>
+        <SessionProviderWrapper>
           <LayoutProvider>
             <ClientLayoutWrapper>
               {children}
             </ClientLayoutWrapper>
           </LayoutProvider>
-        </SessionProvider>
+        </SessionProviderWrapper>
       </body>
     </html>
   );
