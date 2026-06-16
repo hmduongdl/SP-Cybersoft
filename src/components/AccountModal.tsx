@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { User, Mail, Building2, Loader2, X, Camera, Link, Phone, UserCircle } from "lucide-react";
+import { UserAvatar } from "./shared/user-avatar";
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -194,17 +195,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               {/* Avatar upload — chỉ cho phép tải file, không nhập URL */}
               <div className="flex items-center gap-5">
                 <div className="relative group">
-                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center">
-                    {avatarPreview || avatarUrl ? (
-                      <img
-                        src={avatarPreview ?? avatarUrl!}
-                        alt="Avatar"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <User className="w-8 h-8 text-slate-400" />
-                    )}
-                  </div>
+                  <UserAvatar src={avatarPreview ?? avatarUrl} name={name || null} />
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}

@@ -17,10 +17,18 @@ const USER_SELECT = {
   avatar_url:    true,
   hope_stars:    true,
   used_stars_this_month: true,
-  is_onboarded:  true,
+  is_first_login: true,
   is_active:     true,
-  facebook_link: true,
+  facebook_profile_url: true,
 } as const;
+
+function toUserResponse(u: Record<string, any>) {
+  return {
+    ...u,
+    is_onboarded: !u.is_first_login,
+    facebook_link: u.facebook_profile_url ?? null,
+  };
+}
 
 // ─── GET: List all accounts ────────────────────────────────────────────────────
 
@@ -36,7 +44,7 @@ export async function GET() {
       select: USER_SELECT,
     });
 
-    return NextResponse.json({ users });
+    return NextResponse.json({ users: users.map(toUserResponse) });
   } catch (error: any) {
     console.error("GET Accounts Error:", error);
     return NextResponse.json(
@@ -112,7 +120,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Tạo tài khoản thành công.",
-      user: newUser,
+      user: toUserResponse(newUser),
     });
   } catch (error: any) {
     console.error("POST Account Error:", error);
@@ -209,7 +217,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Cập nhật tài khoản thành công.",
-      user: updatedUser,
+      user: toUserResponse(updatedUser),
     });
   } catch (error: any) {
     console.error("PUT Account Error:", error);

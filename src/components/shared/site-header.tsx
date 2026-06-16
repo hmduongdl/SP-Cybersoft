@@ -7,6 +7,7 @@ import { Menu, User, Facebook, LogOut, ChevronDown, CheckCircle2, AlertCircle } 
 import { useLayout } from "./layout-context";
 import Link from "next/link";
 import { AccountModal } from "../AccountModal";
+import { UserAvatar } from "./user-avatar";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -85,7 +86,7 @@ export function SiteHeader() {
 
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
   const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
-  const userImage = session?.user?.image || profile?.avatar_url || "/avatars/default.png";
+  const userImage = session?.user?.image || profile?.avatar_url || null;
   const isFacebookLinked = profile?.facebook_profile_url ? true : false;
   const userDepartment = profile?.department || session?.user?.department || "";
 
@@ -158,14 +159,7 @@ export function SiteHeader() {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-50 transition text-slate-600 hover:text-slate-900 border border-transparent hover:border-slate-200"
               >
-                <img
-                  src={userImage}
-                  alt="Avatar"
-                  className="h-7 w-7 rounded-full object-cover border border-slate-200"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = "/avatars/default.png";
-                  }}
-                />
+                <UserAvatar src={userImage} name={userDisplayName} size="sm" />
                 <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">
                   {userDisplayName}
                 </span>

@@ -8,6 +8,8 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useState, useEffect } from "react";
 
+import { UserAvatar } from "./user-avatar";
+
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen, role, setRole } = useLayout();
@@ -51,7 +53,7 @@ export function Sidebar() {
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
   const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
   const userRole = profile?.department || session?.user?.department || "";
-  const userImage = session?.user?.image || profile?.avatar_url || "/avatars/default.png";
+  const userImage = session?.user?.image || profile?.avatar_url || null;
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-slate-950 border-r border-slate-800 py-lg px-4 justify-between">
@@ -150,14 +152,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md group">
             <div className="flex items-center gap-3 overflow-hidden">
-              <img 
-                alt="User profile avatar" 
-                className="w-10 h-10 rounded-full border border-slate-800 object-cover bg-slate-900 group-hover:scale-105 transition-transform duration-200" 
-                src={userImage}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = "/avatars/default.png";
-                }}
-              />
+              <UserAvatar src={userImage} name={userDisplayName} />
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
                 <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
