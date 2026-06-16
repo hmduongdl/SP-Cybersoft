@@ -218,78 +218,7 @@ function LoginForm() {
 
           {/* HR Support Information */}
           <div className="mt-8 pt-6 border-t border-slate-800/80 flex flex-col gap-4 text-xs text-slate-400">
-            <div className="flex items-center justify-between">
-              <span>Chính sách truy cập</span>
-              <span className="text-emerald-400 font-medium flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                Chỉ mạng nội bộ
-              </span>
-            </div>
-
-            {/* Quick Demo Login Helpers */}
-            <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/40">
-              <button 
-                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-                type="button"
-                className="w-full flex items-center justify-between text-slate-300 font-semibold hover:text-white transition-colors"
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-indigo-400 text-[18px]">key</span>
-                  Tài khoản Demo
-                </span>
-                <span className="material-symbols-outlined text-[18px] transition-transform duration-200" style={{ transform: showDemoAccounts ? 'rotate(180deg)' : 'none' }}>
-                  expand_more
-                </span>
-              </button>
-              
-              {showDemoAccounts && (
-                <div className="mt-3 space-y-2 border-t border-slate-800/60 pt-3 animate-fadeIn">
-                  <p className="text-[11px] text-slate-500 mb-2">Nhấp vào tài khoản để điền nhanh:</p>
-                  
-                  {/* Admin Account */}
-                  <div 
-                    onClick={() => handleQuickLogin("admin")}
-                    className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all"
-                  >
-                    <div>
-                      <p className="font-semibold text-white text-[11px]">Quản trị viên (ADMIN)</p>
-                      <p className="text-[10px] text-slate-400">admin</p>
-                    </div>
-                    <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded font-mono">
-                      password123
-                    </span>
-                  </div>
-
-                  {/* Tech Account */}
-                  <div 
-                    onClick={() => handleQuickLogin("tech_user")}
-                    className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all"
-                  >
-                    <div>
-                      <p className="font-semibold text-white text-[11px]">Nhân viên (Tech Team)</p>
-                      <p className="text-[10px] text-slate-400">tech_user</p>
-                    </div>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
-                      password123
-                    </span>
-                  </div>
-
-                  {/* Marketing Account */}
-                  <div 
-                    onClick={() => handleQuickLogin("mkt_user")}
-                    className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all"
-                  >
-                    <div>
-                      <p className="font-semibold text-white text-[11px]">Nhân viên (Marketing)</p>
-                      <p className="text-[10px] text-slate-400">mkt_user</p>
-                    </div>
-                    <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
-                      password123
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Removed policies and demo accounts per user request */}
           </div>
         </div>
 
