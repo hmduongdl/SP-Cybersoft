@@ -21,10 +21,8 @@ export async function GET() {
         email: true,
         gmail: true,
         department: true,
-        facebook_profile_url: true,
-        facebook_verified: true,
         avatar_url: true,
-      }
+      },
     });
 
     return NextResponse.json({ user });
@@ -44,34 +42,33 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, email, gmail, department, facebook_profile_url, avatar_url } = await request.json();
+    const body = await request.json();
+    const name = typeof body.name === "string" ? body.name.trim() : "";
+    const department = typeof body.department === "string" ? body.department.trim() : "";
+    const avatar_url = typeof body.avatar_url === "string" ? body.avatar_url.trim() : undefined;
 
-    // Reset verification status if they changed their facebook link
-    const currentUser = await db.user.findUnique({ where: { id: session.user.id } });
-    
-    let facebook_verified = currentUser?.facebook_verified;
-    if (facebook_profile_url !== currentUser?.facebook_profile_url) {
-      facebook_verified = false;
+    if (!name || !department) {
+      return NextResponse.json(
+        { error: "Tên và phòng ban là bắt buộc." },
+        { status: 400 }
+      );
     }
 
-    const updateData: Record<string, any> = {
+    const updateData: { name: string; department: string; avatar_url?: string | null } = {
       name,
       department,
-      facebook_profile_url,
-      facebook_verified,
     };
-    
-    if (email) updateData.email = email;
-    if (gmail !== undefined) updateData.gmail = gmail;
 
     if (avatar_url !== undefined) {
       updateData.avatar_url = avatar_url || null;
     }
 
-    const user = await db.user.update({
-      where: { id: session.user.id },
-      data: updateData,
-    });
+    const [user] = await db.$transaction([
+      db.user.update({
+        where: { id: session.user.id },
+        data: updateData,
+      }),
+    ]);
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
@@ -96,29 +93,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Không tìm thấy tệp tin ảnh." }, { status: 400 });
     }
 
-    // Read array buffer & convert to node Buffer
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
-
-    // Build unique filename
     const ext = file.name ? "." + file.name.split(".").pop()?.toLowerCase() : ".jpg";
     const filename = `avatar_${session.user.id}_${Date.now()}${ext}`;
-
-    // Upload directly to Vercel Blob using our new adapter
     const uploadResult = await uploadImage(buffer, filename, file.type, "avatars");
 
-    // Update user in database
     const user = await db.user.update({
       where: { id: session.user.id },
       data: {
-        avatar_url: uploadResult.url
-      }
+        avatar_url: uploadResult.url,
+      },
     });
 
     return NextResponse.json({
       success: true,
       avatar_url: uploadResult.url,
-      user
+      user,
     });
   } catch (error: any) {
     console.error("Upload Avatar Error:", error);
