@@ -18,7 +18,8 @@ export function Sidebar() {
     { label: "List View", href: "/posts", icon: "list_alt", adminOnly: false },
     { label: "Duyệt Bài", href: "/admin/queue", icon: "rate_review", adminOnly: true },
     { label: "Reports", href: "/admin/analytics", icon: "analytics", adminOnly: true },
-    { label: "Admin", href: "/admin/posts", icon: "settings", adminOnly: true },
+    { label: "Quản lý Post", href: "/admin/posts", icon: "post_add", adminOnly: true },
+    { label: "Quản lý Account", href: "/admin/accounts", icon: "manage_accounts", adminOnly: true },
   ];
 
 

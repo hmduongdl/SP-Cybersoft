@@ -1,35 +1,9 @@
 import NextAuth from "next-auth";
-import Facebook from "next-auth/providers/facebook";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import bcrypt from "bcryptjs";
 
 import { db } from "@/lib/db";
-
-type FacebookProfile = {
-  id: string;
-  name?: string;
-  email?: string;
-  picture?: {
-    data?: {
-      url?: string;
-    };
-  };
-};
-
-async function getHasFacebook(userId: string) {
-  const account = await db.account.findFirst({
-    where: {
-      userId,
-      provider: "facebook",
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  return Boolean(account);
-}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -40,77 +14,62 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   providers: [
-    Facebook({
-      clientId: process.env.AUTH_FACEBOOK_ID,
-      clientSecret: process.env.AUTH_FACEBOOK_SECRET,
-      authorization: {
-        params: {
-          scope: "email,public_profile",
-        },
-      },
-      profile(profile: FacebookProfile) {
-        return {
-          id: profile.id,
-          name: profile.name ?? null,
-          email: profile.email ?? `${profile.id}@facebook.local`,
-          image: profile.picture?.data?.url ?? null,
-        };
-      },
-    }),
     Credentials({
-      name: "Email and password",
+      name: "Username and password",
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        username: { label: "Tên đăng nhập", type: "text" },
+        password: { label: "Mật khẩu", type: "password" },
       },
       async authorize(credentials) {
-        const email = String(credentials?.email ?? "")
-          .trim()
-          .toLowerCase();
+        const username = String(credentials?.username ?? "").trim();
         const password = String(credentials?.password ?? "");
 
-        if (!email || !password) {
+        if (!username || !password) {
           return null;
         }
 
         const user = await db.user.findUnique({
-          where: { email },
+          where: { username },
         });
 
-        if (user?.passwordHash) {
-          const isValidPassword = await bcrypt.compare(password, user.passwordHash);
+        if (user && user.password) {
+          const isValidPassword = await bcrypt.compare(password, user.password);
 
-          if (!isValidPassword || !user.active) {
+          if (!isValidPassword) {
             return null;
           }
 
           return {
             id: user.id,
-            name: user.name,
-            email: user.email,
-            image: user.image,
+            name: user.name || user.full_name,
+            email: user.email || user.gmail,
+            image: user.avatar_url,
             role: user.role,
+            is_first_login: user.is_first_login,
           };
         }
 
+        // Fallback for admin using env vars (using ADMIN_USERNAME if available, or defaulting to ADMIN_EMAIL)
+        const adminUsername = process.env.ADMIN_USERNAME || process.env.ADMIN_EMAIL || "admin";
         if (
-          process.env.ADMIN_EMAIL?.toLowerCase() === email &&
+          adminUsername === username &&
           process.env.ADMIN_PASSWORD === password
         ) {
           const passwordHash = await bcrypt.hash(password, 12);
           const adminUser = await db.user.upsert({
-            where: { email },
+            where: { username: adminUsername },
             update: {
-              passwordHash,
+              password: passwordHash,
               role: "ADMIN",
-              active: true,
             },
             create: {
-              email,
-              passwordHash,
-              role: "ADMIN",
-              active: true,
+              username: adminUsername,
               name: "Administrator",
+              email: process.env.ADMIN_EMAIL || "admin@example.com",
+              password: passwordHash,
+              role: "ADMIN",
+              department: "HR",
+              is_first_login: false,
             },
           });
 
@@ -118,8 +77,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             id: adminUser.id,
             name: adminUser.name,
             email: adminUser.email,
-            image: adminUser.image,
+            image: adminUser.avatar_url,
             role: adminUser.role,
+            is_first_login: adminUser.is_first_login,
           };
         }
 
@@ -129,26 +89,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     async signIn({ user }) {
-      if (!user.email) {
-        return false;
+      return true; // Simple allow for now, adjust if active status is re-added
+    },
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === "update" && session) {
+        if (session.is_first_login !== undefined) {
+          token.is_first_login = session.is_first_login;
+        }
       }
 
-      const existingUser = await db.user.findUnique({
-        where: { email: user.email },
-        select: { active: true },
-      });
-
-      return existingUser?.active ?? true;
-    },
-    async jwt({ token, user }) {
       if (user && user.id) {
         token.id = user.id;
         token.role = "role" in user && user.role ? user.role : "USER";
-        token.hasFacebook = await getHasFacebook(user.id);
+        token.is_first_login = "is_first_login" in user ? user.is_first_login : false;
+        token.hasFacebook = false;
       }
 
       if (token.id && token.hasFacebook === undefined) {
-        token.hasFacebook = await getHasFacebook(token.id as string);
+        token.hasFacebook = false;
       }
 
       return token;
@@ -157,10 +115,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as any;
-        session.user.hasFacebook = Boolean(token.hasFacebook);
+        session.user.is_first_login = token.is_first_login as boolean;
+        session.user.hasFacebook = false;
       }
 
       return session;
     },
   },
 });
+

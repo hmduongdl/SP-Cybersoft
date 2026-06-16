@@ -1,18 +1,36 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { UploadCloud, X, Link, Check, Loader2, Image as ImageIcon } from "lucide-react";
+import {
+  UploadCloud,
+  X,
+  ExternalLink,
+  Check,
+  Loader2,
+  Image as ImageIcon,
+  Clock,
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
 
 interface Post {
   id: string;
   title: string;
   description?: string;
-  originalUrl: string;
+  url?: string;
+  originalUrl?: string;
   thumbnailUrl?: string | null;
-  scheduledAt: string;
-  status: string;
+  thumbnail_url?: string | null;
+  scheduledAt?: string;
+  start_at?: string;
+  status?: string;
 }
 
 interface SubmitCheckinModalProps {
@@ -22,82 +40,315 @@ interface SubmitCheckinModalProps {
   onSuccess: () => void;
 }
 
-export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitCheckinModalProps) {
+type ExifStatus = "idle" | "scanning" | "valid" | "invalid" | "no_exif";
+type SubmitStatus = "idle" | "loading" | "success" | "error";
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatCountdown(ms: number): { hours: string; mins: string; secs: string; expired: boolean } {
+  if (ms <= 0) return { hours: "00", mins: "00", secs: "00", expired: true };
+  const totalSeconds = Math.floor(ms / 1000);
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return {
+    hours: String(h).padStart(2, "0"),
+    mins: String(m).padStart(2, "0"),
+    secs: String(s).padStart(2, "0"),
+    expired: false,
+  };
+}
+
+function formatViDate(date: Date): string {
+  return date.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
+// ─── Sub-component: Countdown Timer ──────────────────────────────────────────
+
+function CountdownTimer({ startAt }: { startAt: string }) {
+  const [countdown, setCountdown] = useState(() => {
+    const end = new Date(startAt).getTime() + 24 * 60 * 60 * 1000;
+    return formatCountdown(end - Date.now());
+  });
+
+  useEffect(() => {
+    const end = new Date(startAt).getTime() + 24 * 60 * 60 * 1000;
+    const tick = () => setCountdown(formatCountdown(end - Date.now()));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startAt]);
+
+  if (countdown.expired) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+        <XCircle className="w-4 h-4 flex-shrink-0" />
+        <span>Cửa sổ 24h đã hết — không thể nộp thêm</span>
+      </div>
+    );
+  }
+
+  const pct = (() => {
+    const total = 24 * 60 * 60 * 1000;
+    const elapsed = Date.now() - new Date(startAt).getTime();
+    return Math.max(0, Math.min(100, (elapsed / total) * 100));
+  })();
+
+  const urgency = pct > 83; // < 4 hours left
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border px-4 py-3 space-y-2 transition-colors",
+        urgency
+          ? "bg-amber-500/10 border-amber-500/30"
+          : "bg-slate-800/60 border-slate-700/60"
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          <Clock className={cn("w-3.5 h-3.5", urgency ? "text-amber-400" : "text-indigo-400")} />
+          Cửa sổ nộp bài còn lại
+        </div>
+        <div
+          className={cn(
+            "font-mono text-lg font-bold tabular-nums tracking-tight",
+            urgency ? "text-amber-300" : "text-white"
+          )}
+        >
+          {countdown.hours}
+          <span className="opacity-60 mx-0.5">:</span>
+          {countdown.mins}
+          <span className="opacity-60 mx-0.5">:</span>
+          {countdown.secs}
+        </div>
+      </div>
+      <div className="h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+        <div
+          className={cn(
+            "h-full rounded-full transition-all duration-1000",
+            urgency
+              ? "bg-gradient-to-r from-amber-500 to-red-500"
+              : "bg-gradient-to-r from-indigo-500 to-violet-500"
+          )}
+          style={{ width: `${100 - pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-component: EXIF Status Badge ────────────────────────────────────────
+
+function ExifStatusBadge({
+  status,
+  exifDate,
+}: {
+  status: ExifStatus;
+  exifDate: Date | null;
+}) {
+  if (status === "idle") return null;
+
+  if (status === "scanning") {
+    return (
+      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 animate-pulse">
+        <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
+        <span className="text-sm text-indigo-300">Đang phân tích dữ liệu EXIF ảnh...</span>
+      </div>
+    );
+  }
+
+  if (status === "valid" && exifDate) {
+    return (
+      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+        <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-emerald-300">
+            ✓ Phát hiện thời gian chụp ảnh hợp lệ
+          </p>
+          <p className="text-xs text-emerald-400/80 mt-0.5">
+            {formatViDate(exifDate)}
+          </p>
+          <p className="text-xs text-emerald-500/70 mt-1">
+            Ảnh đủ điều kiện duyệt tự động.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "invalid") {
+    return (
+      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
+        <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-sm font-semibold text-amber-300">
+            ⚠ Thời gian chụp nằm ngoài cửa sổ 24h
+          </p>
+          <p className="text-xs text-amber-400/80 mt-0.5">
+            EXIF: {exifDate ? formatViDate(exifDate) : "—"}
+          </p>
+          <p className="text-xs text-amber-500/70 mt-1">
+            Bài viết sẽ được chuyển sang hàng đợi để Admin duyệt thủ công.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // no_exif
+  return (
+    <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25">
+      <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-semibold text-amber-300">
+          ⚠ Không phát hiện thông tin EXIF
+        </p>
+        <p className="text-xs text-amber-400/80 mt-1">
+          Ảnh chụp màn hình máy tính thường không có EXIF. Bài viết sẽ được
+          chuyển sang hàng đợi để Admin duyệt thủ công.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export function SubmitCheckinModal({
+  post,
+  isOpen,
+  onClose,
+  onSuccess,
+}: SubmitCheckinModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isChecked1, setIsChecked1] = useState(false);
   const [isChecked2, setIsChecked2] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
+  const [submitResult, setSubmitResult] = useState<{
+    message: string;
+    status?: "AUTO_APPROVED" | "PENDING";
+  } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [exifStatus, setExifStatus] = useState<ExifStatus>("idle");
+  const [exifDate, setExifDate] = useState<Date | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Clean up ObjectURL to prevent memory leaks
+  // Normalise post fields to handle both API shapes
+  const postUrl = post.url || post.originalUrl || "";
+  const postStartAt = post.start_at || post.scheduledAt || new Date().toISOString();
+  const postThumb = post.thumbnailUrl || post.thumbnail_url;
+
+  // ── Clean-up Object URL on unmount ──
   useEffect(() => {
     return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
 
-  // Reset state when modal opens/closes
+  // ── Reset on open ──
   useEffect(() => {
     if (isOpen) {
       setFile(null);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
       setIsChecked1(false);
       setIsChecked2(false);
-      setIsLoading(false);
+      setSubmitStatus("idle");
+      setSubmitResult(null);
+      setSubmitError(null);
+      setExifStatus("idle");
+      setExifDate(null);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      validateAndSetFile(selectedFile);
-    }
-  };
-
-  const validateAndSetFile = (selectedFile: File) => {
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+  // ── File validation & EXIF scanning ──
+  const processFile = async (selectedFile: File) => {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
     if (!allowedTypes.includes(selectedFile.type)) {
-      toast.error("Định dạng file không hợp lệ. Chỉ chấp nhận .jpg, .jpeg, .png.");
+      toast.error("Định dạng không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP.");
       return;
     }
-
-    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    const maxSizeBytes = 10 * 1024 * 1024; // 10 MB
     if (selectedFile.size > maxSizeBytes) {
-      toast.error("Dung lượng file vượt quá giới hạn 5MB.");
+      toast.error("Dung lượng vượt quá 10MB.");
       return;
     }
 
     setFile(selectedFile);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(selectedFile));
+
+    // Parse EXIF client-side
+    setExifStatus("scanning");
+    setExifDate(null);
+    try {
+      // Dynamic import to keep initial bundle small
+      const exifr = (await import("exifr")).default;
+      const meta = await exifr.parse(selectedFile, [
+        "DateTimeOriginal",
+        "CreateDate",
+        "DateTimeDigitized",
+      ]);
+
+      const rawDate =
+        meta?.DateTimeOriginal || meta?.CreateDate || meta?.DateTimeDigitized;
+
+      if (!rawDate) {
+        setExifStatus("no_exif");
+        return;
+      }
+
+      const parsed = rawDate instanceof Date ? rawDate : new Date(rawDate);
+      if (isNaN(parsed.getTime())) {
+        setExifStatus("no_exif");
+        return;
+      }
+
+      setExifDate(parsed);
+
+      // Check 24-hour window
+      const windowStart = new Date(postStartAt).getTime();
+      const windowEnd = windowStart + 24 * 60 * 60 * 1000;
+      const taken = parsed.getTime();
+
+      setExifStatus(taken >= windowStart && taken <= windowEnd ? "valid" : "invalid");
+    } catch {
+      setExifStatus("no_exif");
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) processFile(f);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
   };
-
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      validateAndSetFile(droppedFile);
-    }
+    const f = e.dataTransfer.files?.[0];
+    if (f) processFile(f);
   };
 
   const handleRemoveFile = (e: React.MouseEvent) => {
@@ -107,234 +358,353 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
       URL.revokeObjectURL(previewUrl);
       setPreviewUrl(null);
     }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setExifStatus("idle");
+    setExifDate(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // ── Submit ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !isChecked1 || !isChecked2) return;
 
-    try {
-      setIsLoading(true);
-      const toastId = toast.loading("Đang nộp ảnh bằng chứng và phân tích EXIF...");
+    setSubmitStatus("loading");
+    setSubmitError(null);
 
-      const formData = new FormData();
-      formData.append("postId", post.id);
-      formData.append("image", file);
+    try {
+      const fd = new FormData();
+      fd.append("postId", post.id);
+      fd.append("image", file);
 
       const res = await fetch("/api/checkin/submit", {
         method: "POST",
-        body: formData,
+        body: fd,
       });
 
       const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data.error || "Gửi bằng chứng thất bại.");
-      }
+      if (!res.ok) throw new Error(data.error || "Gửi bằng chứng thất bại.");
 
-      toast.success(data.message || "Nộp bài thành công!", { id: toastId });
+      setSubmitStatus("success");
+      setSubmitResult({
+        message: data.message || "Nộp bài thành công!",
+        status: data.status,
+      });
       onSuccess();
-      onClose();
     } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || "Đã xảy ra lỗi khi nộp bài. Vui lòng thử lại.");
-    } finally {
-      setIsLoading(false);
+      setSubmitStatus("error");
+      setSubmitError(err.message || "Đã xảy ra lỗi khi nộp bài.");
     }
   };
 
-  const isFormValid = file && isChecked1 && isChecked2 && !isLoading;
+  const isFormValid =
+    !!file && isChecked1 && isChecked2 && submitStatus !== "loading";
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md transition-opacity duration-300 animate-in fade-in">
-      
-      {/* Modal Container */}
-      <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col relative border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
-        
-        {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div>
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 mb-2">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl shadow-black/40 border border-slate-800/80 flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
+
+        {/* ── Header ── */}
+        <div className="px-6 pt-5 pb-4 border-b border-slate-800 flex items-start justify-between gap-4 flex-shrink-0">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 mb-2">
+              <ShieldCheck className="w-3 h-3" />
               Nộp Minh Chứng
             </span>
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white line-clamp-1">
+            <h2 className="text-lg font-bold text-white leading-snug line-clamp-2">
               {post.title}
-            </h3>
+            </h2>
           </div>
-          <button 
+          <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex-shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-colors mt-0.5"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[75vh]">
-          
-          {/* Post Details & Link */}
-          <div className="flex gap-4 p-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-100 dark:border-slate-800">
-            {post.thumbnailUrl ? (
-              <img 
-                src={post.thumbnailUrl} 
-                alt={post.title} 
-                className="w-16 h-16 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-sm flex-shrink-0"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 flex-shrink-0">
-                <ImageIcon className="w-6 h-6" />
+        {/* ── Body ── */}
+        <div className="overflow-y-auto flex-1">
+          {/* ── Success screen ── */}
+          {submitStatus === "success" && submitResult && (
+            <div className="flex flex-col items-center justify-center text-center px-6 py-16 space-y-5">
+              <div className="w-20 h-20 rounded-full flex items-center justify-center bg-emerald-500/10 border-2 border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
+                <CheckCircle2 className="w-10 h-10 text-emerald-400" />
               </div>
-            )}
-            <div className="flex-1 min-w-0 flex flex-col justify-center">
-              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">
-                Link bài viết cần chia sẻ:
-              </p>
-              <a 
-                href={post.originalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 mt-1 font-medium break-all"
-              >
-                <Link className="w-3 h-3 flex-shrink-0" />
-                {post.originalUrl}
-              </a>
-            </div>
-          </div>
-
-          {/* Drag & Drop Upload Zone */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            className={cn(
-              "border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all duration-300 relative flex flex-col items-center justify-center min-h-[180px]",
-              isDragging 
-                ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20" 
-                : "border-slate-200 dark:border-slate-800 hover:border-indigo-400 hover:bg-slate-50/50 dark:hover:bg-slate-800/20",
-              previewUrl && "border-solid border-slate-200 dark:border-slate-800 p-2"
-            )}
-          >
-            <input 
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".jpg,.jpeg,.png"
-              className="hidden"
-            />
-
-            {previewUrl ? (
-              <div className="relative w-full h-48 rounded-xl overflow-hidden group">
-                <img 
-                  src={previewUrl} 
-                  alt="Screenshot preview" 
-                  className="w-full h-full object-contain bg-slate-50 dark:bg-slate-900"
-                />
-                <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <button
-                    type="button"
-                    onClick={handleRemoveFile}
-                    className="p-2 bg-red-600 text-white rounded-full hover:bg-red-500 transition-colors shadow-lg scale-90 group-hover:scale-100 duration-200"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+              <div>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  {submitResult.status === "AUTO_APPROVED"
+                    ? "Tự động xác thực thành công! 🎉"
+                    : "Đã nhận minh chứng"}
+                </h3>
+                <p className="text-sm text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  {submitResult.message}
+                </p>
+              </div>
+              {submitResult.status === "AUTO_APPROVED" ? (
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium">
+                  <ShieldCheck className="w-4 h-4" />
+                  Điểm đã được ghi nhận tự động
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-full text-indigo-600 dark:text-indigo-400 inline-block">
-                  <UploadCloud className="w-8 h-8 mx-auto" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                    Kéo thả ảnh hoặc click để chọn file
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Chấp nhận file .jpg, .jpeg, .png (Tối đa 5MB)
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Responsibility Checklist */}
-          <div className="space-y-4">
-            <label className="flex items-start gap-3.5 cursor-pointer group select-none">
-              <input
-                type="checkbox"
-                checked={isChecked1}
-                onChange={(e) => setIsChecked1(e.target.checked)}
-                className="sr-only"
-              />
-              <div className={cn(
-                "w-5.5 h-5.5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5",
-                isChecked1 
-                  ? "bg-indigo-600 border-indigo-600 text-white" 
-                  : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 group-hover:border-indigo-400"
-              )}>
-                {isChecked1 && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-              </div>
-              <span className="text-sm text-slate-600 dark:text-slate-300 leading-snug">
-                Tôi cam đoan đã chia sẻ bài viết này ở chế độ công khai trên trang cá nhân.
-              </span>
-            </label>
-
-            <label className="flex items-start gap-3.5 cursor-pointer group select-none">
-              <input
-                type="checkbox"
-                checked={isChecked2}
-                onChange={(e) => setIsChecked2(e.target.checked)}
-                className="sr-only"
-              />
-              <div className={cn(
-                "w-5.5 h-5.5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all duration-200 mt-0.5",
-                isChecked2 
-                  ? "bg-indigo-600 border-indigo-600 text-white" 
-                  : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 group-hover:border-indigo-400"
-              )}>
-                {isChecked2 && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-              </div>
-              <span className="text-sm text-slate-600 dark:text-slate-300 leading-snug">
-                Tôi đồng ý để hệ thống kiểm tra dữ liệu hình ảnh (EXIF/Metadata) phục vụ mục đích minh bạch hóa.
-              </span>
-            </label>
-          </div>
-
-          {/* Footer Actions */}
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-5 py-3 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700/80 transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={!isFormValid}
-              className={cn(
-                "flex-[2] flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-200 shadow-md",
-                isFormValid 
-                  ? "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-200 dark:shadow-none cursor-pointer" 
-                  : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed shadow-none"
-              )}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang gửi...
-                </>
               ) : (
-                "Gửi Bằng Chứng"
+                <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium">
+                  <Clock className="w-4 h-4" />
+                  Chờ Admin xem xét &amp; duyệt
+                </div>
               )}
-            </button>
-          </div>
+              <button
+                onClick={onClose}
+                className="mt-2 px-8 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-indigo-600/20"
+              >
+                Đóng
+              </button>
+            </div>
+          )}
 
-        </form>
+          {/* ── Error screen ── */}
+          {submitStatus === "error" && (
+            <div className="flex flex-col items-center justify-center text-center px-6 py-12 space-y-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-red-500/10 border-2 border-red-500/30">
+                <XCircle className="w-8 h-8 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">Gửi thất bại</h3>
+                <p className="text-sm text-slate-400">{submitError}</p>
+              </div>
+              <button
+                onClick={() => setSubmitStatus("idle")}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-medium text-sm transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Thử lại
+              </button>
+            </div>
+          )}
 
+          {/* ── Main form ── */}
+          {(submitStatus === "idle" || submitStatus === "loading") && (
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+              {/* Post info + CTA link */}
+              <div className="flex gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                {postThumb ? (
+                  <img
+                    src={postThumb}
+                    alt={post.title}
+                    className="w-14 h-14 rounded-lg object-cover border border-slate-700 flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                    <ImageIcon className="w-6 h-6 text-slate-500" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                  <p className="text-xs text-slate-500 font-medium uppercase tracking-wide">
+                    Bài viết cần chia sẻ
+                  </p>
+                  <a
+                    href={postUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors w-fit shadow-md shadow-indigo-600/20 group"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center font-bold text-[10px] flex-shrink-0">
+                      1
+                    </span>
+                    Đi tới bài viết gốc
+                    <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Countdown Timer */}
+              <CountdownTimer startAt={postStartAt} />
+
+              {/* Upload Zone */}
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={cn(
+                  "border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden",
+                  isDragging
+                    ? "border-indigo-500 bg-indigo-500/5 scale-[1.01]"
+                    : previewUrl
+                    ? "border-slate-700 bg-slate-800/30 p-2"
+                    : "border-slate-700 hover:border-indigo-500/60 bg-slate-800/30 hover:bg-indigo-500/5 p-6"
+                )}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  className="hidden"
+                />
+
+                {previewUrl ? (
+                  <div className="relative w-full rounded-lg overflow-hidden group">
+                    <img
+                      src={previewUrl}
+                      alt="Xem trước ảnh"
+                      className="w-full max-h-52 object-contain bg-slate-950 rounded-lg"
+                    />
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-lg"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Hủy &amp; Chọn lại
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                        className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-semibold transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Thay ảnh
+                      </button>
+                    </div>
+                    {/* File name tag */}
+                    <div className="mt-2 px-2 pb-1 flex items-center gap-2">
+                      <ImageIcon className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                      <span className="text-xs text-slate-400 truncate">{file?.name}</span>
+                      <span className="text-xs text-slate-600 flex-shrink-0">
+                        {file ? (file.size / 1024 / 1024).toFixed(2) : ""}MB
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-center space-y-3 py-4">
+                    <div
+                      className={cn(
+                        "p-4 rounded-2xl transition-colors",
+                        isDragging ? "bg-indigo-500/20" : "bg-slate-700/50"
+                      )}
+                    >
+                      <UploadCloud
+                        className={cn(
+                          "w-8 h-8 transition-colors",
+                          isDragging ? "text-indigo-400" : "text-slate-400"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-300">
+                        Kéo thả ảnh hoặc{" "}
+                        <span className="text-indigo-400 underline underline-offset-2">
+                          click để chọn
+                        </span>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        JPG, PNG, WEBP — Tối đa 10MB
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* EXIF Status */}
+              {exifStatus !== "idle" && (
+                <ExifStatusBadge status={exifStatus} exifDate={exifDate} />
+              )}
+
+              {/* Cam kết / Checkboxes */}
+              <div className="space-y-3 pt-1">
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Cam kết bắt buộc
+                </p>
+
+                {[
+                  {
+                    id: "check1",
+                    value: isChecked1,
+                    onChange: setIsChecked1,
+                    label:
+                      "Tôi cam đoan đã chia sẻ bài viết này ở chế độ công khai trên trang cá nhân.",
+                  },
+                  {
+                    id: "check2",
+                    value: isChecked2,
+                    onChange: setIsChecked2,
+                    label:
+                      "Tôi xác nhận ảnh tải lên là thật và chịu trách nhiệm về nội dung.",
+                  },
+                ].map(({ id, value, onChange, label }) => (
+                  <label
+                    key={id}
+                    className="flex items-start gap-3.5 cursor-pointer group select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={(e) => onChange(e.target.checked)}
+                      className="sr-only"
+                    />
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
+                        value
+                          ? "bg-indigo-600 border-indigo-600"
+                          : "border-slate-600 bg-slate-800 group-hover:border-indigo-500/70"
+                      )}
+                    >
+                      {value && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                    </div>
+                    <span className="text-sm text-slate-400 group-hover:text-slate-300 leading-relaxed transition-colors">
+                      {label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+
+              {/* Footer Actions */}
+              <div className="flex gap-3 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={!isFormValid}
+                  className={cn(
+                    "flex-[2] flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl text-sm font-semibold text-white transition-all duration-200",
+                    isFormValid
+                      ? "bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-600/25 active:scale-[0.98] cursor-pointer"
+                      : "bg-slate-800 text-slate-600 cursor-not-allowed"
+                  )}
+                >
+                  {submitStatus === "loading" ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Đang nộp bài...
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      Nộp bằng chứng
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </form>
+          )}
+        </div>
       </div>
     </div>
   );

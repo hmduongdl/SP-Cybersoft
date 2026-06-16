@@ -12,6 +12,13 @@ enum UserRole {
   USER
 }
 
+enum Team {
+  ALL
+  TECH
+  SALES
+  MARKETING
+}
+
 enum CheckinStatus {
   AUTO_APPROVED
   PENDING
@@ -19,86 +26,56 @@ enum CheckinStatus {
   REJECTED
 }
 
-enum EvidenceType {
-  AUTO_FB
-  MANUAL_SCREENSHOT
+model Post {
+  id            String   @id @default(uuid())
+  title         String
+  url           String
+  thumbnail_url String?
+  description   String   @db.Text
+  start_at      DateTime
+  team          Team     @default(ALL)
+  is_archived   Boolean  @default(false)
+  created_at    DateTime @default(now())
+
+  checkins Checkin[]
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String?
-  role          UserRole  @default(USER)
-  active        Boolean   @default(true)
-  department    String?
-  avatar        String?
-  accounts      Account[]
-  checkins      Checkin[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
+  id                   String   @id @default(uuid())
+  username             String   @unique
+  is_first_login       Boolean  @default(true)
+  name                 String
+  full_name            String?
+  email                String   @unique
+  gmail                String?
+  facebook_profile_url String?
+  password             String
+  role                 UserRole @default(USER)
+  department           String
+  avatar_url           String?
 
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model Post {
-  id           String    @id @default(cuid())
-  title        String
-  description  String    @db.Text
-  originalUrl  String
-  thumbnailUrl String?
-  scheduledAt  DateTime
-  start_at     DateTime  @default(now())
-  team         String?
-  is_archived  Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  checkins     Checkin[]
-
-  @@index([scheduledAt])
+  checkins          Checkin[] @relation("UserCheckins")
+  reviewed_checkins Checkin[] @relation("AdminReviewedCheckins")
 }
 
 model Checkin {
-  id            String        @id @default(cuid())
-  userId        String        @map("user_id")
-  postId        String        @map("post_id")
+  id            String        @id @default(uuid())
+  user_id       String
+  post_id       String
   image_url     String
   exif_time     DateTime?
+  submitted_at  DateTime      @default(now())
   status        CheckinStatus @default(PENDING)
   reject_reason String?
   is_ai_flagged Boolean       @default(false)
   ai_confidence Float?
-  evidenceType  EvidenceType
-  evidenceUrl   String
-  submittedAt   DateTime      @default(now())
-  note          String?       @db.Text
+  reviewed_by   String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user     User  @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)
+  post     Post  @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  reviewer User? @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id], onDelete: SetNull)
 
-  @@unique([userId, postId])
-  @@index([userId])
-  @@index([postId])
-  @@index([submittedAt])
+  @@index([user_id])
+  @@index([post_id])
   @@index([status])
 }

@@ -7,11 +7,16 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       hasFacebook: boolean;
+      is_first_login: boolean;
     } & DefaultSession["user"];
   }
 
   interface User {
     role?: UserRole;
+    is_first_login?: boolean;
+    full_name?: string | null;
+    gmail?: string | null;
+    avatar_url?: string | null;
   }
 }
 
@@ -20,5 +25,7 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     hasFacebook?: boolean;
+    is_first_login?: boolean;
   }
 }
+

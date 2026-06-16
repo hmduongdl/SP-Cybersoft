@@ -11,15 +11,18 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(authError);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDemoAccounts, setShowDemoAccounts] = useState(false);
+  const [forgotPasswordMsg, setForgotPasswordMsg] = useState(false);
 
   async function handleCredentialsLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setForgotPasswordMsg(false);
     setIsLoading(true);
 
     const formData = new FormData(event.currentTarget);
     const result = await signIn("credentials", {
-      email: formData.get("email"),
+      username: formData.get("username"),
       password: formData.get("password"),
       redirect: false,
       callbackUrl,
@@ -28,88 +31,132 @@ function LoginForm() {
     setIsLoading(false);
 
     if (result?.error) {
-      setError("Email hoặc mật khẩu không hợp lệ.");
+      setError("Email hoặc mật khẩu không chính xác hoặc tài khoản đã bị khóa.");
       return;
     }
 
     window.location.href = result?.url ?? callbackUrl;
   }
 
+  // Pre-fill fields helper
+  const handleQuickLogin = (username: string) => {
+    const usernameInput = document.getElementById("username") as HTMLInputElement;
+    const passwordInput = document.getElementById("password") as HTMLInputElement;
+    if (usernameInput && passwordInput) {
+      usernameInput.value = username;
+      passwordInput.value = "password123";
+    }
+  };
+
   return (
-    <main className="w-full flex h-screen min-h-screen overflow-hidden">
-      {/* Left Side: Visual/Branding Section */}
-      <section className="hidden lg:flex w-1/2 relative mesh-bg overflow-hidden flex-col justify-between p-2xl text-white">
+    <main className="w-full flex h-screen min-h-screen overflow-hidden bg-slate-900 font-sans">
+      {/* Left Side: Animated Branding Panel */}
+      <section className="hidden lg:flex w-1/2 relative mesh-bg overflow-hidden flex-col justify-between p-16 text-white">
+        {/* Subtle Overlay Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+
         <div className="z-10">
-          <div className="flex items-center gap-base mb-xl">
-            <span className="material-symbols-outlined text-primary-fixed scale-150">hub</span>
-            <h1 className="font-headline-md text-headline-md font-bold tracking-tight text-white ml-2">TeamSync HR</h1>
+          <div className="flex items-center gap-3 mb-12">
+            <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center">
+              <span className="material-symbols-outlined text-white text-[24px]">hub</span>
+            </div>
+            <h1 className="font-headline-md text-headline-md font-bold tracking-tight text-white">TeamSync HR</h1>
           </div>
-          <div className="max-w-md">
-            <h2 className="font-display-lg text-display-lg mb-md leading-tight">Empower your team's rhythm.</h2>
-            <p className="font-body-lg text-body-lg text-primary-fixed/80">Streamline check-ins, celebrate wins, and foster professional trust with modern workspace collaboration tools.</p>
+          <div className="max-w-md space-y-4">
+            <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold tracking-wide border border-white/15 text-primary-fixed">
+              Hệ thống Kiểm Soát Truyền Thông Nội Bộ
+            </span>
+            <h2 className="text-4xl sm:text-5xl font-bold font-display leading-tight tracking-tight">
+              Đồng bộ nhịp điệu, tăng tốc lan tỏa.
+            </h2>
+            <p className="text-base text-primary-fixed/80 leading-relaxed">
+              Hệ thống quản lý, báo cáo và tự động hóa chiến dịch tương tác mạng xã hội của doanh nghiệp. Đảm bảo mọi thành viên luôn đồng hành cùng thương hiệu.
+            </p>
           </div>
         </div>
         
-        {/* Bento-style Feature Card Overlay */}
-        <div className="z-10 glass-panel rounded-2xl p-lg max-w-lg mb-2xl">
-          <div className="flex items-center gap-md mb-md">
-            <div className="w-10 h-10 rounded-lg bg-secondary-container flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-secondary-container">rocket_launch</span>
+        {/* Decorative Feature Card */}
+        <div className="z-10 glass-panel rounded-2xl p-6 max-w-lg mb-8 shadow-2xl relative overflow-hidden group">
+          <div className="absolute -right-8 -top-8 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all duration-500" />
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-secondary-container/20 border border-secondary-container/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-secondary-container text-[24px]">verified</span>
             </div>
             <div>
-              <p className="font-label-md text-label-md text-white">Performance Pulse</p>
-              <p className="font-label-sm text-label-sm text-primary-fixed">Real-time engagement tracking</p>
+              <p className="text-sm font-semibold text-white">Tự Động Xác Thực EXIF</p>
+              <p className="text-xs text-primary-fixed/70">Kiểm tra tính trung thực của ảnh chụp màn hình bằng AI</p>
             </div>
           </div>
-          <div className="h-2 w-full bg-white/20 rounded-full overflow-hidden">
-            <div className="h-full bg-secondary-container w-3/4 rounded-full"></div>
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+            <div className="h-full bg-secondary-container w-[88%] rounded-full animate-pulse"></div>
           </div>
         </div>
 
-        {/* Background Decorative Element */}
-        <div className="absolute right-0 top-1/4 translate-x-1/3 opacity-20 pointer-events-none">
-          <span className="material-symbols-outlined text-[400px]" style={{ fontVariationSettings: "'FILL' 1" }}>diversity_3</span>
+        {/* Ambient background decoration */}
+        <div className="absolute right-0 top-1/3 translate-x-1/4 opacity-10 pointer-events-none">
+          <span className="material-symbols-outlined text-[360px]" style={{ fontVariationSettings: "'FILL' 1" }}>diversity_3</span>
         </div>
       </section>
 
-      {/* Right Side: Login Form Section */}
-      <section className="w-full lg:w-1/2 bg-surface flex flex-col items-center justify-center p-md sm:p-2xl overflow-y-auto">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-outline-variant/10 p-lg sm:p-xl">
-          {/* Form Header */}
-          <div className="text-center mb-xl">
-            <div className="inline-flex lg:hidden items-center gap-sm mb-lg">
-              <span className="material-symbols-outlined text-primary scale-125">hub</span>
-              <h1 className="font-headline-md text-headline-md font-bold text-on-background ml-2">TeamSync HR</h1>
+      {/* Right Side: Professional Form Section */}
+      <section className="w-full lg:w-1/2 bg-slate-950 flex flex-col items-center justify-center p-6 sm:p-16 overflow-y-auto relative">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(79,70,229,0.08),transparent_50%)] pointer-events-none" />
+
+        <div className="w-full max-w-md bg-slate-900 border border-slate-800/80 rounded-2xl shadow-2xl p-8 sm:p-10 relative z-10">
+          {/* Logo for mobile */}
+          <div className="text-center mb-8">
+            <div className="inline-flex lg:hidden items-center gap-3 mb-6">
+              <div className="w-9 h-9 bg-primary/20 border border-primary/30 rounded-lg flex items-center justify-center">
+                <span className="material-symbols-outlined text-primary-fixed text-[20px]">hub</span>
+              </div>
+              <h1 className="text-xl font-bold text-white tracking-tight">TeamSync HR</h1>
             </div>
-            <h3 className="font-headline-lg text-headline-lg text-on-background mb-xs">Chào mừng quay lại</h3>
-            <p className="font-body-md text-body-md text-on-surface-variant">Vui lòng nhập thông tin chi tiết để đăng nhập.</p>
+            <h3 className="text-2xl font-bold text-white mb-2">Đăng nhập hệ thống</h3>
+            <p className="text-sm text-slate-400">Tài khoản do HR cấp. Liên hệ quản lý nếu chưa có.</p>
           </div>
 
-          {/* Login Form */}
-          <form className="space-y-lg" onSubmit={handleCredentialsLogin}>
-            {/* Email Field */}
-            <div className="space-y-xs">
-              <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="email">Email công ty</label>
+          {/* Form */}
+          <form className="space-y-6" onSubmit={handleCredentialsLogin}>
+            {/* Username Field */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase" htmlFor="username">
+                Tên đăng nhập
+              </label>
               <div className="relative group">
-                <span className="absolute left-md top-1/2 -translate-y-1/2 material-symbols-outlined text-outline group-focus-within:text-primary transition-colors">mail</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  person
+                </span>
                 <input 
-                  className="w-full pl-xl pr-md py-md bg-white border border-outline-variant rounded-lg font-body-md text-body-md focus:outline-none focus:ring-4 focus:ring-primary/15 focus:border-primary transition-all text-on-background" 
-                  id="email" 
-                  name="email" 
-                  placeholder="name@company.com" 
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" 
+                  id="username" 
+                  name="username" 
+                  placeholder="Ví dụ: admin" 
                   required 
-                  type="email"
+                  type="text"
                 />
               </div>
             </div>
 
             {/* Password Field */}
-            <div className="space-y-xs">
-              <label className="font-label-md text-label-md text-on-surface-variant" htmlFor="password">Mật khẩu</label>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase" htmlFor="password">
+                  Mật khẩu
+                </label>
+                <button 
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors" 
+                  type="button"
+                  onClick={() => setForgotPasswordMsg(!forgotPasswordMsg)}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
               <div className="relative group">
-                <span className="absolute left-md top-1/2 -translate-y-1/2 material-symbols-outlined text-outline group-focus-within:text-primary transition-colors">lock</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  lock
+                </span>
                 <input 
-                  className="w-full pl-xl pr-md py-md bg-white border border-outline-variant rounded-lg font-body-md text-body-md focus:outline-none focus:ring-4 focus:ring-primary/15 focus:border-primary transition-all text-on-background" 
+                  className="w-full pl-12 pr-12 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" 
                   id="password" 
                   name="password" 
                   placeholder="••••••••" 
@@ -117,90 +164,138 @@ function LoginForm() {
                   type={showPassword ? "text" : "password"}
                 />
                 <button 
-                  className="absolute right-md top-1/2 -translate-y-1/2 text-outline-variant hover:text-primary transition-colors" 
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 transition-colors" 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  <span className="material-symbols-outlined">{showPassword ? "visibility_off" : "visibility"}</span>
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showPassword ? "visibility_off" : "visibility"}
+                  </span>
                 </button>
               </div>
             </div>
 
-            {error ? (
-              <p className="rounded-lg border border-error/30 bg-error-container/30 px-3 py-2 text-sm text-error font-medium">
-                {error}
-              </p>
-            ) : null}
-
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-sm cursor-pointer group">
-                <input className="w-5 h-5 rounded border-outline-variant text-primary focus:ring-primary/30 transition-all cursor-pointer" type="checkbox"/>
-                <span className="font-label-md text-label-md text-on-surface-variant group-hover:text-on-surface transition-colors">Ghi nhớ đăng nhập</span>
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center">
+              <input
+                id="remember_me"
+                name="remember_me"
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-600 focus:ring-offset-slate-900"
+              />
+              <label htmlFor="remember_me" className="ml-2 block text-sm text-slate-300 cursor-pointer">
+                Ghi nhớ đăng nhập
               </label>
-              <a className="font-label-md text-label-md text-primary font-semibold hover:underline transition-all" href="#">Quên mật khẩu?</a>
             </div>
 
-            {/* Login Button */}
+            {/* Forgot password message popup */}
+            {forgotPasswordMsg && (
+              <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs text-indigo-300 leading-relaxed flex gap-2">
+                <span className="material-symbols-outlined text-[16px] flex-shrink-0 text-indigo-400">info</span>
+                <span>
+                  Tài khoản của bạn do Phòng Nhân sự (HR) cấp và quản lý. Vui lòng liên hệ trực tiếp với HR Admin để được cấp lại mật khẩu mới.
+                </span>
+              </div>
+            )}
+
+            {error ? (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-medium flex gap-2">
+                <span className="material-symbols-outlined text-[16px] flex-shrink-0 text-red-500">error</span>
+                <span>{error}</span>
+              </div>
+            ) : null}
+
+            {/* Submit Button */}
             <button 
-              className="w-full bg-primary text-white font-label-md text-label-md py-md rounded-lg shadow-lg hover:bg-primary-container active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-sm disabled:opacity-60 font-semibold" 
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-indigo-600/10 active:scale-[0.99] hover:shadow-indigo-600/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2" 
               type="submit"
               disabled={isLoading}
             >
-              <span>{isLoading ? "Đang đăng nhập..." : "Đăng nhập bằng Email"}</span>
-              <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
+              <span>{isLoading ? "Đang xác thực..." : "Đăng nhập ngay"}</span>
+              {!isLoading && <span className="material-symbols-outlined text-[18px]">login</span>}
             </button>
-
-            {/* SSO Alternative */}
-            <div className="relative my-xl">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-outline-variant/30"></div>
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="px-md bg-white text-outline-variant font-label-sm uppercase tracking-wider">hoặc đăng nhập bằng</span>
-              </div>
-            </div>
-
-            {/* Secondary/Outline OAuth Button */}
-            <div className="flex flex-col gap-md">
-              <button 
-                className="flex w-full items-center justify-center gap-sm py-md border border-outline-variant hover:border-primary/50 rounded-lg hover:bg-surface-container-low transition-all text-on-background font-semibold" 
-                type="button"
-                onClick={() => signIn("facebook", { callbackUrl })}
-              >
-                <svg className="w-5 h-5 text-[#1877F2] fill-current mr-1" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                </svg>
-                <span className="font-label-md text-label-md">Facebook</span>
-              </button>
-            </div>
           </form>
 
-          {/* Register Redirect Link */}
-          <div className="text-center mt-md text-body-sm text-on-surface-variant">
-            Chưa có tài khoản?{" "}
-            <a href="#" className="text-primary font-semibold hover:underline">
-              Đăng ký ngay
-            </a>
-          </div>
-
-          {/* Footer Links */}
-          <div className="mt-2xl flex flex-col items-center gap-sm">
-            <div className="flex items-center gap-sm">
-              <span className="font-body-sm text-body-sm text-on-surface-variant">Gặp khó khăn khi đăng nhập?</span>
-              <a className="font-body-sm text-body-sm text-primary font-semibold hover:underline" href="#">Liên hệ hỗ trợ HR</a>
+          {/* HR Support Information */}
+          <div className="mt-8 pt-6 border-t border-slate-800/80 flex flex-col gap-4 text-xs text-slate-400">
+            <div className="flex items-center justify-between">
+              <span>Chính sách truy cập</span>
+              <span className="text-emerald-400 font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                Chỉ mạng nội bộ
+              </span>
             </div>
-            <div className="flex items-center gap-xl mt-lg opacity-40 grayscale">
-              <span className="material-symbols-outlined text-[24px]">shield</span>
-              <span className="material-symbols-outlined text-[24px]">verified_user</span>
-              <span className="material-symbols-outlined text-[24px]">lock_reset</span>
+
+            {/* Quick Demo Login Helpers */}
+            <div className="border border-slate-800 rounded-xl p-3 bg-slate-950/40">
+              <button 
+                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                type="button"
+                className="w-full flex items-center justify-between text-slate-300 font-semibold hover:text-white transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-indigo-400 text-[18px]">key</span>
+                  Tài khoản Demo
+                </span>
+                <span className="material-symbols-outlined text-[18px] transition-transform duration-200" style={{ transform: showDemoAccounts ? 'rotate(180deg)' : 'none' }}>
+                  expand_more
+                </span>
+              </button>
+              
+              {showDemoAccounts && (
+                <div className="mt-3 space-y-2 border-t border-slate-800/60 pt-3 animate-fadeIn">
+                  <p className="text-[11px] text-slate-500 mb-2">Nhấp vào tài khoản để điền nhanh:</p>
+                  
+                  {/* Admin Account */}
+                  <div 
+                    onClick={() => handleQuickLogin("admin")}
+                    className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all"
+                  >
+                    <div>
+                      <p className="font-semibold text-white text-[11px]">Quản trị viên (ADMIN)</p>
+                      <p className="text-[10px] text-slate-400">admin</p>
+                    </div>
+                    <span className="text-[10px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-1.5 py-0.5 rounded font-mono">
+                      password123
+                    </span>
+                  </div>
+
+                  {/* Tech Account */}
+                  <div 
+                    onClick={() => handleQuickLogin("tech_user")}
+                    className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all"
+                  >
+                    <div>
+                      <p className="font-semibold text-white text-[11px]">Nhân viên (Tech Team)</p>
+                      <p className="text-[10px] text-slate-400">tech_user</p>
+                    </div>
+                    <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
+                      password123
+                    </span>
+                  </div>
+
+                  {/* Marketing Account */}
+                  <div 
+                    onClick={() => handleQuickLogin("mkt_user")}
+                    className="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 cursor-pointer transition-all"
+                  >
+                    <div>
+                      <p className="font-semibold text-white text-[11px]">Nhân viên (Marketing)</p>
+                      <p className="text-[10px] text-slate-400">mkt_user</p>
+                    </div>
+                    <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded font-mono">
+                      password123
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Page Footer Branding for Mobile */}
-        <footer className="mt-2xl lg:hidden text-center">
-          <p className="font-label-sm text-label-sm text-outline-variant">© 2024 TeamSync HR. All rights reserved.</p>
+        {/* Page Footer */}
+        <footer className="mt-8 text-center relative z-10">
+          <p className="text-xs text-slate-600">© 2026 TeamSync HR. Tất cả quyền được bảo lưu.</p>
         </footer>
       </section>
     </main>
@@ -209,7 +304,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-400 bg-surface">Đang tải...</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-slate-400 bg-slate-950">Đang tải...</div>}>
       <LoginForm />
     </Suspense>
   );
