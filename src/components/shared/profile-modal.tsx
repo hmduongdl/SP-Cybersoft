@@ -16,6 +16,7 @@ interface UserProfile {
   username: string;
   name: string;
   email: string;
+  gmail: string;
   department: string;
   avatar_url: string | null;
 }
@@ -30,6 +31,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     username: "",
     name: session?.user?.name || "",
     email: session?.user?.email || "",
+    gmail: "",
     department: "",
     avatar_url: null,
   });
@@ -45,6 +47,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         ...prev,
         name: session.user.name || "",
         email: session.user.email || "",
+        gmail: (session.user as any)?.gmail || prev.gmail || "",
         department: (session.user as any)?.department || prev.department || "",
         avatar_url: (session.user as any)?.avatar_url || prev.avatar_url || null,
       }));
@@ -66,6 +69,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
         if (active && profileRes.ok) {
           const data = await profileRes.json();
+          console.log("📥 API GET /api/user/profile — Response:", data);
           if (data?.user) {
             setFormState((prev) => ({
               ...prev,
@@ -73,10 +77,15 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               username: data.user.username || prev.username,
               name: data.user.name || prev.name,
               email: data.user.email || prev.email,
+              gmail: data.user.gmail || prev.gmail || "",
               department: data.user.department || prev.department || "",
               avatar_url: data.user.avatar_url || prev.avatar_url || null,
             }));
+          } else {
+            console.warn("⚠️ API trả về user = null hoặc undefined");
           }
+        } else {
+          console.error("❌ GET profile thất bại — status:", profileRes.status);
         }
 
         if (active && deptsRes.ok) {
@@ -126,6 +135,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
       // Upload avatar first if a new file was selected
       if (avatarFile) {
+        console.log("📤 Đang upload avatar...");
         const uploadFormData = new FormData();
         uploadFormData.append("file", avatarFile);
         const uploadRes = await fetch("/api/user/profile", {
@@ -138,33 +148,39 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
         }
         const uploadData = await uploadRes.json();
         avatarUrl = uploadData.avatar_url;
+        console.log("✅ Upload avatar thành công:", avatarUrl);
       }
 
       // Update profile fields
+      const payload = {
+        name: formState.name.trim(),
+        department: formState.department || "",
+        avatar_url: avatarUrl,
+        gmail: formState.gmail || "",
+      };
+      console.log("📤 PUT /api/user/profile — Payload:", payload);
+
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formState.name.trim(),
-          department: formState.department || "",
-          avatar_url: avatarUrl,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
+      console.log("📥 PUT /api/user/profile — Response:", data);
       if (!response.ok) {
         throw new Error(data.error || "Cập nhật thất bại.");
       }
 
       if (update) {
-        await update({
-          name: formState.name.trim(),
-          avatar_url: avatarUrl,
-          department: formState.department,
-        });
+        console.log("🔄 Gọi update() để đồng bộ session...");
+        await update(); // Trigger JWT callback to re-fetch from DB
+        console.log("✅ Session đã được refresh");
       }
 
-      toast.success("Cập nhật thông tin thành công!");
+      // Dispatch event so layout components (sidebar, header) refresh immediately
+      window.dispatchEvent(new CustomEvent("profile-updated"));
+      toast.success("Cập nhật thông tin cá nhân thành công!");
       router.refresh();
       onClose();
     } catch (error: any) {
@@ -267,6 +283,20 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     value={formState.email}
                     disabled
                     className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
+                    <Mail className="w-4 h-4 text-slate-400" /> Gmail cá nhân
+                  </label>
+                  <input
+                    type="email"
+                    value={formState.gmail}
+                    onChange={(event) => setFormState({ ...formState, gmail: event.target.value })}
+                    placeholder="nguyenvana@gmail.com"
+                    disabled={saving}
+                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 

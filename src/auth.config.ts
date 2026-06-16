@@ -32,25 +32,7 @@ export const authConfig = {
 
       return true;
     },
-    async jwt({ token, user, trigger, session }) {
-      if (trigger === "update" && session) {
-        if (session.is_first_login !== undefined) {
-          token.is_first_login = session.is_first_login;
-        }
-        if (session.name !== undefined) {
-          token.name = session.name;
-        }
-        if (session.image !== undefined) {
-          token.picture = session.image;
-        }
-        if (session.avatar_url !== undefined) {
-          token.picture = session.avatar_url;
-        }
-        if (session.department !== undefined) {
-          token.department = session.department;
-        }
-      }
-
+    async jwt({ token, user }) {
       if (user && user.id) {
         token.id = user.id;
         token.role = user.role ? user.role : "USER";
@@ -74,8 +56,8 @@ export const authConfig = {
         session.user.role = token.role as any;
         session.user.is_first_login = token.is_first_login as boolean;
         session.user.hasFacebook = false;
-        session.user.department = (token as any).department;
-        session.user.avatar_url = (token as any).avatar_url;
+        session.user.department = token.department as string;
+        session.user.avatar_url = token.avatar_url as string | null;
         if (token.picture) {
           session.user.image = token.picture as string;
         }

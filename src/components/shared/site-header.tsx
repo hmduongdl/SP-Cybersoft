@@ -11,7 +11,7 @@ import { ProfileModal } from "./profile-modal";
 export function SiteHeader() {
   const pathname = usePathname();
   const { setSidebarOpen, role } = useLayout();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -31,14 +31,24 @@ export function SiteHeader() {
   }, []);
 
   // Fetch profile to display actual department
-  useEffect(() => {
+  const fetchProfile = () => {
     fetch("/api/user/profile", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.user) setProfile(data.user);
       })
       .catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchProfile();
   }, [session]);
+
+  // Re-fetch profile when profile-updated event fires (e.g. after modal save)
+  useEffect(() => {
+    window.addEventListener("profile-updated", fetchProfile);
+    return () => window.removeEventListener("profile-updated", fetchProfile);
+  }, []);
 
   // Map pathnames to breadcrumbs
   const getBreadcrumbs = () => {
@@ -73,9 +83,9 @@ export function SiteHeader() {
 
   const breadcrumbs = getBreadcrumbs();
 
-  const userDisplayName = profile?.name || session?.user?.name || (role === "ADMIN" ? "Administrator" : "Thành viên Demo");
-  const userEmail = profile?.email || profile?.gmail || session?.user?.email || (role === "ADMIN" ? "admin@kinetic.hr" : "member@kinetic.hr");
-  const userImage = profile?.avatar_url || session?.user?.image || null;
+  const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
+  const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
+  const userImage = session?.user?.image || profile?.avatar_url || "/avatars/default.png";
   const isFacebookLinked = profile?.facebook_profile_url ? true : false;
   const userDepartment = profile?.department || "HR";
 
@@ -138,26 +148,30 @@ export function SiteHeader() {
 
           {/* User Dropdown */}
           <div className="relative" ref={dropdownRef}>
-            <button
-              onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-50 transition text-slate-600 hover:text-slate-900 border border-transparent hover:border-slate-200"
-            >
-              {userImage ? (
+            {status === "loading" ? (
+              <div className="flex items-center gap-2 p-1.5 animate-pulse">
+                <div className="h-7 w-7 rounded-full bg-slate-200" />
+                <div className="h-4 w-20 bg-slate-200 rounded hidden sm:block" />
+              </div>
+            ) : (
+              <button
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-50 transition text-slate-600 hover:text-slate-900 border border-transparent hover:border-slate-200"
+              >
                 <img
                   src={userImage}
-                  alt={userDisplayName}
+                  alt="Avatar"
                   className="h-7 w-7 rounded-full object-cover border border-slate-200"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/avatars/default.png";
+                  }}
                 />
-              ) : (
-                <div className="h-7 w-7 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                  {userDisplayName.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">
-                {userDisplayName}
-              </span>
-              <ChevronDown className="h-4 w-4 text-slate-400 hidden sm:block" />
-            </button>
+                <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">
+                  {userDisplayName}
+                </span>
+                <ChevronDown className="h-4 w-4 text-slate-400 hidden sm:block" />
+              </button>
+            )}
 
             {/* Dropdown Menu */}
             {dropdownOpen && (

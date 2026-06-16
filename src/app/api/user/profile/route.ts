@@ -25,6 +25,15 @@ export async function GET() {
       },
     });
 
+    console.log("GET Profile — Dữ liệu từ database:", {
+      id: user?.id,
+      name: user?.name,
+      email: user?.email,
+      gmail: user?.gmail,
+      department: user?.department,
+      avatar_url: user?.avatar_url,
+    });
+
     return NextResponse.json({ user });
   } catch (error: any) {
     console.error("GET Profile Error:", error);
@@ -46,6 +55,14 @@ export async function PUT(request: Request) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const department = typeof body.department === "string" ? body.department.trim() : "";
     const avatar_url = typeof body.avatar_url === "string" ? body.avatar_url.trim() : undefined;
+    const gmail = typeof body.gmail === "string" ? body.gmail.trim() : undefined;
+
+    console.log("📥 PUT — Dữ liệu nhận từ client:", {
+      name,
+      department,
+      avatar_url,
+      gmail,
+    });
 
     if (!name || !department) {
       return NextResponse.json(
@@ -54,7 +71,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const updateData: { name: string; department: string; avatar_url?: string | null } = {
+    const updateData: { name: string; department: string; avatar_url?: string | null; gmail?: string | null } = {
       name,
       department,
     };
@@ -63,12 +80,23 @@ export async function PUT(request: Request) {
       updateData.avatar_url = avatar_url || null;
     }
 
+    if (gmail !== undefined) {
+      updateData.gmail = gmail || null;
+    }
+
     const [user] = await db.$transaction([
       db.user.update({
         where: { id: session.user.id },
         data: updateData,
       }),
     ]);
+
+    console.log("Cập nhật DB thành công cho User:", {
+      id: user.id,
+      name: user.name,
+      department: user.department,
+      avatar_url: user.avatar_url,
+    });
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {

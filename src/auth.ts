@@ -6,6 +6,62 @@ import bcrypt from "bcryptjs";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
+  callbacks: {
+    async jwt({ token, user, trigger, session }) {
+      // On session update (after profile save), query DB for fresh data
+      if (trigger === "update") {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.id as string },
+          select: { name: true, avatar_url: true, department: true, is_first_login: true },
+        });
+        if (dbUser) {
+          token.name = dbUser.name;
+          token.picture = dbUser.avatar_url;
+          token.department = dbUser.department ?? "";
+          token.avatar_url = dbUser.avatar_url;
+        }
+        if (session?.is_first_login !== undefined) {
+          token.is_first_login = session.is_first_login;
+        }
+        return token;
+      }
+
+      // Initial login — copy user data to token
+      if (user && user.id) {
+        token.id = user.id;
+        token.role = user.role ? user.role : "USER";
+        token.is_first_login = user.is_first_login ?? false;
+        token.hasFacebook = false;
+        token.picture = user.image;
+        token.name = user.name;
+        token.department = user.department ?? "";
+        token.avatar_url = user.avatar_url ?? null;
+      }
+
+      if (token.id && token.hasFacebook === undefined) {
+        token.hasFacebook = false;
+      }
+
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.role = token.role as "ADMIN" | "USER";
+        session.user.is_first_login = token.is_first_login as boolean;
+        session.user.hasFacebook = false;
+        session.user.department = token.department as string;
+        session.user.avatar_url = token.avatar_url as string | null;
+        if (token.picture) {
+          session.user.image = token.picture as string;
+        }
+        if (token.name) {
+          session.user.name = token.name as string;
+        }
+      }
+      return session;
+    },
+  },
   providers: [
     Credentials({
       name: "Username and password",
@@ -44,6 +100,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             image: user.avatar_url,
             role: user.role,
             is_first_login: user.is_first_login,
+            department: user.department,
+            avatar_url: user.avatar_url,
           };
         }
 
@@ -78,6 +136,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             image: adminUser.avatar_url,
             role: adminUser.role,
             is_first_login: adminUser.is_first_login,
+            department: adminUser.department,
+            avatar_url: adminUser.avatar_url,
           };
         }
 

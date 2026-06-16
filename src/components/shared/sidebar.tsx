@@ -11,19 +11,29 @@ import { useState, useEffect } from "react";
 export function Sidebar() {
   const pathname = usePathname();
   const { sidebarOpen, setSidebarOpen, role, setRole } = useLayout();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   
   // Local profile state to display up-to-date data
   const [profile, setProfile] = useState<any>(null);
 
-  useEffect(() => {
+  const fetchProfile = () => {
     fetch("/api/user/profile", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.user) setProfile(data.user);
       })
       .catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchProfile();
   }, [session]);
+
+  // Re-fetch profile when profile-updated event fires (e.g. after modal save)
+  useEffect(() => {
+    window.addEventListener("profile-updated", fetchProfile);
+    return () => window.removeEventListener("profile-updated", fetchProfile);
+  }, []);
 
   const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
@@ -38,10 +48,10 @@ export function Sidebar() {
 
   const filteredItems = navItems.filter((item) => !item.adminOnly || role === "ADMIN");
 
-  const userDisplayName = profile?.name || session?.user?.name || (role === "ADMIN" ? "Administrator" : "Thành viên Demo");
-  const userEmail = profile?.email || profile?.gmail || session?.user?.email || (role === "ADMIN" ? "admin@kinetic.hr" : "member@kinetic.hr");
+  const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
+  const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
   const userRoleText = role === "ADMIN" ? "System Admin" : (session?.user?.role || "Team Member");
-  const userImage = profile?.avatar_url || session?.user?.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuDVv15Bee8DJDvdJp7cpaPdeO-dM2zHY2Q33pS0dIsrjihSBeFazi0lQN1AAC3ImyUbK5iu2s-BPPmVwFOVNoRTzCBbi3_DQ3jEJ7fP8NVuUl7jI2jKRDfMW15Ha2ucfjU1J3F5Ihoe1nWV8p-7DRlMbZDXm4wJeeijJhj1uLseEUvqXTxtv5sU9Lw254bmA9DgqRk2X77CnFr2zeg3rAoPW__HJ-lq5ZOaxX3H1wQozGI7oI25yKP2yqfEWyEN3R-7Dng-UdPUbXs";
+  const userImage = session?.user?.image || profile?.avatar_url || "/avatars/default.png";
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-slate-950 border-r border-slate-800 py-lg px-4 justify-between">
@@ -128,26 +138,39 @@ export function Sidebar() {
         </div>
 
         {/* User Context */}
-        <div className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md group">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <img 
-              alt="User profile avatar" 
-              className="w-10 h-10 rounded-full border border-slate-800 object-cover bg-slate-900 group-hover:scale-105 transition-transform duration-200" 
-              src={userImage}
-            />
-            <div className="overflow-hidden">
-              <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
-              <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+        {status === "loading" ? (
+          <div className="flex items-center gap-3 p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md animate-pulse">
+            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-800" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-slate-800 rounded w-2/3" />
+              <div className="h-3 bg-slate-800 rounded w-1/2" />
             </div>
           </div>
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            title="Đăng xuất nhanh"
-            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors duration-200"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md group">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <img 
+                alt="User profile avatar" 
+                className="w-10 h-10 rounded-full border border-slate-800 object-cover bg-slate-900 group-hover:scale-105 transition-transform duration-200" 
+                src={userImage}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "/avatars/default.png";
+                }}
+              />
+              <div className="overflow-hidden">
+                <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
+                <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+              </div>
+            </div>
+            <button
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              title="Đăng xuất nhanh"
+              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors duration-200"
+            >
+              <span className="material-symbols-outlined text-[20px]">logout</span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
