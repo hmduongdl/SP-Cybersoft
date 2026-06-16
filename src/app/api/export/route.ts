@@ -41,8 +41,8 @@ export async function GET(request: Request) {
       let autoCount = 0;
       let manualCount = 0;
       u.checkins.forEach(s => {
-        if (s.evidenceType === 'AUTO_FB') autoCount++;
-        else manualCount++;
+        if (s.status === 'AUTO_APPROVED') autoCount++;
+        else if (s.status === 'APPROVED') manualCount++;
       });
       const mainMethod = u.checkins.length === 0 ? "Chưa tham gia" : (autoCount >= manualCount ? "Tự Động" : "Thủ Công");
 
