@@ -34,20 +34,20 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
       <Toaster position="top-right" richColors />
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-indigo-500 dark:text-indigo-400 font-bold mb-2">Bảng tin</p>
-          <h1 className="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">Danh Sách Bài Share</h1>
-          <p className="mt-2 text-slate-500 dark:text-slate-400 text-lg">Quản lý và cập nhật tiến độ công việc mạng xã hội.</p>
+          <p className="text-sm uppercase tracking-[0.3em] text-indigo-500 font-bold mb-2">Bảng tin</p>
+          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Danh Sách Bài Share</h1>
+          <p className="mt-2 text-slate-500 text-lg">Quản lý và cập nhật tiến độ công việc mạng xã hội.</p>
         </div>
 
         {/* View Toggle */}
-        <div className="flex bg-slate-200/50 dark:bg-slate-800/50 p-1.5 rounded-2xl backdrop-blur-md border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex bg-slate-200/50 p-1.5 rounded-2xl backdrop-blur-md border border-slate-200 shadow-sm">
           <button
             onClick={() => setView("LIST")}
             className={cn(
               "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300",
               view === "LIST"
-                ? "bg-white text-indigo-600 shadow-md dark:bg-slate-700 dark:text-indigo-400 scale-100"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:scale-105"
+                ? "bg-white text-indigo-600 shadow-md scale-100"
+                : "text-slate-600 hover:text-slate-900 hover:scale-105"
             )}
           >
             <LayoutList className="w-4 h-4" /> Danh Sách
@@ -57,8 +57,8 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
             className={cn(
               "flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300",
               view === "CALENDAR"
-                ? "bg-white text-indigo-600 shadow-md dark:bg-slate-700 dark:text-indigo-400 scale-100"
-                : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 hover:scale-105"
+                ? "bg-white text-indigo-600 shadow-md scale-100"
+                : "text-slate-600 hover:text-slate-900 hover:scale-105"
             )}
           >
             <CalendarIcon className="w-4 h-4" /> Lịch Trình

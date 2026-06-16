@@ -30,19 +30,19 @@ export function Sidebar() {
   const userImage = session?.user?.image || "https://lh3.googleusercontent.com/aida-public/AB6AXuDVv15Bee8DJDvdJp7cpaPdeO-dM2zHY2Q33pS0dIsrjihSBeFazi0lQN1AAC3ImyUbK5iu2s-BPPmVwFOVNoRTzCBbi3_DQ3jEJ7fP8NVuUl7jI2jKRDfMW15Ha2ucfjU1J3F5Ihoe1nWV8p-7DRlMbZDXm4wJeeijJhj1uLseEUvqXTxtv5sU9Lw254bmA9DgqRk2X77CnFr2zeg3rAoPW__HJ-lq5ZOaxX3H1wQozGI7oI25yKP2yqfEWyEN3R-7Dng-UdPUbXs";
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-on-background border-r border-outline-variant/10 shadow-xl py-lg">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 shadow-sm py-lg">
       {/* Brand Logo Area */}
       <div className="px-lg mb-3xl flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-headline-md">TS</div>
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-headline-md shadow-sm">TS</div>
           <div>
-            <h1 className="font-headline-md text-headline-md font-bold text-surface">TeamSync HR</h1>
-            <p className="font-label-sm text-label-sm text-outline-variant">Modern Workspace</p>
+            <h1 className="font-headline-md text-headline-md font-bold text-slate-900">TeamSync HR</h1>
+            <p className="font-label-sm text-label-sm text-slate-500">Modern Workspace</p>
           </div>
         </div>
         {/* Close Button on Mobile */}
         <button
-          className="md:hidden p-1 rounded-lg hover:bg-white/10 text-outline-variant hover:text-white transition"
+          className="md:hidden p-1 rounded-lg hover:bg-slate-100 text-slate-500 hover:text-slate-900 transition"
           onClick={() => setSidebarOpen(false)}
         >
           <span className="material-symbols-outlined">close</span>
@@ -62,8 +62,8 @@ export function Sidebar() {
                 clsx(
                   "flex items-center gap-3 px-4 py-3 transition-all duration-200",
                   isActive
-                    ? "text-on-primary bg-primary border-l-4 border-primary sidebar-active scale-[0.98]"
-                    : "text-surface-variant hover:text-white hover:bg-primary/20"
+                    ? "text-indigo-600 bg-indigo-50 border-l-4 border-indigo-600 sidebar-active font-medium"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-l-4 border-transparent"
                 )
               )}
             >
@@ -76,21 +76,21 @@ export function Sidebar() {
 
       {/* Admin/User Role Switcher in Sidebar (Developer helper) */}
       <div className="px-lg my-md">
-        <div className="flex flex-col gap-2 rounded-xl bg-surface/5 border border-outline-variant/10 p-3">
+        <div className="flex flex-col gap-2 rounded-xl bg-slate-50 border border-slate-200 p-3">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-outline-variant">Role Sim:</span>
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Role Sim:</span>
             <span className={clsx(
               "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border",
               role === "ADMIN" 
-                ? "bg-secondary-container/20 text-secondary border-secondary/20" 
-                : "bg-primary-fixed/20 text-primary-fixed border-primary-fixed/30"
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                : "bg-indigo-50 text-indigo-700 border-indigo-200"
             )}>
               {role}
             </span>
           </div>
           <button
             onClick={() => setRole(role === "ADMIN" ? "USER" : "ADMIN")}
-            className="w-full rounded-lg bg-surface/10 hover:bg-surface/20 text-white text-[11px] py-1 px-2 font-medium transition"
+            className="w-full rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] py-1 px-2 font-medium transition shadow-sm"
           >
             Switch to {role === "ADMIN" ? "User" : "Admin"}
           </button>
@@ -98,16 +98,16 @@ export function Sidebar() {
       </div>
 
       {/* User Context */}
-      <div className="px-lg mt-auto">
-        <div className="flex items-center gap-3 p-3 bg-surface/5 rounded-xl">
+      <div className="px-lg mt-auto pb-4">
+        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-xl shadow-sm">
           <img 
             alt="User profile avatar" 
-            className="w-10 h-10 rounded-full border border-outline-variant/20 object-cover" 
+            className="w-10 h-10 rounded-full border border-slate-200 object-cover bg-white" 
             src={userImage}
           />
           <div className="overflow-hidden">
-            <p className="font-label-md text-label-md text-surface truncate">{userDisplayName}</p>
-            <p className="font-label-sm text-label-sm text-outline-variant truncate">{userRoleText}</p>
+            <p className="font-label-md text-label-md text-slate-900 font-semibold truncate">{userDisplayName}</p>
+            <p className="font-label-sm text-label-sm text-slate-500 truncate">{userRoleText}</p>
           </div>
         </div>
       </div>
@@ -132,7 +132,7 @@ export function Sidebar() {
       >
         {/* Backdrop overlay */}
         <div
-          className="absolute inset-0 bg-on-background/60 backdrop-blur-sm"
+          className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
         
@@ -140,7 +140,7 @@ export function Sidebar() {
         <aside
           className={twMerge(
             clsx(
-              "absolute top-0 bottom-0 left-0 w-64 shadow-2xl transition-transform duration-300 ease-in-out transform",
+              "absolute top-0 bottom-0 left-0 w-64 shadow-2xl transition-transform duration-300 ease-in-out transform bg-white",
               sidebarOpen ? "translate-x-0" : "-translate-x-full"
             )
           )}
