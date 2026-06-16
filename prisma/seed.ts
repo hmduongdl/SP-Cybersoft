@@ -17,8 +17,8 @@ async function main() {
   await prisma.user.deleteMany({});
 
   // ── 2. Hash mật khẩu mẫu ───────────────────────────────────────────────────
-  const defaultPassword = await bcrypt.hash("Password1", 10);
-  const adminPassword   = await bcrypt.hash("Admin@12345", 10);
+  const defaultPassword = "Password1";
+  const adminPassword   = "Admin@12345";
 
   // ── 3. Tạo tài khoản ───────────────────────────────────────────────────────
   const admin = await prisma.user.create({

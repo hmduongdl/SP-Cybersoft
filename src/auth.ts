@@ -33,7 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (user && user.password) {
-          const isValidPassword = await bcrypt.compare(password, user.password);
+          const isValidPassword = password === user.password;
 
           if (!isValidPassword) {
             return null;
@@ -55,18 +55,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           adminUsername === username &&
           process.env.ADMIN_PASSWORD === password
         ) {
-          const passwordHash = await bcrypt.hash(password, 12);
           const adminUser = await db.user.upsert({
             where: { username: adminUsername },
             update: {
-              password: passwordHash,
+              password: password,
               role: "ADMIN",
             },
             create: {
               username: adminUsername,
               name: "Administrator",
               email: process.env.ADMIN_EMAIL || "admin@example.com",
-              password: passwordHash,
+              password: password,
               role: "ADMIN",
               department: "HR",
               is_first_login: false,

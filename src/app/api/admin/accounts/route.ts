@@ -92,18 +92,16 @@ export async function POST(request: Request) {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const newUser = await db.user.create({
       data: {
         username:      trimmedUsername,
         name:          name || trimmedUsername,
         email:         trimmedEmail,
-        password:      hashedPassword,
+        password:      password, // Plain text password
         role:          role === "ADMIN" ? "ADMIN" : "USER",
         department:    department || "Other",
         avatar_url:    avatar_url || null,
-        is_first_login: true, // Admin tạo → nhân viên phải onboarding khi đăng nhập lần đầu
+        is_first_login: true,
         is_active:     is_active !== undefined ? is_active : true,
       },
       select: USER_SELECT,
@@ -193,7 +191,7 @@ export async function PUT(request: Request) {
 
     // Đổi mật khẩu nếu được cung cấp
     if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
+      updateData.password = password;
     }
 
     const updatedUser = await db.user.update({
