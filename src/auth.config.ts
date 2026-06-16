@@ -43,15 +43,23 @@ export const authConfig = {
         if (session.image !== undefined) {
           token.picture = session.image;
         }
+        if (session.avatar_url !== undefined) {
+          token.picture = session.avatar_url;
+        }
+        if (session.department !== undefined) {
+          token.department = session.department;
+        }
       }
 
       if (user && user.id) {
         token.id = user.id;
-        token.role = "role" in user && user.role ? user.role : "USER";
-        token.is_first_login = "is_first_login" in user ? user.is_first_login : false;
+        token.role = user.role ? user.role : "USER";
+        token.is_first_login = user.is_first_login ?? false;
         token.hasFacebook = false;
         token.picture = user.image;
         token.name = user.name;
+        token.department = user.department ?? "";
+        token.avatar_url = user.avatar_url ?? null;
       }
 
       if (token.id && token.hasFacebook === undefined) {
@@ -66,6 +74,8 @@ export const authConfig = {
         session.user.role = token.role as any;
         session.user.is_first_login = token.is_first_login as boolean;
         session.user.hasFacebook = false;
+        session.user.department = (token as any).department;
+        session.user.avatar_url = (token as any).avatar_url;
         if (token.picture) {
           session.user.image = token.picture as string;
         }
