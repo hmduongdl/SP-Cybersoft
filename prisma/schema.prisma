@@ -29,12 +29,25 @@ model User {
   email                String    @unique
   gmail                String?
   facebook_profile_url String?
+  facebook_verified    Boolean   @default(false)
+  is_active            Boolean   @default(true)
   password             String
   role                 UserRole  @default(USER)
   department           String
   avatar_url           String?
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
   checkins             Checkin[] @relation("UserCheckins")
+}
+
+model Department {
+  id   String @id @default(uuid())
+  name String @unique
+}
+
+model SystemSetting {
+  id    String @id @default(uuid())
+  key   String @unique
+  value String
 }
 
 model Checkin {

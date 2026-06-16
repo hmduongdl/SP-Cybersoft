@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  Plus, 
   Search, 
   Edit2, 
   Trash2, 
-  ShieldAlert, 
   Check, 
   X, 
   Lock, 
@@ -19,7 +17,8 @@ import {
   Loader2,
   RefreshCw,
   UserCheck,
-  UserPlus
+  UserPlus,
+  User
 } from "lucide-react";
 import { useLayout } from "@/components/shared/layout-context";
 import { useSession } from "next-auth/react";
@@ -28,21 +27,22 @@ import { toast, Toaster } from "sonner";
 
 interface UserAccount {
   id: string;
+  username: string;
   name: string | null;
   email: string;
   role: "ADMIN" | "USER";
-  active: boolean;
+  is_active: boolean;
   department: string | null;
-  avatar: string | null;
-  createdAt: string;
+  avatar_url: string | null;
+  facebook_profile_url?: string | null;
+  facebook_verified?: boolean;
 }
-
-const DEPARTMENTS = ["Marketing", "Tech", "Sales", "HR", "Legal", "Finance", "Operations"];
 
 export default function AdminAccountsPage() {
   const { role } = useLayout();
   const { data: session } = useSession();
 
+  const [departments, setDepartments] = useState<{id: string, name: string}[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -57,13 +57,14 @@ export default function AdminAccountsPage() {
 
   // Form states
   const [formData, setFormData] = useState({
+    username: "",
     name: "",
     email: "",
     password: "",
     role: "USER" as "ADMIN" | "USER",
     department: "",
-    avatar: "",
-    active: true,
+    avatar_url: "",
+    is_active: true,
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,12 +73,19 @@ export default function AdminAccountsPage() {
   const fetchAccounts = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("/api/admin/accounts");
-      const data = await res.json();
-      if (!res.ok) {
+      const [usersRes, deptsRes] = await Promise.all([
+        fetch("/api/admin/accounts"),
+        fetch("/api/admin/departments")
+      ]);
+      const data = await usersRes.json();
+      const deptsData = await deptsRes.json();
+      if (!usersRes.ok) {
         throw new Error(data.error || "Không thể tải danh sách tài khoản.");
       }
       setUsers(data.users || []);
+      if (deptsRes.ok && deptsData.departments) {
+        setDepartments(deptsData.departments);
+      }
     } catch (error: any) {
       toast.error(error.message || "Lỗi khi lấy dữ liệu.");
     } finally {
@@ -95,13 +103,14 @@ export default function AdminAccountsPage() {
   const handleOpenAddModal = () => {
     setEditingUser(null);
     setFormData({
+      username: "",
       name: "",
       email: "",
       password: "",
       role: "USER",
-      department: "Marketing",
-      avatar: "",
-      active: true,
+      department: departments.length > 0 ? departments[0].name : "Other",
+      avatar_url: "",
+      is_active: true,
     });
     setShowFormModal(true);
   };
@@ -110,13 +119,14 @@ export default function AdminAccountsPage() {
   const handleOpenEditModal = (user: UserAccount) => {
     setEditingUser(user);
     setFormData({
+      username: user.username || "",
       name: user.name || "",
       email: user.email,
       password: "", // blank password to preserve existing
       role: user.role,
-      department: user.department || "Marketing",
-      avatar: user.avatar || "",
-      active: user.active,
+      department: user.department || (departments.length > 0 ? departments[0].name : "Other"),
+      avatar_url: user.avatar_url || "",
+      is_active: user.is_active,
     });
     setShowFormModal(true);
   };
@@ -124,6 +134,10 @@ export default function AdminAccountsPage() {
   // Submit create or edit form
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.username) {
+      toast.error("Vui lòng nhập Tên đăng nhập (Username).");
+      return;
+    }
     if (!formData.email) {
       toast.error("Vui lòng nhập Email.");
       return;
@@ -137,14 +151,14 @@ export default function AdminAccountsPage() {
       setIsSubmitting(true);
       const url = "/api/admin/accounts";
       const method = editingUser ? "PUT" : "POST";
-      const body = editingUser 
-        ? { id: editingUser.id, ...formData } 
-        : formData;
 
       const res = await fetch(url, {
-        method,
+        method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...formData,
+          id: editingUser?.id
+        }),
       });
 
       const data = await res.json();
@@ -186,10 +200,28 @@ export default function AdminAccountsPage() {
     }
   };
 
-  // Filtered users logic
+  // Verify Facebook
+  const handleVerifyFacebook = async (id: string, verify: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/accounts/${id}/verify-facebook`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ facebook_verified: verify }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      toast.success(verify ? "Đã xác thực Facebook" : "Đã hủy xác thực Facebook");
+      fetchAccounts();
+    } catch (error: any) {
+      toast.error(error.message || "Lỗi khi xác thực Facebook");
+    }
+  };
+
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.name && user.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (user.department && user.department.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -197,8 +229,8 @@ export default function AdminAccountsPage() {
     
     const matchesStatus = 
       statusFilter === "ALL" || 
-      (statusFilter === "ACTIVE" && user.active) || 
-      (statusFilter === "INACTIVE" && !user.active);
+      (statusFilter === "ACTIVE" && user.is_active) || 
+      (statusFilter === "INACTIVE" && !user.is_active);
 
     const matchesDept = deptFilter === "ALL" || user.department === deptFilter;
 
@@ -211,15 +243,15 @@ export default function AdminAccountsPage() {
       <div className="space-y-6">
         <header className="pb-6">
           <p className="text-sm uppercase tracking-[0.3em] text-slate-400 font-medium">Cấu hình</p>
-          <h1 className="mt-3 text-3xl font-semibold text-white">Quản Lý Account</h1>
+          <h1 className="mt-3 text-3xl font-semibold text-slate-900">Quản Lý Account</h1>
         </header>
 
-        <Card className="min-h-[400px] flex flex-col items-center justify-center text-center p-8 border-dashed border-2 border-red-500/20 bg-red-500/5">
-          <div className="h-16 w-16 rounded-full bg-slate-900 border border-red-500/30 flex items-center justify-center text-rose-400 mb-4 shadow-lg">
+        <Card className="min-h-[400px] flex flex-col items-center justify-center text-center p-8 border-dashed border-2 border-red-200 bg-red-50/50">
+          <div className="h-16 w-16 rounded-full bg-white border border-red-200 flex items-center justify-center text-red-500 mb-4 shadow-sm">
             <Lock className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-semibold text-white mb-2">Quyền truy cập bị từ chối</h2>
-          <p className="text-sm text-slate-400 max-w-sm">
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Quyền truy cập bị từ chối</h2>
+          <p className="text-sm text-slate-600 max-w-sm">
             Trang này chỉ dành cho tài khoản có vai trò Quản trị viên (Admin). Vui lòng chuyển Chế độ giả lập ở góc dưới bên trái của Sidebar thành "Admin" để xem nội dung.
           </p>
         </Card>
@@ -231,25 +263,25 @@ export default function AdminAccountsPage() {
   const totalCount = users.length;
   const adminCount = users.filter(u => u.role === "ADMIN").length;
   const userCount = users.filter(u => u.role === "USER").length;
-  const inactiveCount = users.filter(u => !u.active).length;
+  const inactiveCount = users.filter(u => !u.is_active).length;
 
   return (
-    <div className="space-y-6 pb-12 text-slate-200">
+    <div className="space-y-6 pb-12 text-slate-900">
       <Toaster position="top-right" richColors />
 
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800/80 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-400 font-semibold">Hệ thống</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-white tracking-tight">Quản Lý Tài Khoản</h1>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">Hệ thống</p>
+          <h1 className="mt-2 text-3xl font-extrabold text-slate-900 tracking-tight">Quản Lý Tài Khoản</h1>
+          <p className="mt-1 text-sm text-slate-600">
             Tạo mới, thiết lập vai trò (role) và quản lý tài khoản nhân viên.
           </p>
         </div>
         <div>
           <button
             onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 font-semibold text-white text-sm shadow-lg shadow-indigo-600/10 active:scale-[0.98] transition-all"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-750 font-semibold text-white text-sm shadow-md transition-all active:scale-[0.98]"
           >
             <UserPlus className="h-4.5 w-4.5" />
             <span>Thêm tài khoản mới</span>
@@ -260,56 +292,56 @@ export default function AdminAccountsPage() {
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Users */}
-        <Card className="bg-slate-900 border-slate-800/80 p-5 flex items-center justify-between shadow-soft">
+        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-xs text-slate-400 font-semibold uppercase">Tổng nhân sự</p>
-            <h4 className="text-2xl font-bold text-white mt-2">{totalCount}</h4>
+            <p className="text-xs text-slate-500 font-semibold uppercase">Tổng nhân sự</p>
+            <h4 className="text-2xl font-bold text-slate-900 mt-2">{totalCount}</h4>
           </div>
-          <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-400">
+          <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
             <Users className="h-6 w-6" />
           </div>
         </Card>
 
         {/* Admins */}
-        <Card className="bg-slate-900 border-slate-800/80 p-5 flex items-center justify-between shadow-soft">
+        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-xs text-slate-400 font-semibold uppercase">Quản trị viên (Admin)</p>
-            <h4 className="text-2xl font-bold text-indigo-400 mt-2">{adminCount}</h4>
+            <p className="text-xs text-slate-500 font-semibold uppercase">Quản trị viên</p>
+            <h4 className="text-2xl font-bold text-indigo-600 mt-2">{adminCount}</h4>
           </div>
-          <div className="p-3 bg-purple-500/10 rounded-xl text-purple-400">
+          <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
             <ShieldCheck className="h-6 w-6" />
           </div>
         </Card>
 
         {/* Normal Users */}
-        <Card className="bg-slate-900 border-slate-800/80 p-5 flex items-center justify-between shadow-soft">
+        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-xs text-slate-400 font-semibold uppercase">Thành viên (User)</p>
-            <h4 className="text-2xl font-bold text-white mt-2">{userCount}</h4>
+            <p className="text-xs text-slate-500 font-semibold uppercase">Thành viên (User)</p>
+            <h4 className="text-2xl font-bold text-slate-900 mt-2">{userCount}</h4>
           </div>
-          <div className="p-3 bg-blue-500/10 rounded-xl text-blue-400">
+          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
             <UserCheck className="h-6 w-6" />
           </div>
         </Card>
 
         {/* Inactive */}
-        <Card className="bg-slate-900 border-slate-800/80 p-5 flex items-center justify-between shadow-soft">
+        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-xs text-slate-400 font-semibold uppercase">Tài khoản bị khóa</p>
-            <h4 className="text-2xl font-bold text-rose-400 mt-2">{inactiveCount}</h4>
+            <p className="text-xs text-slate-500 font-semibold uppercase">Tài khoản bị khóa</p>
+            <h4 className="text-2xl font-bold text-rose-600 mt-2">{inactiveCount}</h4>
           </div>
-          <div className="p-3 bg-rose-500/10 rounded-xl text-rose-400">
+          <div className="p-3 bg-rose-50 rounded-xl text-rose-600">
             <UserX className="h-6 w-6" />
           </div>
         </Card>
       </div>
 
       {/* Filters & Search section */}
-      <Card className="bg-slate-900 border-slate-800/80 p-4 shadow-soft">
+      <Card className="bg-white border-slate-200 p-4 shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search bar */}
           <div className="relative md:col-span-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               <Search className="h-4 w-4" />
             </span>
             <input
@@ -317,7 +349,7 @@ export default function AdminAccountsPage() {
               placeholder="Tìm kiếm tài khoản..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>
 
@@ -326,7 +358,7 @@ export default function AdminAccountsPage() {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Vai trò (Role)</option>
               <option value="ADMIN">ADMIN</option>
@@ -339,11 +371,11 @@ export default function AdminAccountsPage() {
             <select
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Phòng ban</option>
-              {DEPARTMENTS.map((dept) => (
-                <option key={dept} value={dept}>{dept}</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.name}>{dept.name}</option>
               ))}
             </select>
           </div>
@@ -353,7 +385,7 @@ export default function AdminAccountsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Trạng thái</option>
               <option value="ACTIVE">Hoạt động</option>
@@ -363,7 +395,7 @@ export default function AdminAccountsPage() {
             <button
               onClick={fetchAccounts}
               title="Tải lại danh sách"
-              className="p-2.5 rounded-xl border border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-colors"
             >
               <RefreshCw className={`h-4.5 w-4.5 ${isLoading ? "animate-spin" : ""}`} />
             </button>
@@ -372,18 +404,18 @@ export default function AdminAccountsPage() {
       </Card>
 
       {/* Main Accounts Table */}
-      <Card className="bg-slate-900 border-slate-800/80 overflow-hidden shadow-soft">
+      <Card className="bg-white border-slate-200 overflow-hidden shadow-sm">
         {isLoading ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-400 gap-2">
+          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-500 gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             <p className="text-sm">Đang tải danh sách tài khoản...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-400 p-8 text-center">
-            <div className="h-12 w-12 rounded-full bg-slate-800 flex items-center justify-center text-slate-500 mb-3">
+          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-500 p-8 text-center">
+            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
               <Users className="h-6 w-6" />
             </div>
-            <p className="text-base font-semibold text-white">Không tìm thấy tài khoản nào</p>
+            <p className="text-base font-semibold text-slate-900">Không tìm thấy tài khoản nào</p>
             <p className="text-sm text-slate-500 mt-1 max-w-xs">
               Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.
             </p>
@@ -392,63 +424,89 @@ export default function AdminAccountsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-850 bg-slate-950/30 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   <th className="px-6 py-4">Thành viên</th>
                   <th className="px-6 py-4">Phòng ban</th>
+                  <th className="px-6 py-4">Facebook</th>
                   <th className="px-6 py-4">Vai trò (Role)</th>
                   <th className="px-6 py-4">Trạng thái</th>
-                  <th className="px-6 py-4">Ngày tạo</th>
                   <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-850 text-sm">
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredUsers.map((user) => {
                   const isSelf = session?.user?.email === user.email;
 
                   return (
-                    <tr key={user.id} className="hover:bg-slate-850/30 transition-colors">
+                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
                       {/* Name & Avatar */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {user.avatar ? (
+                          {user.avatar_url ? (
                             <img
-                              src={user.avatar}
+                              src={user.avatar_url}
                               alt={user.name || "Avatar"}
-                              className="h-9 w-9 rounded-full object-cover border border-slate-800"
+                              className="h-9 w-9 rounded-full object-cover border border-slate-200"
                             />
                           ) : (
-                            <div className="h-9 w-9 rounded-full bg-indigo-900/60 border border-indigo-700/30 text-indigo-200 flex items-center justify-center font-bold text-xs uppercase">
-                              {(user.name || user.email).charAt(0)}
+                            <div className="h-9 w-9 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">
+                              {(user.name || user.username || user.email).charAt(0)}
                             </div>
                           )}
                           <div>
-                            <span className="font-semibold text-white flex items-center gap-1.5">
+                            <span className="font-semibold text-slate-900 flex items-center gap-1.5">
                               {user.name || "Chưa đặt tên"}
                               {isSelf && (
-                                <span className="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 py-0.5 rounded">
+                                <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">
                                   Bạn
                                 </span>
                               )}
                             </span>
-                            <span className="text-xs text-slate-400 block mt-0.5 font-mono">{user.email}</span>
+                            <span className="text-xs text-slate-500 block mt-0.5 font-mono">
+                              @{user.username} • {user.email}
+                            </span>
                           </div>
                         </div>
                       </td>
 
                       {/* Department */}
                       <td className="px-6 py-4">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
                           <Briefcase className="h-3 w-3 text-slate-500" />
                           {user.department || "Không"}
                         </span>
+                      </td>
+
+                      {/* Facebook */}
+                      <td className="px-6 py-4">
+                        {user.facebook_profile_url ? (
+                          <div className="flex flex-col gap-1">
+                            <a href={user.facebook_profile_url} target="_blank" rel="noreferrer" className="text-indigo-600 hover:text-indigo-800 text-xs truncate max-w-[120px] inline-block font-semibold">
+                              Xem Profile
+                            </a>
+                            <button
+                              onClick={() => handleVerifyFacebook(user.id, !user.facebook_verified)}
+                              className={`text-[10px] px-2 py-0.5 rounded flex items-center gap-1 w-fit transition-colors ${
+                                user.facebook_verified 
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200" 
+                                  : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                              }`}
+                            >
+                              <ShieldCheck className="w-3 h-3" />
+                              {user.facebook_verified ? "Đã xác thực" : "Duyệt ngay"}
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Chưa cập nhật</span>
+                        )}
                       </td>
 
                       {/* Role */}
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border ${
                           user.role === "ADMIN" 
-                            ? "bg-purple-500/10 text-purple-400 border-purple-500/20" 
-                            : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                            ? "bg-purple-50 text-purple-700 border-purple-250" 
+                            : "bg-blue-50 text-blue-700 border-blue-250"
                         }`}>
                           {user.role}
                         </span>
@@ -457,22 +515,13 @@ export default function AdminAccountsPage() {
                       {/* Status */}
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                          user.active ? "text-emerald-400" : "text-rose-400"
+                          user.is_active ? "text-emerald-600" : "text-rose-600"
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${
-                            user.active ? "bg-emerald-400 animate-pulse" : "bg-rose-400"
+                            user.is_active ? "bg-emerald-500 animate-pulse" : "bg-rose-500"
                           }`} />
-                          {user.active ? "Đang hoạt động" : "Đã khóa"}
+                          {user.is_active ? "Đang hoạt động" : "Đã khóa"}
                         </span>
-                      </td>
-
-                      {/* Created Date */}
-                      <td className="px-6 py-4 text-xs text-slate-400">
-                        {new Date(user.createdAt).toLocaleDateString("vi-VN", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
                       </td>
 
                       {/* Actions */}
@@ -481,7 +530,7 @@ export default function AdminAccountsPage() {
                           <button
                             onClick={() => handleOpenEditModal(user)}
                             title="Sửa tài khoản"
-                            className="p-2 bg-slate-800 hover:bg-indigo-600/20 border border-slate-700/60 hover:border-indigo-500/30 rounded-lg text-slate-300 hover:text-indigo-400 transition-all"
+                            className="p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-slate-600 hover:text-indigo-600 transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -492,8 +541,8 @@ export default function AdminAccountsPage() {
                             title={isSelf ? "Bạn không thể xóa chính mình" : "Xóa tài khoản"}
                             className={`p-2 rounded-lg border transition-all ${
                               isSelf
-                                ? "bg-slate-900/50 border-slate-900 text-slate-600 cursor-not-allowed"
-                                : "bg-slate-800 hover:bg-rose-600/20 border-slate-700/60 hover:border-rose-500/30 text-slate-300 hover:text-rose-400"
+                                ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
+                                : "bg-white hover:bg-rose-50 border-slate-200 hover:border-rose-350 text-slate-600 hover:text-rose-600"
                             }`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -515,22 +564,20 @@ export default function AdminAccountsPage() {
           {/* Backdrop */}
           <div 
             onClick={() => !isSubmitting && setShowFormModal(false)}
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
 
           {/* Form Card */}
-          <Card className="w-full max-w-lg bg-slate-900 border-slate-800 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-slate-850 bg-slate-950/40 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <span className="material-symbols-outlined text-indigo-400">
-                  {editingUser ? "manage_accounts" : "person_add"}
-                </span>
+          <Card className="w-full max-w-lg bg-white border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                <User className="h-5 w-5 text-indigo-600" />
                 {editingUser ? "Cập Nhật Tài Khoản" : "Thêm Tài Khoản Mới"}
               </h3>
               <button
                 onClick={() => setShowFormModal(false)}
                 disabled={isSubmitting}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -538,10 +585,27 @@ export default function AdminAccountsPage() {
 
             <form onSubmit={handleFormSubmit}>
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                {/* Email (Disabled when editing) */}
+                {/* Username input */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-slate-500" />
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-slate-400" />
+                    Tên đăng nhập (Username)
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="VD: nguyenvana"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    disabled={!!editingUser || isSubmitting}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                  />
+                </div>
+
+                {/* Email */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-slate-400" />
                     Địa chỉ Email
                   </label>
                   <input
@@ -551,13 +615,13 @@ export default function AdminAccountsPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     disabled={!!editingUser || isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 disabled:opacity-50 disabled:bg-slate-950/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
                   />
                 </div>
 
                 {/* Name */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
                     Họ và tên
                   </label>
                   <input
@@ -566,16 +630,16 @@ export default function AdminAccountsPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase flex justify-between">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex justify-between">
                     <span>Mật khẩu</span>
                     {editingUser && (
-                      <span className="text-[10px] text-indigo-400 normal-case font-normal">
+                      <span className="text-[10px] text-indigo-600 normal-case font-normal">
                         (Để trống nếu muốn giữ nguyên mật khẩu cũ)
                       </span>
                     )}
@@ -587,7 +651,7 @@ export default function AdminAccountsPage() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
@@ -595,14 +659,14 @@ export default function AdminAccountsPage() {
                 <div className="grid grid-cols-2 gap-4">
                   {/* Role */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase">
+                    <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
                       Vai trò (Role)
                     </label>
                     <select
                       value={formData.role}
                       onChange={(e) => setFormData({ ...formData, role: e.target.value as "ADMIN" | "USER" })}
                       disabled={isSubmitting || (editingUser?.id === session?.user?.id)}
-                      className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     >
                       <option value="USER">USER (Nhân viên)</option>
                       <option value="ADMIN">ADMIN (Quản trị)</option>
@@ -614,17 +678,17 @@ export default function AdminAccountsPage() {
 
                   {/* Department */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase">
+                    <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
                       Phòng ban
                     </label>
                     <select
                       value={formData.department}
                       onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                       disabled={isSubmitting}
-                      className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     >
-                      {DEPARTMENTS.map((dept) => (
-                        <option key={dept} value={dept}>{dept}</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.name}>{dept.name}</option>
                       ))}
                     </select>
                   </div>
@@ -632,32 +696,32 @@ export default function AdminAccountsPage() {
 
                 {/* Avatar URL */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase">
+                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
                     Đường dẫn ảnh đại diện (Avatar URL)
                   </label>
                   <input
                     type="url"
                     placeholder="https://images.unsplash.com/... hoặc để trống"
-                    value={formData.avatar}
-                    onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+                    value={formData.avatar_url}
+                    onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
                 {/* Active Status */}
                 <div className="pt-2">
-                  <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <label className="flex items-start gap-3 cursor-pointer select-none">
                     <input
                       type="checkbox"
-                      checked={formData.active}
-                      onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
+                      checked={formData.is_active}
+                      onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                       disabled={isSubmitting || (editingUser?.id === session?.user?.id)}
-                      className="w-5 h-5 rounded border-slate-800 text-indigo-600 focus:ring-indigo-500/30 bg-slate-950/80 transition-all cursor-pointer disabled:opacity-50"
+                      className="mt-1 w-5 h-5 rounded border-slate-200 text-indigo-600 focus:ring-indigo-500/30 bg-white transition-all cursor-pointer disabled:opacity-50"
                     />
                     <div>
-                      <span className="text-sm font-semibold text-white">Cho phép hoạt động</span>
-                      <p className="text-xs text-slate-400 mt-0.5">Tài khoản có thể đăng nhập vào hệ thống khi được bật</p>
+                      <span className="text-sm font-semibold text-slate-900">Cho phép hoạt động</span>
+                      <p className="text-xs text-slate-500 mt-0.5">Tài khoản có thể đăng nhập vào hệ thống khi được bật</p>
                     </div>
                   </label>
                   {editingUser?.id === session?.user?.id && (
@@ -667,19 +731,19 @@ export default function AdminAccountsPage() {
               </div>
 
               {/* Action Buttons */}
-              <div className="px-6 py-4 border-t border-slate-850 bg-slate-950/20 flex justify-end gap-3">
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowFormModal(false)}
                   disabled={isSubmitting}
-                  className="px-4 py-2.5 rounded-xl border border-slate-800 hover:bg-slate-800 text-slate-300 text-sm font-semibold transition-colors"
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold shadow-lg shadow-indigo-600/10 active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -704,36 +768,36 @@ export default function AdminAccountsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
             onClick={() => !isSubmitting && setDeletingUser(null)}
-            className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
           />
 
-          <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
-            <div className="px-6 py-5 border-b border-slate-850 bg-slate-950/40 flex items-center gap-3 text-rose-400">
+          <Card className="w-full max-w-md bg-white border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 text-red-650">
               <AlertTriangle className="h-6 w-6" />
-              <h3 className="text-lg font-bold text-white">Xác nhận xóa tài khoản</h3>
+              <h3 className="text-lg font-bold text-slate-900">Xác nhận xóa tài khoản</h3>
             </div>
 
             <div className="p-6 space-y-3">
-              <p className="text-sm text-slate-300">
-                Bạn có chắc chắn muốn xóa tài khoản của <strong className="text-white">{deletingUser.name || deletingUser.email}</strong>?
+              <p className="text-sm text-slate-700">
+                Bạn có chắc chắn muốn xóa tài khoản của <strong className="text-slate-900">{deletingUser.name || deletingUser.username || deletingUser.email}</strong>?
               </p>
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-400 leading-relaxed">
+              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 leading-relaxed">
                 <strong>Chú ý:</strong> Hành động này không thể hoàn tác. Việc xóa tài khoản này đồng thời sẽ xóa bỏ tất cả dữ liệu liên quan như các lượt check-in của nhân viên này trên hệ thống.
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-850 bg-slate-950/20 flex justify-end gap-3">
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
               <button
                 onClick={() => setDeletingUser(null)}
                 disabled={isSubmitting}
-                className="px-4 py-2.5 rounded-xl border border-slate-800 hover:bg-slate-800 text-slate-300 text-sm font-semibold transition-colors"
+                className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
               >
                 Hủy bỏ
               </button>
               <button
                 onClick={handleDeleteUser}
                 disabled={isSubmitting}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-semibold shadow-lg shadow-rose-600/15 active:scale-[0.98] transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-md active:scale-[0.98] transition-all disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>

@@ -327,16 +327,16 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
   };
 
   return (
-    <div className="space-y-6 text-slate-100">
+    <div className="space-y-6 text-slate-900">
       
       {/* Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-5">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-5">
         <div>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-900/30 text-indigo-400 mb-2">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 mb-2">
             Hàng đợi kiểm duyệt
           </span>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">Kiểm duyệt Hàng đợi</h1>
-          <p className="text-slate-400 text-sm mt-1">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Kiểm duyệt Hàng đợi</h1>
+          <p className="text-slate-500 text-sm mt-1">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
         </div>
 
         {/* Date Range & Export Excel */}

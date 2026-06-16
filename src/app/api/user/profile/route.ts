@@ -1,0 +1,123 @@
+import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { auth } from "@/auth";
+import { uploadImage } from "@/lib/upload";
+
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        department: true,
+        facebook_profile_url: true,
+        facebook_verified: true,
+        avatar_url: true,
+      }
+    });
+
+    return NextResponse.json({ user });
+  } catch (error: any) {
+    console.error("GET Profile Error:", error);
+    return NextResponse.json(
+      { error: "Đã xảy ra lỗi khi lấy thông tin cá nhân." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { name, department, facebook_profile_url, avatar_url } = await request.json();
+
+    // Reset verification status if they changed their facebook link
+    const currentUser = await db.user.findUnique({ where: { id: session.user.id } });
+    
+    let facebook_verified = currentUser?.facebook_verified;
+    if (facebook_profile_url !== currentUser?.facebook_profile_url) {
+      facebook_verified = false;
+    }
+
+    const updateData: Record<string, any> = {
+      name,
+      department,
+      facebook_profile_url,
+      facebook_verified,
+    };
+
+    if (avatar_url !== undefined) {
+      updateData.avatar_url = avatar_url || null;
+    }
+
+    const user = await db.user.update({
+      where: { id: session.user.id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ success: true, user });
+  } catch (error: any) {
+    console.error("Update Profile Error:", error);
+    return NextResponse.json(
+      { error: "Đã xảy ra lỗi khi cập nhật thông tin." },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    if (!file) {
+      return NextResponse.json({ error: "Không tìm thấy tệp tin ảnh." }, { status: 400 });
+    }
+
+    // Read array buffer & convert to node Buffer
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // Build unique filename
+    const ext = file.name ? "." + file.name.split(".").pop()?.toLowerCase() : ".jpg";
+    const filename = `avatar_${session.user.id}_${Date.now()}${ext}`;
+
+    // Upload using pluggable adapter
+    const uploadResult = await uploadImage(buffer, filename, file.type);
+
+    // Update user in database
+    const user = await db.user.update({
+      where: { id: session.user.id },
+      data: {
+        avatar_url: uploadResult.url
+      }
+    });
+
+    return NextResponse.json({
+      success: true,
+      avatar_url: uploadResult.url,
+      user
+    });
+  } catch (error: any) {
+    console.error("Upload Avatar Error:", error);
+    return NextResponse.json(
+      { error: error.message || "Đã xảy ra lỗi khi tải ảnh đại diện lên." },
+      { status: 500 }
+    );
+  }
+}

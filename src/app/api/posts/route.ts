@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { DAILY_POST_LIMIT, getDayRange, getLocalDateKey, postTaskSchema } from '@/lib/posts';
+import { auth } from '@/auth';
 
 export async function GET() {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const [posts, totalEmployees] = await Promise.all([
         db.post.findMany({
-            orderBy: { start_at: 'asc' },
+            orderBy: { start_at: 'desc' },
             include: {
                 _count: {
                     select: { checkins: true },
@@ -27,6 +33,8 @@ export async function GET() {
             url: post.url,
             thumbnail_url: post.thumbnail_url,
             start_at: post.start_at.toISOString(),
+            is_archived: post.is_archived,
+            team: post.team,
             successfulCheckins: post._count.checkins,
             totalEmployees,
         })),
@@ -34,6 +42,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+    const session = await auth();
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = postTaskSchema.safeParse(body);
 
@@ -60,6 +73,7 @@ export async function POST(request: Request) {
             description: parsed.data.description,
             start_at: parsed.data.start_at ?? new Date(),
             team: (parsed.data.team as any) || 'ALL',
+            is_archived: false,
         },
     });
 
@@ -74,4 +88,65 @@ export async function POST(request: Request) {
         },
         { status: 201 }
     );
+}
+
+// Bulk DELETE
+export async function DELETE(request: Request) {
+    const session = await auth();
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { ids } = body;
+        if (!ids || !Array.isArray(ids)) {
+            return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID để xóa.' }, { status: 400 });
+        }
+
+        await db.post.deleteMany({
+            where: {
+                id: { in: ids }
+            }
+        });
+
+        return NextResponse.json({ success: true, message: 'Đã xóa các bài đăng thành công.' });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message || 'Lỗi khi xóa bài đăng.' }, { status: 500 });
+    }
+}
+
+// Bulk PATCH / EDIT
+export async function PATCH(request: Request) {
+    const session = await auth();
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { ids, data } = body;
+        if (!ids || !Array.isArray(ids)) {
+            return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID.' }, { status: 400 });
+        }
+
+        const updateData: Record<string, any> = {};
+        if (data.is_archived !== undefined) {
+            updateData.is_archived = data.is_archived;
+        }
+        if (data.team !== undefined) {
+            updateData.team = data.team;
+        }
+
+        await db.post.updateMany({
+            where: {
+                id: { in: ids }
+            },
+            data: updateData
+        });
+
+        return NextResponse.json({ success: true, message: 'Đã cập nhật các bài đăng thành công.' });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message || 'Lỗi khi cập nhật bài đăng.' }, { status: 500 });
+    }
 }

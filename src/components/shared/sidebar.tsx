@@ -20,6 +20,7 @@ export function Sidebar() {
     { label: "Reports", href: "/admin/analytics", icon: "analytics", adminOnly: true },
     { label: "Quản lý Post", href: "/admin/posts", icon: "post_add", adminOnly: true },
     { label: "Quản lý Account", href: "/admin/accounts", icon: "manage_accounts", adminOnly: true },
+    { label: "Cấu hình Hệ thống", href: "/admin/settings", icon: "settings", adminOnly: true },
   ];
 
 
@@ -89,7 +90,10 @@ export function Sidebar() {
             </span>
           </div>
           <button
-            onClick={() => setRole(role === "ADMIN" ? "USER" : "ADMIN")}
+            onClick={() => {
+              setRole(role === "ADMIN" ? "USER" : "ADMIN");
+              window.location.href = "/dashboard";
+            }}
             className="w-full rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[11px] py-1 px-2 font-medium transition shadow-sm"
           >
             Switch to {role === "ADMIN" ? "User" : "Admin"}

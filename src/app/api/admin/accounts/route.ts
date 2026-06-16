@@ -17,6 +17,9 @@ const USER_SELECT = {
   department:    true,
   avatar_url:    true,
   is_first_login: true,
+  facebook_profile_url: true,
+  facebook_verified: true,
+  is_active: true,
 } as const;
 
 // ─── GET: List all accounts ────────────────────────────────────────────────────
@@ -52,7 +55,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { username, name, email, password, role, department, avatar_url } =
+    const { username, name, email, password, role, department, avatar_url, is_active } =
       await request.json();
 
     if (!username || !password) {
@@ -101,6 +104,7 @@ export async function POST(request: Request) {
         department:    department || "Other",
         avatar_url:    avatar_url || null,
         is_first_login: true, // Admin tạo → nhân viên phải onboarding khi đăng nhập lần đầu
+        is_active:     is_active !== undefined ? is_active : true,
       },
       select: USER_SELECT,
     });
@@ -128,7 +132,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, username, name, email, password, role, department, avatar_url } =
+    const { id, username, name, email, password, role, department, avatar_url, is_active } =
       await request.json();
 
     if (!id) {
@@ -156,6 +160,7 @@ export async function PUT(request: Request) {
       department: department !== undefined ? department : user.department,
       avatar_url: avatar_url !== undefined ? avatar_url : user.avatar_url,
       role:       role       !== undefined ? role       : user.role,
+      is_active:  is_active  !== undefined ? is_active  : user.is_active,
     };
 
     // Cập nhật username nếu thay đổi

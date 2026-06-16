@@ -96,6 +96,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (session.is_first_login !== undefined) {
           token.is_first_login = session.is_first_login;
         }
+        if (session.name !== undefined) {
+          token.name = session.name;
+        }
+        if (session.image !== undefined) {
+          token.picture = session.image;
+        }
       }
 
       if (user && user.id) {
@@ -103,6 +109,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = "role" in user && user.role ? user.role : "USER";
         token.is_first_login = "is_first_login" in user ? user.is_first_login : false;
         token.hasFacebook = false;
+        token.picture = user.image;
+        token.name = user.name;
       }
 
       if (token.id && token.hasFacebook === undefined) {
@@ -117,6 +125,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.role = token.role as any;
         session.user.is_first_login = token.is_first_login as boolean;
         session.user.hasFacebook = false;
+        if (token.picture) {
+          session.user.image = token.picture as string;
+        }
+        if (token.name) {
+          session.user.name = token.name as string;
+        }
       }
 
       return session;
