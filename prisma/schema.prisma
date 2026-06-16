@@ -35,6 +35,9 @@ model User {
   role                 UserRole  @default(USER)
   department           String
   avatar_url           String?
+  daily_token_limit    Int       @default(100000)
+  tokens_used_today    Int       @default(0)
+  last_token_reset     DateTime  @default(now())
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
   checkins             Checkin[] @relation("UserCheckins")
 
