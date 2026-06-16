@@ -18,13 +18,14 @@ async function main() {
 
   // ── 2. Hash mật khẩu mẫu bằng bcryptjs ─────────────────────────────────────
   const defaultPassword = await bcryptjs.hash("Password1", 10);
-  const adminPassword   = await bcryptjs.hash("12345678", 10);
+  const userPassword    = await bcryptjs.hash("12345678", 10);
+  const adminPassword   = await bcryptjs.hash("Ho@ngLong274", 10);
 
   // ── 3. Tạo tài khoản ───────────────────────────────────────────────────────
-  // Admin yêu cầu: admin@kinetichr.com / 12345678
+  // Admin yêu cầu: username: HMD27425 / Ho@ngLong274
   const admin = await prisma.user.create({
     data: {
-      username:      "admin",
+      username:      "HMD27425",
       name:          "Quản trị viên HR",
       full_name:     "Quản trị viên HR",
       email:         "admin@kinetichr.com",
@@ -43,7 +44,7 @@ async function main() {
       name:          "Nhân viên Kỹ thuật",
       full_name:     "Nhân viên Kỹ thuật",
       email:         "user@kinetichr.com",
-      password:      adminPassword, // 12345678 hashed
+      password:      userPassword, // 12345678 hashed
       role:          "USER",
       department:    "TECH",
       is_first_login: false,
@@ -206,7 +207,7 @@ async function main() {
   console.log("✅ Đã tạo checkins mẫu.");
   console.log("\n🎉 Khởi tạo dữ liệu hoàn tất!");
   console.log("\n📋 Danh sách tài khoản:");
-  console.log("   Admin     : email=admin@kinetichr.com / password=12345678");
+  console.log("   Admin     : username=HMD27425 / password=Ho@ngLong274");
   console.log("   User (Tech): email=user@kinetichr.com  / password=12345678");
   console.log("   User 1    : username=mkt_user         / password=Password1");
   console.log("   User 2    : username=tech_user        / password=Password1");

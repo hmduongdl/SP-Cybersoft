@@ -14,7 +14,7 @@ export async function authenticate(
   formData: FormData
 ): Promise<AuthState> {
   try {
-    const username = formData.get("username") as string;
+    const username = (formData.get("username") || formData.get("email")) as string;
     const password = formData.get("password") as string;
 
     if (!username || !password) {

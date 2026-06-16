@@ -75,7 +75,7 @@ export default function LoginForm() {
               className="w-full pl-12 pr-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               id="username"
               name="username"
-              placeholder="admin@kinetichr.com hoặc admin"
+              placeholder="Nhập tên đăng nhập hoặc email"
               required
               type="text"
             />
@@ -104,7 +104,7 @@ export default function LoginForm() {
               className="w-full pl-12 pr-12 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               id="password"
               name="password"
-              placeholder="••••••••"
+              placeholder="Nhập mật khẩu"
               required
               type={showPassword ? "text" : "password"}
             />
