@@ -66,7 +66,7 @@ export default function LoginForm() {
         {state?.error && (
           <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 font-semibold flex gap-2 animate-shake">
             <span className="material-symbols-outlined text-[16px] flex-shrink-0 text-red-500">error</span>
-            <span>Tên đăng nhập hoặc mật khẩu không chính xác!</span>
+            <span>{state?.error}</span>
           </div>
         )}
 

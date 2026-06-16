@@ -17,7 +17,6 @@ export async function PATCH(req: Request) {
       full_name,
       username,
       email,
-      phone,
       facebook_link,
       avatar_url,
     } = body;
@@ -35,10 +34,9 @@ export async function PATCH(req: Request) {
         name: full_name,
         username,
         email,
-        phone: phone || null,
-        facebook_link: facebook_link || null,
+        facebook_profile_url: facebook_link || null,
         avatar_url: avatar_url || null,
-        is_onboarded: true,
+        is_first_login: false,
       },
     });
 

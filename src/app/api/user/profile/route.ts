@@ -19,10 +19,9 @@ export async function GET() {
         username: true,
         name: true,
         email: true,
-        phone: true,
         department: true,
         avatar_url: true,
-        facebook_link: true,
+        facebook_profile_url: true,
       },
     });
 
@@ -31,13 +30,20 @@ export async function GET() {
       username: user?.username,
       name: user?.name,
       email: user?.email,
-      phone: user?.phone,
       department: user?.department,
       avatar_url: user?.avatar_url,
-      facebook_link: user?.facebook_link,
+      facebook_profile_url: user?.facebook_profile_url,
     });
 
-    return NextResponse.json({ user });
+    let mappedUser = null;
+    if (user) {
+      mappedUser = {
+        ...user,
+        facebook_link: user.facebook_profile_url,
+      };
+    }
+
+    return NextResponse.json({ user: mappedUser });
   } catch (error: any) {
     console.error("GET Profile Error:", error);
     return NextResponse.json(
@@ -56,13 +62,11 @@ export async function PUT(request: Request) {
 
     const body = await request.json();
     const email = typeof body.email === "string" ? body.email.trim() : undefined;
-    const phone = typeof body.phone === "string" ? body.phone.trim() : undefined;
     const facebook_link = typeof body.facebook_link === "string" ? body.facebook_link.trim() : undefined;
     const avatar_url = typeof body.avatar_url === "string" ? body.avatar_url.trim() : undefined;
 
     console.log("📥 PUT — Dữ liệu nhận từ client:", {
       email,
-      phone,
       facebook_link,
       avatar_url,
     });
@@ -79,12 +83,8 @@ export async function PUT(request: Request) {
       updateData.email = email;
     }
 
-    if (phone !== undefined) {
-      updateData.phone = phone || null;
-    }
-
     if (facebook_link !== undefined) {
-      updateData.facebook_link = facebook_link || null;
+      updateData.facebook_profile_url = facebook_link || null;
     }
 
     if (avatar_url !== undefined) {
@@ -101,11 +101,15 @@ export async function PUT(request: Request) {
     console.log("Cập nhật DB thành công cho User:", {
       id: user.id,
       email: user.email,
-      phone: user.phone,
-      facebook_link: user.facebook_link,
+      facebook_profile_url: user.facebook_profile_url,
     });
 
-    return NextResponse.json({ success: true, user });
+    const mappedUser = {
+      ...user,
+      facebook_link: user.facebook_profile_url,
+    };
+
+    return NextResponse.json({ success: true, user: mappedUser });
   } catch (error: any) {
     console.error("Update Profile Error:", error);
     return NextResponse.json(

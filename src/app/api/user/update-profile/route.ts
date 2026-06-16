@@ -22,20 +22,17 @@ export async function POST(request: NextRequest) {
 
     // ── Parse input ──────────────────────────────────────────────
     let email: string | undefined;
-    let phone: string | undefined;
     let facebook_link: string | undefined;
     let avatarFile: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       email = (formData.get("email") as string) || undefined;
-      phone = (formData.get("phone") as string) || undefined;
       facebook_link = (formData.get("facebook_link") as string) || undefined;
       avatarFile = formData.get("avatar") as File | null;
     } else {
       const body = await request.json();
       email = typeof body.email === "string" ? body.email.trim() : undefined;
-      phone = typeof body.phone === "string" ? body.phone.trim() : undefined;
       facebook_link =
         typeof body.facebook_link === "string"
           ? body.facebook_link.trim()
@@ -61,9 +58,8 @@ export async function POST(request: NextRequest) {
     const updateData: Record<string, any> = {};
 
     if (email !== undefined) updateData.email = email;
-    if (phone !== undefined) updateData.phone = phone || null;
     if (facebook_link !== undefined)
-      updateData.facebook_link = facebook_link || null;
+      updateData.facebook_profile_url = facebook_link || null;
 
     // ── Upload avatar nếu có file ────────────────────────────────
     if (avatarFile && avatarFile.size > 0) {
@@ -106,13 +102,17 @@ export async function POST(request: NextRequest) {
         username: true,
         name: true,
         email: true,
-        phone: true,
         avatar_url: true,
-        facebook_link: true,
+        facebook_profile_url: true,
       },
     });
 
-    return NextResponse.json({ success: true, user: updatedUser });
+    const responseUser = {
+      ...updatedUser,
+      facebook_link: updatedUser.facebook_profile_url,
+    };
+
+    return NextResponse.json({ success: true, user: responseUser });
   } catch (error: any) {
     // Xử lý unique constraint violation (email trùng)
     if (error?.code === "P2002") {

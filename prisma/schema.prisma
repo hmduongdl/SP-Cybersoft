@@ -25,6 +25,9 @@ model User {
   daily_token_limit    Int       @default(100000)
   last_token_reset     DateTime  @default(now())
   tokens_used_today    Int       @default(0)
+  hope_stars           Int       @default(3)
+  used_stars_this_month Int      @default(0)
+  last_star_reset_at   DateTime  @default(now())
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
   checkins             Checkin[] @relation("UserCheckins")
 
@@ -72,7 +75,7 @@ model SystemSetting {
 }
 
 model Department {
-  id   String @id
+  id   String @id @default(uuid())
   name String @unique
 }
 

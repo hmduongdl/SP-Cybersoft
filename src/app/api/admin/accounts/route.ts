@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         role:          role === "ADMIN" ? "ADMIN" : "USER",
         department:    department || "Other",
         avatar_url:    avatar_url || null,
-        is_onboarded: false,
+        is_first_login: true,
         is_active:     is_active !== undefined ? is_active : true,
       },
       select: USER_SELECT,

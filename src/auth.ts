@@ -18,9 +18,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               username: true,
               avatar_url: true,
               department: true,
-              facebook_link: true,
-              phone: true,
-              is_onboarded: true,
+              facebook_profile_url: true,
+              is_first_login: true,
             },
           });
           if (dbUser) {
@@ -29,8 +28,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.department = dbUser.department ?? "";
             token.avatar_url = dbUser.avatar_url;
             token.username = dbUser.username ?? null;
-            token.phone = dbUser.phone ?? null;
-            token.facebook_link = dbUser.facebook_link ?? null;
+            token.phone = null;
+            token.facebook_link = dbUser.facebook_profile_url ?? null;
+            token.is_onboarded = !dbUser.is_first_login;
           }
         } catch {
           console.warn("jwt update: không thể query DB, giữ nguyên token.");
@@ -112,12 +112,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: true,
             password: true,
             role: true,
-            is_onboarded: true,
+            is_first_login: true,
             is_active: true,
             department: true,
             avatar_url: true,
-            facebook_link: true,
-            phone: true,
+            facebook_profile_url: true,
           },
         });
 
@@ -134,12 +133,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: user.email,
             image: user.avatar_url,
             role: user.role,
-            is_onboarded: user.is_onboarded,
+            is_onboarded: !user.is_first_login,
             department: user.department,
             avatar_url: user.avatar_url,
             username: user.username,
-            phone: user.phone,
-            facebook_link: user.facebook_link,
+            phone: null,
+            facebook_link: user.facebook_profile_url,
           };
         }
 
@@ -163,7 +162,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               password: passwordHash,
               role: "ADMIN",
               department: "SALES",
-              is_onboarded: false,
+              is_first_login: false,
             },
             select: {
               id: true,
@@ -171,11 +170,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: true,
               email: true,
               role: true,
-              is_onboarded: true,
+              is_first_login: true,
               department: true,
               avatar_url: true,
-              facebook_link: true,
-              phone: true,
+              facebook_profile_url: true,
             },
           });
 
@@ -185,12 +183,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: adminUser.email,
             image: adminUser.avatar_url,
             role: adminUser.role,
-            is_onboarded: adminUser.is_onboarded,
+            is_onboarded: !adminUser.is_first_login,
             department: adminUser.department,
             avatar_url: adminUser.avatar_url,
             username: adminUser.username,
-            phone: adminUser.phone,
-            facebook_link: adminUser.facebook_link,
+            phone: null,
+            facebook_link: adminUser.facebook_profile_url,
           };
         }
 
