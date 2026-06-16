@@ -61,13 +61,13 @@ export function Sidebar() {
         <div className="px-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative flex items-center justify-center w-10 h-10 bg-gradient-to-tr from-indigo-600 to-indigo-500 rounded-xl text-white font-bold text-lg shadow-[0_0_15px_rgba(99,102,241,0.3)] select-none">
-              TS
+              AI
               <div className="absolute inset-0 rounded-xl border border-indigo-400/20 animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h1 className="font-headline-md text-base font-bold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
-                  TeamSync HR
+                  SPS AI
                 </h1>
                 <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-medium text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
                   v1.0-Stable

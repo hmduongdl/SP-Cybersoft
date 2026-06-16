@@ -41,6 +41,7 @@ interface Checkin {
     email: string;
     avatar_url: string | null;
     department: string | null;
+    facebook_profile_url?: string | null;
   };
   post: {
     id: string;
@@ -597,6 +598,26 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
                           )}>
                             {item.user.department || "No Dept"}
                           </span>
+                        </div>
+
+                        {/* Facebook Profile Link */}
+                        <div>
+                          {item.user.facebook_profile_url ? (
+                            <a
+                              href={item.user.facebook_profile_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-150 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Ghé thăm Facebook
+                            </a>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-50 text-slate-400 border border-slate-150">
+                              <ExternalLink className="w-3 h-3" />
+                              Chưa cập nhật link FB
+                            </span>
+                          )}
                         </div>
 
                       </div>

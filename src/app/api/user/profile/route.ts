@@ -55,13 +55,13 @@ export async function PUT(request: Request) {
     const name = typeof body.name === "string" ? body.name.trim() : "";
     const department = typeof body.department === "string" ? body.department.trim() : "";
     const avatar_url = typeof body.avatar_url === "string" ? body.avatar_url.trim() : undefined;
-    const gmail = typeof body.gmail === "string" ? body.gmail.trim() : undefined;
+    const facebook_profile_url = typeof body.facebook_profile_url === "string" ? body.facebook_profile_url.trim() : undefined;
 
     console.log("📥 PUT — Dữ liệu nhận từ client:", {
       name,
       department,
       avatar_url,
-      gmail,
+      facebook_profile_url,
     });
 
     if (!name || !department) {
@@ -71,7 +71,12 @@ export async function PUT(request: Request) {
       );
     }
 
-    const updateData: { name: string; department: string; avatar_url?: string | null; gmail?: string | null } = {
+    const updateData: {
+      name: string;
+      department: string;
+      avatar_url?: string | null;
+      facebook_profile_url?: string | null;
+    } = {
       name,
       department,
     };
@@ -80,8 +85,8 @@ export async function PUT(request: Request) {
       updateData.avatar_url = avatar_url || null;
     }
 
-    if (gmail !== undefined) {
-      updateData.gmail = gmail || null;
+    if (facebook_profile_url !== undefined) {
+      updateData.facebook_profile_url = facebook_profile_url || null;
     }
 
     const [user] = await db.$transaction([

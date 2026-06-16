@@ -1,4 +1,4 @@
-# Design System: Light Theme Palette (TeamSync HR)
+# Design System: Light Theme Palette (SPS AI)
 
 Hệ thống màu sắc chuẩn (Light Mode) dành cho toàn bộ ứng dụng, thay thế cho giao diện dark mode cũ. Thiết kế này tập trung vào sự tinh tế, sáng sủa, tạo cảm giác chuyên nghiệp cho một nền tảng HR doanh nghiệp.
 

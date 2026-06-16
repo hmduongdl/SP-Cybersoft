@@ -9,16 +9,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user, trigger, session }) {
       // On session update (after profile save), query DB for fresh data
+      // Sử dụng select rõ ràng để tránh crash nếu DB chưa có cột mới (vd: daily_token_limit)
       if (trigger === "update") {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.id as string },
-          select: { name: true, avatar_url: true, department: true, is_first_login: true },
-        });
-        if (dbUser) {
-          token.name = dbUser.name;
-          token.picture = dbUser.avatar_url;
-          token.department = dbUser.department ?? "";
-          token.avatar_url = dbUser.avatar_url;
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: {
+              name: true,
+              avatar_url: true,
+              department: true,
+              facebook_profile_url: true,
+              is_first_login: true,
+            },
+          });
+          if (dbUser) {
+            token.name = dbUser.name;
+            token.picture = dbUser.avatar_url;
+            token.department = dbUser.department ?? "";
+            token.avatar_url = dbUser.avatar_url;
+            token.facebook_profile_url = dbUser.facebook_profile_url ?? null;
+          }
+        } catch {
+          // Nếu query thất bại (vd: DB chưa đồng bộ), giữ nguyên token hiện tại
+          console.warn("jwt update: không thể query DB, giữ nguyên token.");
         }
         if (session?.is_first_login !== undefined) {
           token.is_first_login = session.is_first_login;
@@ -36,6 +49,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.name = user.name;
         token.department = user.department ?? "";
         token.avatar_url = user.avatar_url ?? null;
+        token.facebook_profile_url = user.facebook_profile_url ?? null;
       }
 
       if (token.id && token.hasFacebook === undefined) {
@@ -52,6 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.hasFacebook = false;
         session.user.department = token.department as string;
         session.user.avatar_url = token.avatar_url as string | null;
+        session.user.facebook_profile_url = token.facebook_profile_url as string | null;
         if (token.picture) {
           session.user.image = token.picture as string;
         }
@@ -77,12 +92,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        // Sử dụng select rõ ràng — chỉ lấy các cột cốt lõi,
+        // tránh crash nếu DB chưa có cột mới (vd: daily_token_limit)
         const user = await db.user.findFirst({
           where: {
             OR: [
               { username: username },
               { email: username }
             ]
+          },
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            full_name: true,
+            email: true,
+            gmail: true,
+            password: true,
+            role: true,
+            is_first_login: true,
+            is_active: true,
+            department: true,
+            avatar_url: true,
+            facebook_profile_url: true,
           },
         });
 
@@ -102,10 +134,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             is_first_login: user.is_first_login,
             department: user.department,
             avatar_url: user.avatar_url,
+            facebook_profile_url: user.facebook_profile_url,
           };
         }
 
-        // Fallback for admin using env vars (using ADMIN_USERNAME if available, or defaulting to ADMIN_EMAIL)
+        // Fallback for admin using env vars
         const adminUsername = process.env.ADMIN_USERNAME || process.env.ADMIN_EMAIL || "admin";
         if (
           adminUsername === username &&
@@ -127,6 +160,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               department: "HR",
               is_first_login: false,
             },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              is_first_login: true,
+              department: true,
+              avatar_url: true,
+              facebook_profile_url: true,
+            },
           });
 
           return {
@@ -138,6 +181,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             is_first_login: adminUser.is_first_login,
             department: adminUser.department,
             avatar_url: adminUser.avatar_url,
+            facebook_profile_url: adminUser.facebook_profile_url,
           };
         }
 

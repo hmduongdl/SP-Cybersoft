@@ -54,7 +54,7 @@ export default function LoginForm() {
           <div className="w-9 h-9 bg-primary/20 border border-primary/30 rounded-lg flex items-center justify-center">
             <span className="material-symbols-outlined text-primary-fixed text-[20px]">hub</span>
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">TeamSync HR</h1>
+          <h1 className="text-xl font-bold text-white tracking-tight">SPS AI</h1>
         </div>
         <h3 className="text-2xl font-bold text-white mb-2">Đăng nhập hệ thống</h3>
         <p className="text-sm text-slate-400">Tài khoản do HR cấp. Liên hệ quản lý nếu chưa có.</p>

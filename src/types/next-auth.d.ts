@@ -10,6 +10,7 @@ declare module "next-auth" {
       is_first_login: boolean;
       department?: string | null;
       avatar_url?: string | null;
+      facebook_profile_url?: string | null;
     } & DefaultSession["user"];
   }
 
@@ -20,6 +21,7 @@ declare module "next-auth" {
     gmail?: string | null;
     avatar_url?: string | null;
     department?: string | null;
+    facebook_profile_url?: string | null;
   }
 }
 
@@ -31,6 +33,7 @@ declare module "next-auth/jwt" {
     is_first_login?: boolean;
     department?: string | null;
     avatar_url?: string | null;
+    facebook_profile_url?: string | null;
   }
 }
 

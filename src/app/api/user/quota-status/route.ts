@@ -30,7 +30,7 @@ export async function GET() {
       now.getMonth() !== lastReset.getMonth() ||
       now.getDate() !== lastReset.getDate();
 
-    const tokensUsed = isNewDay ? 0 : user.tokens_used_today;
+    const tokensUsed = isNewDay ? 0 : (user.tokens_used_today ?? 0);
     const limit = user.daily_token_limit ?? 100000;
     const usagePercent = limit > 0 ? Math.min(100, Math.round((tokensUsed / limit) * 100)) : 0;
 

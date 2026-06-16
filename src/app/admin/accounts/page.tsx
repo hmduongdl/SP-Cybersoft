@@ -108,7 +108,7 @@ export default function AdminAccountsPage() {
       email: "",
       password: "",
       role: "USER",
-      department: departments.length > 0 ? departments[0].name : "Other",
+      department: "TECH",
       avatar_url: "",
       is_active: true,
     });
@@ -124,7 +124,7 @@ export default function AdminAccountsPage() {
       email: user.email,
       password: "", // blank password to preserve existing
       role: user.role,
-      department: user.department || (departments.length > 0 ? departments[0].name : "Other"),
+      department: user.department || "TECH",
       avatar_url: user.avatar_url || "",
       is_active: user.is_active,
     });
@@ -134,10 +134,6 @@ export default function AdminAccountsPage() {
   // Submit create or edit form
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.username) {
-      toast.error("Vui lòng nhập Tên đăng nhập (Username).");
-      return;
-    }
     if (!formData.email) {
       toast.error("Vui lòng nhập Email.");
       return;
@@ -152,13 +148,19 @@ export default function AdminAccountsPage() {
       const url = "/api/admin/accounts";
       const method = editingUser ? "PUT" : "POST";
 
+      const payload: any = {
+        ...formData,
+        id: editingUser?.id
+      };
+
+      if (editingUser && !formData.password) {
+        delete payload.password;
+      }
+
       const res = await fetch(url, {
         method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          id: editingUser?.id
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -585,23 +587,6 @@ export default function AdminAccountsPage() {
 
             <form onSubmit={handleFormSubmit}>
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                {/* Username input */}
-                <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
-                    <User className="h-3.5 w-3.5 text-slate-400" />
-                    Tên đăng nhập (Username)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: nguyenvana"
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    disabled={!!editingUser || isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
-                  />
-                </div>
-
                 {/* Email */}
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
@@ -687,9 +672,11 @@ export default function AdminAccountsPage() {
                       disabled={isSubmitting}
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     >
-                      {departments.map((dept) => (
-                        <option key={dept.id} value={dept.name}>{dept.name}</option>
-                      ))}
+                      <option value="TECH">Phòng Công Nghệ</option>
+                      <option value="SALES">Phòng Kinh Doanh</option>
+                      <option value="MARKETING">Phòng Marketing</option>
+                      <option value="HR">Phòng Nhân Sự</option>
+                      <option value="Other">Khác</option>
                     </select>
                   </div>
                 </div>

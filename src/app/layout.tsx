@@ -8,7 +8,7 @@ import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import ClientLayoutWrapper from "./client-layout-wrapper";
 
 export const metadata: Metadata = {
-  title: "TeamSync HR Check-in Tool",
+  title: "SPS AI Check-in Tool",
   description: "Modern employee post sharing and check-in management tool",
 };
 

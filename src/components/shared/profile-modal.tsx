@@ -4,21 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Building2, Loader2, X, Camera } from "lucide-react";
+import { User, Mail, Building2, Loader2, X, Camera, Link } from "lucide-react";
 
 interface ProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-interface UserProfile {
-  id: string;
-  username: string;
-  name: string;
-  email: string;
-  gmail: string;
-  department: string;
-  avatar_url: string | null;
+const DEPARTMENT_OPTIONS = [
+  { label: "Phòng Công Nghệ", value: "TECH" },
+  { label: "Phòng Kinh Doanh", value: "SALES" },
+  { label: "Phòng Marketing", value: "MARKETING" },
+  { label: "Phòng Nhân Sự", value: "HR" },
+  { label: "Khác", value: "Other" },
+] as const;
+
+/** Map từ DB value (TECH, SALES...) sang label tiếng Việt */
+function dbDeptToLabel(dbValue: string): string {
+  const match = DEPARTMENT_OPTIONS.find(
+    (opt) => opt.value === dbValue || opt.label === dbValue
+  );
+  return match?.value ?? "Other";
+}
+
+/** Map từ label tiếng Việt sang DB value */
+function labelToDbValue(label: string): string {
+  const match = DEPARTMENT_OPTIONS.find((opt) => opt.label === label);
+  return match?.value ?? "Other";
 }
 
 export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
@@ -26,34 +38,31 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formState, setFormState] = useState<UserProfile>({
-    id: "",
-    username: "",
-    name: session?.user?.name || "",
-    email: session?.user?.email || "",
-    gmail: "",
-    department: "",
-    avatar_url: null,
-  });
-  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [name, setName] = useState(session?.user?.name || "");
+  const [email, setEmail] = useState(session?.user?.email || "");
+  const [department, setDepartment] = useState("Other");
+  const [facebookLink, setFacebookLink] = useState(
+    (session?.user as any)?.facebook_profile_url || ""
+  );
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Sync session data when it arrives
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
-      setFormState((prev) => ({
-        ...prev,
-        name: session.user.name || "",
-        email: session.user.email || "",
-        gmail: (session.user as any)?.gmail || prev.gmail || "",
-        department: (session.user as any)?.department || prev.department || "",
-        avatar_url: (session.user as any)?.avatar_url || prev.avatar_url || null,
-      }));
+      setName(session.user.name || "");
+      setEmail(session.user.email || "");
+      const deptFromSession = (session.user as any)?.department || "";
+      setDepartment(dbDeptToLabel(deptFromSession));
+      setAvatarUrl((session.user as any)?.avatar_url || null);
+      setFacebookLink((session.user as any)?.facebook_profile_url || "");
     }
   }, [session, status]);
 
+  // Load full profile from API when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
@@ -62,40 +71,21 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     async function loadData() {
       try {
-        const [profileRes, deptsRes] = await Promise.all([
-          fetch("/api/user/profile", { cache: "no-store" }),
-          fetch("/api/admin/departments", { cache: "no-store" }),
-        ]);
+        const profileRes = await fetch("/api/user/profile", { cache: "no-store" });
+        if (!active) return;
 
-        if (active && profileRes.ok) {
+        if (profileRes.ok) {
           const data = await profileRes.json();
-          console.log("📥 API GET /api/user/profile — Response:", data);
           if (data?.user) {
-            setFormState((prev) => ({
-              ...prev,
-              id: data.user.id || prev.id,
-              username: data.user.username || prev.username,
-              name: data.user.name || prev.name,
-              email: data.user.email || prev.email,
-              gmail: data.user.gmail || prev.gmail || "",
-              department: data.user.department || prev.department || "",
-              avatar_url: data.user.avatar_url || prev.avatar_url || null,
-            }));
-          } else {
-            console.warn("⚠️ API trả về user = null hoặc undefined");
-          }
-        } else {
-          console.error("❌ GET profile thất bại — status:", profileRes.status);
-        }
-
-        if (active && deptsRes.ok) {
-          const deptsData = await deptsRes.json();
-          if (deptsData.departments) {
-            setDepartments(deptsData.departments);
+            setName(data.user.name || name);
+            setEmail(data.user.email || email);
+            setDepartment(dbDeptToLabel(data.user.department || ""));
+            setAvatarUrl(data.user.avatar_url || null);
+            setFacebookLink(data.user.facebook_profile_url || "");
           }
         }
       } catch (error) {
-        console.error(error);
+        console.error("Failed to load profile:", error);
         toast.error("Lỗi khi tải thông tin.");
       } finally {
         if (active) setLoading(false);
@@ -104,6 +94,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
     loadData();
     return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -124,18 +115,20 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!formState.name.trim()) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       toast.error("Vui lòng nhập họ và tên.");
       return;
     }
 
+    const dbDepartment = labelToDbValue(department);
+
     setSaving(true);
     try {
-      let avatarUrl = formState.avatar_url;
+      let finalAvatarUrl = avatarUrl;
 
       // Upload avatar first if a new file was selected
       if (avatarFile) {
-        console.log("📤 Đang upload avatar...");
         const uploadFormData = new FormData();
         uploadFormData.append("file", avatarFile);
         const uploadRes = await fetch("/api/user/profile", {
@@ -147,18 +140,17 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           throw new Error(errData.error || "Tải ảnh đại diện thất bại.");
         }
         const uploadData = await uploadRes.json();
-        avatarUrl = uploadData.avatar_url;
-        console.log("✅ Upload avatar thành công:", avatarUrl);
+        finalAvatarUrl = uploadData.avatar_url;
+        setAvatarUrl(finalAvatarUrl);
       }
 
       // Update profile fields
       const payload = {
-        name: formState.name.trim(),
-        department: formState.department || "",
-        avatar_url: avatarUrl,
-        gmail: formState.gmail || "",
+        name: trimmedName,
+        department: dbDepartment,
+        facebook_profile_url: facebookLink.trim() || null,
+        ...(finalAvatarUrl !== undefined ? { avatar_url: finalAvatarUrl } : {}),
       };
-      console.log("📤 PUT /api/user/profile — Payload:", payload);
 
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -167,18 +159,14 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       });
 
       const data = await response.json();
-      console.log("📥 PUT /api/user/profile — Response:", data);
       if (!response.ok) {
         throw new Error(data.error || "Cập nhật thất bại.");
       }
 
       if (update) {
-        console.log("🔄 Gọi update() để đồng bộ session...");
-        await update(); // Trigger JWT callback to re-fetch from DB
-        console.log("✅ Session đã được refresh");
+        await update();
       }
 
-      // Dispatch event so layout components (sidebar, header) refresh immediately
       window.dispatchEvent(new CustomEvent("profile-updated"));
       toast.success("Cập nhật thông tin cá nhân thành công!");
       router.refresh();
@@ -222,9 +210,9 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               <div className="flex items-center gap-5">
                 <div className="relative group">
                   <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center">
-                    {avatarPreview || formState.avatar_url ? (
+                    {avatarPreview || avatarUrl ? (
                       <img
-                        src={avatarPreview || formState.avatar_url!}
+                        src={avatarPreview || avatarUrl!}
                         alt="Avatar"
                         className="w-full h-full object-cover"
                       />
@@ -251,7 +239,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-slate-800">
-                    {formState.name || "Ảnh đại diện"}
+                    {name || "Ảnh đại diện"}
                   </p>
                   <p className="text-xs text-slate-500 mt-0.5">
                     JPG, PNG. Tối đa 2MB.
@@ -266,8 +254,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   </label>
                   <input
                     type="text"
-                    value={formState.name}
-                    onChange={(event) => setFormState({ ...formState, name: event.target.value })}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     required
                     disabled={saving}
@@ -280,7 +268,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   </label>
                   <input
                     type="email"
-                    value={formState.email}
+                    value={email}
+                    readOnly
                     disabled
                     className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
                   />
@@ -288,13 +277,13 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Mail className="w-4 h-4 text-slate-400" /> Gmail cá nhân
+                    <Link className="w-4 h-4 text-slate-400" /> Link Profile Facebook (Dùng để đối chiếu)
                   </label>
                   <input
-                    type="email"
-                    value={formState.gmail}
-                    onChange={(event) => setFormState({ ...formState, gmail: event.target.value })}
-                    placeholder="nguyenvana@gmail.com"
+                    type="url"
+                    value={facebookLink}
+                    onChange={(e) => setFacebookLink(e.target.value)}
+                    placeholder="https://facebook.com/your-username"
                     disabled={saving}
                     className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
@@ -305,20 +294,16 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     <Building2 className="w-4 h-4 text-slate-400" /> Phòng ban
                   </label>
                   <select
-                    value={formState.department}
-                    onChange={(event) => setFormState({ ...formState, department: event.target.value })}
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-semibold"
+                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   >
-                    {departments.length > 0 ? (
-                      departments.map((dept) => (
-                        <option key={dept.id} value={dept.name}>
-                          {dept.name}
-                        </option>
-                      ))
-                    ) : (
-                      <option value="">Không có phòng ban</option>
-                    )}
+                    {DEPARTMENT_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.label}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>

@@ -41,7 +41,8 @@ export async function checkAndResetQuota(
   }
 
   const limit = user.daily_token_limit ?? 100000;
-  const totalAfter = (isNewDay ? 0 : user.tokens_used_today) + estimatedCost;
+  const tokensUsed = user.tokens_used_today ?? 0;
+  const totalAfter = (isNewDay ? 0 : tokensUsed) + estimatedCost;
 
   if (totalAfter > limit) {
     return {

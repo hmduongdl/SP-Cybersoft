@@ -22,6 +22,7 @@ export default async function AdminQueuePage() {
           email: true,
           avatar_url: true,
           department: true,
+          facebook_profile_url: true,
         },
       },
       post: {

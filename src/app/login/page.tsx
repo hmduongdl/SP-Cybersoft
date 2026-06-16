@@ -14,7 +14,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center">
               <span className="material-symbols-outlined text-white text-[24px]">hub</span>
             </div>
-            <h1 className="font-headline-md text-headline-md font-bold tracking-tight text-white">TeamSync HR</h1>
+            <h1 className="font-headline-md text-headline-md font-bold tracking-tight text-white">SPS AI</h1>
           </div>
           <div className="max-w-md space-y-4">
             <span className="inline-block px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-semibold tracking-wide border border-white/15 text-primary-fixed">
@@ -62,7 +62,7 @@ export default function LoginPage() {
 
         {/* Page Footer */}
         <footer className="mt-8 text-center relative z-10">
-          <p className="text-xs text-slate-600">© 2026 TeamSync HR. Tất cả quyền được bảo lưu.</p>
+          <p className="text-xs text-slate-600">© 2026 SPS AI. Tất cả quyền được bảo lưu.</p>
         </footer>
       </section>
     </main>

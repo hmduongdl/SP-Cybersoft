@@ -58,15 +58,15 @@ export async function POST(request: Request) {
     const { username, name, email, password, role, department, avatar_url, is_active } =
       await request.json();
 
-    if (!username || !password) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: "Vui lòng điền đầy đủ tên đăng nhập và mật khẩu." },
+        { error: "Vui lòng điền đầy đủ email và mật khẩu." },
         { status: 400 }
       );
     }
 
-    const trimmedUsername = username.trim().toLowerCase();
-    const trimmedEmail    = email?.trim().toLowerCase() ?? `${trimmedUsername}@noreply.local`;
+    const trimmedEmail    = email.trim().toLowerCase();
+    const trimmedUsername = (username || trimmedEmail.split("@")[0]).trim().toLowerCase();
 
     // Kiểm tra trùng username
     const existingByUsername = await db.user.findUnique({
@@ -132,7 +132,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, username, name, email, password, role, department, avatar_url, is_active } =
+    const { id, name, email, role, department, avatar_url, password, is_active } =
       await request.json();
 
     if (!id) {
@@ -155,50 +155,37 @@ export async function PUT(request: Request) {
       );
     }
 
-    const updateData: Record<string, unknown> = {
-      name:       name       !== undefined ? name       : user.name,
-      department: department !== undefined ? department : user.department,
-      avatar_url: avatar_url !== undefined ? avatar_url : user.avatar_url,
-      role:       role       !== undefined ? role       : user.role,
-      is_active:  is_active  !== undefined ? is_active  : user.is_active,
-    };
-
-    // Cập nhật username nếu thay đổi
-    if (username && username.trim() !== user.username) {
-      const trimmedUsername = username.trim().toLowerCase();
-      const conflict = await db.user.findUnique({ where: { username: trimmedUsername } });
-      if (conflict) {
-        return NextResponse.json(
-          { error: "Tên đăng nhập này đã được sử dụng bởi tài khoản khác." },
-          { status: 409 }
-        );
-      }
-      updateData.username = trimmedUsername;
-    }
-
-    // Cập nhật email nếu thay đổi
-    if (email) {
-      const trimmedEmail = email.trim().toLowerCase();
-      if (trimmedEmail !== user.email) {
-        const emailConflict = await db.user.findUnique({ where: { email: trimmedEmail } });
-        if (emailConflict) {
+    // Kiểm tra email không trùng với tài khoản khác
+    let finalEmail = user.email;
+    if (email !== undefined) {
+      const trimmedEmail = email?.trim().toLowerCase() || "";
+      if (trimmedEmail && trimmedEmail !== user.email?.toLowerCase()) {
+        const conflict = await db.user.findUnique({ where: { email: trimmedEmail } });
+        if (conflict) {
           return NextResponse.json(
             { error: "Email này đã được sử dụng bởi tài khoản khác." },
             { status: 409 }
           );
         }
-        updateData.email = trimmedEmail;
       }
+      finalEmail = trimmedEmail || user.email;
     }
 
-    // Đổi mật khẩu nếu được cung cấp
-    if (password) {
-      updateData.password = await bcrypt.hash(password, 10);
-    }
+    // Xử lý mật khẩu: chỉ hash và cập nhật nếu được gửi lên và có độ dài > 0
+    const hashedPassword =
+      password && password.length > 0 ? await bcrypt.hash(password, 10) : undefined;
 
     const updatedUser = await db.user.update({
       where: { id },
-      data: updateData,
+      data: {
+        name:       name       !== undefined ? name       : user.name,
+        email:      finalEmail,
+        role:       role       !== undefined ? role       : user.role,
+        department: department !== undefined ? department : user.department,
+        avatar_url: avatar_url !== undefined ? avatar_url : user.avatar_url,
+        is_active:  is_active  !== undefined ? is_active  : user.is_active,
+        ...(hashedPassword && { password: hashedPassword }),
+      },
       select: USER_SELECT,
     });
 
