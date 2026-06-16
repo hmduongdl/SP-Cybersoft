@@ -1,7 +1,7 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
-import { useState } from "react";
+import { useFormStatus } from "react-dom";
+import { useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authenticate } from "@/app/actions/auth-actions";
 
@@ -34,7 +34,7 @@ export default function LoginForm() {
   const urlError = searchParams.get("error");
   
   // Initialize state with URL error if present
-  const [state, formAction] = useFormState(authenticate, {
+  const [state, formAction] = useActionState(authenticate, {
     error: urlError === "CredentialsSignin" 
       ? "Email hoặc mật khẩu không chính xác." 
       : urlError 
@@ -62,9 +62,9 @@ export default function LoginForm() {
 
       {/* Form */}
       <form action={formAction} className="space-y-6">
-        {/* Email Field */}
+        {/* Username Field */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase" htmlFor="email">
+          <label className="text-xs font-semibold text-slate-300 tracking-wide uppercase" htmlFor="username">
             Tên đăng nhập hoặc Email
           </label>
           <div className="relative group">
@@ -73,8 +73,8 @@ export default function LoginForm() {
             </span>
             <input
               className="w-full pl-12 pr-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-              id="email"
-              name="email"
+              id="username"
+              name="username"
               placeholder="admin@kinetichr.com hoặc admin"
               required
               type="text"

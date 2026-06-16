@@ -14,17 +14,17 @@ export async function authenticate(
   formData: FormData
 ): Promise<AuthState> {
   try {
-    const email = formData.get("email") as string;
+    const username = formData.get("username") as string;
     const password = formData.get("password") as string;
 
-    if (!email || !password) {
+    if (!username || !password) {
       return {
         error: "Vui lòng nhập đầy đủ thông tin đăng nhập.",
       };
     }
 
     await signIn("credentials", {
-      username: email.trim(),
+      username: username.trim(),
       password: password,
       redirectTo: "/dashboard",
     });
