@@ -409,7 +409,7 @@ export function PostTaskAdmin() {
         }),
       });
       if (!res.ok) throw new Error("Cập nhật hàng loạt thất bại.");
-      toast.success(archive ? `Đã lưu trữ ${selectedIds.length} bài đăng` : `Đã mở khóa ${selectedIds.length} bài đăng`);
+      toast.success(archive ? `Đã khóa ${selectedIds.length} bài viết` : `Đã mở khóa ${selectedIds.length} bài viết`);
       setSelectedIds([]);
       loadPosts(1);
     } catch (error: any) {
@@ -502,7 +502,7 @@ export function PostTaskAdmin() {
               >
                 <option value="ALL">Tất cả bài viết</option>
                 <option value="ACTIVE">Đang kích hoạt (Chưa khóa)</option>
-                <option value="ARCHIVED">Đã khóa / Lưu trữ</option>
+                <option value="ARCHIVED">Đã khóa</option>
               </select>
 
               <button
@@ -521,36 +521,32 @@ export function PostTaskAdmin() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 animate-in fade-in duration-150">
               <div className="flex items-center gap-2 text-indigo-950 text-sm font-semibold">
                 <Check className="h-4.5 w-4.5 text-indigo-600" />
-                <span>Đã chọn {selectedIds.length} bài đăng</span>
+                <span>Đang chọn {selectedIds.length} bài viết</span>
               </div>
-              
-              <div className="flex flex-wrap gap-2 items-center">
-                {/* Bulk Archive / Unarchive */}
-                {statusFilter !== "ARCHIVED" ? (
-                  <button
-                    onClick={() => handleBulkArchive(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white border border-indigo-200 hover:bg-indigo-100/50 text-indigo-700 rounded-lg shadow-sm transition-all"
-                  >
-                    <Lock className="h-3.5 w-3.5" />
-                    Lưu trữ bài chọn
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleBulkArchive(false)}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white border border-indigo-200 hover:bg-indigo-100/50 text-indigo-700 rounded-lg shadow-sm transition-all"
-                  >
-                    <FolderOpen className="h-3.5 w-3.5" />
-                    Bỏ lưu trữ bài chọn
-                  </button>
-                )}
 
-                {/* Bulk Delete */}
+              <div className="flex flex-wrap gap-2 items-center">
                 <button
-                  onClick={handleBulkDelete}
+                  onClick={() => handleBulkArchive(true)}
                   className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 rounded-lg shadow-sm transition-all"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Xóa bài đã chọn
+                  <Lock className="h-3.5 w-3.5" />
+                  Khóa hàng loạt
+                </button>
+
+                <button
+                  onClick={() => handleBulkArchive(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 rounded-lg shadow-sm transition-all"
+                >
+                  <Unlock className="h-3.5 w-3.5" />
+                  Mở khóa hàng loạt
+                </button>
+
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-lg shadow-sm transition-all"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Hủy chọn
                 </button>
               </div>
             </div>
@@ -670,7 +666,7 @@ export function PostTaskAdmin() {
                             "w-1.5 h-1.5 rounded-full",
                             post.is_archived ? "bg-rose-500" : "bg-emerald-500 animate-pulse"
                           )} />
-                          {post.is_archived ? "Đã khóa / Lưu trữ" : "Hoạt động"}
+                          {post.is_archived ? "Đã khóa" : "Hoạt động"}
                         </span>
                       </td>
 
@@ -687,7 +683,7 @@ export function PostTaskAdmin() {
 
                           <button
                             onClick={() => handleToggleArchive(post)}
-                            title={post.is_archived ? "Mở khóa bài viết" : "Khóa/Lưu trữ bài viết"}
+                            title={post.is_archived ? "Mở khóa bài viết" : "Khóa bài viết"}
                             className={cn(
                               "p-2 bg-white border rounded-lg transition-all",
                               post.is_archived

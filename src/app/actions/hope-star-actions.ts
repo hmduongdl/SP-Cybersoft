@@ -72,14 +72,21 @@ export async function useHopeStar(postId: string): Promise<UseHopeStarResult> {
       // 4. Fetch post to check deadline
       const post = await tx.post.findUnique({
         where: { id: postId },
-        select: { id: true, start_at: true, title: true },
+        select: { id: true, start_at: true, title: true, allow_late_submit: true },
       });
 
       if (!post) {
         throw new Error("Không tìm thấy bài viết.");
       }
 
-      // 5. Check 24h deadline has passed
+      // 5. Nếu Admin đã cho phép nộp bù, không cần dùng sao
+      if (post.allow_late_submit) {
+        throw new Error(
+          "Bài viết này đã được mở khóa nộp bù. Vui lòng nộp minh chứng bình thường."
+        );
+      }
+
+      // 6. Check 24h deadline has passed
       const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
       if (new Date() < deadline) {
         throw new Error(
@@ -87,7 +94,7 @@ export async function useHopeStar(postId: string): Promise<UseHopeStarResult> {
         );
       }
 
-      // 6. Check existing checkin — must not exist or be PENDING/REJECTED
+      // 7. Check existing checkin — must not exist or be PENDING/REJECTED
       const existingCheckin = await tx.checkin.findFirst({
         where: { user_id: userId, post_id: postId },
         select: { id: true, status: true },
@@ -101,7 +108,7 @@ export async function useHopeStar(postId: string): Promise<UseHopeStarResult> {
         throw new Error("Bài viết này đã được check-in và phê duyệt.");
       }
 
-      // 7. Update user stars
+      // 8. Update user stars
       await tx.user.update({
         where: { id: userId },
         data: {
@@ -113,7 +120,7 @@ export async function useHopeStar(postId: string): Promise<UseHopeStarResult> {
 
       const note = "Được xóa lỗi bằng Ngôi sao hy vọng";
 
-      // 8. Create or update checkin with APPROVED status
+      // 9. Create or update checkin with APPROVED status
       if (existingCheckin) {
         await tx.checkin.update({
           where: { id: existingCheckin.id },

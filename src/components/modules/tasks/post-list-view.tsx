@@ -73,6 +73,34 @@ function getPostStatus(
   };
 }
 
+/** Safe thumbnail with fallback when image fails to load */
+function SafeThumbnail({ src, alt }: { src: string | null | undefined; alt: string }) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-slate-300 bg-slate-100">
+        <ImageIcon className="w-5 h-5" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      className="object-cover"
+      src={src}
+      alt={alt}
+      fill
+      sizes="48px"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 function DeadlineCell({ startAtDate, allowLateSubmit }: { startAtDate: string; allowLateSubmit?: boolean }) {
   const [timeLeft, setTimeLeft] = useState("--:--:--");
   const [remainingHours, setRemainingHours] = useState(24);
@@ -111,6 +139,15 @@ function DeadlineCell({ startAtDate, allowLateSubmit }: { startAtDate: string; a
   if (isExpired && !allowLateSubmit) {
     return (
       <span className="text-xs font-semibold text-red-500">Đã quá hạn</span>
+    );
+  }
+
+  if (isExpired && allowLateSubmit) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200">
+        <Clock className="w-3 h-3" />
+        Nộp bù
+      </span>
     );
   }
 
@@ -346,19 +383,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                         <div className="flex items-center gap-3 min-w-0">
                           {/* Thumbnail 48px */}
                           <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 relative">
-                            {thumbnailUrl ? (
-                              <Image
-                                className="object-cover"
-                                src={thumbnailUrl}
-                                alt={post.title}
-                                fill
-                                sizes="48px"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                <ImageIcon className="w-5 h-5" />
-                              </div>
-                            )}
+                            <SafeThumbnail src={thumbnailUrl} alt={post.title} />
                           </div>
                           {/* Title + URL link */}
                           <div className="min-w-0 flex-1">
