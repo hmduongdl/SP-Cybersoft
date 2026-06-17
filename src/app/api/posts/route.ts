@@ -78,6 +78,7 @@ export async function POST(request: Request) {
             start_at: parsed.data.start_at ?? new Date(),
             team: (parsed.data.team as any) || 'ALL',
             is_archived: false,
+            allow_late_submit: false,
         },
     });
 

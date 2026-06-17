@@ -1,22 +1,21 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Check, 
-  X, 
-  RefreshCw, 
-  Link as LinkIcon, 
-  Image as ImageIcon, 
-  Calendar as CalendarIcon, 
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  Check,
+  X,
+  RefreshCw,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Calendar as CalendarIcon,
   Loader2,
   Lock,
   Unlock,
-  AlertTriangle, 
-  FileText, 
+  AlertTriangle,
+  FileText,
   FileEdit,
   FolderOpen,
   User
@@ -98,7 +97,6 @@ export function PostTaskAdmin() {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ACTIVE"); // "ACTIVE", "ARCHIVED", "ALL"
 
   // Pagination state
@@ -155,9 +153,12 @@ export function PostTaskAdmin() {
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users || []);
+      } else {
+        toast.error("Không thể tải danh sách người dùng — chức năng phát hiện tác giả sẽ không hoạt động.");
       }
     } catch (err) {
       console.error("Lỗi khi tải danh sách người dùng:", err);
+      toast.error("Mất kết nối khi tải danh sách người dùng.");
     }
   }
 
@@ -426,16 +427,12 @@ export function PostTaskAdmin() {
 
   // Filter posts based on UI filters
   const filteredPosts = posts.filter(post => {
-    const matchesSearch = 
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (post.description && post.description.toLowerCase().includes(searchQuery.toLowerCase()));
-
-    const matchesStatus = 
+    const matchesStatus =
       statusFilter === "ALL" ||
       (statusFilter === "ACTIVE" && !post.is_archived) ||
       (statusFilter === "ARCHIVED" && post.is_archived);
 
-    return matchesSearch && matchesStatus;
+    return matchesStatus;
   });
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -477,28 +474,14 @@ export function PostTaskAdmin() {
       {/* Filters & Bulk Operations Card */}
       <Card className="bg-white border-slate-200 p-4 shadow-sm">
         <div className="flex flex-col gap-4">
-          {/* Main search and filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search Input */}
-            <div className="relative md:col-span-2">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                <Search className="h-4 w-4" />
-              </span>
-              <input
-                type="text"
-                placeholder="Tìm kiếm bài viết..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-              />
-            </div>
-
+          {/* Filter bar */}
+          <div className="flex items-center gap-4">
             {/* Status Filter */}
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-1">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full max-w-xs px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               >
                 <option value="ALL">Tất cả bài viết</option>
                 <option value="ACTIVE">Đang kích hoạt (Chưa khóa)</option>

@@ -8,6 +8,7 @@ export const CACHE_TAGS = {
   ADMIN_ANALYTICS: "admin-analytics",
 } as const;
 
+const ONE_MINUTE = 60;
 const ONE_HOUR = 3600;
 
 // ─── Dashboard ───────────────────────────────────────────
@@ -15,7 +16,7 @@ const ONE_HOUR = 3600;
 export const getCachedTotalPostsCount = unstable_cache(
   async () => db.post.count(),
   ["total-posts-count"],
-  { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_MINUTE }
 );
 
 export const getCachedUserCompletedCount = unstable_cache(
@@ -24,7 +25,7 @@ export const getCachedUserCompletedCount = unstable_cache(
       where: { user_id: userId, status: { in: ["APPROVED", "AUTO_APPROVED"] } },
     }),
   ["user-completed-count"],
-  { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_MINUTE }
 );
 
 export const getCachedRecentCheckins = unstable_cache(
@@ -40,7 +41,7 @@ export const getCachedRecentCheckins = unstable_cache(
       },
     }),
   ["recent-checkins"],
-  { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_MINUTE }
 );
 
 // ─── Posts page ──────────────────────────────────────────
@@ -70,7 +71,7 @@ export const getCachedPosts = unstable_cache(
     });
   },
   ["posts-page"],
-  { tags: [CACHE_TAGS.POSTS_LIST], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.POSTS_LIST], revalidate: ONE_MINUTE }
 );
 
 export const getCachedApprovedCheckins = unstable_cache(
@@ -86,7 +87,7 @@ export const getCachedApprovedCheckins = unstable_cache(
       },
     }),
   ["approved-checkins"],
-  { tags: [CACHE_TAGS.POSTS_LIST], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.POSTS_LIST], revalidate: ONE_MINUTE }
 );
 
 export const getCachedUserStarData = unstable_cache(
@@ -96,7 +97,7 @@ export const getCachedUserStarData = unstable_cache(
       select: { hope_stars: true, used_stars_this_month: true },
     }),
   ["user-star-data"],
-  { tags: [CACHE_TAGS.POSTS_LIST, CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.POSTS_LIST, CACHE_TAGS.DASHBOARD_STATS], revalidate: ONE_MINUTE }
 );
 
 // ─── Admin Queue ─────────────────────────────────────────
@@ -122,7 +123,7 @@ export const getCachedAllCheckins = unstable_cache(
       orderBy: { submitted_at: "desc" },
     }),
   ["admin-queue-all-checkins"],
-  { tags: [CACHE_TAGS.ADMIN_QUEUE], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.ADMIN_QUEUE], revalidate: ONE_MINUTE }
 );
 
 // ─── Admin Analytics ─────────────────────────────────────
@@ -133,7 +134,7 @@ export const getCachedAnalyticsPostsThisMonth = unstable_cache(
       where: { start_at: { gte: monthStart, lte: monthEnd } },
     }),
   ["analytics-posts-this-month"],
-  { tags: [CACHE_TAGS.ADMIN_ANALYTICS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.ADMIN_ANALYTICS], revalidate: ONE_MINUTE }
 );
 
 export const getCachedAnalyticsUsers = unstable_cache(
@@ -143,7 +144,7 @@ export const getCachedAnalyticsUsers = unstable_cache(
       select: { id: true, name: true, avatar_url: true, email: true, department: true },
     }),
   ["analytics-users"],
-  { tags: [CACHE_TAGS.ADMIN_ANALYTICS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.ADMIN_ANALYTICS], revalidate: ONE_MINUTE }
 );
 
 export const getCachedAnalyticsPosts = unstable_cache(
@@ -158,7 +159,7 @@ export const getCachedAnalyticsPosts = unstable_cache(
       },
     }),
   ["analytics-posts"],
-  { tags: [CACHE_TAGS.ADMIN_ANALYTICS, CACHE_TAGS.POSTS_LIST], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.ADMIN_ANALYTICS, CACHE_TAGS.POSTS_LIST], revalidate: ONE_MINUTE }
 );
 
 // ─── API: Posts ──────────────────────────────────────────
@@ -181,7 +182,7 @@ export const getCachedPostsApi = unstable_cache(
       },
     }),
   ["posts-api"],
-  { tags: [CACHE_TAGS.POSTS_LIST], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.POSTS_LIST], revalidate: ONE_MINUTE }
 );
 
 export const getCachedTotalEmployees = unstable_cache(
@@ -190,5 +191,5 @@ export const getCachedTotalEmployees = unstable_cache(
       where: { role: "USER" },
     }),
   ["total-employees"],
-  { tags: [CACHE_TAGS.POSTS_LIST, CACHE_TAGS.ADMIN_ANALYTICS], revalidate: ONE_HOUR }
+  { tags: [CACHE_TAGS.POSTS_LIST, CACHE_TAGS.ADMIN_ANALYTICS], revalidate: ONE_MINUTE }
 );

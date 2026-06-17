@@ -31,10 +31,12 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     const savedRole = localStorage.getItem("simulated_role") as Role;
     if (savedRole && isActualAdmin) {
       setRole(savedRole);
+    } else if (isActualAdmin) {
+      setRole("ADMIN");
+      localStorage.setItem("simulated_role", "ADMIN");
     } else {
-      const defaultRole = actualRole || "USER";
-      setRole(defaultRole);
-      localStorage.setItem("simulated_role", defaultRole);
+      setRole(actualRole || "USER");
+      localStorage.setItem("simulated_role", actualRole || "USER");
     }
     setIsLoadingRole(false);
   }, [session, status]);

@@ -353,6 +353,20 @@ export function AIAssistant() {
                     Đặt câu hỏi về kiểm duyệt, xem dữ liệu hoặc trợ giúp công việc chung.
                   </p>
                 </div>
+                <div className="mt-4 flex flex-col gap-2 w-full max-w-[260px]">
+                  <button onClick={() => setInput("Tôi có bài nào chưa share không?")} className="px-3 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700/50 transition text-left flex items-center justify-between group">
+                    <span>Tôi có bài nào chưa share không?</span>
+                    <Send className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <button onClick={() => setInput("Có bài nào tôi quá hạn không?")} className="px-3 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700/50 transition text-left flex items-center justify-between group">
+                    <span>Có bài nào tôi quá hạn không?</span>
+                    <Send className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                  <button onClick={() => setInput("Tình hình share bài của tôi trong 2 tháng qua?")} className="px-3 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs rounded-xl border border-slate-700/50 transition text-left flex items-center justify-between group">
+                    <span>Tình hình share bài trong 2 tháng qua?</span>
+                    <Send className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                </div>
               </div>
             ) : (
               messages.map((msg, index) => (

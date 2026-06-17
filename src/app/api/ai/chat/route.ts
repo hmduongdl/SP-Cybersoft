@@ -106,11 +106,14 @@ export async function POST(req: NextRequest) {
     const userName = dbUser?.name || session.user.name || "Thành viên";
     const userDept = dbUser?.department || "Other";
 
-    // 4.2. Truy vấn các bài đăng (Posts) đang hoạt động trong vòng 24h qua
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    // 4.2. Truy vấn các bài đăng (Posts) đang hoạt động trong 2 tháng (tháng này và tháng trước)
+    const now = new Date();
+    // Đầu tháng trước
+    const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    
     const activePosts = await db.post.findMany({
       where: {
-        start_at: { gte: oneDayAgo },
+        start_at: { gte: twoMonthsAgoStart },
         is_archived: false,
       },
       select: {
@@ -123,11 +126,14 @@ export async function POST(req: NextRequest) {
           select: { status: true, reject_reason: true },
         },
       },
+      orderBy: { start_at: 'desc' }
     });
 
     // 4.3. Phân loại tasks của User để làm Context cho AI
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const completedTasks = activePosts.filter(p => p.checkins.length > 0 && p.checkins[0].status !== "REJECTED");
-    const pendingTasks = activePosts.filter(p => p.checkins.length === 0);
+    const pendingTasks = activePosts.filter(p => p.checkins.length === 0 && p.start_at >= oneDayAgo);
+    const overdueTasks = activePosts.filter(p => p.checkins.length === 0 && p.start_at < oneDayAgo);
     const rejectedTasks = activePosts.filter(p => p.checkins.length > 0 && p.checkins[0].status === "REJECTED");
 
     // 4.4. Xây dựng chuỗi Context thời gian thực
@@ -136,11 +142,12 @@ export async function POST(req: NextRequest) {
 - Người dùng đang chat: ${userName}
 - Phòng ban: ${userDept}
 - Thời gian hệ thống hiện tại: ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
-- Tình hình thực hiện nhiệm vụ Like & Share của người dùng hôm nay:
-  * Số nhiệm vụ cần làm (trong 24h qua): ${activePosts.length} bài.
-  * Số bài ĐÃ HOÀN THÀNH: ${completedTasks.length} bài. ${completedTasks.map(t => `(Tiêu đề: "${t.title}", Trạng thái: ${t.checkins[0].status})`).join(", ")}
-  * Số bài CHƯA HOÀN THÀNH (Cần share ngay): ${pendingTasks.length} bài. ${pendingTasks.map(t => `(Tiêu đề: "${t.title}", Link gốc: ${t.url})`).join(", ")}
-  * Số bài BỊ TỪ CHỐI (Cần nộp lại bằng chứng): ${rejectedTasks.length} bài. ${rejectedTasks.map(t => `(Tiêu đề: "${t.title}", Lý do từ chối: ${t.checkins[0].reject_reason || "Không có lý do cụ thể"})`).join(", ")}
+- Tình hình thực hiện nhiệm vụ Like & Share của người dùng (trong tháng này và tháng trước):
+  * Tổng số nhiệm vụ (bài đăng): ${activePosts.length} bài.
+  * Số bài ĐÃ HOÀN THÀNH: ${completedTasks.length} bài. ${completedTasks.length > 0 ? completedTasks.map(t => `(Tiêu đề: "${t.title}", Trạng thái: ${t.checkins[0].status})`).join(", ") : ""}
+  * Số bài CHƯA HOÀN THÀNH (Còn hạn trong 24h, cần share ngay): ${pendingTasks.length} bài. ${pendingTasks.length > 0 ? pendingTasks.map(t => `(Tiêu đề: "${t.title}", Link gốc: ${t.url})`).join(", ") : ""}
+  * Số bài QUÁ HẠN (Quá 24h chưa share, không thể nộp nữa): ${overdueTasks.length} bài. ${overdueTasks.length > 0 ? overdueTasks.map(t => `(Tiêu đề: "${t.title}", Link gốc: ${t.url})`).join(", ") : ""}
+  * Số bài BỊ TỪ CHỐI (Cần nộp lại bằng chứng): ${rejectedTasks.length} bài. ${rejectedTasks.length > 0 ? rejectedTasks.map(t => `(Tiêu đề: "${t.title}", Lý do từ chối: ${t.checkins[0].reject_reason || "Không có lý do cụ thể"})`).join(", ") : ""}
 `;
 
     const systemPromptContent = `Bạn là "Trợ lý AI TeamSync" - một trợ lý ảo thông minh, thân thiện và tận tụy, chuyên hỗ trợ truyền thông nội bộ và giám sát công việc Like & Share bài viết cho doanh nghiệp Kinetic HR (hay còn gọi là TeamSync HR).
