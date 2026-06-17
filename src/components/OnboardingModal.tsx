@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 const TEAM_LABELS: Record<string, string> = {
   TECH: "Phòng Kỹ thuật",
@@ -15,10 +14,6 @@ export function OnboardingModal() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const user = session?.user;
   const [formData, setFormData] = useState({
@@ -46,40 +41,10 @@ export function OnboardingModal() {
   const isFormValid =
     formData.full_name.trim().length > 0 &&
     formData.username.trim().length > 0 &&
-    formData.email.trim().length > 0 &&
-    avatarFile !== null;
+    formData.email.trim().length > 0;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleFileDrop = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      setError("Chỉ chấp nhận file ảnh (JPG, PNG, ...)");
-      return;
-    }
-    setError(null);
-    setAvatarFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setAvatarPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-  const handleDragLeave = () => setDragOver(false);
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFileDrop(file);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileDrop(file);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -89,14 +54,13 @@ export function OnboardingModal() {
     setIsLoading(true);
 
     try {
-      // Build single FormData with all fields + avatar file
+      // Build single FormData with all fields
       const fd = new FormData();
       fd.append("full_name", formData.full_name.trim());
       fd.append("username", formData.username.trim());
       fd.append("email", formData.email.trim());
 
       if (formData.facebook_link.trim()) fd.append("facebook_link", formData.facebook_link.trim());
-      if (avatarFile) fd.append("file", avatarFile);
 
       const res = await fetch("/api/user/onboarding", {
         method: "POST",
@@ -144,64 +108,6 @@ export function OnboardingModal() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Avatar */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-              Ảnh đại diện <span className="text-red-400">*</span>
-            </label>
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`relative flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl bg-slate-950/50 cursor-pointer transition-all ${
-                dragOver
-                  ? "border-indigo-500 bg-indigo-500/10"
-                  : avatarPreview
-                    ? "border-indigo-500/40 hover:border-indigo-500/60"
-                    : "border-slate-700 hover:border-slate-600"
-              }`}
-            >
-              {avatarPreview ? (
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-indigo-500/30 shadow-lg shadow-indigo-500/10 relative bg-slate-800">
-                    <Image
-                      src={avatarPreview}
-                      alt="Avatar preview"
-                      fill
-                      className="object-cover"
-                      sizes="112px"
-                    />
-                  </div>
-                  <span className="text-xs text-slate-500 hover:text-slate-400 transition-colors">
-                    Nhấn để thay đổi ảnh
-                  </span>
-                </div>
-              ) : (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-                    <span className="material-symbols-outlined text-slate-500 text-3xl">person</span>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm text-slate-300 font-medium">
-                      Kéo & thả ảnh vào đây
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">
-                      hoặc nhấn để chọn file · JPG, PNG tối đa 5MB
-                    </p>
-                  </div>
-                </>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-            </div>
-          </div>
 
           {/* Full Name */}
           <div className="space-y-2">
@@ -321,7 +227,7 @@ export function OnboardingModal() {
             </button>
             {!isFormValid && (
               <p className="text-xs text-slate-500 text-center mt-3">
-                Vui lòng điền đầy đủ Họ tên, Username, Email và tải lên ảnh đại diện
+                Vui lòng điền đầy đủ Họ tên, Username và Email
               </p>
             )}
           </div>

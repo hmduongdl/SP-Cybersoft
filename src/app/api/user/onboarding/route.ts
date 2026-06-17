@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { uploadImage } from "@/lib/upload";
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +17,6 @@ export async function POST(request: Request) {
     const email = (formData.get("email") as string)?.trim();
     const phone = (formData.get("phone") as string)?.trim() || null;
     const facebookLink = (formData.get("facebook_link") as string)?.trim() || null;
-    const file = formData.get("file") as File | null;
 
     // Validate required fields
     if (!fullName || !username || !email) {
@@ -42,31 +40,6 @@ export async function POST(request: Request) {
         { error: "Tên đăng nhập chỉ gồm chữ cái, số, dấu gạch dưới và từ 3-30 ký tự." },
         { status: 400 }
       );
-    }
-
-    // Upload avatar to Vercel Blob if provided
-    let avatarUrl: string | null = null;
-    if (file && file.size > 0) {
-      if (!file.type.startsWith("image/")) {
-        return NextResponse.json(
-          { error: "Chỉ chấp nhận file ảnh (JPG, PNG, ...)." },
-          { status: 400 }
-        );
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json(
-          { error: "Kích thước ảnh tối đa 5MB." },
-          { status: 400 }
-        );
-      }
-
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const ext = file.name ? "." + file.name.split(".").pop()?.toLowerCase() : ".jpg";
-      const filename = `avatar_${userId}_${Date.now()}${ext}`;
-      const uploadResult = await uploadImage(buffer, filename, file.type, "avatars");
-      avatarUrl = uploadResult.url;
     }
 
     // Execute transaction
@@ -96,7 +69,6 @@ export async function POST(request: Request) {
           username,
           email,
           facebook_profile_url: facebookLink,
-          ...(avatarUrl && { avatar_url: avatarUrl }),
           is_first_login: false,
         },
         select: {
