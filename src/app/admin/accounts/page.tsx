@@ -427,7 +427,7 @@ export default function AdminAccountsPage() {
                             <span className="font-semibold text-on-surface flex items-center gap-1.5">
                               {user.name || "Chưa đặt tên"}
                               {user.role === "ADMIN" && (
-                                <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-lg font-semibold">
+                                <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-full font-semibold">
                                   ADMIN
                                 </span>
                               )}
