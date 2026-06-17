@@ -105,38 +105,19 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
   const urgency = pct > 83;
 
   return (
-    <div
-      className={cn(
-        "rounded-xl px-4 py-3 space-y-2 transition-all duration-150 border-none",
-        urgency
-          ? "bg-amber-500/10"
-          : "bg-surface-container"
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant/70 uppercase tracking-wider font-inter">
-          <Clock className={cn("w-3.5 h-3.5", urgency ? "text-amber-600" : "text-primary")} />
+    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between text-xs text-amber-800">
+        <div className="flex items-center gap-2 font-medium">
+          <Clock className="w-4 h-4" />
           Cửa sổ nộp bài còn lại
         </div>
-        <div
-          className={cn(
-            "font-mono text-base font-bold tabular-nums tracking-tight",
-            urgency ? "text-amber-700" : "text-on-surface"
-          )}
-        >
-          {countdown.hours}<span className="opacity-60 mx-0.5">:</span>
-          {countdown.mins}<span className="opacity-60 mx-0.5">:</span>
-          {countdown.secs}
+        <div className="font-mono text-sm font-bold tabular-nums">
+          {countdown.hours}:{countdown.mins}:{countdown.secs}
         </div>
       </div>
-      <div className="h-1 bg-on-surface/5 rounded-full overflow-hidden">
+      <div className="h-1 bg-amber-200/50 rounded-full overflow-hidden">
         <div
-          className={cn(
-            "h-full rounded-full transition-all duration-1000",
-            urgency
-              ? "bg-gradient-to-r from-amber-500 to-red-500"
-              : "gradient-primary"
-          )}
+          className="h-full bg-amber-500 rounded-full transition-all duration-1000"
           style={{ width: `${100 - pct}%` }}
         />
       </div>
@@ -467,22 +448,25 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131b2e]/40 backdrop-blur-[4px]"
+      className="fixed inset-0 z-50 bg-slate-950/70 animate-in fade-in flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-surface-container-lowest/92 backdrop-blur-[20px] w-full max-w-[520px] rounded-[24px] shadow-[0_40px_80px_rgba(19,27,46,0.12)] border-none flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 md:p-8 max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
 
         {/* ── Header ── */}
-        <div className="px-6 pt-5 pb-4 flex items-start justify-between gap-4 flex-shrink-0">
+        <div className="flex items-start justify-between gap-4 flex-shrink-0 mb-6">
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-semibold text-on-surface font-manrope leading-snug">Nộp minh chứng</h2>
-            <p className="text-sm font-normal text-on-surface-variant font-inter truncate w-full mt-1" title={post.title}>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <UploadCloud className="w-6 h-6 text-indigo-600" />
+              Nộp minh chứng
+            </h2>
+            <p className="text-sm font-normal text-slate-500 truncate w-full mt-1" title={post.title}>
               {post.title}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-[8px] bg-surface-container text-on-surface-variant hover:text-on-surface transition-all shrink-0"
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 transition-all"
           >
             <X className="w-4 h-4" />
           </button>
@@ -618,7 +602,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               )}
 
               {/* Post info + CTA link */}
-              <div className="flex gap-3 p-4 bg-surface-container-low rounded-xl border-none">
+              <div className="flex gap-3 bg-slate-50/60 border border-slate-200/50 rounded-2xl p-4">
                 {postThumb ? (
                   <div className="w-14 h-14 rounded-lg overflow-hidden border-none flex-shrink-0 relative bg-surface-container">
                     <Image src={postThumb} alt={post.title} fill className="object-cover" sizes="56px" />
@@ -634,7 +618,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     href={postUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0050cb] hover:bg-[#0066ff] text-white text-xs font-semibold transition-all duration-150 w-fit group font-inter"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all text-sm w-fit group"
                   >
                     Đi tới bài viết gốc
                     <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-all duration-150" />
@@ -670,16 +654,9 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    style={
-                      isDragging
-                        ? { outline: "2px dashed #0050cb", outlineOffset: "-2px" }
-                        : { outline: "2px dashed rgba(0, 80, 203, 0.25)", outlineOffset: "-2px" }
-                    }
                     className={cn(
-                      "rounded-[16px] cursor-pointer transition-all duration-150 relative overflow-hidden border-none",
-                      isDragging
-                        ? "bg-primary-container/30 scale-[1.01]"
-                        : "bg-surface-container-low hover:bg-surface-container"
+                      "border-2 border-dashed border-slate-200 bg-slate-50/40 hover:border-indigo-400 hover:bg-indigo-50/10 transition-all duration-200 rounded-2xl cursor-pointer p-8 flex flex-col items-center justify-center gap-2",
+                      isDragging && "border-indigo-400 bg-indigo-50/10 scale-[1.01]"
                     )}
                   >
                     <input
@@ -689,22 +666,19 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                       accept="image/jpeg,image/jpg,image/png,image/webp"
                       className="hidden"
                     />
-
-                    <div className="flex flex-col items-center text-center space-y-3 py-10 px-6">
-                      <div
-                        className={cn(
-                          "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-150",
-                          isDragging ? "bg-primary text-white" : "bg-primary-container text-primary"
-                        )}
-                      >
-                        <UploadCloud className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-on-surface-variant font-inter">
-                          Kéo thả ảnh hoặc <span className="text-primary underline underline-offset-2">click để chọn</span>
-                        </p>
-                        <p className="text-xs text-on-surface-variant/70 mt-1 font-inter">JPG, PNG, WEBP — Tối đa 10MB</p>
-                      </div>
+                    <div
+                      className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-150",
+                        isDragging ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
+                      )}
+                    >
+                      <UploadCloud className="w-6 h-6" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm text-slate-600">
+                        Kéo thả ảnh hoặc <span className="text-indigo-600 hover:text-indigo-700 font-medium underline">click để chọn</span>
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">JPG, PNG, WEBP — Tối đa 10MB</p>
                     </div>
                   </div>
 
@@ -773,35 +747,30 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               </div>
 
               {/* Footer Actions */}
-              <div className="flex flex-col gap-3 pt-2">
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-medium py-2.5 px-5 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm active:scale-95"
+                >
+                  Hủy
+                </button>
                 <button
                   type="submit"
                   disabled={!isFormValid}
                   className={cn(
-                    "w-full h-12 flex items-center justify-center gap-2.5 rounded-[12px] text-sm font-semibold text-white transition-all duration-150 font-inter",
+                    "flex-[2] py-2.5 px-5 rounded-xl shadow-sm transition-all duration-200 text-sm active:scale-95 flex items-center justify-center gap-2",
                     isFormValid
-                      ? "gradient-primary hover:brightness-105 active:scale-[0.98] cursor-pointer"
-                      : "bg-surface-container text-on-surface-variant/40 cursor-not-allowed"
+                      ? "bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                      : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   )}
                 >
                   {submitStatus === "loading" ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      Đang xử lý…
-                    </>
+                    <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      Nộp minh chứng
-                    </>
+                    <ShieldCheck className="w-4 h-4" />
                   )}
-                </button>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-sm font-semibold text-on-surface-variant hover:underline transition-all duration-150 text-center font-inter"
-                >
-                  Hủy
+                  Nộp minh chứng
                 </button>
               </div>
             </form>

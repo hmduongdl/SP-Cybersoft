@@ -263,20 +263,20 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       : "bg-sky-50 text-sky-700 border-sky-200";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm px-4">
-      <div className="bg-surface-bright rounded-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center px-4 animate-in fade-in">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 bg-surface-container-low">
+        <div className="flex items-center justify-between px-6 py-4 bg-white border-b border-slate-100">
           <div>
-            <h2 className="text-xl font-semibold text-on-surface font-manrope">Tài khoản cá nhân</h2>
-            <p className="text-sm text-on-surface-variant mt-0.5">Quản lý thông tin cá nhân của bạn.</p>
+            <h2 className="text-xl font-bold text-slate-900">Tài khoản cá nhân</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Quản lý thông tin cá nhân của bạn.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full transition-all duration-150"
+            className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -334,10 +334,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     onDrop={handleDrop}
                     onClick={() => !uploading && fileInputRef.current?.click()}
                     className={cn(
-                      "border-2 border-dashed rounded-xl p-4 cursor-pointer transition-all",
-                      isDragging
-                        ? "border-indigo-400 bg-indigo-50"
-                        : "hover:bg-surface-container-low"
+                      "border-2 border-dashed border-slate-200 bg-slate-50/40 hover:border-indigo-400 hover:bg-indigo-50/10 transition-all duration-200 rounded-xl cursor-pointer p-4",
+                      isDragging && "border-indigo-400 bg-indigo-50/10"
                     )}
                   >
                     <input
@@ -351,30 +349,30 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     <div className="flex items-center gap-3">
                       <div className={cn(
                         "p-2.5 rounded-xl transition-colors",
-                        isDragging ? "bg-indigo-200" : "bg-surface-container"
+                        isDragging ? "bg-indigo-200" : "bg-indigo-50 text-indigo-500"
                       )}>
                         <UploadCloud className={cn(
                           "w-5 h-5",
-                          isDragging ? "text-indigo-600" : "text-on-surface-variant"
+                          isDragging ? "text-indigo-600" : "text-indigo-500"
                         )} />
                       </div>
                       <div>
                         {uploading ? (
                           <div className="space-y-1">
-                            <p className="text-sm font-medium text-primary">Đang tải lên... ({uploadProgress}%)</p>
-                            <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden w-32">
+                            <p className="text-sm font-medium text-indigo-600">Đang tải lên... ({uploadProgress}%)</p>
+                            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden w-32">
                               <div
-                                className="h-full bg-primary rounded-full transition-all duration-200"
+                                className="h-full bg-indigo-600 rounded-full transition-all duration-200"
                                 style={{ width: `${uploadProgress}%` }}
                               />
                             </div>
                           </div>
                         ) : (
                           <>
-                            <p className="text-sm font-semibold text-on-surface">
-                              Kéo thả ảnh hoặc <span className="text-primary underline underline-offset-2">click để chọn</span>
+                            <p className="text-sm font-semibold text-slate-700">
+                              Kéo thả ảnh hoặc <span className="text-indigo-600 hover:text-indigo-700 underline underline-offset-2">click để chọn</span>
                             </p>
-                            <p className="text-xs text-on-surface-variant mt-0.5">JPG, PNG, WEBP — Tối đa 2MB</p>
+                            <p className="text-xs text-slate-500 mt-0.5">JPG, PNG, WEBP — Tối đa 2MB</p>
                           </>
                         )}
                       </div>
@@ -391,22 +389,22 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* KHÓA CỨNG: Họ và tên */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
-                    <UserCircle className="w-4 h-4 text-on-surface-variant" /> Họ và tên
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-2 uppercase">
+                    <UserCircle className="w-4 h-4 text-slate-400" /> Họ và tên
                   </label>
                   <input
                     type="text"
                     value={name ?? ""}
                     readOnly
                     disabled
-                    className="w-full px-3 py-2 bg-surface-container-low text-on-surface-variant rounded-lg text-sm cursor-not-allowed"
+                    className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl transition-all text-sm text-slate-900 cursor-not-allowed opacity-70"
                   />
                 </div>
 
                 {/* Tên đăng nhập */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
-                    <User className="w-4 h-4 text-on-surface-variant" /> Tên đăng nhập
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-2 uppercase">
+                    <User className="w-4 h-4 text-slate-400" /> Tên đăng nhập
                   </label>
                   <input
                     type="text"
@@ -414,10 +412,10 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
                     disabled={saving || usernameChanged}
                     required
-                    className="w-full px-3 py-2 bg-surface-bright rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150 disabled:bg-surface-container-low disabled:text-on-surface-variant disabled:cursor-not-allowed"
+                    className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 disabled:opacity-70 disabled:cursor-not-allowed"
                   />
                   {usernameChanged ? (
-                    <p className="text-[10px] text-on-surface-variant mt-1">Bạn đã đổi username nên không thể đổi lại.</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Bạn đã đổi username nên không thể đổi lại.</p>
                   ) : (
                     <p className="text-[10px] text-amber-600 mt-1 font-medium">Bạn chỉ được đổi username 1 lần duy nhất.</p>
                   )}
@@ -425,8 +423,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
                 {/* Phòng ban */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
-                    <Building2 className="w-4 h-4 text-on-surface-variant" /> Phòng ban
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-2 uppercase">
+                    <Building2 className="w-4 h-4 text-slate-400" /> Phòng ban
                   </label>
                   <div className="pt-1">
                     <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border ${departmentBadgeClass}`}>
@@ -437,8 +435,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
                 {/* Email */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
-                    <Mail className="w-4 h-4 text-on-surface-variant" /> Email liên lạc
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-2 uppercase">
+                    <Mail className="w-4 h-4 text-slate-400" /> Email liên lạc
                   </label>
                   <input
                     type="email"
@@ -447,14 +445,14 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     placeholder="nguyenvana@gmail.com"
                     disabled={saving}
                     required
-                    className="w-full px-3 py-2 bg-surface-bright rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                    className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
 
                 {/* Facebook */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
-                    <Link className="w-4 h-4 text-on-surface-variant" /> Link Facebook
+                  <label className="text-xs font-bold text-slate-600 flex items-center gap-2 uppercase">
+                    <Link className="w-4 h-4 text-slate-400" /> Link Facebook
                   </label>
                   <input
                     type="url"
@@ -462,25 +460,25 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     onChange={(e) => setFacebookLink(e.target.value)}
                     placeholder="https://facebook.com/username"
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-surface-bright rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                    className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="flex justify-end gap-3 pt-6">
+              <div className="flex justify-end gap-3 pt-6 border-none">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={saving}
-                  className="px-4 py-2.5 text-sm font-semibold text-on-surface-variant bg-surface-container-low rounded-xl hover:bg-surface-container transition-all duration-150"
+                  className="bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-medium py-2.5 px-5 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm active:scale-95"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 text-sm font-semibold text-on-primary gradient-primary rounded-xl transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-xl shadow-sm transition-all duration-200 text-sm active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

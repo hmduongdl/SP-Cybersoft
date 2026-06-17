@@ -598,7 +598,7 @@ export function PostTaskAdmin() {
                       {/* Checkin Rate */}
                       <td className="px-5 py-4">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 border-none font-inter">
-                          {post.successfulCheckins}/{post.totalEmployees} nhân viên
+                          {post.successfulCheckins}/{post.totalEmployees} nhân sự
                         </span>
                       </td>
 
@@ -675,22 +675,22 @@ export function PostTaskAdmin() {
           {/* Backdrop */}
           <div 
             onClick={() => !saving && setIsModalOpen(false)}
-            className="absolute inset-0 bg-[#131b2e]/40 backdrop-blur-[4px]"
+            className="fixed inset-0 z-50 bg-slate-950/70"
           />
 
           {/* Form Card */}
-          <Card className="w-full max-w-2xl bg-surface-container-lowest/92 backdrop-blur-[20px] border-none shadow-[0_40px_80px_rgba(19,27,46,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8 rounded-[24px]">
+          <Card className="w-full max-w-2xl bg-white rounded-3xl border border-slate-100 shadow-2xl relative z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8 flex flex-col">
             <div className="px-6 py-4 border-none flex items-center justify-between">
-              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2 font-manrope">
-                <FileEdit className="h-5 w-5 text-primary" />
+              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <FileEdit className="h-5 w-5 text-indigo-600" />
                 {editingPost ? "Sửa Task Bài Viết" : "Tạo Task Bài Viết Mới"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 disabled={saving}
-                className="w-8 h-8 rounded-lg bg-surface-container text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-all duration-150"
+                className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
@@ -703,7 +703,7 @@ export function PostTaskAdmin() {
                   <div className="md:col-span-7 space-y-4">
                     {/* Title */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase font-inter" htmlFor="form-title">
+                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-title">
                         Tiêu đề bài viết
                       </label>
                       <input 
@@ -713,20 +713,20 @@ export function PostTaskAdmin() {
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         disabled={saving}
-                        className="w-full bg-surface-container-low border-none rounded-xl px-3.5 py-2.5 text-sm text-on-surface placeholder:text-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest transition-all font-inter" 
+                        className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400" 
                       />
                       {formErrors.title && (
-                        <p className="text-xs text-error font-semibold font-inter">{formErrors.title}</p>
+                        <p className="text-xs text-red-500 font-semibold">{formErrors.title}</p>
                       )}
                     </div>
 
                     {/* Facebook URL */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase font-inter" htmlFor="form-url">
+                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-url">
                         Link bài viết gốc Facebook
                       </label>
                       <div className="relative">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 h-4 w-4" />
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                         <input 
                           id="form-url"
                           type="url"
@@ -734,36 +734,34 @@ export function PostTaskAdmin() {
                           value={formData.url}
                           onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                           disabled={saving}
-                          className="w-full bg-surface-container-low border-none rounded-xl pl-9 pr-4 py-2.5 text-sm text-on-surface placeholder:text-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest transition-all font-mono text-xs" 
+                          className="w-full px-4 py-2.5 pl-9 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 font-mono" 
                         />
                       </div>
                       
                       {/* Author select dropdown */}
-                      <div className="mt-1.5 p-2 bg-surface-container-lowest border-none rounded-lg text-xs animate-in fade-in duration-100">
-                        <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-primary" />
-                          <span className="font-semibold text-on-surface-variant font-inter">Tác giả:</span>
-                          <select
-                            value={formData.author_id || ""}
-                            onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
-                            disabled={saving}
-                            className="flex-1 bg-surface-container-low border-none rounded-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest font-inter"
-                          >
-                            <option value="">-- Chọn tác giả --</option>
-                            <option value="songphuong_tech">Song Phương Technology</option>
-                            <option value="songphuong">Song Phương</option>
-                          </select>
-                        </div>
+                      <div className="mt-1.5 p-2 bg-slate-50/50 border border-slate-200/80 rounded-xl text-xs flex items-center gap-2">
+                        <User className="h-4 w-4 text-indigo-500" />
+                        <span className="font-semibold text-slate-700">Tác giả:</span>
+                        <select
+                          value={formData.author_id || ""}
+                          onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
+                          disabled={saving}
+                          className="flex-1 bg-transparent border-none text-sm text-slate-900 focus:outline-none focus:ring-0"
+                        >
+                          <option value="">-- Chọn tác giả --</option>
+                          <option value="songphuong_tech">Song Phương Technology</option>
+                          <option value="songphuong">Song Phương</option>
+                        </select>
                       </div>
 
                       {formErrors.url && (
-                        <p className="text-xs text-error font-semibold font-inter">{formErrors.url}</p>
+                        <p className="text-xs text-red-500 font-semibold">{formErrors.url}</p>
                       )}
                     </div>
 
                     {/* Description */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase font-inter" htmlFor="form-desc">
+                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-desc">
                         Mô tả chi tiết / Yêu cầu checkin
                       </label>
                       <textarea 
@@ -773,16 +771,16 @@ export function PostTaskAdmin() {
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         disabled={saving}
-                        className="w-full bg-surface-container-low border-none rounded-xl px-3.5 py-2.5 text-sm text-on-surface placeholder:text-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest transition-all resize-none font-inter" 
+                        className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 resize-none" 
                       />
                       {formErrors.description && (
-                        <p className="text-xs text-error font-semibold font-inter">{formErrors.description}</p>
+                        <p className="text-xs text-red-500 font-semibold">{formErrors.description}</p>
                       )}
                     </div>
 
                     {/* Team Selector */}
                     <div className="space-y-2">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase font-inter">
+                      <label className="block text-xs font-bold text-slate-600 uppercase">
                         Nhóm thực hiện
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -792,10 +790,10 @@ export function PostTaskAdmin() {
                             type="button"
                             onClick={() => setFormData({ ...formData, team: team as any })}
                             className={cn(
-                              "px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 font-inter",
+                              "rounded-full px-4 py-1.5 text-xs transition-all",
                               formData.team === team
-                                ? "bg-primary-container text-primary"
-                                : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
+                                ? "bg-indigo-600 text-white shadow-sm font-semibold"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 cursor-pointer"
                             )}
                           >
                             {team === "ALL" ? "Tất cả" : team}
@@ -808,28 +806,28 @@ export function PostTaskAdmin() {
                   {/* Right side config (Scheduling, Media) */}
                   <div className="md:col-span-5 space-y-4">
                     {/* Date/Time density checks */}
-                    <div className="bg-surface-container-low border-none rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 text-on-surface font-bold text-xs uppercase mb-2 font-inter">
-                        <CalendarIcon className="h-4 w-4 text-primary" />
+                    <div className="bg-white border border-slate-100/80 rounded-2xl p-5 shadow-sm space-y-4">
+                      <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs uppercase mb-2">
+                        <CalendarIcon className="h-4 w-4 text-indigo-500" />
                         Thời gian lên lịch
                       </div>
                       
                       {checkingDensity ? (
-                        <div className="text-[11px] text-on-surface-variant/70 flex items-center gap-1.5 py-1 font-inter">
-                          <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                        <div className="text-xs text-slate-500 flex items-center gap-1.5 py-1">
+                          <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
                           Đang kiểm tra mật độ ngày đăng...
                         </div>
                       ) : density?.reachedLimit ? (
-                        <div className="p-2 bg-error-container text-on-error-container rounded-lg flex gap-1.5 items-start mb-2 leading-tight">
-                          <AlertTriangle className="h-4 w-4 text-on-error-container shrink-0 mt-0.5" />
-                          <p className="text-[11px] font-semibold font-inter">
+                        <div className="bg-red-50 text-red-700 border border-red-100 p-2.5 rounded-xl text-xs flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+                          <p className="font-semibold">
                             Cảnh báo: Đã đạt tối đa {density.limit} bài đăng ngày {formData.date}.
                           </p>
                         </div>
                       ) : (
-                        <div className="p-2 bg-primary-container text-primary rounded-lg flex gap-1.5 items-start mb-2 leading-tight">
-                          <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                          <p className="text-[11px] font-semibold font-inter">
+                        <div className="bg-indigo-50/60 text-indigo-700 border border-indigo-100/50 p-2.5 rounded-xl text-xs flex items-start gap-2">
+                          <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                          <p className="font-semibold">
                             Mật độ: {density?.count ?? 0}/{density?.limit ?? DAILY_POST_LIMIT} bài đăng ngày {formData.date}.
                           </p>
                         </div>
@@ -837,13 +835,13 @@ export function PostTaskAdmin() {
 
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-on-surface-variant uppercase mb-1 font-inter">Ngày đăng</label>
+                          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Ngày đăng</label>
                           <input
                             type="date"
                             value={formData.date}
                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                             disabled={saving}
-                            className="w-full bg-surface-container-low border-none rounded-xl px-3.5 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest transition-all font-inter"
+                            className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900"
                           />
                         </div>
                       </div>
@@ -851,11 +849,11 @@ export function PostTaskAdmin() {
 
                     {/* Thumbnail url */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-on-surface-variant uppercase font-inter" htmlFor="form-thumb">
+                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-thumb">
                         Thumbnail (Ảnh bìa)
                       </label>
                       <div className="relative">
-                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 h-4 w-4" />
+                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
                         <input
                           id="form-thumb"
                           type="url"
@@ -863,11 +861,11 @@ export function PostTaskAdmin() {
                           value={formData.thumbnail_url}
                           onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
                           disabled={saving}
-                          className="w-full bg-surface-container-low border-none rounded-xl pl-9 pr-4 py-2.5 text-xs text-on-surface placeholder:text-outline-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest transition-all font-mono"
+                          className="w-full px-4 py-2.5 pl-9 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 font-mono"
                         />
                       </div>
                       {formErrors.thumbnail_url && (
-                        <p className="text-xs text-error font-semibold font-inter">{formErrors.thumbnail_url}</p>
+                        <p className="text-xs text-red-500 font-semibold">{formErrors.thumbnail_url}</p>
                       )}
                     </div>
                   </div>
@@ -881,14 +879,14 @@ export function PostTaskAdmin() {
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="px-4 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-sm font-semibold transition-all duration-150"
+                  className="bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-medium py-2.5 px-5 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm active:scale-95"
                 >
                   Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={saving || (density?.reachedLimit && !editingPost)}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-primary-gradient-end text-on-primary text-sm font-semibold shadow-ambient transition-all disabled:opacity-50"
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-xl shadow-sm transition-all duration-200 text-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

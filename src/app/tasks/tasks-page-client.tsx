@@ -30,6 +30,10 @@ export default function TasksPageClient({
   const [localPosts, setLocalPosts] = useState(posts);
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
 
+  React.useEffect(() => {
+    setLocalPosts(posts);
+  }, [posts]);
+
   const handleCheckIn = (post: any) => {
     setSelectedPost(post);
   };

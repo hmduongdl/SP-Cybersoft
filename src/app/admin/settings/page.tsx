@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Plus, Trash2, Save, Key, Cpu, Building2, Server } from "lucide-react";
-import { toast } from "sonner";
+import { toast, Toaster } from "sonner";
 
 interface Department {
   id: string;
@@ -106,7 +106,8 @@ export default function AdminSettingsPage() {
   if (isLoading) return <div className="p-8 text-on-surface-variant">Đang tải cấu hình...</div>;
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 pb-12 text-on-surface max-w-5xl mx-auto">
+      <Toaster position="top-right" richColors duration={1500} />
       <div>
         <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
           <span>Dashboard</span>

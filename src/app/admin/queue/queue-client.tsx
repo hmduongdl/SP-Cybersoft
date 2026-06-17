@@ -11,7 +11,17 @@ import {
   Sparkles,
   ChevronDown,
   ImageIcon,
+  Building2,
+  UserCircle2,
+  ExternalLink,
+  RefreshCw,
+  Filter,
+  MessageSquare,
+  AlertTriangle,
+  ShieldCheck,
+  Zap,
 } from "lucide-react";
+import { Toaster } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import FacebookProfilePreview from "@/components/FacebookProfilePreview";
 import { Pagination } from "@/components/ui/pagination";
@@ -279,7 +289,8 @@ export default function QueueClient({
   ];
 
   return (
-    <div className="space-y-6 text-on-surface animate-in fade-in duration-300">
+    <div className="space-y-6 pb-12 text-on-surface animate-in fade-in duration-300">
+      <Toaster position="top-right" richColors duration={1500} />
       {/* Header */}
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-2">
         <div>

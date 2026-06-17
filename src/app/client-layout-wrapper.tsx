@@ -34,7 +34,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto w-full bg-[#F8FAFC]">
-          <main className="p-md md:p-xl lg:p-2xl max-w-7xl mx-auto w-full">
+          <main className="p-4 md:p-6 lg:p-8 pt-6 lg:pt-8 max-w-7xl mx-auto w-full">
             {children}
           </main>
         </div>
