@@ -103,7 +103,6 @@ function formatMessageContent(content: string): React.ReactNode {
 
 export function AIAssistant() {
   const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
 
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -259,8 +258,6 @@ export function AIAssistant() {
       setIsLoading(false);
     }
   };
-
-  if (!isAdmin) return null;
 
   return (
     <>

@@ -74,14 +74,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Tạm thời disable AI Chat cho user thường không có quyền admin
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "Tính năng AI Chat hiện đang tạm khóa đối với thành viên để phục vụ quá trình bảo trì/huấn luyện." },
-        { status: 403 }
-      );
-    }
-
     // 2. Parse request body
     const { messages, usePro } = await req.json();
 
