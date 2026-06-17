@@ -14,7 +14,7 @@ import {
   ChevronRight,
   Info
 } from "lucide-react";
-import Image from "next/image";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 interface ActivityFeedItem {
   id: string;
@@ -182,20 +182,8 @@ export function DashboardOverview({
                 {activityFeed.length > 0 ? (
                   activityFeed.map((feed) => (
                     <div className="flex gap-3 items-start hover:bg-slate-50 p-2 rounded-xl transition duration-150" key={feed.id}>
-                      <div className="relative shrink-0 w-9 h-9">
-                        {feed.userImage ? (
-                          <Image
-                            alt={feed.userName}
-                            className="object-cover rounded-full border border-slate-200"
-                            src={feed.userImage}
-                            fill
-                            sizes="36px"
-                          />
-                        ) : (
-                          <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-150 text-indigo-600 flex items-center justify-center font-bold text-xs">
-                            {feed.userName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
+                      <div className="relative shrink-0">
+                        <UserAvatar name={feed.userName} size="sm" className="w-9 h-9 text-xs" />
                         <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-white w-4.5 h-4.5 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
                           <span className="material-symbols-outlined text-[9px] font-bold">check</span>
                         </div>

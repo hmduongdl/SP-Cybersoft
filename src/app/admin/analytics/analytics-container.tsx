@@ -26,7 +26,6 @@ export default async function AnalyticsContainer() {
     completed: number;
     missed: number;
     name: string;
-    image: string;
     department: string;
   }> = {};
 
@@ -36,7 +35,6 @@ export default async function AnalyticsContainer() {
       completed: 0,
       missed: 0,
       name: u.name || "Unknown",
-      image: u.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name || "U")}`,
       department: u.department || "Other",
     };
   });
@@ -124,15 +122,13 @@ export default async function AnalyticsContainer() {
   }));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <AnalyticsClient
-        totalPostsThisMonth={totalPostsThisMonth}
-        companyAvg={companyAvg}
-        worstPosts={worstPosts}
-        departmentChartData={departmentChartData}
-        trendChartData={trendChartData}
-        userPerformanceList={userPerformanceList}
-      />
-    </div>
+    <AnalyticsClient
+      totalPostsThisMonth={totalPostsThisMonth}
+      companyAvg={companyAvg}
+      worstPosts={worstPosts}
+      departmentChartData={departmentChartData}
+      trendChartData={trendChartData}
+      userPerformanceList={userPerformanceList}
+    />
   );
 }

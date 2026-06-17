@@ -306,9 +306,6 @@ export function PostTaskAdmin() {
         errors.thumbnail_url = "Link ảnh thumbnail phải là URL hợp lệ.";
       }
     }
-    if (!formData.description.trim()) {
-      errors.description = "Vui lòng nhập lời nhắn hoặc yêu cầu kèm theo.";
-    }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };

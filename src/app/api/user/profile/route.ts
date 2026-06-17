@@ -63,12 +63,10 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const email = typeof body.email === "string" ? body.email.trim() : undefined;
     const facebook_link = typeof body.facebook_link === "string" ? body.facebook_link.trim() : undefined;
-    const avatar_url = typeof body.avatar_url === "string" ? body.avatar_url.trim() : undefined;
 
     console.log("📥 PUT — Dữ liệu nhận từ client:", {
       email,
       facebook_link,
-      avatar_url,
     });
 
     const updateData: Record<string, unknown> = {};
@@ -85,10 +83,6 @@ export async function PUT(request: Request) {
 
     if (facebook_link !== undefined) {
       updateData.facebook_profile_url = facebook_link || null;
-    }
-
-    if (avatar_url !== undefined) {
-      updateData.avatar_url = avatar_url || null;
     }
 
     const [user] = await db.$transaction([

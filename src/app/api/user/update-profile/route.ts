@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { uploadImage } from "@/lib/upload";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +22,10 @@ export async function POST(request: NextRequest) {
     // ── Parse input ──────────────────────────────────────────────
     let email: string | undefined;
     let facebook_link: string | undefined;
-    let avatarFile: File | null = null;
-
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       email = (formData.get("email") as string) || undefined;
       facebook_link = (formData.get("facebook_link") as string) || undefined;
-      avatarFile = formData.get("avatar") as File | null;
     } else {
       const body = await request.json();
       email = typeof body.email === "string" ? body.email.trim() : undefined;
@@ -60,30 +56,6 @@ export async function POST(request: NextRequest) {
     if (email !== undefined) updateData.email = email;
     if (facebook_link !== undefined)
       updateData.facebook_profile_url = facebook_link || null;
-
-    // ── Upload avatar nếu có file ────────────────────────────────
-    if (avatarFile && avatarFile.size > 0) {
-      if (!avatarFile.type.startsWith("image/")) {
-        return NextResponse.json(
-          { error: "File ảnh đại diện không đúng định dạng." },
-          { status: 400 }
-        );
-      }
-
-      const arrayBuffer = await avatarFile.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const ext = avatarFile.name
-        ? "." + avatarFile.name.split(".").pop()?.toLowerCase()
-        : ".jpg";
-      const filename = `avatar_${session.user.id}_${Date.now()}${ext}`;
-      const uploadResult = await uploadImage(
-        buffer,
-        filename,
-        avatarFile.type,
-        "avatars"
-      );
-      updateData.avatar_url = uploadResult.url;
-    }
 
     // ── Nếu không có gì để cập nhật ──────────────────────────────
     if (Object.keys(updateData).length === 0) {

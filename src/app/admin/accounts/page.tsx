@@ -26,7 +26,7 @@ import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { toast, Toaster } from "sonner";
 import { AdminUserEditModal } from "@/components/AdminUserEditModal";
-import Image from "next/image";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 interface UserAccount {
   id: string;
@@ -422,21 +422,7 @@ export default function AdminAccountsPage() {
                       {/* Name & Avatar */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {user.avatar_url ? (
-                            <div className="h-9 w-9 relative rounded-full overflow-hidden border border-slate-200 bg-slate-100">
-                              <Image
-                                src={user.avatar_url}
-                                alt={user.name || "Avatar"}
-                                fill
-                                className="object-cover"
-                                sizes="36px"
-                              />
-                            </div>
-                          ) : (
-                            <div className="h-9 w-9 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs uppercase">
-                              {(user.name || user.username || user.email).charAt(0)}
-                            </div>
-                          )}
+                          <UserAvatar name={user.name || user.username || user.email} size="sm" />
                           <div>
                             <span className="font-semibold text-slate-900 flex items-center gap-1.5">
                               {user.name || "Chưa đặt tên"}

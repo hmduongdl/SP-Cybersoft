@@ -11,7 +11,7 @@ export const postTaskSchema = z.object({
         .url('Link ảnh thumbnail phải là URL hợp lệ.')
         .optional()
         .or(z.literal('')),
-    description: z.string().trim().min(1, 'Vui lòng nhập lời nhắn hoặc yêu cầu kèm theo.'),
+    description: z.string().trim().optional().or(z.literal('')),
     start_at: z.coerce.date('Vui lòng chọn ngày giờ hiển thị bài viết.'),
     team: z.string().optional().nullable(),
 });

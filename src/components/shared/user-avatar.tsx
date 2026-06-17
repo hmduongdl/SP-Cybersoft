@@ -1,61 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
-
 interface UserAvatarProps {
-  src: string | null | undefined;
   name: string | null | undefined;
-  size?: "sm" | "md";
+  className?: string;
+  size?: "sm" | "md" | "lg";
 }
 
-/**
- * Avatar component hiển thị ảnh người dùng.
- * Sử dụng thẻ <img> tiêu chuẩn để tương thích với tất cả các domain hình ảnh khác nhau.
- * Khi không có ảnh hoặc ảnh lỗi → hiển thị fallback icon SVG.
- */
-export function UserAvatar({ src, name, size = "md" }: UserAvatarProps) {
-  const [imgError, setImgError] = useState(false);
+function getInitials(name: string | null | undefined): string {
+  if (!name || !name.trim()) return "U";
+  const trimmed = name.trim();
+  const parts = trimmed.split(/\s+/);
+  const lastWord = parts[parts.length - 1];
+  return lastWord.charAt(0).toUpperCase();
+}
 
-  // Reset trạng thái lỗi khi đường dẫn ảnh thay đổi (khi upload ảnh mới)
-  useEffect(() => {
-    setImgError(false);
-  }, [src]);
+const sizeClasses = {
+  sm: "h-7 w-7 text-[11px]",
+  md: "h-10 w-10 text-sm",
+  lg: "h-16 w-16 text-2xl",
+};
 
-  const dims = size === "sm" ? "h-7 w-7 text-[11px]" : "h-10 w-10 text-sm";
-  const border = size === "sm" ? "border-slate-200" : "border-slate-800";
+const bgColors = [
+  "bg-indigo-600 text-indigo-50",
+  "bg-emerald-600 text-emerald-50",
+  "bg-slate-700 text-slate-100",
+  "bg-indigo-500 text-indigo-50",
+  "bg-teal-600 text-teal-50",
+];
 
-  const hasSrc = src && !imgError;
+function getColorClass(initials: string): string {
+  const charCode = initials.charCodeAt(0) || 0;
+  return bgColors[charCode % bgColors.length];
+}
 
-  if (hasSrc) {
-    return (
-      <div className={`${dims} relative rounded-full overflow-hidden border ${border} bg-slate-700 group-hover:scale-105 transition-transform duration-200`}>
-        <img
-          src={src}
-          alt={name || "Avatar"}
-          className="w-full h-full object-cover"
-          onError={() => setImgError(true)}
-        />
-      </div>
-    );
-  }
+export function UserAvatar({ name, className = "", size = "md" }: UserAvatarProps) {
+  const initials = getInitials(name);
+  const colorClass = getColorClass(initials);
 
   return (
     <div
-      className={`${dims} rounded-full border ${border} bg-slate-700 flex items-center justify-center shrink-0`}
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold tracking-wide shadow-sm shrink-0 ${colorClass} ${className}`}
       title={name || "Người dùng"}
     >
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={size === "sm" ? "w-4 h-4 text-slate-400" : "w-5 h-5 text-slate-400"}
-      >
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c0-4.418 3.582-8 8-8s8 3.582 8 8" />
-      </svg>
+      {initials}
     </div>
   );
 }

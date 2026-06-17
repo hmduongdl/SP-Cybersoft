@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { toast, Toaster } from "sonner";
-import Image from "next/image";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 type Props = {
   totalPostsThisMonth: number;
@@ -74,7 +74,7 @@ export default function AnalyticsClient({
   const pendingUsersCount = userPerformanceList.filter(u => u.rate < 90).length;
 
   return (
-    <div className="space-y-lg animate-in fade-in duration-300">
+    <div className="w-full h-auto space-y-6 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors duration={1500} />
 
       {/* Breadcrumbs */}
@@ -283,15 +283,7 @@ export default function AnalyticsClient({
                   <tr key={user.id} className={cn("hover:bg-surface-container/30 transition-colors", isRed && "bg-rose-50/10")}>
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container border border-outline-variant/20 relative">
-                          {user.image ? (
-                            <Image className="object-cover" src={user.image} alt={user.name} fill sizes="40px" />
-                          ) : (
-                            <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
-                              {user.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
+                        <UserAvatar name={user.name} size="md" />
                         <div>
                           <p className="font-title-md text-on-surface font-semibold">{user.name}</p>
                           <p className="font-label-sm text-outline text-xs">{user.email}</p>

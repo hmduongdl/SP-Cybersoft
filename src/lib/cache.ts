@@ -63,6 +63,7 @@ export const getCachedPosts = unstable_cache(
       };
     }
     return db.post.findMany({
+      where: { is_archived: false },
       orderBy: { start_at: "asc" },
       select: selectFields,
     });

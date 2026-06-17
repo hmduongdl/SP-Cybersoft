@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useFacebookSDK, sharePost } from "@/hooks/useFacebookSDK";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import Image from "next/image";
 import { differenceInSeconds, format } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -365,9 +366,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2.5 overflow-hidden">
                   {colleagueAvatars.slice(0, 3).map((a, idx) => (
-                    <div key={idx} className="h-7 w-7 rounded-full border-2 border-surface-container-low overflow-hidden relative bg-slate-200" title={a.name}>
-                      <Image alt={a.name} fill className="object-cover" src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} sizes="28px" />
-                    </div>
+                    <UserAvatar key={idx} name={a.name} size="sm" className="border-2 border-surface-container-low" />
                   ))}
                   {colleagueAvatars.length > 3 && (
                     <div className="h-7 w-7 rounded-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-bold text-[9px] text-primary">

@@ -85,7 +85,6 @@ export function SiteHeader() {
 
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
   const userEmail = session?.user?.email || profile?.email || "";
-  const userImage = session?.user?.image || profile?.avatar_url || null;
   const isFacebookLinked = profile?.facebook_profile_url ? true : false;
   const userDepartment = profile?.department || session?.user?.department || "";
 
@@ -158,7 +157,7 @@ export function SiteHeader() {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-50 transition text-slate-600 hover:text-slate-900 border border-transparent hover:border-slate-200"
               >
-                <UserAvatar src={userImage} name={userDisplayName} size="sm" />
+                <UserAvatar name={userDisplayName} size="sm" />
                 <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">
                   {userDisplayName}
                 </span>

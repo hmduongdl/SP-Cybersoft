@@ -26,6 +26,7 @@ import FacebookProfilePreview from "@/components/FacebookProfilePreview";
 import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 interface Checkin {
   id: string;
@@ -613,15 +614,7 @@ export default function QueueClient({
                       <div className="flex flex-col gap-1.5">
                         
                         {/* Avatar */}
-                        <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden shadow-sm flex-shrink-0 bg-slate-100 relative">
-                          {item.user.avatar_url ? (
-                            <Image src={item.user.avatar_url} alt={item.user.name || "Avatar"} fill className="object-cover" sizes="40px" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-sm">
-                              {item.user.name ? item.user.name.charAt(0) : "U"}
-                            </div>
-                          )}
-                        </div>
+                        <UserAvatar name={item.user.name} size="md" />
 
                         {/* Name and email */}
                         <div>

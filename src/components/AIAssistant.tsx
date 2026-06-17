@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Sparkles, X, Loader2, Bot, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { useSession } from "next-auth/react";
 
 interface Message {
   role: "user" | "assistant";
@@ -15,7 +16,90 @@ interface QuotaStatus {
   usage_percent: number;
 }
 
-import { useSession } from "next-auth/react";
+function formatMessageContent(content: string): React.ReactNode {
+  if (!content) return "";
+
+  const lines = content.split("\n");
+
+  return (
+    <div className="space-y-1">
+      {lines.map((line, lineIdx) => {
+        let trimmed = line.trim();
+
+        if (trimmed === "") {
+          return <div key={lineIdx} className="h-1" />;
+        }
+
+        // Headers
+        let isHeader = false;
+        let headerClass = "";
+        if (trimmed.startsWith("### ")) {
+          isHeader = true;
+          headerClass = "text-[12px] font-bold text-white mt-2 mb-0.5 block";
+          trimmed = trimmed.substring(4);
+        } else if (trimmed.startsWith("## ")) {
+          isHeader = true;
+          headerClass = "text-[13px] font-bold text-white mt-2.5 mb-1 block";
+          trimmed = trimmed.substring(3);
+        } else if (trimmed.startsWith("# ")) {
+          isHeader = true;
+          headerClass = "text-sm font-extrabold text-white mt-3 mb-1.5 block";
+          trimmed = trimmed.substring(2);
+        }
+
+        // Bullet point
+        const isBullet = trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ");
+        if (isBullet) {
+          trimmed = trimmed.substring(2);
+        }
+
+        // Bold text **bold**
+        const boldRegex = /\*\*(.*?)\*\*/g;
+        const textParts: React.ReactNode[] = [];
+        let match;
+        let lastIndex = 0;
+
+        while ((match = boldRegex.exec(trimmed)) !== null) {
+          const matchIndex = match.index;
+          if (matchIndex > lastIndex) {
+            textParts.push(trimmed.substring(lastIndex, matchIndex));
+          }
+          textParts.push(
+            <strong key={matchIndex} className="font-bold text-white bg-white/5 px-1 py-0.5 rounded">
+              {match[1]}
+            </strong>
+          );
+          lastIndex = boldRegex.lastIndex;
+        }
+
+        if (lastIndex < trimmed.length) {
+          textParts.push(trimmed.substring(lastIndex));
+        }
+
+        const lineContent = textParts.length > 0 ? textParts : trimmed;
+
+        if (isHeader) {
+          return (
+            <span key={lineIdx} className={headerClass}>
+              {lineContent}
+            </span>
+          );
+        }
+
+        if (isBullet) {
+          return (
+            <div key={lineIdx} className="flex items-start gap-1.5 pl-1 py-0.5">
+              <span className="text-indigo-400 mt-1.5 shrink-0 select-none text-[6px]">•</span>
+              <span className="flex-1">{lineContent}</span>
+            </div>
+          );
+        }
+
+        return <p key={lineIdx} className="text-slate-200">{lineContent}</p>;
+      })}
+    </div>
+  );
+}
 
 export function AIAssistant() {
   const { data: session } = useSession();
@@ -293,6 +377,8 @@ export function AIAssistant() {
                   >
                     {msg.content === "" && isLoading && index === messages.length - 1 ? (
                       <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+                    ) : msg.role === "assistant" ? (
+                      formatMessageContent(msg.content)
                     ) : (
                       msg.content
                     )}

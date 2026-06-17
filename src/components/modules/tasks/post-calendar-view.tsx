@@ -17,6 +17,7 @@ import {
 } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import Image from "next/image";
 import { Clock, CheckCircle2, AlertCircle, XCircle, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -38,7 +39,6 @@ type Post = {
 type Avatar = {
   id: string;
   name: string;
-  imageUrl: string;
 };
 
 type CalendarProps = {
@@ -230,13 +230,12 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
     return (
       <div className="absolute bottom-1.5 right-1.5 flex -space-x-1.5 z-40 pointer-events-none">
         {displayAvatars.map((a) => (
-          <div
+          <UserAvatar
             key={a.id}
-            className="relative w-5 h-5 rounded-full border border-white bg-slate-200 overflow-hidden shadow-sm pointer-events-auto"
-            title={a.name}
-          >
-            <Image src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} alt={a.name} fill className="object-cover" sizes="20px" />
-          </div>
+            name={a.name}
+            size="sm"
+            className="w-5 h-5 text-[8px] border border-white shadow-sm pointer-events-auto"
+          />
         ))}
         {extraCount > 0 && (
           <div className="relative w-5 h-5 rounded-full border border-white bg-indigo-600 text-[8px] text-white flex items-center justify-center font-bold shadow-sm z-10 pointer-events-auto">

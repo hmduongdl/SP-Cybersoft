@@ -57,18 +57,16 @@ export default async function AdminQueueList(props: {
   const reviewedCount = allCheckins.filter((c: any) => c.status === "APPROVED" || c.status === "REJECTED").length;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <QueueClient
-        initialCheckins={paginatedCheckins}
-        currentPage={page}
-        totalPages={totalPages}
-        activeTab={activeTab as "PENDING" | "AUTO_APPROVED" | "REVIEWED"}
-        searchTerm={searchTerm}
-        deptFilter={deptFilter}
-        pendingCount={pendingCount}
-        autoApprovedCount={autoApprovedCount}
-        reviewedCount={reviewedCount}
-      />
-    </div>
+    <QueueClient
+      initialCheckins={paginatedCheckins}
+      currentPage={page}
+      totalPages={totalPages}
+      activeTab={activeTab as "PENDING" | "AUTO_APPROVED" | "REVIEWED"}
+      searchTerm={searchTerm}
+      deptFilter={deptFilter}
+      pendingCount={pendingCount}
+      autoApprovedCount={autoApprovedCount}
+      reviewedCount={reviewedCount}
+    />
   );
 }

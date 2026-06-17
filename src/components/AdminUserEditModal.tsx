@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Star, X, User, Mail, KeyRound, Camera, Link, Building2, ShieldCheck } from "lucide-react";
+import { Loader2, Star, X, User, Mail, KeyRound, Building2, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import Image from "next/image";
 
 interface UserAccount {
   id: string;
@@ -27,15 +26,13 @@ interface AdminUserEditModalProps {
 }
 
 export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUserEditModalProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const [name, setName] = useState(user.name || "");
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.email);
   const [department, setDepartment] = useState(user.department || "TECH");
-  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "");
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+
   const [newPassword, setNewPassword] = useState("");
   const [isActive, setIsActive] = useState(user.is_active);
   const [role, setRole] = useState<"ADMIN" | "USER">(user.role);
@@ -48,26 +45,12 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
     setUsername(user.username);
     setEmail(user.email);
     setDepartment(user.department || "TECH");
-    setAvatarUrl(user.avatar_url || "");
-    setAvatarFile(null);
-    setAvatarPreview(null);
     setNewPassword("");
     setIsActive(user.is_active);
     setRole(user.role);
   }, [user]);
 
-  const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Vui lòng chọn file ảnh.");
-      return;
-    }
-    setAvatarFile(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setAvatarPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  };
+
 
   const handleAddStar = async () => {
     setAddingStar(true);
@@ -101,24 +84,6 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
 
     setSaving(true);
     try {
-      let finalAvatarUrl = avatarUrl;
-
-      // Upload avatar file if selected
-      if (avatarFile) {
-        const formData = new FormData();
-        formData.append("file", avatarFile);
-        const uploadRes = await fetch("/api/admin/upload-avatar", {
-          method: "POST",
-          body: formData,
-        });
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Tải ảnh lên thất bại.");
-        }
-        const uploadData = await uploadRes.json();
-        finalAvatarUrl = uploadData.avatar_url;
-      }
-
       const payload: Record<string, any> = {
         id: user.id,
         name: name.trim(),
@@ -126,7 +91,6 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
         email: email.trim(),
         role,
         department,
-        avatar_url: finalAvatarUrl || null,
         is_active: isActive,
       };
 
@@ -185,68 +149,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
 
         <form onSubmit={handleSave}>
           <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
-            {/* Avatar Section */}
-            <div className="flex items-center gap-5 pb-4 border-b border-slate-100">
-              <div className="relative group">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 relative flex items-center justify-center">
-                  {avatarPreview || avatarUrl ? (
-                    <Image
-                      src={avatarPreview || avatarUrl}
-                      alt="Avatar"
-                      fill
-                      className="object-cover"
-                      sizes="80px"
-                    />
-                  ) : (
-                    <User className="w-8 h-8 text-slate-400" />
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={saving}
-                  className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-indigo-700 transition disabled:opacity-50"
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarSelect}
-                  className="hidden"
-                  disabled={saving}
-                />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800">
-                  {name || "Ảnh đại diện"}
-                </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Upload file ảnh hoặc dán URL bên dưới
-                </p>
-              </div>
-            </div>
 
-            {/* Avatar URL */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                <Link className="h-3.5 w-3.5 text-slate-400" />
-                Đường dẫn ảnh đại diện (URL)
-              </label>
-              <input
-                type="url"
-                placeholder="https://images.unsplash.com/..."
-                value={avatarUrl}
-                onChange={(e) => {
-                  setAvatarUrl(e.target.value);
-                  setAvatarPreview(null);
-                  setAvatarFile(null);
-                }}
-                disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-              />
-            </div>
 
             {/* Grid: Full Name + Username */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

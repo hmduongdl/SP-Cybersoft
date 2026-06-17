@@ -8,7 +8,6 @@ import { clsx } from "clsx";
 import { useState, useEffect } from "react";
 
 import { UserAvatar } from "./user-avatar";
-import Image from "next/image";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -41,6 +40,7 @@ export function Sidebar() {
   const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
     { label: "Nhiệm vụ", href: "/tasks", icon: "task_alt", adminOnly: false },
+    { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
     { label: "Duyệt Bài", href: "/admin/queue", icon: "rate_review", adminOnly: true },
     { label: "Reports", href: "/admin/analytics", icon: "analytics", adminOnly: true },
     { label: "Quản lý Post", href: "/admin/posts", icon: "post_add", adminOnly: true },
@@ -57,7 +57,6 @@ export function Sidebar() {
     rawDepartment === "TECH" ? "Phòng Kỹ Thuật"
     : rawDepartment === "SALES" ? "Phòng Kinh Doanh"
     : rawDepartment;
-  const userImage = session?.user?.image || profile?.avatar_url || null;
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-slate-950 border-r border-slate-800 py-lg px-4 justify-between">
@@ -158,7 +157,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md group">
             <div className="flex items-center gap-3 overflow-hidden">
-              <UserAvatar src={userImage} name={userDisplayName} />
+              <UserAvatar name={userDisplayName} />
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
                 <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
