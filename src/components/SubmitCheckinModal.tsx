@@ -254,7 +254,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
   if (!isOpen) return null;
 
-  // ── Upload file to Vercel Blob ──
+  // ── Upload file to Vercel Blob (XHR for real progress) ──
   const uploadFile = useCallback(async (file: File) => {
     const err = validateFile(file);
     if (err) {
@@ -265,33 +265,57 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
     setUploading(true);
     setUploadProgress(0);
 
-    // Simulate smooth progress (real progress from fetch is opaque)
-    const tick = setInterval(() => {
-      setUploadProgress((prev) => Math.min(prev + 8, 90));
-    }, 120);
+    const fd = new FormData();
+    fd.append("file", file);
 
     try {
-      const fd = new FormData();
-      fd.append("file", file);
+      const url = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
 
-      const res = await fetch("/api/upload/checkin", {
-        method: "POST",
-        body: fd,
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              if (data.url) {
+                setUploadProgress(100);
+                resolve(data.url);
+              } else {
+                reject(new Error(data.error || "Server không trả về URL."));
+              }
+            } catch {
+              reject(new Error("Response không phải JSON hợp lệ."));
+            }
+          } else {
+            let msg = "Tải ảnh lên thất bại.";
+            try {
+              const data = JSON.parse(xhr.responseText);
+              msg = data.error || msg;
+            } catch {}
+            reject(new Error(msg));
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Mất kết nối tới máy chủ. Kiểm tra mạng."));
+        });
+
+        xhr.addEventListener("abort", () => {
+          reject(new Error("Upload bị huỷ."));
+        });
+
+        xhr.open("POST", "/api/upload/checkin");
+        xhr.send(fd);
       });
 
-      clearInterval(tick);
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Tải ảnh lên thất bại.");
-      }
-
-      setUploadProgress(100);
-      const data = await res.json();
-      setImageUrl(data.url);
+      setImageUrl(url);
       toast.success("Tải ảnh lên thành công!");
     } catch (err: any) {
-      clearInterval(tick);
       setUploadProgress(0);
       toast.error(err.message || "Tải ảnh thất bại.");
     } finally {

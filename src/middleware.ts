@@ -10,5 +10,5 @@ export const middleware = auth;
 
 export const config = {
   // Bảo vệ toàn bộ các trang ngoại trừ login, api, assets, và static files
-  matcher: ["/((?!api/uploadthing|api|_next/static|_next/image|favicon.ico|login|images).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|login|images).*)"],
 };
