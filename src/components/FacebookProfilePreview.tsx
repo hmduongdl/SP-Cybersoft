@@ -80,7 +80,7 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
         href={facebookLink}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-blue-50 text-blue-600 border border-blue-150 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg-full text-[9px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <ExternalLink className="w-3 h-3" />
@@ -99,10 +99,10 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
             transform: "translate(-50%, -100%)",
           }}
         >
-          <div className="bg-white border border-slate-200 rounded-xl shadow-xl p-3 min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-surface-bright rounded-lg-xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] p-3 min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
             {loading ? (
               <div className="flex items-center justify-center py-3">
-                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                <Loader2 className="w-4 h-4 animate-spin text-outline" />
               </div>
             ) : error ? (
               <div className="flex items-center gap-2 text-amber-600 text-[10px] leading-tight">
@@ -111,7 +111,7 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
               </div>
             ) : ogData ? (
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 relative">
+                <div className="w-9 h-9 rounded-lg-full overflow-hidden bg-surface-container flex-shrink-0 relative">
                   {ogData.ogImage ? (
                     <Image
                       src={ogData.ogImage}
@@ -122,16 +122,16 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
                       onError={handleImgError}
                     />
                   ) : null}
-                  <div className={`fb-avatar-fallback w-full h-full flex items-center justify-center absolute inset-0 bg-slate-100 ${ogData.ogImage ? "hidden" : ""}`}>
-                    <User className="w-4 h-4 text-slate-400" />
+                  <div className={`fb-avatar-fallback w-full h-full flex items-center justify-center absolute inset-0 bg-surface-container ${ogData.ogImage ? "hidden" : ""}`}>
+                    <User className="w-4 h-4 text-on-surface-variant" />
                   </div>
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-900 truncate leading-tight">
+                  <p className="text-xs font-bold text-on-surface truncate leading-tight">
                     {ogData.ogTitle || "Facebook Profile"}
                   </p>
                   {ogData.ogDescription && (
-                    <p className="text-[10px] text-slate-500 truncate mt-0.5 leading-tight">
+                    <p className="text-[10px] text-on-surface-variant truncate mt-0.5 leading-tight">
                       {ogData.ogDescription}
                     </p>
                   )}

@@ -50,7 +50,7 @@ export function UserAvatar({ name, src, className = "", size = "md" }: UserAvata
       <img
         src={src}
         alt={name || "Avatar"}
-        className={`${imageSizeClasses[size]} rounded-full object-cover border-2 border-white shadow-sm shrink-0 ${className}`}
+        className={`${imageSizeClasses[size]} rounded-lg-full object-cover border-2 border-white shadow-ambient shrink-0 ${className}`}
         onError={() => setImgFailed(true)}
       />
     );
@@ -61,7 +61,7 @@ export function UserAvatar({ name, src, className = "", size = "md" }: UserAvata
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold tracking-wide shadow-sm shrink-0 ${colorClass} ${className}`}
+      className={`${sizeClasses[size]} rounded-lg-full flex items-center justify-center font-semibold tracking-wide shadow-ambient shrink-0 ${colorClass} ${className}`}
       title={name || "Người dùng"}
     >
       {initials}

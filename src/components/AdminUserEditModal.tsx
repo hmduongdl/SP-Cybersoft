@@ -123,25 +123,25 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         onClick={() => !saving && onClose()}
-        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
       />
 
-      <Card className="w-full max-w-2xl bg-white border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+      <Card className="w-full max-w-2xl bg-surface-bright shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+        <div className="px-6 py-4 bg-surface-container-low flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <User className="h-5 w-5 text-indigo-600" />
+            <h3 className="text-lg font-bold text-on-surface flex items-center gap-2 font-manrope">
+              <User className="h-5 w-5 text-primary" />
               Chỉnh Sửa Tài Khoản
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-on-surface-variant mt-0.5">
               Quản lý thông tin nhân sự và đặc quyền
             </p>
           </div>
           <button
             onClick={onClose}
             disabled={saving}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-lg-full transition-all duration-150"
           >
             <X className="h-5 w-5" />
           </button>
@@ -154,8 +154,8 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
             {/* Grid: Full Name + Username */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                  <User className="h-3.5 w-3.5 text-slate-400" />
+                <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                  <User className="h-3.5 w-3.5 text-on-surface-variant" />
                   Họ và tên
                 </label>
                 <input
@@ -164,13 +164,13 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={saving}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                  <User className="h-3.5 w-3.5 text-slate-400" />
+                <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                  <User className="h-3.5 w-3.5 text-on-surface-variant" />
                   Tên đăng nhập
                 </label>
                 <input
@@ -179,15 +179,15 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={saving}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
                 />
               </div>
             </div>
 
             {/* Email */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                <Mail className="h-3.5 w-3.5 text-slate-400" />
+              <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                <Mail className="h-3.5 w-3.5 text-on-surface-variant" />
                 Địa chỉ Email
               </label>
               <input
@@ -197,21 +197,21 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               />
             </div>
 
             {/* Department */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                <Building2 className="h-3.5 w-3.5 text-slate-400" />
+              <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                <Building2 className="h-3.5 w-3.5 text-on-surface-variant" />
                 Phòng ban
               </label>
               <select
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               >
                 <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
                 <option value="SALES">Phòng Kinh Doanh (SALES)</option>
@@ -220,15 +220,15 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
 
             {/* Role */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+              <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                <ShieldCheck className="h-3.5 w-3.5 text-on-surface-variant" />
                 Vai trò (Role)
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as "ADMIN" | "USER")}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               >
                 <option value="USER">USER (Nhân viên)</option>
                 <option value="ADMIN">ADMIN (Quản trị)</option>
@@ -237,8 +237,8 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
 
             {/* Password */}
             <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
-                <KeyRound className="h-3.5 w-3.5 text-slate-400" />
+              <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                <KeyRound className="h-3.5 w-3.5 text-on-surface-variant" />
                 Mật khẩu mới
               </label>
               <input
@@ -247,9 +247,9 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               />
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] text-on-surface-variant mt-1">
                 Chỉ nhập nếu muốn thay đổi mật khẩu. Để trống sẽ giữ nguyên mật khẩu hiện tại.
               </p>
             </div>
@@ -262,16 +262,16 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 checked={isActive}
                 onChange={(e) => setIsActive(e.target.checked)}
                 disabled={saving}
-                className="w-5 h-5 rounded border-slate-200 text-indigo-600 focus:ring-indigo-500/30 bg-white transition-all cursor-pointer disabled:opacity-50"
+                className="w-5 h-5 rounded-lg text-primary focus:ring-primary/30 bg-surface-bright transition-all duration-150 cursor-pointer disabled:opacity-50"
               />
               <label htmlFor="is_active" className="cursor-pointer select-none">
-                <span className="text-sm font-semibold text-slate-900">Cho phép hoạt động</span>
-                <p className="text-xs text-slate-500">Tài khoản có thể đăng nhập khi được bật</p>
+                <span className="text-sm font-semibold text-on-surface">Cho phép hoạt động</span>
+                <p className="text-xs text-on-surface-variant">Tài khoản có thể đăng nhập khi được bật</p>
               </label>
             </div>
 
             {/* Hope Stars Section */}
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div className="p-4 bg-amber-50 rounded-lg-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-amber-800 flex items-center gap-1.5">
@@ -287,7 +287,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                   type="button"
                   onClick={handleAddStar}
                   disabled={addingStar}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-95"
                 >
                   {addingStar ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -301,19 +301,19 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
           </div>
 
           {/* Action Buttons */}
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+          <div className="px-6 py-4 bg-surface-container-low flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+              className="px-4 py-2.5 rounded-lg-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant text-sm font-semibold transition-all duration-150"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg-xl gradient-primary text-on-primary text-sm font-semibold transition-all duration-150 disabled:opacity-50"
             >
               {saving ? (
                 <>

@@ -15,6 +15,7 @@ export const postTaskSchema = z.object({
     description: z.string().trim().optional().or(z.literal('')),
     start_at: z.coerce.date('Vui lòng chọn ngày giờ hiển thị bài viết.'),
     team: z.string().optional().nullable(),
+    author: z.string().optional().nullable(),
 });
 
 

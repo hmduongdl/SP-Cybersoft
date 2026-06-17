@@ -211,16 +211,16 @@ export default function AdminAccountsPage() {
     return (
       <div className="space-y-6">
         <header className="pb-6">
-          <p className="text-sm uppercase tracking-[0.3em] text-slate-400 font-medium">Cấu hình</p>
-          <h1 className="mt-3 text-3xl font-semibold text-slate-900">Quản Lý Account</h1>
+          <p className="text-sm uppercase tracking-[0.3em] text-on-surface-variant font-medium">Cấu hình</p>
+          <h1 className="mt-3 text-3xl font-semibold text-on-surface font-manrope">Quản Lý Account</h1>
         </header>
 
         <Card className="min-h-[400px] flex flex-col items-center justify-center text-center p-8 border-dashed border-2 border-red-200 bg-red-50/50">
-          <div className="h-16 w-16 rounded-full bg-white border border-red-200 flex items-center justify-center text-red-500 mb-4 shadow-sm">
+          <div className="h-16 w-16 rounded-full bg-surface-bright border border-red-200 flex items-center justify-center text-red-500 mb-4">
             <Lock className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">Quyền truy cập bị từ chối</h2>
-          <p className="text-sm text-slate-600 max-w-sm">
+          <h2 className="text-xl font-semibold text-on-surface mb-2 font-manrope">Quyền truy cập bị từ chối</h2>
+          <p className="text-sm text-on-surface-variant max-w-sm">
             Trang này chỉ dành cho tài khoản có vai trò Quản trị viên (Admin). Vui lòng chuyển Chế độ giả lập ở góc dưới bên trái của Sidebar thành "Admin" để xem nội dung.
           </p>
         </Card>
@@ -244,26 +244,26 @@ export default function AdminAccountsPage() {
   const deptBadgeClass = (dept: string | null) => {
     if (dept === "TECH") return "bg-blue-50 text-blue-700 border-blue-200";
     if (dept === "SALES") return "bg-pink-50 text-pink-700 border-pink-200";
-    return "bg-slate-100 text-slate-700 border-slate-200";
+    return "bg-surface-container text-on-surface-variant";
   };
 
   return (
-    <div className="space-y-6 pb-12 text-slate-900">
+    <div className="space-y-6 pb-12 text-on-surface">
       <Toaster position="top-right" richColors duration={1500} />
 
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">Hệ thống</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-slate-900 tracking-tight">Quản Lý Thành Viên</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant font-semibold">Hệ thống</p>
+          <h1 className="mt-2 text-3xl font-extrabold text-on-surface tracking-tight font-manrope">Quản Lý Thành Viên</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">
             Quản lý nhân sự, phòng ban và Ngôi sao hy vọng.
           </p>
         </div>
         <div>
           <button
             onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-750 font-semibold text-white text-sm shadow-md transition-all active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-750 font-semibold text-white text-sm transition-all"
           >
             <UserPlus className="h-4.5 w-4.5" />
             <span>Thêm tài khoản mới</span>
@@ -274,10 +274,10 @@ export default function AdminAccountsPage() {
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Users */}
-        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
+        <Card className="bg-surface-bright p-5 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500 font-semibold uppercase">Tổng nhân sự</p>
-            <h4 className="text-2xl font-bold text-slate-900 mt-2">{totalCount}</h4>
+            <p className="text-xs text-on-surface-variant font-semibold uppercase">Tổng nhân sự</p>
+            <h4 className="text-2xl font-bold text-on-surface mt-2">{totalCount}</h4>
           </div>
           <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
             <Users className="h-6 w-6" />
@@ -285,9 +285,9 @@ export default function AdminAccountsPage() {
         </Card>
 
         {/* Admins */}
-        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
+        <Card className="bg-surface-bright p-5 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500 font-semibold uppercase">Quản trị viên</p>
+            <p className="text-xs text-on-surface-variant font-semibold uppercase">Quản trị viên</p>
             <h4 className="text-2xl font-bold text-indigo-600 mt-2">{adminCount}</h4>
           </div>
           <div className="p-3 bg-purple-50 rounded-xl text-purple-600">
@@ -296,10 +296,10 @@ export default function AdminAccountsPage() {
         </Card>
 
         {/* Normal Users */}
-        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
+        <Card className="bg-surface-bright p-5 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500 font-semibold uppercase">Thành viên (User)</p>
-            <h4 className="text-2xl font-bold text-slate-900 mt-2">{userCount}</h4>
+            <p className="text-xs text-on-surface-variant font-semibold uppercase">Thành viên (User)</p>
+            <h4 className="text-2xl font-bold text-on-surface mt-2">{userCount}</h4>
           </div>
           <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
             <UserCheck className="h-6 w-6" />
@@ -307,9 +307,9 @@ export default function AdminAccountsPage() {
         </Card>
 
         {/* Inactive */}
-        <Card className="bg-white border-slate-200 p-5 flex items-center justify-between shadow-sm">
+        <Card className="bg-surface-bright p-5 flex items-center justify-between">
           <div>
-            <p className="text-xs text-slate-500 font-semibold uppercase">Tài khoản bị khóa</p>
+            <p className="text-xs text-on-surface-variant font-semibold uppercase">Tài khoản bị khóa</p>
             <h4 className="text-2xl font-bold text-rose-600 mt-2">{inactiveCount}</h4>
           </div>
           <div className="p-3 bg-rose-50 rounded-xl text-rose-600">
@@ -319,11 +319,11 @@ export default function AdminAccountsPage() {
       </div>
 
       {/* Filters & Search section */}
-      <Card className="bg-white border-slate-200 p-4 shadow-sm">
+      <Card className="bg-surface-bright p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Search bar */}
           <div className="relative md:col-span-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
               <Search className="h-4 w-4" />
             </span>
             <input
@@ -331,7 +331,7 @@ export default function AdminAccountsPage() {
               placeholder="Tìm kiếm thành viên..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full pl-9 pr-4 py-2.5 bg-surface-bright border-none rounded-xl text-sm text-on-surface placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>
 
@@ -340,7 +340,7 @@ export default function AdminAccountsPage() {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-3 py-2.5 bg-surface-bright border-none rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Vai trò (Role)</option>
               <option value="ADMIN">ADMIN</option>
@@ -353,7 +353,7 @@ export default function AdminAccountsPage() {
             <select
               value={deptFilter}
               onChange={(e) => setDeptFilter(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-3 py-2.5 bg-surface-bright border-none rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Phòng ban</option>
               <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
@@ -366,7 +366,7 @@ export default function AdminAccountsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full px-3 py-2.5 bg-surface-bright border-none rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             >
               <option value="ALL">Tất cả Trạng thái</option>
               <option value="ACTIVE">Hoạt động</option>
@@ -376,7 +376,7 @@ export default function AdminAccountsPage() {
             <button
               onClick={fetchAccounts}
               title="Tải lại danh sách"
-              className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-colors"
+              className="p-2.5 rounded-xl hover:bg-surface-container-low text-on-surface-variant hover:text-on-surface transition-all duration-150"
             >
               <RefreshCw className={`h-4.5 w-4.5 ${isLoading ? "animate-spin" : ""}`} />
             </button>
@@ -385,19 +385,19 @@ export default function AdminAccountsPage() {
       </Card>
 
       {/* Main Accounts Table */}
-      <Card className="bg-white border-slate-200 overflow-hidden shadow-sm">
+      <Card className="bg-surface-bright overflow-hidden">
         {isLoading ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-500 gap-2">
+          <div className="min-h-[300px] flex flex-col items-center justify-center text-on-surface-variant gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             <p className="text-sm">Đang tải danh sách tài khoản...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-500 p-8 text-center">
-            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+          <div className="min-h-[300px] flex flex-col items-center justify-center text-on-surface-variant p-8 text-center">
+            <div className="h-12 w-12 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-3">
               <Users className="h-6 w-6" />
             </div>
-            <p className="text-base font-semibold text-slate-900">Không tìm thấy tài khoản nào</p>
-            <p className="text-sm text-slate-500 mt-1 max-w-xs">
+            <p className="text-base font-semibold text-on-surface">Không tìm thấy tài khoản nào</p>
+            <p className="text-sm text-on-surface-variant mt-1 max-w-xs">
               Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.
             </p>
           </div>
@@ -405,7 +405,7 @@ export default function AdminAccountsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr className="border-none bg-surface-container-low text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
                   <th className="px-6 py-4">Họ và tên</th>
                   <th className="px-6 py-4">Phòng ban</th>
                   <th className="px-6 py-4 text-center">Ngôi sao hy vọng</th>
@@ -413,31 +413,31 @@ export default function AdminAccountsPage() {
                   <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-outline-variant/10 text-sm">
                 {filteredUsers.map((user) => {
                   const isSelf = session?.user?.email === user.email;
 
                   return (
-                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                    <tr key={user.id} className="hover:bg-surface-container-low/50 transition-all duration-150">
                       {/* Name & Avatar */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <UserAvatar name={user.name || user.username || user.email} size="sm" />
                           <div>
-                            <span className="font-semibold text-slate-900 flex items-center gap-1.5">
+                            <span className="font-semibold text-on-surface flex items-center gap-1.5">
                               {user.name || "Chưa đặt tên"}
                               {user.role === "ADMIN" && (
-                                <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded font-semibold">
+                                <span className="text-[10px] bg-purple-50 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded-lg font-semibold">
                                   ADMIN
                                 </span>
                               )}
                               {isSelf && (
-                                <span className="text-[10px] bg-slate-100 text-slate-600 border border-slate-200 px-1.5 py-0.5 rounded">
+                                <span className="text-[10px] bg-surface-container text-on-surface-variant px-1.5 py-0.5 rounded-full">
                                   Bạn
                                 </span>
                               )}
                             </span>
-                            <span className="text-xs text-slate-500 block mt-0.5 font-mono">
+                            <span className="text-xs text-on-surface-variant block mt-0.5 font-mono">
                               @{user.username} &bull; {user.email}
                             </span>
                           </div>
@@ -481,7 +481,7 @@ export default function AdminAccountsPage() {
                           <button
                             onClick={() => handleOpenEditModal(user)}
                             title="Sửa tài khoản"
-                            className="p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-slate-600 hover:text-indigo-600 transition-all"
+                            className="p-2 bg-surface-bright hover:bg-indigo-50 rounded-xl text-on-surface-variant hover:text-indigo-600 transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -490,10 +490,10 @@ export default function AdminAccountsPage() {
                             onClick={() => setDeletingUser(user)}
                             disabled={isSelf}
                             title={isSelf ? "Bạn không thể xóa chính mình" : "Xóa tài khoản"}
-                            className={`p-2 rounded-lg border transition-all ${
+                            className={`p-2 rounded-xl transition-all ${
                               isSelf
-                                ? "bg-slate-50 border-slate-100 text-slate-300 cursor-not-allowed"
-                                : "bg-white hover:bg-rose-50 border-slate-200 hover:border-rose-350 text-slate-600 hover:text-rose-600"
+                                ? "bg-surface-container-low text-on-surface-variant cursor-not-allowed"
+                                : "bg-surface-bright hover:bg-rose-50 hover:border-rose-350 text-on-surface-variant hover:text-rose-600"
                             }`}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -515,20 +515,20 @@ export default function AdminAccountsPage() {
           {/* Backdrop */}
           <div
             onClick={() => !isSubmitting && setShowFormModal(false)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm"
           />
 
           {/* Form Card */}
-          <Card className="w-full max-w-lg bg-white border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
-            <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+          <Card className="w-full max-w-lg bg-surface-bright shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="px-6 py-4 bg-surface-container-low/50 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2 font-manrope">
                 <User className="h-5 w-5 text-indigo-600" />
                 Thêm Tài Khoản Mới
               </h3>
               <button
                 onClick={() => setShowFormModal(false)}
                 disabled={isSubmitting}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-on-surface-variant hover:text-on-surface transition-all duration-150"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -538,8 +538,8 @@ export default function AdminAccountsPage() {
               <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 {/* Email */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase flex items-center gap-1.5">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  <label className="text-xs font-semibold text-on-surface tracking-wide uppercase flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5 text-on-surface-variant" />
                     Địa chỉ Email
                   </label>
                   <input
@@ -549,13 +549,13 @@ export default function AdminAccountsPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 disabled:opacity-50 disabled:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                    className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder-slate-400 disabled:opacity-50 disabled:bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
                   />
                 </div>
 
                 {/* Name */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
+                  <label className="text-xs font-semibold text-on-surface tracking-wide uppercase">
                     Họ và tên
                   </label>
                   <input
@@ -564,13 +564,13 @@ export default function AdminAccountsPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
                 {/* Password */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
+                  <label className="text-xs font-semibold text-on-surface tracking-wide uppercase">
                     Mật khẩu
                   </label>
                   <input
@@ -580,20 +580,20 @@ export default function AdminAccountsPage() {
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
                 {/* Department */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
+                  <label className="text-xs font-semibold text-on-surface tracking-wide uppercase">
                     Phòng ban
                   </label>
                   <select
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   >
                     <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
                     <option value="SALES">Phòng Kinh Doanh (SALES)</option>
@@ -602,14 +602,14 @@ export default function AdminAccountsPage() {
 
                 {/* Role */}
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold text-slate-700 tracking-wide uppercase">
+                  <label className="text-xs font-semibold text-on-surface tracking-wide uppercase">
                     Vai trò (Role)
                   </label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as "ADMIN" | "USER" })}
                     disabled={isSubmitting}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   >
                     <option value="USER">USER (Nhân viên)</option>
                     <option value="ADMIN">ADMIN (Quản trị)</option>
@@ -624,30 +624,30 @@ export default function AdminAccountsPage() {
                       checked={formData.is_active}
                       onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
                       disabled={isSubmitting}
-                      className="mt-1 w-5 h-5 rounded border-slate-200 text-indigo-600 focus:ring-indigo-500/30 bg-white transition-all cursor-pointer disabled:opacity-50"
+                      className="mt-1 w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500/30 bg-surface-bright transition-all cursor-pointer disabled:opacity-50"
                     />
                     <div>
-                      <span className="text-sm font-semibold text-slate-900">Cho phép hoạt động</span>
-                      <p className="text-xs text-slate-500 mt-0.5">Tài khoản có thể đăng nhập vào hệ thống khi được bật</p>
+                      <span className="text-sm font-semibold text-on-surface">Cho phép hoạt động</span>
+                      <p className="text-xs text-on-surface-variant mt-0.5">Tài khoản có thể đăng nhập vào hệ thống khi được bật</p>
                     </div>
                   </label>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+              <div className="px-6 py-4 bg-surface-container-low/50 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setShowFormModal(false)}
                   disabled={isSubmitting}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                  className="px-4 py-2.5 rounded-xl hover:bg-surface-container text-on-surface text-sm font-semibold transition-all duration-150"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <>
@@ -682,36 +682,36 @@ export default function AdminAccountsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             onClick={() => !isSubmitting && setDeletingUser(null)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm"
           />
 
-          <Card className="w-full max-w-md bg-white border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
-            <div className="px-6 py-5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3 text-red-650">
+          <Card className="w-full max-w-md bg-surface-bright shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+            <div className="px-6 py-5 bg-surface-container-low/50 flex items-center gap-3 text-red-650">
               <AlertTriangle className="h-6 w-6" />
-              <h3 className="text-lg font-bold text-slate-900">Xác nhận xóa tài khoản</h3>
+              <h3 className="text-lg font-bold text-on-surface font-manrope">Xác nhận xóa tài khoản</h3>
             </div>
 
             <div className="p-6 space-y-3">
-              <p className="text-sm text-slate-700">
-                Bạn có chắc chắn muốn xóa tài khoản của <strong className="text-slate-900">{deletingUser.name || deletingUser.username || deletingUser.email}</strong>?
+              <p className="text-sm text-on-surface">
+                Bạn có chắc chắn muốn xóa tài khoản của <strong className="text-on-surface">{deletingUser.name || deletingUser.username || deletingUser.email}</strong>?
               </p>
               <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 leading-relaxed">
                 <strong>Chú ý:</strong> Hành động này không thể hoàn tác. Việc xóa tài khoản này đồng thời sẽ xóa bỏ tất cả dữ liệu liên quan như các lượt check-in của nhân viên này trên hệ thống.
               </div>
             </div>
 
-            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+            <div className="px-6 py-4 bg-surface-container-low/50 flex justify-end gap-3">
               <button
                 onClick={() => setDeletingUser(null)}
                 disabled={isSubmitting}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                className="px-4 py-2.5 rounded-xl hover:bg-surface-container text-on-surface text-sm font-semibold transition-all duration-150"
               >
                 Hủy bỏ
               </button>
               <button
                 onClick={handleDeleteUser}
                 disabled={isSubmitting}
-                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold shadow-md active:scale-[0.98] transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <>

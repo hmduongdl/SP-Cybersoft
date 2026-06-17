@@ -33,24 +33,23 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage <= 1}
-        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-        aria-label="Previous page"
+        className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
 
       {getPageNumbers().map((page, idx) =>
         page === "..." ? (
-          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-sm text-slate-400">...</span>
+          <span key={`ellipsis-${idx}`} className="px-2 py-1 text-sm text-on-surface-variant">...</span>
         ) : (
           <button
             key={page}
             onClick={() => onPageChange(page)}
             className={cn(
-              "min-w-[36px] h-9 rounded-lg text-sm font-semibold transition-all border",
+              "min-w-[36px] h-9 rounded-lg text-sm font-semibold transition-all duration-150",
               currentPage === page
-                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                ? "gradient-primary text-on-primary"
+                : "text-on-surface-variant hover:bg-surface-container-low"
             )}
           >
             {page}
@@ -61,7 +60,7 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage >= totalPages}
-        className="p-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-low disabled:opacity-40 disabled:cursor-not-allowed transition-all"
         aria-label="Next page"
       >
         <ChevronRight className="w-4 h-4" />

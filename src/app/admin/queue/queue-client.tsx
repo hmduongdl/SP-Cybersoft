@@ -6,20 +6,14 @@ import {
   Check,
   X,
   Search,
-  Image as ImageIcon,
   Filter,
-  Calendar,
   Clock,
-  AlertTriangle,
   Loader2,
-  Eye,
-  CheckSquare,
-  Square,
-  Inbox,
-  AlertCircle,
   Sparkles,
-  ExternalLink,
-  CheckCircle2
+  CheckCircle2,
+  AlertCircle,
+  ChevronDown,
+  ImageIcon,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import FacebookProfilePreview from "@/components/FacebookProfilePreview";
@@ -68,6 +62,8 @@ interface QueueClientProps {
   reviewedCount?: number;
 }
 
+const presetReasons = ["Ảnh sai nội dung", "Ảnh bị mờ", "Ảnh nộp trùng"];
+
 export default function QueueClient({
   initialCheckins,
   currentPage: _currentPage,
@@ -80,17 +76,15 @@ export default function QueueClient({
   reviewedCount: _reviewedCount,
 }: QueueClientProps) {
   const [checkins, setCheckins] = useState<Checkin[]>(initialCheckins);
-  const [activeTab, setActiveTab] = useState<"PENDING" | "AUTO_APPROVED" | "REVIEWED">(initialTab as "PENDING" | "AUTO_APPROVED" | "REVIEWED");
+  const [activeTab, setActiveTab] = useState<"PENDING" | "AUTO_APPROVED" | "REVIEWED">(initialTab as any);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDept);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
-  
-  // Single Rejection States
+
+  // Rejection states
   const [isRejectingId, setIsRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-
-  // Batch Rejection States
   const [isBatchRejecting, setIsBatchRejecting] = useState(false);
   const [batchRejectReason, setBatchRejectReason] = useState("");
 
@@ -101,67 +95,9 @@ export default function QueueClient({
   const [scanningId, setScanningId] = useState<string | null>(null);
   const [aiScanResults, setAiScanResults] = useState<Record<string, { isValid: boolean; confidence: number; analysisReason: string }>>({});
 
-  const handleAIScan = async (id: string) => {
-    try {
-      setScanningId(id);
-      const res = await fetch("/api/admin/ai-scan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkinId: id })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Quét AI thất bại.");
-      }
-      
-      setAiScanResults(prev => ({
-        ...prev,
-        [id]: {
-          isValid: data.isValid,
-          confidence: data.confidence,
-          analysisReason: data.analysisReason
-        }
-      }));
-
-      // Update local checkins state
-      setCheckins(prev => 
-        prev.map(c => {
-          if (c.id === id) {
-            return {
-              ...c,
-              is_ai_flagged: !data.isValid,
-              ai_confidence: data.confidence,
-              note: `[AI Scan] ${data.analysisReason}`
-            };
-          }
-          return c;
-        })
-      );
-
-      toast.success(data.isValid 
-        ? "AI đánh giá: Bài nộp HỢP LỆ!" 
-        : "AI đánh giá: Phát hiện NGHI VẤN!"
-      );
-    } catch (e: any) {
-      console.error(e);
-      toast.error(e.message || "Lỗi quét AI.");
-    } finally {
-      setScanningId(null);
-    }
-  };
-
-  // Filter lists based on tab and Search
-  const filteredCheckins = checkins; // Server-side filtering already applied
-
-  // Use passed-in counts (server-computed)
-  const pendingCount = _pendingCount ?? checkins.filter(c => c.status === "PENDING").length;
-  const autoApprovedCount = _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length;
-  const reviewedCount = _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
-
-  // Debounce timer for search
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   const navigateWithParams = useCallback((params: Record<string, string>) => {
     const sp = new URLSearchParams(searchParams.toString());
@@ -199,7 +135,6 @@ export default function QueueClient({
   const handleSelectAll = () => {
     const visibleIds = filteredCheckins.map(c => c.id);
     const allSelected = visibleIds.every(id => selectedIds.has(id));
-    
     const next = new Set(selectedIds);
     if (allSelected) {
       visibleIds.forEach(id => next.delete(id));
@@ -211,20 +146,13 @@ export default function QueueClient({
 
   const handleSelectOne = (id: string) => {
     const next = new Set(selectedIds);
-    if (next.has(id)) {
-      next.delete(id);
-    } else {
-      next.add(id);
-    }
+    next.has(id) ? next.delete(id) : next.add(id);
     setSelectedIds(next);
   };
 
-  // call API action
   const executeAction = async (ids: string[], action: "APPROVE" | "REJECT", reason?: string) => {
     try {
       setIsActionLoading(true);
-      
-      // Add to processed animation state
       const nextProcessed = new Set(processedIds);
       ids.forEach(id => nextProcessed.add(id));
       setProcessedIds(nextProcessed);
@@ -232,48 +160,26 @@ export default function QueueClient({
       const res = await fetch("/api/admin/checkin/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          checkinIds: ids,
-          action,
-          rejectReason: reason,
-        }),
+        body: JSON.stringify({ checkinIds: ids, action, rejectReason: reason }),
       });
-
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Không thể thực hiện hành động.");
-      }
+      if (!res.ok) throw new Error(data.error || "Không thể thực hiện hành động.");
 
       toast.success(data.message || "Thao tác thành công.");
-
-      // Delay actual state change slightly for transition animation
       setTimeout(() => {
-        setCheckins(prev => 
-          prev.map(c => {
-            if (ids.includes(c.id)) {
-              return { 
-                ...c, 
-                status: action === "APPROVE" ? "APPROVED" : "REJECTED",
-                reject_reason: action === "REJECT" ? (reason || null) : null
-              };
-            }
-            return c;
-          })
-        );
-        // Clean up selections
+        setCheckins(prev => prev.map(c =>
+          ids.includes(c.id) ? { ...c, status: action === "APPROVE" ? "APPROVED" : "REJECTED", reject_reason: action === "REJECT" ? (reason || null) : null } : c
+        ));
         const nextSelected = new Set(selectedIds);
         ids.forEach(id => nextSelected.delete(id));
         setSelectedIds(nextSelected);
-        
         const nextProcessedClean = new Set(processedIds);
         ids.forEach(id => nextProcessedClean.delete(id));
         setProcessedIds(nextProcessedClean);
       }, 400);
-
     } catch (error: any) {
       console.error(error);
       toast.error(error.message || "Lỗi phê duyệt.");
-      // Rollback animation state
       const nextProcessed = new Set(processedIds);
       ids.forEach(id => nextProcessed.delete(id));
       setProcessedIds(nextProcessed);
@@ -282,10 +188,7 @@ export default function QueueClient({
     }
   };
 
-  const handleSingleApprove = (id: string) => {
-    executeAction([id], "APPROVE");
-  };
-
+  const handleSingleApprove = (id: string) => executeAction([id], "APPROVE");
   const handleSingleRejectSubmit = (id: string) => {
     if (!rejectReason.trim()) {
       toast.error("Vui lòng nhập hoặc chọn lý do từ chối.");
@@ -295,13 +198,11 @@ export default function QueueClient({
     setIsRejectingId(null);
     setRejectReason("");
   };
-
   const handleBatchApprove = () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
     executeAction(ids, "APPROVE");
   };
-
   const handleBatchRejectSubmit = () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0 || !batchRejectReason.trim()) {
@@ -313,30 +214,47 @@ export default function QueueClient({
     setBatchRejectReason("");
   };
 
-  // Helper: Exif sublabel analyzer
-  const getExifSublabel = (item: Checkin) => {
-    if (!item.exif_time) {
-      return { label: "Lỗi: Không tìm thấy Metadata EXIF", type: "error" };
-    }
-    const postStart = new Date(item.post.start_at).getTime();
-    const exifTimeMs = new Date(item.exif_time).getTime();
-    const twentyFourHoursMs = 24 * 60 * 60 * 1000;
-    const postEnd = postStart + twentyFourHoursMs;
+  const handleAIScan = async (id: string) => {
+    try {
+      setScanningId(id);
+      const res = await fetch("/api/admin/ai-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkinId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Quét AI thất bại.");
 
-    if (exifTimeMs > postEnd) {
-      const exifFormatted = new Date(item.exif_time).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-      const postStartFormatted = new Date(item.post.start_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
-      return { 
-        label: `Lỗi: Ảnh chụp lúc ${exifFormatted} nhưng bài viết bắt đầu lúc ${postStartFormatted} ngày hôm trước - Quá 24 giờ`, 
-        type: "error" 
-      };
+      setAiScanResults(prev => ({ ...prev, [id]: { isValid: data.isValid, confidence: data.confidence, analysisReason: data.analysisReason } }));
+      setCheckins(prev => prev.map(c =>
+        c.id === id ? { ...c, is_ai_flagged: !data.isValid, ai_confidence: data.confidence, note: `[AI Scan] ${data.analysisReason}` } : c
+      ));
+      toast.success(data.isValid ? "AI đánh giá: Bài nộp HỢP LỆ!" : "AI đánh giá: Phát hiện NGHI VẤN!");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "Lỗi quét AI.");
+    } finally {
+      setScanningId(null);
     }
-    return { label: "EXIF hợp lệ", type: "success" };
   };
 
-  const presetReasons = ["Ảnh sai nội dung", "Ảnh bị mờ", "Ảnh nộp trùng"];
+  const filteredCheckins = checkins;
+  const pendingCount = _pendingCount ?? checkins.filter(c => c.status === "PENDING").length;
+  const autoApprovedCount = _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length;
+  const reviewedCount = _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
 
-  // Excel Export state
+  const getExifSublabel = (item: Checkin) => {
+    if (!item.exif_time) return { label: "Lỗi: Không tìm thấy Metadata EXIF", type: "error" as const };
+    const postStart = new Date(item.post.start_at).getTime();
+    const exifTimeMs = new Date(item.exif_time).getTime();
+    const postEnd = postStart + 24 * 60 * 60 * 1000;
+    if (exifTimeMs > postEnd) {
+      return { label: `Ảnh chụp sau deadline (quá 24h từ lúc đăng)`, type: "error" as const };
+    }
+    return { label: "EXIF hợp lệ", type: "success" as const };
+  };
+
+  // Start/End date for export
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isExporting, setIsExporting] = useState(false);
@@ -347,23 +265,14 @@ export default function QueueClient({
       const query = new URLSearchParams();
       if (startDate) query.append("startDate", startDate);
       if (endDate) query.append("endDate", endDate);
-
       const res = await fetch(`/api/admin/export-excel?${query.toString()}`);
-      if (!res.ok) {
-        throw new Error("Lỗi khi tải file từ server");
-      }
-
+      if (!res.ok) throw new Error("Lỗi khi tải file từ server");
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      
       const today = new Date();
-      const dd = String(today.getDate()).padStart(2, "0");
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const yyyy = today.getFullYear();
-      a.download = `${mm}.${dd}.${yyyy} - Bao Cao Cong Viec Like Share.xlsx`;
-      
+      a.download = `${String(today.getMonth() + 1).padStart(2, "0")}.${String(today.getDate()).padStart(2, "0")}.${today.getFullYear()} - Bao Cao Cong Viec Like Share.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -377,602 +286,470 @@ export default function QueueClient({
     }
   };
 
-  return (
-    <div className="space-y-6 text-slate-900 animate-in fade-in duration-300">
-      
-      {/* Header */}
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4">
-        <div>
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 mb-2">
-            Hàng đợi kiểm duyệt
-          </span>
-          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Kiểm duyệt Hàng đợi</h1>
-          <p className="text-slate-500 text-sm mt-1">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
-        </div>
+  const tabs = [
+    { key: "PENDING", label: "Chờ duyệt", count: pendingCount },
+    { key: "AUTO_APPROVED", label: "Tự động duyệt", count: autoApprovedCount },
+    { key: "REVIEWED", label: "Đã duyệt", count: reviewedCount },
+  ];
 
-        {/* Date Range & Export Excel */}
-        <div className="flex flex-wrap items-center gap-3 bg-white border border-slate-200 p-3 rounded-2xl shadow-soft">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">Từ:</span>
-            <input 
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">Đến:</span>
-            <input 
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
-          </div>
-          <button
-            onClick={handleExport}
-            disabled={isExporting}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
-          >
-            {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5" />}
-            Xuất Báo Cáo
+  return (
+    <div className="space-y-6 text-[#131b2e] animate-in fade-in duration-300" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Header */}
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div>
+          <span className="text-xs uppercase tracking-[0.2em] text-[#0050cb] font-bold">Kiểm duyệt</span>
+          <h1 className="text-[32px] font-bold text-[#131b2e] tracking-tight mt-1 font-manrope" style={{ fontFamily: "'Manrope', sans-serif" }}>
+            Hàng đợi Check-in
+          </h1>
+          <p className="text-sm text-[#44495a] mt-1">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
+        </div>
+        {/* Export */}
+        <div className="flex items-center gap-2 bg-[#faf8ff] p-2 rounded-lg-xl shadow-[0_2px_8px_rgba(19,27,46,0.04)]">
+          <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg-lg bg-[#f2f3ff] text-xs text-[#44495a] focus:outline-none focus:ring-1 focus:ring-[#0050cb]/30 border-0" />
+          <span className="text-xs text-[#44495a]">→</span>
+          <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg-lg bg-[#f2f3ff] text-xs text-[#44495a] focus:outline-none focus:ring-1 focus:ring-[#0050cb]/30 border-0" />
+          <button onClick={handleExport} disabled={isExporting}
+            className="px-3.5 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-all flex items-center gap-1.5 cursor-pointer"
+            style={{ background: "linear-gradient(135deg, #0050cb, #0066ff)" }}>
+            {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+            Xuất báo cáo
           </button>
         </div>
       </header>
 
-      {/* Thống kê nhanh số lượng (Shadcn Cards style) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {/* Card 1: Chờ duyệt */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-soft hover:shadow-md transition-shadow duration-200 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Chờ Duyệt (Pending)</p>
-            <p className="text-3xl font-extrabold text-slate-950 mt-1">{pendingCount}</p>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+        {[
+          { label: "Chờ duyệt", value: pendingCount, icon: Clock, color: "bg-amber-50 text-amber-600" },
+          { label: "Tự động duyệt", value: autoApprovedCount, icon: Sparkles, color: "bg-emerald-50 text-emerald-600" },
+          { label: "Đã duyệt / Từ chối", value: reviewedCount, icon: CheckCircle2, color: "bg-indigo-50 text-indigo-600" },
+        ].map((s) => (
+          <div key={s.label} className="bg-surface-container-lowest rounded-lg-2xl p-5 flex items-center justify-between shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
+            <div>
+              <p className="text-xs font-bold text-[#44495a] uppercase tracking-wider">{s.label}</p>
+              <p className="text-3xl font-bold text-[#131b2e] mt-1" style={{ fontFamily: "'Manrope', sans-serif" }}>{s.value}</p>
+            </div>
+            <div className={`p-3 rounded-lg-xl ${s.color}`}>
+              <s.icon className="w-5 h-5" />
+            </div>
           </div>
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-500 border border-amber-100">
-            <Clock className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Card 2: Đã tự động duyệt */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-soft hover:shadow-md transition-shadow duration-200 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tự Động Duyệt (Auto Approved)</p>
-            <p className="text-3xl font-extrabold text-slate-950 mt-1">{autoApprovedCount}</p>
-          </div>
-          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-500 border border-emerald-100">
-            <Sparkles className="w-6 h-6" />
-          </div>
-        </div>
-
-        {/* Card 3: Đã duyệt / Từ chối thủ công */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-soft hover:shadow-md transition-shadow duration-200 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Đã Kiểm Duyệt (Reviewed)</p>
-            <p className="text-3xl font-extrabold text-slate-950 mt-1">{reviewedCount}</p>
-          </div>
-          <div className="p-3 bg-indigo-50 rounded-xl text-indigo-500 border border-indigo-100">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* Control panel: tabs, search, filter */}
-      <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4">
-        
-        {/* Status Tabs */}
-        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200/50">
-          <button
-            onClick={() => handleTabChangeInternal("PENDING")}
-            className={cn(
-              "px-4 py-2 rounded-md text-xs font-bold transition-all",
-              activeTab === "PENDING"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:text-slate-900"
-            )}
-          >
-            Chờ Duyệt ({pendingCount})
-          </button>
-          <button
-            onClick={() => handleTabChangeInternal("AUTO_APPROVED")}
-            className={cn(
-              "px-4 py-2 rounded-md text-xs font-bold transition-all",
-              activeTab === "AUTO_APPROVED"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:text-slate-900"
-            )}
-          >
-            Đã Tự Động Duyệt ({autoApprovedCount})
-          </button>
-          <button
-            onClick={() => handleTabChangeInternal("REVIEWED")}
-            className={cn(
-              "px-4 py-2 rounded-md text-xs font-bold transition-all",
-              activeTab === "REVIEWED"
-                ? "bg-white text-indigo-600 shadow-sm"
-                : "text-slate-500 hover:text-slate-900"
-            )}
-          >
-            Đã Duyệt / Từ Chối ({reviewedCount})
-          </button>
+      {/* Control bar: tabs + search + dept filter */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Tab pills */}
+        <div className="flex p-1 rounded-lg-xl bg-[#f2f3ff] w-fit">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => handleTabChangeInternal(tab.key)}
+              className={cn(
+                "relative px-4 py-2 rounded-lg-lg text-xs font-semibold transition-all duration-200 flex items-center gap-1.5",
+                activeTab === tab.key
+                  ? "bg-surface-container-lowest text-[#0050cb] shadow-ambient"
+                  : "text-[#44495a] hover:text-[#131b2e]"
+              )}
+              style={activeTab === tab.key ? { fontFamily: "'Manrope', sans-serif", fontWeight: 600 } : {}}
+            >
+              {tab.label}
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-lg-full text-[9px] font-bold text-white" style={{ background: "#0050cb" }}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
         </div>
 
-        {/* Search & Department Filters */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Search */}
+        {/* Search & Dept */}
+        <div className="flex items-center gap-3">
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-              <Search className="w-4 h-4" />
-            </span>
-            <input
-              type="text"
-              placeholder="Tìm nhân viên, bài viết..."
-              value={searchTerm}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full sm:w-56 pl-9 pr-4 py-2 rounded-lg text-sm border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-            />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#44495a]" />
+            <input type="text" placeholder="Tìm nhân viên, bài viết..."
+              value={searchTerm} onChange={e => handleSearchChange(e.target.value)}
+              className="w-full sm:w-52 pl-9 pr-3 py-2 rounded-lg-xl text-xs bg-[#f2f3ff] text-[#131b2e] placeholder:text-[#44495a]/40 focus:outline-none focus:ring-2 focus:ring-[#0050cb]/20 border-0 transition-all" />
           </div>
-
-          {/* Department Filter */}
           <div className="relative">
-            <select
-              value={deptFilter}
-              onChange={(e) => handleDeptChange(e.target.value)}
-              className="appearance-none w-full pr-8 pl-4 py-2 rounded-lg text-sm border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
-            >
-              <option value="ALL">Tất cả Phòng Ban</option>
+            <select value={deptFilter} onChange={e => handleDeptChange(e.target.value)}
+              className="appearance-none pl-3 pr-8 py-2 rounded-lg-xl text-xs bg-[#f2f3ff] text-[#131b2e] focus:outline-none focus:ring-2 focus:ring-[#0050cb]/20 border-0 cursor-pointer">
+              <option value="ALL">Tất cả</option>
               <option value="TECH">TECH</option>
               <option value="SALES">SALES</option>
               <option value="Other">Khác</option>
             </select>
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
-              <Filter className="w-3.5 h-3.5" />
-            </span>
+            <ChevronDown className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#44495a]" />
           </div>
         </div>
-
       </div>
 
-      {/* Select All Checkbox (when in Pending) */}
+      {/* Select All */}
       {activeTab === "PENDING" && filteredCheckins.length > 0 && (
-        <div className="flex items-center gap-2 px-1">
-          <button
-            onClick={handleSelectAll}
-            className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            {filteredCheckins.every(c => selectedIds.has(c.id)) ? (
-              <CheckSquare className="w-4 h-4 text-indigo-600" />
-            ) : (
-              <Square className="w-4 h-4 text-slate-400" />
-            )}
-            Chọn tất cả trên trang này
-          </button>
-        </div>
+        <button onClick={handleSelectAll} className="flex items-center gap-2 text-xs font-semibold text-[#44495a] hover:text-[#0050cb] transition-colors">
+          <div className={cn(
+            "w-4 h-4 rounded-lg border-2 flex items-center justify-center transition-colors",
+            filteredCheckins.every(c => selectedIds.has(c.id))
+              ? "bg-[#0050cb] border-[#0050cb]"
+              : "border-[#c4c8da]"
+          )}>
+            {filteredCheckins.every(c => selectedIds.has(c.id)) && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+          </div>
+          Chọn tất cả trên trang này
+        </button>
       )}
 
-      {/* Grid List */}
+      {/* Empty state */}
       {filteredCheckins.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-soft">
-          <div className="p-4 bg-slate-50 rounded-full inline-block text-slate-400 mb-4 border border-slate-100">
-            <Inbox className="w-10 h-10 mx-auto" />
+        <div className="bg-surface-container-lowest rounded-lg-2xl p-16 text-center shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
+          <div className="w-16 h-16 rounded-lg-full bg-[#f2f3ff] flex items-center justify-center mx-auto mb-4">
+            <ImageIcon className="w-7 h-7 text-[#c4c8da]" />
           </div>
-          <h3 className="text-lg font-bold text-slate-900">
-            Hàng đợi trống
-          </h3>
-          <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-            Không có lượt check-in nào trong hàng đợi phù hợp với bộ lọc hiện tại.
+          <h3 className="text-lg font-bold text-[#131b2e] font-manrope">Hàng đợi trống</h3>
+          <p className="text-xs text-[#44495a] mt-1 max-w-sm mx-auto">
+            Không có lượt check-in nào phù hợp với bộ lọc hiện tại.
           </p>
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCheckins.map((item) => {
-            const exifInfo = getExifSublabel(item);
-            const isSelected = selectedIds.has(item.id);
-            const isProcessed = processedIds.has(item.id);
+          {/* Card Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredCheckins.map((item) => {
+              const exifInfo = getExifSublabel(item);
+              const isSelected = selectedIds.has(item.id);
+              const isProcessed = processedIds.has(item.id);
+              const scanResult = aiScanResults[item.id] || (item.ai_confidence !== null ? {
+                isValid: !item.is_ai_flagged,
+                confidence: item.ai_confidence,
+                analysisReason: item.note?.startsWith("[AI Scan] ") ? item.note.replace("[AI Scan] ", "") : (item.note || "")
+              } : null);
 
-            // AI Vision scan state resolver
-            const scanResult = aiScanResults[item.id] || (item.ai_confidence !== null ? {
-              isValid: !item.is_ai_flagged,
-              confidence: item.ai_confidence,
-              analysisReason: item.note?.startsWith("[AI Scan] ") 
-                ? item.note.replace("[AI Scan] ", "") 
-                : (item.note || "")
-            } : null);
+              const statusMeta = item.status === "PENDING" ? { label: "Chờ duyệt", bg: "bg-amber-50 text-amber-700" }
+                : item.status === "APPROVED" || item.status === "AUTO_APPROVED" ? { label: item.status === "AUTO_APPROVED" ? "Tự động duyệt" : "Đã duyệt", bg: "bg-emerald-50 text-emerald-700" }
+                : item.status === "REJECTED" ? { label: "Từ chối", bg: "bg-rose-50 text-rose-700" }
+                : { label: item.status, bg: "bg-surface-container-low text-on-surface-variant" };
 
-            return (
-              <div
-                key={item.id}
-                className={cn(
-                  "bg-white border border-slate-200 rounded-xl p-5 relative transition-all duration-350 hover:shadow-lg flex flex-col justify-between overflow-hidden shadow-soft group",
-                  isSelected && "border-indigo-500 ring-2 ring-indigo-500/10 bg-indigo-50/10",
-                  isProcessed && "opacity-0 scale-90 translate-x-10 max-h-0 pointer-events-none duration-500 py-0 my-0 border-none"
-                )}
-              >
-                
-                {/* Batch selection Checkbox */}
-                {activeTab === "PENDING" && (
-                  <div 
-                    onClick={() => handleSelectOne(item.id)}
-                    className="absolute top-4 left-4 z-10 p-1.5 rounded-lg bg-white/90 shadow-sm border border-slate-200 cursor-pointer hover:scale-105 active:scale-95 transition-all text-slate-400 hover:text-indigo-600"
-                  >
-                    {isSelected ? (
-                      <CheckSquare className="w-4.5 h-4.5 text-indigo-600 stroke-[2.5]" />
-                    ) : (
-                      <Square className="w-4.5 h-4.5" />
-                    )}
-                  </div>
-                )}
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    "relative rounded-lg-2xl overflow-hidden transition-all duration-300 flex flex-col",
+                    isProcessed && "opacity-0 scale-90 translate-y-4 max-h-0 pointer-events-none duration-500"
+                  )}
+                  style={{ background: "#ffffff", boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}
+                >
+                  {/* Selection checkbox overlay */}
+                  {activeTab === "PENDING" && (
+                    <button onClick={(e) => { e.stopPropagation(); handleSelectOne(item.id); }}
+                      className={cn(
+                        "absolute top-3 left-3 z-20 w-6 h-6 rounded-lg-xl flex items-center justify-center transition-all duration-200 cursor-pointer",
+                        isSelected ? "bg-[#0050cb]" : "bg-surface-container-lowest/90 shadow-ambient"
+                      )}>
+                      {isSelected ? <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} /> : null}
+                    </button>
+                  )}
 
-                <div className="space-y-4">
-                  
-                  {/* Grid details: left employee, right screenshot */}
-                  <div className="grid grid-cols-2 gap-4 pb-1">
-                    
-                    {/* Personnel Area (Avatar, Name, Dept, Time stacked vertically left) */}
-                    <div className="flex flex-col gap-2 justify-between">
-                      <div className="flex flex-col gap-1.5">
-                        
-                        {/* Avatar */}
-                        <UserAvatar name={item.user.name} size="md" />
-
-                        {/* Name and email */}
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 line-clamp-1">{item.user.name || "Thành viên"}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{item.user.email}</p>
-                        </div>
-
-                        {/* Department badge */}
-                        <div>
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide border",
-                            item.user.department === "TECH" ? "bg-blue-50 text-blue-700 border-blue-150" :
-                            item.user.department === "SALES" ? "bg-pink-50 text-pink-700 border-pink-150" :
-                            "bg-slate-50 text-slate-500 border-slate-150"
-                          )}>
-                            {item.user.department || "No Dept"}
-                          </span>
-                        </div>
-
-                        {/* Facebook Profile Link */}
-                        <div>
-                          {item.user.facebook_profile_url ? (
-                            <FacebookProfilePreview facebookLink={item.user.facebook_profile_url} />
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-medium bg-slate-50 text-slate-400 border border-slate-150">
-                              <ExternalLink className="w-3 h-3" />
-                              Chưa cập nhật link FB
-                            </span>
-                          )}
-                        </div>
-
-                      </div>
-
-                      {/* Submitted time */}
-                      <div className="text-[9px] text-slate-400">
-                        <span className="font-semibold block text-slate-400">Thời gian nộp:</span>
-                        <span className="font-bold text-slate-600 block">
-                          {new Date(item.submitted_at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })} {new Date(item.submitted_at).toLocaleDateString("vi-VN")}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Screenshot Preview Area (aspect ratio 3:4/vertical, compact screenshot right) */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block text-right">Bằng chứng</span>
-                      
-                      <div 
-                        onClick={() => setZoomImageUrl(item.image_url)}
-                        className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-900 border border-slate-200 group/img cursor-zoom-in shadow-inner"
-                      >
-                        <Image
-                          src={item.image_url}
-                          alt="Checkin proof"
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover/img:scale-105"
-                          sizes="(max-width: 768px) 50vw, 33vw"
-                        />
-                        <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                          <span className="p-2 bg-white/20 backdrop-blur-md text-white rounded-full">
-                            <Eye className="w-4 h-4" />
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
+                  {/* Image: 16:9 ratio */}
+                  <div className="relative w-full aspect-video cursor-zoom-in overflow-hidden"
+                    onClick={() => setZoomImageUrl(item.image_url)}>
+                    <Image src={item.image_url} alt="Checkin proof" fill
+                      className="object-cover transition-transform duration-500 hover:scale-105"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    {/* Status badge top-right */}
+                    <span className={cn(
+                      "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg-full text-[10px] font-bold shadow-ambient",
+                      statusMeta.bg
+                    )}>
+                      {statusMeta.label}
+                    </span>
                   </div>
 
-                  {/* Task details */}
-                  <div className="space-y-2.5">
-                    
-                    {/* Share Post Title */}
-                    <div>
-                      <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block">Yêu cầu chia sẻ</span>
-                      <p className="text-xs font-bold text-slate-700 line-clamp-1 mt-0.5">
-                        {item.post.title}
-                      </p>
+                  {/* Card body */}
+                  <div className="p-4 space-y-3 flex-1 flex flex-col">
+                    {/* User info row: avatar + name + dept */}
+                    <div className="flex items-center gap-2.5">
+                      <div className="relative flex-shrink-0">
+                        <UserAvatar name={item.user.name} size="sm" />
+                        <div className="absolute -inset-0.5 rounded-lg-full border-2 border-[#0050cb]/10 pointer-events-none" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-[#131b2e] truncate" style={{ fontFamily: "'Inter', sans-serif" }}>
+                          {item.user.name || "Thành viên"}
+                        </p>
+                      </div>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-lg-full text-[10px] font-bold uppercase tracking-wide",
+                        item.user.department === "TECH" ? "bg-blue-50 text-blue-700" :
+                        item.user.department === "SALES" ? "bg-pink-50 text-pink-700" :
+                        "bg-surface-container-low text-on-surface-variant"
+                      )}>
+                        {item.user.department || "N/A"}
+                      </span>
                     </div>
 
-                    {/* System error warning (Red badge if metadata/deadline validation fails) */}
+                    {/* Timestamp */}
+                    <div className="text-xs text-[#44495a]">
+                      {new Date(item.submitted_at).toLocaleString("vi-VN", {
+                        hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric"
+                      })}
+                    </div>
+
+                    {/* Post title */}
+                    <p className="text-xs font-semibold text-[#44495a] line-clamp-1">
+                      📌 {item.post.title}
+                    </p>
+
+                    {/* FB profile link */}
+                    <div className="flex items-center gap-1.5">
+                      {item.user.facebook_profile_url ? (
+                        <FacebookProfilePreview facebookLink={item.user.facebook_profile_url} />
+                      ) : (
+                        <span className="text-[10px] font-medium text-[#44495a] opacity-50">Chưa có link FB</span>
+                      )}
+                    </div>
+
+                    {/* System error */}
                     {exifInfo.type === "error" && (
-                      <div className="p-2.5 bg-rose-50 border border-rose-100 text-rose-700 text-[10px] rounded-lg font-bold flex items-center gap-1.5 leading-snug">
-                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <div className="flex items-center gap-1.5 p-2 rounded-lg-lg bg-[#ffdad6] text-[#410002] text-[10px] font-semibold">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
                         <span>{exifInfo.label}</span>
                       </div>
                     )}
 
-                    {/* May show exif time in normal state */}
-                    {exifInfo.type === "success" && (
-                      <div className="text-[9px] text-slate-400 flex items-center gap-1">
-                        <Calendar className="w-3 h-3 text-slate-400" />
-                        <span>Chụp lúc: {item.exif_time ? new Date(item.exif_time).toLocaleString("vi-VN") : "EXIF hợp lệ"}</span>
-                      </div>
-                    )}
-
-                    {/* Show Rejection Reason if status is Rejected */}
-                    {item.status === "REJECTED" && item.reject_reason && (
-                      <div className="p-2.5 bg-rose-50 border border-rose-150 rounded-lg text-[10px] text-rose-700 font-semibold leading-relaxed">
-                        Lý do từ chối: {item.reject_reason}
-                      </div>
-                    )}
-
-                    {/* isolated Trợ lý Phân Tích Gemini Panel */}
-                    <div className="p-3 bg-indigo-50/40 border border-indigo-100/60 rounded-xl flex flex-col gap-2 shadow-inner">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-indigo-700 tracking-wider flex items-center gap-1 uppercase">
-                          <Sparkles className="w-3 h-3 text-indigo-500 animate-pulse" />
-                          Trợ Lý Phân Tích Gemini
-                        </span>
-                        {scanResult && (
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[9px] font-extrabold border shadow-sm",
-                            scanResult.isValid
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-rose-50 text-rose-700 border-rose-200"
-                          )}>
-                            {Math.round(scanResult.confidence * 100)}% Tin cậy
+                    {/* AI Confidence meter */}
+                    {scanResult && (
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-semibold text-[#44495a] flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-[#0050cb]" />
+                            Độ tin cậy AI
                           </span>
-                        )}
+                          <span className={cn(
+                            "text-[10px] font-bold",
+                            scanResult.isValid ? "text-emerald-600" : "text-rose-600"
+                          )}>
+                            {Math.round(scanResult.confidence * 100)}%
+                          </span>
+                        </div>
+                        <div className="w-full h-1 rounded-lg-full bg-[#e1e2ec] overflow-hidden">
+                          <div className="h-full rounded-lg-full transition-all duration-500"
+                            style={{
+                              width: `${Math.round(scanResult.confidence * 100)}%`,
+                              background: scanResult.isValid
+                                ? "linear-gradient(90deg, #0050cb, #0066ff)"
+                                : "linear-gradient(90deg, #ba1a1a, #ff5252)"
+                            }} />
+                        </div>
+                        <p className="text-[10px] text-[#44495a] leading-relaxed mt-1">
+                          {scanResult.analysisReason || "Đã quét bằng AI."}
+                        </p>
                       </div>
+                    )}
 
-                      {scanningId === item.id ? (
-                        /* Skeleton loading glow animation */
-                        <div className="space-y-1.5 py-1">
-                          <div className="h-3 bg-indigo-200/30 rounded-full animate-pulse w-3/4" />
-                          <div className="h-3 bg-indigo-100/20 rounded-full animate-pulse w-full" />
-                          <div className="h-3 bg-indigo-100/20 rounded-full animate-pulse w-5/6" />
-                        </div>
-                      ) : scanResult ? (
-                        <div className="text-[10px] leading-relaxed text-slate-600 font-medium">
-                          <p className="text-slate-700">
-                            {scanResult.analysisReason || "Đã quét bằng AI, không phát hiện dấu hiệu vi phạm."}
-                          </p>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={scanningId !== null || isActionLoading}
-                          onClick={() => handleAIScan(item.id)}
-                          className="w-full py-1.5 bg-gradient-to-r from-indigo-600 via-violet-500 to-indigo-600 hover:from-indigo-700 hover:to-indigo-700 text-white rounded-lg text-[10px] font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 duration-200"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                          Kích Hoạt AI Quét
-                        </button>
-                      )}
-                    </div>
+                    {/* AI Scan button */}
+                    {!scanResult && scanningId === item.id && (
+                      <div className="space-y-1.5 py-1">
+                        <div className="h-2.5 bg-[#e1e2ec] rounded-lg-full animate-pulse w-3/4" />
+                        <div className="h-2.5 bg-[#e1e2ec] rounded-lg-full animate-pulse w-full" />
+                      </div>
+                    )}
+                    {!scanResult && scanningId !== item.id && activeTab === "PENDING" && (
+                      <button onClick={() => handleAIScan(item.id)} disabled={isActionLoading}
+                        className="w-full py-2 rounded-lg-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0"
+                        style={{ background: "#f2f3ff", color: "#0050cb" }}>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        AI Quét
+                      </button>
+                    )}
 
+                    {/* Reject reason display */}
+                    {item.status === "REJECTED" && item.reject_reason && (
+                      <div className="p-2.5 rounded-lg-lg bg-[#ffdad6] text-[#410002] text-[10px] font-semibold">
+                        Lý do: {item.reject_reason}
+                      </div>
+                    )}
+
+                    {/* Spacer for flex */}
+                    <div className="flex-1" />
+
+                    {/* Action row */}
+                    {activeTab === "PENDING" && (
+                      <>
+                        {isRejectingId === item.id ? (
+                          <div className="space-y-2 pt-1 animate-in slide-in-from-bottom-2 duration-200">
+                            <div className="flex flex-wrap gap-1">
+                              {presetReasons.map((r) => (
+                                <button key={r} onClick={() => setRejectReason(r)}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-lg-full text-[10px] font-bold border transition-colors bg-surface-container-lowest text-[#44495a] border-[#c4c8da] hover:border-[#0050cb]",
+                                    rejectReason === r && "border-[#0050cb]"
+                                  )}>
+                                  {r}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea placeholder="Nhập lý do từ chối..."
+                              value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg-xl text-xs resize-none transition-all outline-none"
+                              style={{ background: "#f2f3ff", outline: "none", color: "#131b2e" }}
+                              onFocus={e => { e.target.style.outline = "2px solid rgba(0, 80, 203, 0.3)"; e.target.style.outlineOffset = "0"; }}
+                              onBlur={e => { e.target.style.outline = "none"; }}
+                              rows={2} />
+                            <div className="flex gap-2 justify-end">
+                              <button onClick={() => { setIsRejectingId(null); setRejectReason(""); }}
+                                className="px-3 py-1.5 rounded-lg-lg text-xs font-bold text-[#44495a] hover:bg-[#f2f3ff] transition-colors">
+                                Hủy
+                              </button>
+                              <button onClick={() => handleSingleRejectSubmit(item.id)} disabled={isActionLoading}
+                                className="px-3 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-colors"
+                                style={{ background: "#ba1a1a" }}>
+                                Xác nhận
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-2 pt-1">
+                            {/* Reject */}
+                            <button onClick={() => { setIsRejectingId(item.id); setRejectReason(""); }}
+                              disabled={isActionLoading || scanningId === item.id}
+                              className="px-2.5 py-2 rounded-lg-xl text-xs font-bold transition-all cursor-pointer border-0"
+                              style={{ color: "#410002", background: "#ffdad6" }}>
+                              <X className="w-3 h-3 inline-block mr-1" />
+                              Từ chối
+                            </button>
+                            {/* AI Scan */}
+                            {!scanResult && (
+                              <button onClick={() => handleAIScan(item.id)} disabled={isActionLoading}
+                                className="px-2.5 py-2 rounded-lg-xl text-xs font-bold transition-all cursor-pointer border-0"
+                                style={{ background: "#f2f3ff", color: "#0050cb" }}>
+                                <Sparkles className="w-3 h-3 inline-block mr-1" />
+                                AI
+                              </button>
+                            )}
+                            {scanResult && <div />}
+                            {/* Approve */}
+                            <button onClick={() => handleSingleApprove(item.id)} disabled={isActionLoading || scanningId === item.id}
+                              className="px-2.5 py-2 rounded-lg-xl text-xs font-bold text-white transition-all cursor-pointer border-0 shadow-ambient"
+                              style={{ background: "linear-gradient(135deg, #0050cb, #0066ff)" }}>
+                              <Check className="w-3 h-3 inline-block mr-1" />
+                              Duyệt
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-
                 </div>
+              );
+            })}
+          </div>
+          <Pagination currentPage={_currentPage ?? 1} totalPages={_totalPages ?? 1}
+            onPageChange={page => navigateWithParams({ page: String(page) })} />
+        </>
+      )}
 
-                {/* Inline Rejection Form */}
-                {isRejectingId === item.id ? (
-                  <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-3 animate-in slide-in-from-bottom-2 duration-200">
-                    <p className="text-xs font-bold text-slate-700">Lý do từ chối check-in:</p>
-                    
-                    {/* Preset reason tags */}
-                    <div className="flex flex-wrap gap-1">
-                      {presetReasons.map((reason) => (
-                        <button
-                          key={reason}
-                          type="button"
-                          onClick={() => setRejectReason(reason)}
-                          className={cn(
-                            "px-2.5 py-0.5 text-[9px] rounded-full border transition-colors font-bold bg-white text-slate-600 border-slate-200 hover:border-indigo-500",
-                            rejectReason === reason && "border-indigo-500 bg-indigo-50 text-indigo-700"
-                          )}
-                        >
-                          {reason}
-                        </button>
-                      ))}
-                    </div>
-
-                    <input
-                      type="text"
-                      placeholder="Lý do khác..."
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg text-xs border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    />
-
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => { setIsRejectingId(null); setRejectReason(""); }}
-                        className="px-2.5 py-1.5 rounded-md text-xs bg-slate-200 hover:bg-slate-350 text-slate-650 font-bold transition-colors"
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSingleRejectSubmit(item.id)}
-                        disabled={isActionLoading}
-                        className="px-3.5 py-1.5 rounded-md text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-sm transition-colors"
-                      >
-                        Xác Nhận
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  activeTab === "PENDING" && (
-                    <div className="flex gap-3 mt-4 pt-3 border-t border-slate-150">
-                      <button
-                        onClick={() => { setIsRejectingId(item.id); setRejectReason(""); }}
-                        disabled={isActionLoading || scanningId === item.id}
-                        className="flex-1 py-1.5 rounded-lg text-xs font-bold border border-rose-200 text-rose-600 hover:bg-rose-50 transition-colors inline-flex items-center justify-center gap-1"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                        ✗ Reject
-                      </button>
-                      <button
-                        onClick={() => handleSingleApprove(item.id)}
-                        disabled={isActionLoading || scanningId === item.id}
-                        className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm transition-all inline-flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        ✓ Approve
-                      </button>
-                    </div>
-                  )
-                )}
-
-              </div>
-            );
-          })}
-        </div>
-        <Pagination
-          currentPage={_currentPage ?? 1}
-          totalPages={_totalPages ?? 1}
-          onPageChange={(page) => navigateWithParams({ page: String(page) })}
-        />
-      </>
-    )}
-
-      {/* Floating Batch Operations Bar at the bottom */}
+      {/* Floating Bulk Action Bar */}
       {activeTab === "PENDING" && selectedIds.size > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-slate-200 p-4 rounded-xl flex items-center justify-between gap-6 shadow-2xl animate-in slide-in-from-bottom-10 duration-300 w-[90%] max-w-xl">
-          <div className="flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-indigo-600" />
-            <span className="text-xs font-semibold text-slate-700">
-              Đang chọn <strong className="text-indigo-600">{selectedIds.size}</strong> mục
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSelectedIds(new Set())}
-              className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-100 transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              onClick={handleBatchApprove}
-              disabled={isActionLoading}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-            >
-              {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-              Duyệt
-            </button>
-            <button
-              onClick={() => { setIsBatchRejecting(true); setBatchRejectReason(""); }}
-              disabled={isActionLoading}
-              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1 cursor-pointer"
-            >
-              <X className="w-3 h-3" />
-              Từ chối
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Lightbox / Zoom Dialog Modal */}
-      {zoomImageUrl && (
-        <div 
-          onClick={() => setZoomImageUrl(null)}
-          className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
-        >
-          <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-xl animate-in zoom-in-95 duration-200">
-            <Image
-              src={zoomImageUrl}
-              alt="Zoomed preview"
-              fill
-              className="object-contain shadow-2xl rounded-xl border border-slate-800"
-              sizes="90vw"
-            />
-            <button 
-              onClick={() => setZoomImageUrl(null)}
-              className="absolute top-4 right-4 p-2 bg-slate-900/60 hover:bg-slate-900 text-white rounded-full backdrop-blur-md transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Batch Rejection Modal Dialog */}
-      {isBatchRejecting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in">
-          <div className="bg-white w-full max-w-md rounded-xl shadow-2xl overflow-hidden border border-slate-200 animate-in zoom-in-95 duration-200 p-6 space-y-4">
-            
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Từ chối hàng loạt ({selectedIds.size} mục)</h3>
-              <button 
-                onClick={() => setIsBatchRejecting(false)}
-                className="p-1 rounded-full hover:bg-slate-100 text-slate-400"
-              >
-                <X className="w-5 h-5" />
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl animate-in slide-in-from-bottom-10 fade-in duration-300">
+          <div className="flex items-center justify-between gap-4 px-5 py-3 rounded-lg-2xl shadow-[0_20px_40px_rgba(19,27,46,0.06)]"
+            style={{ background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#131b2e]">
+              <span>Đã chọn</span>
+              <span className="text-[#0050cb] font-bold">{selectedIds.size}</span>
+              <span>mục</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 rounded-lg-lg text-xs font-bold text-[#44495a] hover:bg-[#f2f3ff] transition-colors">
+                Hủy
+              </button>
+              <button onClick={() => { setIsBatchRejecting(true); setBatchRejectReason(""); }} disabled={isActionLoading}
+                className="px-3.5 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-all cursor-pointer shadow-ambient"
+                style={{ background: "#ba1a1a" }}>
+                <X className="w-3 h-3 inline-block mr-1" />
+                Từ chối
+              </button>
+              <button onClick={handleBatchApprove} disabled={isActionLoading}
+                className="px-3.5 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-all cursor-pointer shadow-ambient"
+                style={{ background: "linear-gradient(135deg, #0050cb, #0066ff)" }}>
+                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin inline-block mr-1" /> : <Check className="w-3 h-3 inline-block mr-1" />}
+                Duyệt
               </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500">Áp dụng lý do từ chối cho toàn bộ {selectedIds.size} lượt check-in đã chọn:</p>
-              
+      {/* Image Zoom Modal */}
+      {zoomImageUrl && (
+        <div onClick={() => setZoomImageUrl(null)}
+          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300">
+          <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-lg-2xl animate-in zoom-in-95 duration-200"
+            style={{ boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
+            <Image src={zoomImageUrl} alt="Zoomed preview" fill className="object-contain" sizes="90vw" />
+            <button onClick={() => setZoomImageUrl(null)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-lg-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors backdrop-blur-sm">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Rejection Modal */}
+      {isBatchRejecting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div onClick={() => setIsBatchRejecting(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+          <div className="relative w-full max-w-md rounded-lg-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            style={{ background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
+            <div className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-[#131b2e] font-manrope" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                  Từ chối hàng loạt
+                </h3>
+                <button onClick={() => setIsBatchRejecting(false)} className="w-7 h-7 rounded-lg-full flex items-center justify-center hover:bg-[#f2f3ff] transition-colors">
+                  <X className="w-4 h-4 text-[#44495a]" />
+                </button>
+              </div>
+
+              <p className="text-xs text-[#44495a]">
+                Áp dụng lý do từ chối cho <strong>{selectedIds.size}</strong> lượt check-in đã chọn:
+              </p>
+
               <div className="flex flex-wrap gap-1">
-                {presetReasons.map((reason) => (
-                  <button
-                    key={reason}
-                    type="button"
-                    onClick={() => setBatchRejectReason(reason)}
+                {presetReasons.map((r) => (
+                  <button key={r} onClick={() => setBatchRejectReason(r)}
                     className={cn(
-                      "px-2.5 py-0.5 text-[9px] rounded-full border transition-colors font-bold bg-white text-slate-600 border-slate-200 hover:border-indigo-500",
-                      batchRejectReason === reason && "border-indigo-500 bg-indigo-50 text-indigo-700"
-                    )}
-                  >
-                    {reason}
+                      "px-2.5 py-1 rounded-lg-full text-[10px] font-bold border transition-colors",
+                      batchRejectReason === r ? "border-[#0050cb] bg-[#d8e2ff] text-[#003fa4]" : "border-[#c4c8da] text-[#44495a] hover:border-[#0050cb]"
+                    )}>
+                    {r}
                   </button>
                 ))}
               </div>
 
-              <textarea
-                placeholder="Nhập lý do cụ thể..."
-                rows={3}
-                value={batchRejectReason}
-                onChange={(e) => setBatchRejectReason(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-xs border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-              />
-            </div>
+              <textarea placeholder="Nhập lý do cụ thể..."
+                value={batchRejectReason} onChange={e => setBatchRejectReason(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg-xl text-xs resize-none transition-all outline-none"
+                style={{ background: "#f2f3ff", outline: "none", color: "#131b2e" }}
+                onFocus={e => { e.target.style.outline = "2px solid rgba(0, 80, 203, 0.3)"; }}
+                onBlur={e => { e.target.style.outline = "none"; }}
+                rows={3} />
 
-            <div className="flex gap-2 justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => { setIsBatchRejecting(false); setBatchRejectReason(""); }}
-                className="px-4 py-2 rounded-lg text-xs bg-slate-100 text-slate-500 font-bold hover:bg-slate-200 transition-colors"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                onClick={handleBatchRejectSubmit}
-                disabled={isActionLoading || !batchRejectReason.trim()}
-                className="px-4 py-2 rounded-lg text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-sm transition-colors"
-              >
-                Từ Chối Tất Cả
-              </button>
+              <div className="flex gap-2 justify-end pt-1">
+                <button onClick={() => { setIsBatchRejecting(false); setBatchRejectReason(""); }}
+                  className="px-4 py-2 rounded-lg-lg text-xs font-bold text-[#44495a] hover:bg-[#f2f3ff] transition-colors">
+                  Hủy
+                </button>
+                <button onClick={handleBatchRejectSubmit} disabled={isActionLoading || !batchRejectReason.trim()}
+                  className="px-4 py-2 rounded-lg-lg text-xs font-bold text-white transition-all shadow-ambient"
+                  style={{ background: "#ba1a1a" }}>
+                  Từ chối tất cả
+                </button>
+              </div>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }

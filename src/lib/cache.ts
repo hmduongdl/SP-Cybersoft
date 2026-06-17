@@ -49,6 +49,7 @@ export async function getCachedPosts(userId?: string) {
     description: true,
     allow_late_submit: true,
     is_archived: true,
+    author: true,
   };
   if (userId) {
     selectFields.checkins = {
@@ -158,6 +159,7 @@ export async function getCachedPostsApi() {
       is_archived: true,
       allow_late_submit: true,
       team: true,
+      author: true,
       _count: { select: { checkins: true } },
     },
   });

@@ -187,17 +187,17 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm px-4">
+      <div className="bg-surface-container-lowest rounded-lg-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center justify-between px-6 py-4 border-none bg-surface-container-low/50">
           <div>
-            <h2 className="text-xl font-semibold text-slate-800">Tài khoản cá nhân</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Chỉnh sửa thông tin công ty và phòng ban của bạn.</p>
+            <h2 className="text-xl font-semibold text-on-surface font-manrope">Tài khoản cá nhân</h2>
+            <p className="text-sm text-on-surface-variant mt-0.5">Chỉnh sửa thông tin công ty và phòng ban của bạn.</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+            className="p-2 text-outline hover:text-on-surface-variant hover:bg-surface-container rounded-lg-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -205,7 +205,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
         <div className="p-6">
           {status === "loading" || loading ? (
-            <div className="min-h-[300px] flex flex-col items-center justify-center gap-3 text-slate-500">
+            <div className="min-h-[300px] flex flex-col items-center justify-center gap-3 text-on-surface-variant">
               <Loader2 className="h-9 w-9 animate-spin text-indigo-600" />
               <p className="text-sm">Đang tải thông tin tài khoản...</p>
             </div>
@@ -219,7 +219,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={saving}
-                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-indigo-700 transition disabled:opacity-50"
+                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-lg-full flex items-center justify-center shadow-[0_32px_64px_rgba(19,27,46,0.12)] hover:bg-indigo-700 transition disabled:opacity-50"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
@@ -233,10 +233,10 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-800">
+                  <p className="text-sm font-semibold text-on-surface">
                     {name || "Ảnh đại diện"}
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+                  <p className="text-xs text-on-surface-variant mt-0.5">
                     JPG, PNG. Tối đa 2MB.
                   </p>
                 </div>
@@ -244,54 +244,54 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
               <div className="grid grid-cols-1 gap-6">
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <User className="w-4 h-4 text-slate-400" /> Username
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
+                    <User className="w-4 h-4 text-outline" /> Username
                   </label>
                   <input
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-surface-container disabled:text-on-surface-variant disabled:cursor-not-allowed"
                     required
                     disabled={saving || usernameChanged}
                   />
                   {usernameChanged ? (
-                    <p className="text-[10px] text-slate-500 mt-1">Bạn đã đổi username nên không thể đổi lại lần nữa.</p>
+                    <p className="text-[10px] text-on-surface-variant mt-1">Bạn đã đổi username nên không thể đổi lại lần nữa.</p>
                   ) : (
                     <p className="text-[10px] text-amber-600 mt-1 font-medium">Lưu ý: Bạn chỉ được đổi username 1 lần duy nhất trong suốt vòng đời tài khoản.</p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <User className="w-4 h-4 text-slate-400" /> Họ và tên
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
+                    <User className="w-4 h-4 text-outline" /> Họ và tên
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     required
                     disabled={saving}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Mail className="w-4 h-4 text-slate-400" /> Email liên hệ
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
+                    <Mail className="w-4 h-4 text-outline" /> Email liên hệ
                   </label>
                   <input
                     type="email"
                     value={email}
                     readOnly
                     disabled
-                    className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-surface-container border-none rounded-lg-lg text-sm text-on-surface-variant cursor-not-allowed"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Link className="w-4 h-4 text-slate-400" /> Link Profile Facebook (Dùng để đối chiếu)
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
+                    <Link className="w-4 h-4 text-outline" /> Link Profile Facebook (Dùng để đối chiếu)
                   </label>
                   <input
                     type="url"
@@ -299,19 +299,19 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     onChange={(e) => setFacebookLink(e.target.value)}
                     placeholder="https://facebook.com/your-username"
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Building2 className="w-4 h-4 text-slate-400" /> Phòng ban
+                  <label className="text-xs font-bold text-on-surface-variant flex items-center gap-2 uppercase">
+                    <Building2 className="w-4 h-4 text-outline" /> Phòng ban
                   </label>
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-900"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-on-surface"
                   >
                     {departments.map((dept) => (
                       <option key={dept.id} value={dept.name}>
@@ -323,19 +323,19 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+              <div className="flex justify-end gap-3 pt-6 border-none">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={saving}
-                  className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all"
+                  className="px-4 py-2.5 text-sm font-semibold text-on-surface-variant bg-surface-container-lowest border-none rounded-lg-xl hover:bg-surface-container-low transition-all"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg-xl hover:bg-indigo-700 transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

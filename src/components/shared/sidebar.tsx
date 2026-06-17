@@ -65,24 +65,24 @@ export function Sidebar() {
         {/* Brand Logo Area */}
         <div className="px-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 select-none bg-slate-900 rounded-lg relative flex items-center justify-center">
+            <div className="flex items-center justify-center w-12 h-12 select-none bg-inverse-surface rounded-lg-lg relative flex items-center justify-center">
               <img src="/SPlogo-white.png" alt="SPS Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h1 className="font-headline-md text-base font-bold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300">
+                <h1 className="font-headline-md text-base font-bold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300 font-manrope">
                   SPS AI
                 </h1>
-                <span className="inline-flex items-center rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-medium text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
+                <span className="inline-flex items-center rounded-lg-full bg-indigo-500/10 px-1.5 py-0.5 text-[9px] font-medium text-indigo-400 border border-indigo-500/20 whitespace-nowrap">
                   v1.0-Stable
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium tracking-wide">Modern Workspace</p>
+              <p className="text-[11px] text-outline font-medium tracking-wide">Modern Workspace</p>
             </div>
           </div>
           {/* Close Button on Mobile */}
           <button
-            className="md:hidden p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+            className="md:hidden p-1.5 rounded-lg-lg hover:bg-inverse-surface text-outline hover:text-white transition-colors"
             onClick={() => setSidebarOpen(false)}
           >
             <span className="material-symbols-outlined">close</span>
@@ -102,10 +102,10 @@ export function Sidebar() {
                 }}
                 className={twMerge(
                   clsx(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-4 w-full text-left cursor-pointer",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg-lg transition-all duration-200 border-l-4 w-full text-left cursor-pointer",
                     isActive
                       ? "text-indigo-400 bg-indigo-500/10 border-indigo-500 font-medium shadow-[inset_4px_0_12px_rgba(99,102,241,0.05)]"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent"
+                      : "text-outline hover:text-inverse-on-surface hover:bg-inverse-surface border-transparent"
                   )
                 )}
               >
@@ -121,11 +121,11 @@ export function Sidebar() {
       <div className="flex flex-col gap-4">
         {/* Admin/User Role Switcher in Sidebar (Developer helper) */}
         {session?.user?.role === "ADMIN" && (
-          <div className="rounded-xl bg-slate-900/50 border border-slate-800/80 p-3">
+          <div className="rounded-lg-xl bg-inverse-surface/50 border-none/80 p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Role Sim:</span>
+              <span className="text-[10px] font-semibold text-outline uppercase tracking-wider">Role Sim:</span>
               <span className={clsx(
-                "inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-medium border",
+                "inline-flex items-center rounded-lg-full px-2 py-0.5 text-[9px] font-medium border",
                 role === "ADMIN" 
                   ? "bg-emerald-950/50 text-emerald-400 border-emerald-800/50" 
                   : "bg-indigo-950/50 text-indigo-400 border-indigo-800/50"
@@ -138,7 +138,7 @@ export function Sidebar() {
                 setRole(role === "ADMIN" ? "USER" : "ADMIN");
                 window.location.href = "/dashboard";
               }}
-              className="w-full rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 text-[11px] py-1.5 px-2 font-medium transition shadow-sm"
+              className="w-full rounded-lg-lg bg-inverse-surface border-none hover:bg-slate-700 text-outline text-[11px] py-1.5 px-2 font-medium transition shadow-[0_32px_64px_rgba(19,27,46,0.12)]"
             >
               Switch to {role === "ADMIN" ? "User" : "Admin"}
             </button>
@@ -147,20 +147,20 @@ export function Sidebar() {
 
         {/* User Context */}
         {status === "loading" ? (
-          <div className="flex items-center gap-3 p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md animate-pulse">
-            <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-800" />
+          <div className="flex items-center gap-3 p-2.5 bg-inverse-surface/30 border-none/80 rounded-lg-xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] animate-pulse">
+            <div className="w-10 h-10 rounded-lg-full bg-inverse-surface border-none" />
             <div className="flex-1 space-y-2">
-              <div className="h-4 bg-slate-800 rounded w-2/3" />
-              <div className="h-3 bg-slate-800 rounded w-1/2" />
+              <div className="h-4 bg-inverse-surface rounded-lg w-2/3" />
+              <div className="h-3 bg-inverse-surface rounded-lg w-1/2" />
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md group">
+          <div className="flex items-center justify-between p-2.5 bg-inverse-surface/30 border-none/80 rounded-lg-xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] group">
             <div className="flex items-center gap-3 overflow-hidden">
               <UserAvatar name={userDisplayName} src={profile?.avatar_url || (session?.user as any)?.avatar_url} />
               <div className="overflow-hidden">
-                <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
-                <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+                <p className="text-sm font-semibold text-inverse-on-surface truncate">{userDisplayName}</p>
+                <p className="text-[11px] text-outline truncate">{userEmail}</p>
                 {departmentLabel && (
                   <p className="text-[10px] text-indigo-400/80 truncate font-medium">{departmentLabel}</p>
                 )}
@@ -169,7 +169,7 @@ export function Sidebar() {
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
               title="Đăng xuất nhanh"
-              className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-rose-400 transition-colors duration-200"
+              className="p-1.5 rounded-lg-lg hover:bg-inverse-surface text-outline hover:text-rose-400 transition-colors duration-200"
             >
               <span className="material-symbols-outlined text-[20px]">logout</span>
             </button>
@@ -205,7 +205,7 @@ export function Sidebar() {
         <aside
           className={twMerge(
             clsx(
-              "absolute top-0 bottom-0 left-0 w-[280px] shadow-2xl transition-transform duration-300 ease-in-out transform bg-slate-950 z-10",
+              "absolute top-0 bottom-0 left-0 w-[280px] shadow-[0_32px_64px_rgba(19,27,46,0.12)] transition-transform duration-300 ease-in-out transform bg-slate-950 z-10",
               sidebarOpen ? "translate-x-0" : "-translate-x-full"
             )
           )}

@@ -85,22 +85,22 @@ export function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/90 backdrop-blur-md p-4 overflow-y-auto">
-      <div className="w-full max-w-xl bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800/80 rounded-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] p-8 relative z-10 my-8">
+      <div className="w-full max-w-xl bg-gradient-to-b from-slate-900 to-slate-950 border-none/80 rounded-lg-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] p-8 relative z-10 my-8">
 
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl mb-4 shadow-[0_0_20px_rgba(79,70,229,0.2)]">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 rounded-lg-2xl mb-4 shadow-[0_0_20px_rgba(79,70,229,0.2)]">
             <span className="material-symbols-outlined text-indigo-400 text-3xl">rocket_launch</span>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Chào mừng thành viên mới</h1>
-          <p className="text-slate-400 max-w-md mx-auto">
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight font-manrope">Chào mừng thành viên mới</h1>
+          <p className="text-outline max-w-md mx-auto">
             Vui lòng hoàn tất thông tin dưới đây để kích hoạt tài khoản của bạn.
           </p>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400 flex items-center gap-3">
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg-xl text-sm text-red-400 flex items-center gap-3">
             <span className="material-symbols-outlined text-red-500 text-xl">error</span>
             {error}
           </div>
@@ -111,15 +111,15 @@ export function OnboardingModal() {
 
           {/* Full Name */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-outline uppercase tracking-wide">
               Họ và tên <span className="text-red-400">*</span>
             </label>
             <div className="relative group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant group-focus-within:text-indigo-400 transition-colors">
                 badge
               </span>
               <input
-                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border-none rounded-lg-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
                 name="full_name"
                 value={formData.full_name}
                 onChange={handleChange}
@@ -130,15 +130,15 @@ export function OnboardingModal() {
 
           {/* Username */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-outline uppercase tracking-wide">
               Tên đăng nhập (Username) <span className="text-red-400">*</span>
             </label>
             <div className="relative group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant group-focus-within:text-indigo-400 transition-colors">
                 person
               </span>
               <input
-                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-indigo-500/40 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-indigo-500/40 rounded-lg-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
                 name="username"
                 value={formData.username}
                 onChange={handleChange}
@@ -153,16 +153,16 @@ export function OnboardingModal() {
 
           {/* Email */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-outline uppercase tracking-wide">
               Email liên lạc <span className="text-red-400">*</span>
             </label>
             <div className="relative group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant group-focus-within:text-indigo-400 transition-colors">
                 mail
               </span>
               <input
                 type="email"
-                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border-none rounded-lg-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
@@ -173,16 +173,16 @@ export function OnboardingModal() {
 
           {/* Facebook link */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-outline uppercase tracking-wide">
               Link Facebook cá nhân
             </label>
             <div className="relative group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-blue-400 transition-colors">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant group-focus-within:text-blue-400 transition-colors">
                 link
               </span>
               <input
                 type="url"
-                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border-none rounded-lg-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 outline-none transition-all"
                 name="facebook_link"
                 value={formData.facebook_link}
                 onChange={handleChange}
@@ -193,13 +193,13 @@ export function OnboardingModal() {
 
           {/* Department - locked badge */}
           <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+            <label className="text-xs font-semibold text-outline uppercase tracking-wide">
               Phòng ban
             </label>
-            <div className="flex items-center gap-3 px-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl">
-              <span className="material-symbols-outlined text-slate-500">business</span>
+            <div className="flex items-center gap-3 px-4 py-3.5 bg-slate-950 border-none rounded-lg-xl">
+              <span className="material-symbols-outlined text-on-surface-variant">business</span>
               <span className="flex-1 text-white font-medium">{departmentLabel}</span>
-              <span className="inline-flex items-center gap-1 px-3 py-1 bg-slate-800 text-slate-400 text-xs rounded-full border border-slate-700/50">
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-inverse-surface text-outline text-xs rounded-lg-full border-none/50">
                 <span className="material-symbols-outlined text-[12px]">lock</span>
                 Cố định
               </span>
@@ -211,11 +211,11 @@ export function OnboardingModal() {
             <button
               type="submit"
               disabled={!isFormValid || isLoading}
-              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl font-semibold shadow-lg shadow-indigo-600/20 active:scale-[0.99] hover:shadow-indigo-600/30 disabled:shadow-none disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-inverse-surface disabled:text-on-surface-variant text-white rounded-lg-xl font-semibold shadow-[0_32px_64px_rgba(19,27,46,0.12)] shadow-indigo-600/20 active:scale-[0.99] hover:shadow-indigo-600/30 disabled:shadow-none disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  <span className="animate-spin rounded-lg-full h-4 w-4 border-2 border-white border-t-transparent" />
                   Đang xử lý...
                 </>
               ) : (
@@ -226,7 +226,7 @@ export function OnboardingModal() {
               )}
             </button>
             {!isFormValid && (
-              <p className="text-xs text-slate-500 text-center mt-3">
+              <p className="text-xs text-on-surface-variant text-center mt-3">
                 Vui lòng điền đầy đủ Họ tên, Username và Email
               </p>
             )}

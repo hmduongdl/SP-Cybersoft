@@ -103,22 +103,22 @@ export default function AdminSettingsPage() {
     }
   };
 
-  if (isLoading) return <div className="p-8 text-slate-500">Đang tải cấu hình...</div>;
+  if (isLoading) return <div className="p-8 text-on-surface-variant">Đang tải cấu hình...</div>;
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Cấu hình hệ thống</h1>
-        <p className="text-slate-500 text-sm mt-1">Quản lý phòng ban, API Key AI và các thông số cài đặt khác.</p>
+        <h1 className="text-3xl font-extrabold text-on-surface tracking-tight font-manrope">Cấu hình hệ thống</h1>
+        <p className="text-on-surface-variant text-sm mt-1">Quản lý phòng ban, API Key AI và các thông số cài đặt khác.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Department Management */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 flex items-center gap-2">
+        <div className="bg-surface-container-lowest rounded-lg-2xl shadow-ambient border-none overflow-hidden">
+          <div className="p-6 border-none flex items-center gap-2">
             <Building2 className="text-indigo-600 w-5 h-5" />
-            <h2 className="text-lg font-bold text-slate-800">Quản lý Phòng ban</h2>
+            <h2 className="text-lg font-bold text-on-surface font-manrope">Quản lý Phòng ban</h2>
           </div>
           
           <div className="p-6">
@@ -128,11 +128,11 @@ export default function AdminSettingsPage() {
                 value={newDeptName}
                 onChange={(e) => setNewDeptName(e.target.value)}
                 placeholder="Tên phòng ban mới..."
-                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="flex-1 px-3 py-2 bg-surface-container-low border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button 
                 type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg hover:bg-indigo-700 transition flex items-center gap-1"
+                className="px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg-lg hover:bg-indigo-700 transition flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" /> Thêm
               </button>
@@ -140,39 +140,39 @@ export default function AdminSettingsPage() {
 
             <ul className="space-y-2">
               {departments.map((dept) => (
-                <li key={dept.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 bg-slate-50">
-                  <span className="text-sm font-medium text-slate-700">{dept.name}</span>
+                <li key={dept.id} className="flex items-center justify-between p-3 rounded-lg-lg border-none bg-surface-container-low">
+                  <span className="text-sm font-medium text-on-surface-variant">{dept.name}</span>
                   <button 
                     onClick={() => handleDeleteDept(dept.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition"
+                    className="p-1.5 text-outline hover:text-rose-500 hover:bg-rose-50 rounded-lg-xl transition"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </li>
               ))}
               {departments.length === 0 && (
-                <li className="text-sm text-slate-500 italic text-center py-4">Chưa có phòng ban nào.</li>
+                <li className="text-sm text-on-surface-variant italic text-center py-4">Chưa có phòng ban nào.</li>
               )}
             </ul>
           </div>
         </div>
 
         {/* AI & System Settings */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 flex items-center gap-2">
+        <div className="bg-surface-container-lowest rounded-lg-2xl shadow-ambient border-none overflow-hidden">
+          <div className="p-6 border-none flex items-center gap-2">
             <Server className="text-indigo-600 w-5 h-5" />
-            <h2 className="text-lg font-bold text-slate-800">Cấu hình AI & API</h2>
+            <h2 className="text-lg font-bold text-on-surface font-manrope">Cấu hình AI & API</h2>
           </div>
           
           <div className="p-6 space-y-6">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                <Cpu className="w-4 h-4 text-slate-400" /> Model AI
+              <label className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
+                <Cpu className="w-4 h-4 text-outline" /> Model AI
               </label>
               <select 
                 value={settings.ai_model}
                 onChange={(e) => setSettings({ ...settings, ai_model: e.target.value })}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="gpt-4o">GPT-4o (OpenAI)</option>
                 <option value="gpt-4-turbo">GPT-4 Turbo</option>
@@ -183,21 +183,21 @@ export default function AdminSettingsPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5">
-                <Key className="w-4 h-4 text-slate-400" /> API Key
+              <label className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
+                <Key className="w-4 h-4 text-outline" /> API Key
               </label>
               <input 
                 type="password"
                 value={settings.ai_api_key}
                 onChange={(e) => setSettings({ ...settings, ai_api_key: e.target.value })}
                 placeholder="Nhập API Key..."
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
               />
             </div>
             
             <button 
               onClick={handleSaveSettings}
-              className="w-full py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-lg hover:bg-indigo-700 transition shadow flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-lg-lg hover:bg-indigo-700 transition shadow flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" /> Lưu cấu hình AI
             </button>

@@ -35,6 +35,7 @@ interface ManagedPost {
   is_archived: boolean;
   allow_late_submit: boolean;
   team: "ALL" | "TECH" | "SALES";
+  author: string | null;
   successfulCheckins: number;
   totalEmployees: number;
 }
@@ -228,7 +229,7 @@ export function PostTaskAdmin() {
       description: post.description,
       date: dateKey,
       team: post.team || "ALL",
-      author_id: "",
+      author_id: post.author || "",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -274,6 +275,7 @@ export function PostTaskAdmin() {
         description: formData.description,
         start_at: toDateTimeValue(formData.date),
         team: "ALL",
+        author: formData.author_id || null,
       };
 
       const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
@@ -397,31 +399,31 @@ export function PostTaskAdmin() {
   const isAllSelected = filteredPosts.length > 0 && filteredPosts.every(p => selectedIds.includes(p.id));
 
   return (
-    <div className="space-y-6 pb-12 text-slate-900">
+    <div className="space-y-6 pb-12 text-on-surface">
       <Toaster position="top-right" richColors duration={1500} />
 
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-none pb-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-slate-500 font-semibold">Nội dung</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-slate-900 tracking-tight">Quản Lý Bài Viết</h1>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="text-xs uppercase tracking-[0.2em] text-outline font-semibold">Nội dung</p>
+          <h1 className="mt-2 font-manrope font-bold text-[32px] leading-[40px] text-on-surface">Quản Lý Bài Viết</h1>
+          <p className="mt-1 text-sm text-on-surface-variant">
             Lên lịch và quản lý các bài đăng công việc cho đội ngũ nhân sự.
           </p>
         </div>
         <div>
           <button
             onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 font-semibold text-white text-sm shadow-md transition-all active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 px-5 py-3 rounded-lg-xl bg-gradient-to-r from-primary to-primary-gradient-end text-on-primary font-semibold text-sm shadow-ambient transition-all active:scale-[0.98]"
           >
             <Plus className="h-4.5 w-4.5" />
-            <span>Thêm bài viết mới</span>
+            <span>Tạo bài viết</span>
           </button>
         </div>
       </div>
 
       {/* Filters & Bulk Operations Card */}
-      <Card className="bg-white border-slate-200 p-4 shadow-sm">
+      <Card className="bg-surface-container-lowest border-none rounded-lg-2xl shadow-ambient p-4">
         <div className="flex flex-col gap-4">
           {/* Filter bar */}
           <div className="flex items-center gap-4">
@@ -430,7 +432,7 @@ export function PostTaskAdmin() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full max-w-xs px-3 py-2.5 bg-white border border-slate-250 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="w-full max-w-xs px-3 py-2.5 bg-surface-container-low border-none rounded-lg-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
               >
                 <option value="ALL">Tất cả bài viết</option>
                 <option value="ACTIVE">Đang kích hoạt (Chưa khóa)</option>
@@ -441,7 +443,7 @@ export function PostTaskAdmin() {
                 onClick={() => loadPosts()}
                 disabled={loadingPosts}
                 title="Tải lại danh sách"
-                className="p-2.5 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-colors"
+                className="p-2.5 flex items-center justify-center rounded-lg-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant transition-colors"
               >
                 <RefreshCw className={cn("h-4.5 w-4.5", loadingPosts && "animate-spin")} />
               </button>
@@ -450,16 +452,16 @@ export function PostTaskAdmin() {
 
           {/* Bulk Action Bar (Visible only when items are checked) */}
           {selectedIds.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-indigo-50/70 border border-indigo-100 rounded-xl p-3.5 animate-in fade-in duration-150">
-              <div className="flex items-center gap-2 text-indigo-950 text-sm font-semibold">
-                <Check className="h-4.5 w-4.5 text-indigo-600" />
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-primary-container/30 border border-primary-container rounded-lg-xl p-3.5 animate-in fade-in duration-150">
+              <div className="flex items-center gap-2 text-on-primary-container text-sm font-semibold">
+                <Check className="h-4.5 w-4.5 text-primary" />
                 <span>Đang chọn {selectedIds.length} bài viết</span>
               </div>
 
               <div className="flex flex-wrap gap-2 items-center">
                 <button
                   onClick={() => handleBulkArchive(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-red-50 border border-red-200 hover:bg-red-100 text-red-700 rounded-lg shadow-sm transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-error-container/30 border border-error-container text-error rounded-lg-lg shadow-ambient transition-all hover:bg-error-container/50"
                 >
                   <Lock className="h-3.5 w-3.5" />
                   Khóa hàng loạt
@@ -467,7 +469,7 @@ export function PostTaskAdmin() {
 
                 <button
                   onClick={() => handleBulkArchive(false)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 rounded-lg shadow-sm transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-tertiary-fixed border border-tertiary-fixed-dim text-on-tertiary-fixed-variant rounded-lg-lg shadow-ambient transition-all hover:bg-tertiary-fixed-dim"
                 >
                   <Unlock className="h-3.5 w-3.5" />
                   Mở khóa hàng loạt
@@ -475,7 +477,7 @@ export function PostTaskAdmin() {
 
                 <button
                   onClick={() => setSelectedIds([])}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 rounded-lg shadow-sm transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-surface-container border border-outline-variant/30 text-on-surface-variant rounded-lg-lg shadow-ambient transition-all hover:bg-surface-container-high"
                 >
                   <X className="h-3.5 w-3.5" />
                   Hủy chọn
@@ -487,19 +489,19 @@ export function PostTaskAdmin() {
       </Card>
 
       {/* Posts Table */}
-      <Card className="bg-white border-slate-200 overflow-hidden shadow-sm">
+      <Card className="bg-surface-container-lowest border-none rounded-lg-2xl shadow-ambient overflow-hidden">
         {loadingPosts ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-500 gap-2">
+          <div className="min-h-[300px] flex flex-col items-center justify-center text-on-surface-variant gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
             <p className="text-sm">Đang tải danh sách bài đăng...</p>
           </div>
         ) : filteredPosts.length === 0 ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-slate-500 p-8 text-center">
-            <div className="h-12 w-12 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
+          <div className="min-h-[300px] flex flex-col items-center justify-center text-on-surface-variant p-8 text-center">
+            <div className="h-12 w-12 rounded-lg-full bg-surface-container flex items-center justify-center text-outline mb-3">
               <FileText className="h-6 w-6" />
             </div>
-            <p className="text-base font-semibold text-slate-900">Không tìm thấy bài viết nào</p>
-            <p className="text-sm text-slate-500 mt-1 max-w-xs">
+            <p className="text-base font-semibold text-on-surface">Không tìm thấy bài viết nào</p>
+            <p className="text-sm text-on-surface-variant mt-1 max-w-xs">
               Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.
             </p>
           </div>
@@ -507,24 +509,25 @@ export function PostTaskAdmin() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                <tr className="border-none bg-surface-container-low text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
                   <th className="px-5 py-4 w-12 text-center">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
                       onChange={handleSelectAll}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                      className="rounded-lg border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                     />
                   </th>
                   <th className="px-5 py-4 w-20">Ảnh bìa</th>
                   <th className="px-5 py-4">Bài đăng</th>
+                  <th className="px-5 py-4">Tác giả</th>
                   <th className="px-5 py-4">Ngày đăng</th>
                   <th className="px-5 py-4">Check-in</th>
                   <th className="px-5 py-4">Trạng thái</th>
                   <th className="px-5 py-4 text-right">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
+              <tbody className="divide-y divide-outline-variant/10 text-sm">
                 {filteredPosts.map((post) => {
                   const isChecked = selectedIds.includes(post.id);
 
@@ -532,7 +535,7 @@ export function PostTaskAdmin() {
                     <tr 
                       key={post.id} 
                       className={cn(
-                        "hover:bg-slate-50/50 transition-colors group",
+                        "hover:bg-surface-container-low/50 transition-colors group",
                         isChecked && "bg-indigo-50/20"
                       )}
                     >
@@ -542,34 +545,55 @@ export function PostTaskAdmin() {
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleSelectRow(post.id)}
-                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                          className="rounded-lg border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                         />
                       </td>
 
                       {/* Thumbnail */}
                       <td className="px-5 py-4">
-                        <div className="w-16 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden relative shadow-sm">
+                        <div className="w-16 h-10 rounded-lg-lg bg-surface-container border-none overflow-hidden relative shadow-ambient">
                           <PostThumbnail src={post.thumbnail_url} alt={post.title} />
                         </div>
                       </td>
 
                       {/* Title */}
                       <td className="px-5 py-4 max-w-sm">
-                        <span className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors block truncate">
-                          {post.title}
+                        <div className="group/tip relative">
+                          <span className="font-semibold text-on-surface group-hover:text-indigo-600 transition-colors block truncate cursor-default">
+                            {post.title}
+                          </span>
+                          {/* Tooltip on hover */}
+                          <div className="absolute left-0 bottom-full mb-2 w-72 p-3 bg-inverse-surface text-white text-xs rounded-lg-xl shadow-xl opacity-0 invisible group-hover/tip:opacity-100 group-hover/tip:visible transition-all duration-200 z-50 pointer-events-none">
+                            <p className="font-bold text-inverse-on-surface mb-1 truncate">{post.title}</p>
+                            {post.description && (
+                              <p className="text-outline leading-relaxed line-clamp-4">{post.description}</p>
+                            )}
+                            {!post.description && (
+                              <p className="text-outline italic">Không có mô tả</p>
+                            )}
+                            {/* Arrow */}
+                            <div className="absolute left-4 top-full -translate-y-1/2 border-4 border-transparent border-t-slate-900" />
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Author */}
+                      <td className="px-5 py-4">
+                        <span className="text-sm text-on-surface-variant font-medium">
+                          {post.author || "—"}
                         </span>
                       </td>
 
                       {/* Scheduled at */}
                       <td className="px-5 py-4">
-                        <span className="font-semibold text-slate-700">
+                        <span className="font-semibold text-on-surface-variant">
                           {formatDateTime(post.start_at)}
                         </span>
                       </td>
 
                       {/* Checkin Rate */}
                       <td className="px-5 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-250">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-lg-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-250">
                           {post.successfulCheckins}/{post.totalEmployees} nhân viên
                         </span>
                       </td>
@@ -581,7 +605,7 @@ export function PostTaskAdmin() {
                           post.is_archived ? "text-rose-600" : "text-emerald-600"
                         )}>
                           <span className={cn(
-                            "w-1.5 h-1.5 rounded-full",
+                            "w-1.5 h-1.5 rounded-lg-full",
                             post.is_archived ? "bg-rose-500" : "bg-emerald-500 animate-pulse"
                           )} />
                           {post.is_archived ? "Đã khóa" : "Hoạt động"}
@@ -594,7 +618,7 @@ export function PostTaskAdmin() {
                           <button
                             onClick={() => handleOpenEditModal(post)}
                             title="Sửa bài viết"
-                            className="p-2 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-lg text-slate-600 hover:text-indigo-600 transition-all"
+                            className="p-2 bg-surface-container-lowest hover:bg-indigo-50 border-none hover:border-indigo-300 rounded-lg-lg text-on-surface-variant hover:text-indigo-600 transition-all"
                           >
                             <Edit2 className="h-4 w-4" />
                           </button>
@@ -603,10 +627,10 @@ export function PostTaskAdmin() {
                             onClick={() => handleToggleArchive(post)}
                             title={post.is_archived ? "Mở khóa bài viết" : "Khóa bài viết"}
                             className={cn(
-                              "p-2 bg-white border rounded-lg transition-all",
+                              "p-2 bg-surface-container-lowest border rounded-lg-lg transition-all",
                               post.is_archived
                                 ? "border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700"
-                                : "border-slate-200 text-slate-400 hover:bg-sky-50 hover:border-sky-300 hover:text-sky-600"
+                                : "border-outline-variant/10 text-outline hover:bg-sky-50 hover:border-sky-300 hover:text-sky-600"
                             )}
                           >
                             {post.is_archived ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
@@ -615,7 +639,7 @@ export function PostTaskAdmin() {
                           <button
                             onClick={() => handleDeletePost(post.id)}
                             title="Xóa bài viết"
-                            className="p-2 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-350 rounded-lg text-slate-600 hover:text-rose-600 transition-all"
+                            className="p-2 bg-surface-container-lowest hover:bg-rose-50 border-none hover:border-rose-350 rounded-lg-lg text-on-surface-variant hover:text-rose-600 transition-all"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -645,20 +669,20 @@ export function PostTaskAdmin() {
           {/* Backdrop */}
           <div 
             onClick={() => !saving && setIsModalOpen(false)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm"
           />
 
           {/* Form Card */}
-          <Card className="w-full max-w-2xl bg-white border-slate-200 shadow-2xl relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8">
-            <div className="px-6 py-4 border-b border-slate-150 bg-slate-50/60 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <FileEdit className="h-5 w-5 text-indigo-600" />
+          <Card className="w-full max-w-2xl bg-surface-container-lowest/80 backdrop-blur-2xl border border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8 rounded-lg-[24px]">
+            <div className="px-6 py-4 border-none flex items-center justify-between">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2 font-manrope">
+                <FileEdit className="h-5 w-5 text-primary" />
                 {editingPost ? "Sửa Task Bài Viết" : "Tạo Task Bài Viết Mới"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 disabled={saving}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-outline hover:text-on-surface transition-colors"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -673,7 +697,7 @@ export function PostTaskAdmin() {
                   <div className="md:col-span-7 space-y-4">
                     {/* Title */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase" htmlFor="form-title">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase" htmlFor="form-title">
                         Tiêu đề bài viết
                       </label>
                       <input 
@@ -683,20 +707,20 @@ export function PostTaskAdmin() {
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         disabled={saving}
-                        className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all" 
+                        className="w-full bg-surface-container-low border-none rounded-lg-xl px-3.5 py-2.5 text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all" 
                       />
                       {formErrors.title && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.title}</p>
+                        <p className="text-xs text-error font-semibold">{formErrors.title}</p>
                       )}
                     </div>
 
                     {/* Facebook URL */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase" htmlFor="form-url">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase" htmlFor="form-url">
                         Link bài viết gốc Facebook
                       </label>
                       <div className="relative">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-outline h-4 w-4" />
                         <input 
                           id="form-url"
                           type="url"
@@ -704,20 +728,20 @@ export function PostTaskAdmin() {
                           value={formData.url}
                           onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                           disabled={saving}
-                          className="w-full bg-white border border-slate-250 rounded-xl pl-9 pr-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono text-xs" 
+                          className="w-full bg-surface-container-low border-none rounded-lg-xl pl-9 pr-4 py-2.5 text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono text-xs" 
                         />
                       </div>
                       
                       {/* Author select dropdown */}
-                      <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-100">
+                      <div className="mt-1.5 p-2 bg-surface-container-lowest border-none rounded-lg-lg text-xs animate-in fade-in duration-100">
                         <div className="flex items-center gap-2">
-                          <User className="h-3.5 w-3.5 text-indigo-500" />
-                          <span className="font-semibold text-slate-600">Tác giả:</span>
+                          <User className="h-3.5 w-3.5 text-primary" />
+                          <span className="font-semibold text-on-surface-variant">Tác giả:</span>
                           <select
                             value={formData.author_id || ""}
                             onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
                             disabled={saving}
-                            className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                            className="flex-1 bg-surface-container-low border-none rounded-lg-lg px-2 py-1 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
                           >
                             <option value="">-- Chọn tác giả --</option>
                             <option value="songphuong_tech">Song Phương Technology</option>
@@ -727,13 +751,13 @@ export function PostTaskAdmin() {
                       </div>
 
                       {formErrors.url && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.url}</p>
+                        <p className="text-xs text-error font-semibold">{formErrors.url}</p>
                       )}
                     </div>
 
                     {/* Description */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase" htmlFor="form-desc">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase" htmlFor="form-desc">
                         Mô tả chi tiết / Yêu cầu checkin
                       </label>
                       <textarea 
@@ -743,37 +767,61 @@ export function PostTaskAdmin() {
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         disabled={saving}
-                        className="w-full bg-white border border-slate-250 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none" 
+                        className="w-full bg-surface-container-low border-none rounded-lg-xl px-3.5 py-2.5 text-sm text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none" 
                       />
                       {formErrors.description && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.description}</p>
+                        <p className="text-xs text-error font-semibold">{formErrors.description}</p>
                       )}
+                    </div>
+
+                    {/* Team Selector */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase">
+                        Nhóm thực hiện
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {["ALL", "TECH", "SALES", "MARKETING"].map((team) => (
+                          <button
+                            key={team}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, team: team as any })}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg-full text-xs font-semibold transition-all",
+                              formData.team === team
+                                ? "bg-primary text-on-primary"
+                                : "bg-surface-container-low text-on-surface-variant hover:bg-surface-container"
+                            )}
+                          >
+                            {team === "ALL" ? "Tất cả" : team}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
                   {/* Right side config (Scheduling, Media) */}
                   <div className="md:col-span-5 space-y-4">
                     {/* Date/Time density checks */}
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                    <div className="bg-surface-container-low border-none rounded-lg-xl p-3">
                       <div className="flex items-center gap-1.5 text-indigo-950 font-bold text-xs uppercase mb-2">
                         <CalendarIcon className="h-4 w-4 text-indigo-650" />
                         Thời gian lên lịch
                       </div>
                       
                       {checkingDensity ? (
-                        <div className="text-[11px] text-slate-400 flex items-center gap-1.5 py-1">
+                        <div className="text-[11px] text-outline flex items-center gap-1.5 py-1">
                           <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
                           Đang kiểm tra mật độ ngày đăng...
                         </div>
                       ) : density?.reachedLimit ? (
-                        <div className="p-2 bg-red-50 border border-red-150 text-red-700 rounded-lg flex gap-1.5 items-start mb-2 leading-tight">
+                        <div className="p-2 bg-red-50 border border-red-150 text-red-700 rounded-lg-lg flex gap-1.5 items-start mb-2 leading-tight">
                           <AlertTriangle className="h-4 w-4 text-red-650 shrink-0 mt-0.5" />
                           <p className="text-[11px] font-semibold">
                             Cảnh báo: Đã đạt tối đa {density.limit} bài đăng ngày {formData.date}.
                           </p>
                         </div>
                       ) : (
-                        <div className="p-2 bg-indigo-50 border border-indigo-150 text-indigo-750 rounded-lg flex gap-1.5 items-start mb-2 leading-tight">
+                        <div className="p-2 bg-indigo-50 border border-indigo-150 text-indigo-750 rounded-lg-lg flex gap-1.5 items-start mb-2 leading-tight">
                           <Check className="h-4 w-4 text-indigo-650 shrink-0 mt-0.5" />
                           <p className="text-[11px] font-semibold">
                             Mật độ: {density?.count ?? 0}/{density?.limit ?? DAILY_POST_LIMIT} bài đăng ngày {formData.date}.
@@ -783,13 +831,13 @@ export function PostTaskAdmin() {
 
                       <div className="space-y-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Ngày đăng</label>
+                          <label className="block text-[11px] font-bold text-on-surface-variant uppercase mb-1">Ngày đăng</label>
                           <input
                             type="date"
                             value={formData.date}
                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                             disabled={saving}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                            className="w-full bg-surface-container-low border-none rounded-lg-lg px-2.5 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
                           />
                         </div>
                       </div>
@@ -797,11 +845,11 @@ export function PostTaskAdmin() {
 
                     {/* Thumbnail url */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-700 uppercase" htmlFor="form-thumb">
+                      <label className="block text-xs font-bold text-on-surface-variant uppercase" htmlFor="form-thumb">
                         Thumbnail (Ảnh bìa)
                       </label>
                       <div className="relative">
-                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-outline h-4 w-4" />
                         <input
                           id="form-thumb"
                           type="url"
@@ -809,11 +857,11 @@ export function PostTaskAdmin() {
                           value={formData.thumbnail_url}
                           onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
                           disabled={saving}
-                          className="w-full bg-white border border-slate-250 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                          className="w-full bg-surface-container-low border-none rounded-lg-xl pl-9 pr-4 py-2.5 text-xs text-on-surface placeholder-outline focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono"
                         />
                       </div>
                       {formErrors.thumbnail_url && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.thumbnail_url}</p>
+                        <p className="text-xs text-error font-semibold">{formErrors.thumbnail_url}</p>
                       )}
                     </div>
                   </div>
@@ -822,19 +870,19 @@ export function PostTaskAdmin() {
               </div>
 
               {/* Form buttons */}
-              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex justify-end gap-3">
+              <div className="px-6 py-4 border-none flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 text-sm font-semibold transition-colors"
+                  className="px-4 py-2.5 rounded-lg-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-sm font-semibold transition-colors"
                 >
-                  Hủy bộ
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
                   disabled={saving || (density?.reachedLimit && !editingPost)}
-                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg-xl bg-gradient-to-r from-primary to-primary-gradient-end text-on-primary text-sm font-semibold shadow-ambient active:scale-[0.98] transition-all disabled:opacity-50"
                 >
                   {saving ? (
                     <>

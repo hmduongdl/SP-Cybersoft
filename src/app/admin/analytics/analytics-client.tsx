@@ -87,45 +87,45 @@ export default function AnalyticsClient({
       {/* KPI Cards Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-lg">
         {/* Card 1: Total Posts */}
-        <div className="bg-white p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-transform duration-300 border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-lg rounded-lg-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-1 transition-transform duration-300 border-none">
           <div>
             <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Tổng bài viết tháng này</p>
-            <h3 className="font-headline-lg text-headline-lg text-primary">{totalPostsThisMonth}</h3>
+            <h3 className="font-headline-lg text-headline-lg text-primary font-manrope">{totalPostsThisMonth}</h3>
             <p className="font-label-sm text-label-sm text-secondary flex items-center gap-1 mt-2 text-xs font-semibold">
               <span className="material-symbols-outlined text-[16px]">trending_up</span>
               +12% so với tháng trước
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-primary-fixed flex items-center justify-center text-primary">
+          <div className="w-12 h-12 rounded-lg-xl bg-primary-fixed flex items-center justify-center text-primary">
             <span className="material-symbols-outlined text-3xl">post_add</span>
           </div>
         </div>
 
         {/* Card 2: Company Completion */}
-        <div className="bg-white p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-transform duration-300 border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-lg rounded-lg-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-1 transition-transform duration-300 border-none">
           <div className="flex-grow pr-2">
             <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Tỷ lệ hoàn thành công ty</p>
-            <h3 className="font-headline-lg text-headline-lg text-on-surface">{companyAvg.toFixed(1)}%</h3>
-            <div className="w-full bg-surface-container-high h-2 rounded-full mt-3 overflow-hidden">
-              <div className="bg-secondary h-full rounded-full" style={{ width: `${companyAvg}%` }}></div>
+            <h3 className="font-headline-lg text-headline-lg text-on-surface font-manrope">{companyAvg.toFixed(1)}%</h3>
+            <div className="w-full bg-surface-container-high h-2 rounded-lg-full mt-3 overflow-hidden">
+              <div className="bg-secondary h-full rounded-lg-full" style={{ width: `${companyAvg}%` }}></div>
             </div>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
+          <div className="w-12 h-12 rounded-lg-xl bg-secondary-container flex items-center justify-center text-on-secondary-container shrink-0">
             <span className="material-symbols-outlined text-3xl">verified</span>
           </div>
         </div>
 
         {/* Card 3: Pending Users */}
-        <div className="bg-error-container p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-transform duration-300 border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-lg rounded-lg-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-1 transition-transform duration-300 border-none">
           <div>
-            <p className="font-label-sm text-label-sm text-on-error-container mb-1 uppercase tracking-wider text-xs">Nhân sự chưa đạt chỉ tiêu</p>
-            <h3 className="font-headline-lg text-headline-lg text-on-error-container">{pendingUsersCount}</h3>
-            <p className="font-label-sm text-label-sm text-on-error-container/80 flex items-center gap-1 mt-2 text-xs font-semibold">
+            <p className="font-label-sm text-label-sm text-error mb-1 uppercase tracking-wider text-xs">Nhân sự chưa đạt chỉ tiêu</p>
+            <h3 className="font-headline-lg text-headline-lg text-error font-manrope">{pendingUsersCount}</h3>
+            <p className="font-label-sm text-label-sm text-error/80 flex items-center gap-1 mt-2 text-xs font-semibold">
               <span className="material-symbols-outlined text-[16px]">warning</span>
               Cần gửi thông báo nhắc nhở
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-on-error flex items-center justify-center text-error">
+          <div className="w-12 h-12 rounded-lg-xl bg-error-container flex items-center justify-center text-error">
             <span className="material-symbols-outlined text-3xl">group_off</span>
           </div>
         </div>
@@ -134,39 +134,41 @@ export default function AnalyticsClient({
       {/* Charts Section (Bento Style) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         {/* Department Completion Chart */}
-        <div className="bg-white p-lg rounded-2xl card-shadow border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-[24px] rounded-lg-[16px] shadow-ambient border-none">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Hiệu suất phòng ban</h4>
               <p className="font-label-sm text-label-sm text-on-surface-variant">Tỷ lệ hoàn thành thực tế theo nhóm</p>
             </div>
-            <button className="p-2 hover:bg-surface-container rounded-lg flex items-center justify-center">
+            <button className="p-2 hover:bg-surface-container rounded-lg-lg flex items-center justify-center">
               <span className="material-symbols-outlined text-on-surface-variant">more_vert</span>
             </button>
           </div>
           <div className="h-64 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%" minHeight={0}>
               <BarChart data={departmentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <defs>
+                  <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#0066ff" stopOpacity={1}/>
+                    <stop offset="100%" stopColor="#0050cb" stopOpacity={1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="transparent" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} domain={[0, 100]} />
                 <RechartsTooltip
-                  cursor={{ fill: 'rgba(241, 245, 249, 0.5)' }}
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
+                  cursor={{ fill: 'transparent' }}
+                  contentStyle={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
                   formatter={(value: any) => [`${value}%`, 'Tỷ lệ hoàn thành']}
                 />
-                <Bar dataKey="rate" radius={[6, 6, 0, 0]} maxBarSize={40}>
-                  {departmentChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.rate < 70 ? '#ba1a1a' : entry.rate < 90 ? '#7e3000' : '#006c49'} />
-                  ))}
-                </Bar>
+                <Bar dataKey="rate" fill="url(#colorRate)" radius={[6, 6, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Weekly Engagement Trends */}
-        <div className="bg-white p-lg rounded-2xl card-shadow border border-outline-variant/10 overflow-hidden">
+        <div className="bg-surface-container-lowest p-[24px] rounded-lg-[16px] shadow-ambient border-none overflow-hidden">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Xu hướng Check-in tuần</h4>
@@ -174,26 +176,33 @@ export default function AnalyticsClient({
             </div>
             <div className="flex gap-2">
               <span className="flex items-center gap-1 text-[10px] text-outline font-semibold">
-                <span className="w-2.5 h-2.5 rounded-full bg-primary inline-block"></span> Tỉ lệ
+                <span className="w-2.5 h-2.5 rounded-lg-full bg-primary inline-block"></span> Tỉ lệ
               </span>
             </div>
           </div>
           <div className="h-64 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%" minHeight={0}>
               <LineChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <defs>
+                  <linearGradient id="colorLine" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#0050cb" stopOpacity={1}/>
+                    <stop offset="100%" stopColor="#0066ff" stopOpacity={1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="transparent" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} dy={10} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} domain={[0, 100]} />
                 <RechartsTooltip
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)' }}
+                  cursor={{ fill: 'transparent', stroke: 'rgba(0,0,0,0.05)', strokeWidth: 2 }}
+                  contentStyle={{ background: 'rgba(255, 255, 255, 0.8)', backdropFilter: 'blur(20px)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.2)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)' }}
                   formatter={(value: any) => [`${value}%`, 'Tỷ lệ check-in']}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="rate" 
-                  stroke="#3525cd" 
+                  stroke="url(#colorLine)" 
                   strokeWidth={4} 
-                  dot={{ r: 5, fill: '#3525cd', strokeWidth: 2, stroke: '#fff' }} 
+                  dot={{ r: 5, fill: '#0050cb', strokeWidth: 2, stroke: '#fff' }} 
                   activeDot={{ r: 7 }} 
                 />
               </LineChart>
@@ -203,9 +212,9 @@ export default function AnalyticsClient({
       </section>
 
       {/* Export Section */}
-      <section className="bg-surface-container-highest/20 p-lg rounded-2xl border border-primary/10 flex flex-col lg:flex-row justify-between items-center gap-lg">
+      <section className="bg-surface-container-highest/20 p-lg rounded-lg-2xl border border-primary/10 flex flex-col lg:flex-row justify-between items-center gap-lg">
         <div className="flex gap-4 items-center">
-          <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-secondary">
+          <div className="w-12 h-12 bg-surface-container-lowest rounded-lg-xl shadow-ambient flex items-center justify-center text-secondary">
             <span className="material-symbols-outlined text-3xl">description</span>
           </div>
           <div>
@@ -220,27 +229,27 @@ export default function AnalyticsClient({
         <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full lg:w-auto">
           <div className="flex items-center gap-3">
             <div className="flex flex-col flex-1">
-              <label className="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Từ ngày</label>
+              <label className="text-[10px] font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Từ ngày</label>
               <input 
                 type="date" 
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-4 py-2 text-xs rounded-lg-full bg-surface-container-low text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="flex flex-col flex-1">
-              <label className="text-[10px] font-bold text-slate-500 mb-1 uppercase tracking-wider">Đến ngày</label>
-              <input 
-                type="date" 
+              <label className="text-[10px] font-bold text-on-surface-variant mb-1 uppercase tracking-wider">Đến ngày</label>
+              <input
+                type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2.5 text-xs rounded-xl border border-slate-200 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-4 py-2 text-xs rounded-lg-full bg-surface-container-low text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
           </div>
           <button 
             onClick={handleExportExcel}
-            className="bg-[#1D6F42] hover:bg-[#155331] text-white px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all transform active:scale-95 shadow-md shadow-[#1D6F42]/10"
+            className="bg-surface-container-high hover:bg-surface-container-highest text-primary px-5 py-2.5 rounded-lg-[10px] text-xs font-bold flex items-center justify-center gap-2 transition-all duration-150"
           >
             <span className="material-symbols-outlined text-[16px]">download</span>
             Xuất Báo Cáo Excel
@@ -250,8 +259,8 @@ export default function AnalyticsClient({
 
 
       {/* User Completion Table */}
-      <section className="bg-white rounded-2xl card-shadow border border-outline-variant/10 overflow-hidden">
-        <div className="p-lg border-b border-outline-variant/10 flex justify-between items-center">
+      <section className="bg-surface-container-lowest rounded-lg-2xl shadow-ambient overflow-hidden">
+        <div className="p-lg border-none flex justify-between items-center">
           <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Chi tiết hiệu suất nhân sự</h4>
         </div>
         <div className="overflow-x-auto">
@@ -295,7 +304,7 @@ export default function AnalyticsClient({
                     <td className="px-lg py-md font-body-sm text-emerald-600 font-bold text-center">{user.completed}</td>
                     <td className="px-lg py-md font-body-sm text-rose-600 font-bold text-center">{user.missed}</td>
                     <td className="px-lg py-md text-center">
-                      <span className={cn("px-2.5 py-1 rounded-lg text-xs font-bold", rateBadgeClass)}>
+                      <span className={cn("px-2.5 py-1 rounded-lg-lg text-xs font-bold", rateBadgeClass)}>
                         {user.rate.toFixed(1)}%
                       </span>
                     </td>
@@ -329,7 +338,7 @@ export default function AnalyticsClient({
 
         {/* Table Pagination */}
         {totalEmployees > itemsPerPage && (
-          <div className="p-lg bg-surface-container-low flex justify-between items-center border-t border-outline-variant/10">
+          <div className="p-lg bg-surface-container-low flex justify-between items-center border-none">
             <p className="font-label-sm text-outline text-xs">
               Hiển thị {startIndex + 1} - {Math.min(startIndex + itemsPerPage, totalEmployees)} trên {totalEmployees} nhân viên
             </p>
@@ -337,14 +346,14 @@ export default function AnalyticsClient({
               <button 
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 border border-outline-variant rounded-lg hover:bg-white disabled:opacity-50 flex items-center justify-center transition-all bg-white"
+                className="p-1.5 rounded-lg-lg hover:bg-surface-bright disabled:opacity-50 flex items-center justify-center transition-all bg-surface-bright"
               >
                 <span className="material-symbols-outlined text-[18px]">chevron_left</span>
               </button>
-              <button 
+              <button
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 border border-outline-variant rounded-lg hover:bg-white disabled:opacity-50 flex items-center justify-center transition-all bg-white"
+                className="p-1.5 rounded-lg-lg hover:bg-surface-bright disabled:opacity-50 flex items-center justify-center transition-all bg-surface-bright"
               >
                 <span className="material-symbols-outlined text-[18px]">chevron_right</span>
               </button>

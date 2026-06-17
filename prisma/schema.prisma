@@ -40,6 +40,7 @@ model Post {
   url           String
   thumbnail_url String?
   description   String
+  author        String?
   start_at      DateTime
   team          Team      @default(ALL)
   is_archived   Boolean   @default(false)
