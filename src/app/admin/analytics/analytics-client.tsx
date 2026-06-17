@@ -75,7 +75,7 @@ export default function AnalyticsClient({
 
   return (
     <div className="space-y-lg animate-in fade-in duration-300">
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors duration={1500} />
 
       {/* Breadcrumbs */}
       <nav className="flex gap-2 text-label-sm text-outline text-xs">

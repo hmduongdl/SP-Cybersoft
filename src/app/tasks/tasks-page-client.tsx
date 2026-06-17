@@ -52,7 +52,7 @@ export default function TasksPageClient({
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors duration={1500} />
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-indigo-500 font-bold mb-2">Bảng tin</p>

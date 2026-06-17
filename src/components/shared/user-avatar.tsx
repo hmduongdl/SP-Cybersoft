@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect } from "react";
 
 interface UserAvatarProps {
   src: string | null | undefined;
@@ -11,10 +10,16 @@ interface UserAvatarProps {
 
 /**
  * Avatar component hiển thị ảnh người dùng.
- * Khi không có ảnh hoặc ảnh lỗi → fallback SVG person icon.
+ * Sử dụng thẻ <img> tiêu chuẩn để tương thích với tất cả các domain hình ảnh khác nhau.
+ * Khi không có ảnh hoặc ảnh lỗi → hiển thị fallback icon SVG.
  */
 export function UserAvatar({ src, name, size = "md" }: UserAvatarProps) {
   const [imgError, setImgError] = useState(false);
+
+  // Reset trạng thái lỗi khi đường dẫn ảnh thay đổi (khi upload ảnh mới)
+  useEffect(() => {
+    setImgError(false);
+  }, [src]);
 
   const dims = size === "sm" ? "h-7 w-7 text-[11px]" : "h-10 w-10 text-sm";
   const border = size === "sm" ? "border-slate-200" : "border-slate-800";
@@ -24,12 +29,10 @@ export function UserAvatar({ src, name, size = "md" }: UserAvatarProps) {
   if (hasSrc) {
     return (
       <div className={`${dims} relative rounded-full overflow-hidden border ${border} bg-slate-700 group-hover:scale-105 transition-transform duration-200`}>
-        <Image
+        <img
           src={src}
           alt={name || "Avatar"}
-          fill
-          className="object-cover"
-          sizes="40px"
+          className="w-full h-full object-cover"
           onError={() => setImgError(true)}
         />
       </div>

@@ -52,8 +52,8 @@ export default function LoginForm() {
       {/* Logo for mobile */}
       <div className="text-center mb-8">
         <div className="inline-flex lg:hidden items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded-lg overflow-hidden relative bg-slate-800">
-            <Image src="/SPlogo-white.png" alt="SPS AI" fill className="object-contain" sizes="36px" />
+          <div className="w-9 h-9 rounded-lg overflow-hidden relative bg-slate-800 flex items-center justify-center">
+            <img src="/SPlogo-white.png" alt="SPS AI" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">SPS AI</h1>
         </div>
@@ -97,20 +97,13 @@ export default function LoginForm() {
             <label className="text-xs font-bold text-slate-300 tracking-wide uppercase" htmlFor="password">
               Mật khẩu
             </label>
-            <button
-              className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
-              type="button"
-              onClick={() => setForgotPasswordMsg(!forgotPasswordMsg)}
-            >
-              Quên mật khẩu?
-            </button>
           </div>
           <div className="relative group">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
               lock
             </span>
             <input
-              className="w-full pl-12 pr-12 py-3.5 bg-slate-955/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              className="w-full pl-12 pr-12 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
               id="password"
               name="password"
               placeholder="Nhập mật khẩu"
@@ -129,17 +122,27 @@ export default function LoginForm() {
           </div>
         </div>
 
-        {/* Remember Me Checkbox */}
-        <div className="flex items-center">
-          <input
-            id="remember_me"
-            name="remember_me"
-            type="checkbox"
-            className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-600 focus:ring-offset-slate-900"
-          />
-          <label htmlFor="remember_me" className="ml-2 block text-sm text-slate-350 cursor-pointer font-medium">
-            Ghi nhớ đăng nhập
+        {/* Remember Me Checkbox & Forgot Password */}
+        <div className="flex items-center justify-between">
+          <label htmlFor="remember_me" className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              id="remember_me"
+              name="remember_me"
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-700 bg-slate-900 text-indigo-600 focus:ring-indigo-600 focus:ring-offset-slate-900 cursor-pointer"
+            />
+            <span className="text-sm text-slate-400 font-medium">
+              Ghi nhớ đăng nhập
+            </span>
           </label>
+          <button
+            className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition-colors"
+            type="button"
+            tabIndex={-1}
+            onClick={() => setForgotPasswordMsg(!forgotPasswordMsg)}
+          >
+            Quên mật khẩu?
+          </button>
         </div>
 
         {/* Forgot password message popup */}

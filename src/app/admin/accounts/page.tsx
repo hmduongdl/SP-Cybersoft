@@ -249,7 +249,7 @@ export default function AdminAccountsPage() {
 
   return (
     <div className="space-y-6 pb-12 text-slate-900">
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors duration={1500} />
 
       {/* Header section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-6">
