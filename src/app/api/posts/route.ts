@@ -34,6 +34,7 @@ export async function GET(request: Request) {
             thumbnail_url: post.thumbnail_url,
             start_at: post.start_at.toISOString(),
             is_archived: post.is_archived,
+            allow_late_submit: post.allow_late_submit,
             team: post.team,
             successfulCheckins: post._count.checkins,
             totalEmployees,
