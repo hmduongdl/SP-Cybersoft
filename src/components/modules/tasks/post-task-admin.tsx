@@ -719,21 +719,11 @@ export function PostTaskAdmin() {
                             disabled={saving}
                             className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
                           >
-                            <option value="">-- Chọn người đăng --</option>
-                            {users
-                              .filter(u => u.facebook_profile_url)
-                              .map((u) => (
-                                <option key={u.id} value={u.id}>
-                                  {u.name || u.username} ({u.department || "N/A"})
-                                </option>
-                              ))}
+                            <option value="">-- Chọn tác giả --</option>
+                            <option value="songphuong_tech">Song Phương Technology</option>
+                            <option value="songphuong">Song Phương</option>
                           </select>
                         </div>
-                        {users.filter(u => u.facebook_profile_url).length === 0 && (
-                          <p className="mt-1 text-amber-600 text-[10px]">
-                            Chưa có người dùng nào có Facebook profile. Vào Quản lý tài khoản để thêm.
-                          </p>
-                        )}
                       </div>
 
                       {formErrors.url && (
