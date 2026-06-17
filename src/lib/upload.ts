@@ -26,7 +26,7 @@ export async function uploadImage(
 
   // Đẩy file lên Vercel Blob (dùng tham số folder để tách biệt avatars và checkins)
   const blob = await put(`${folder}/${uniqueName}`, fileData, {
-    access: "private",
+    access: "public",
     contentType: mimeType,
   });
 
