@@ -133,7 +133,7 @@ export function SiteHeader() {
 
   return (
     <>
-      <header className="h-[56px] w-full bg-surface-container-lowest/80 backdrop-blur-[20px] sticky top-0 z-30 px-6 flex items-center justify-between transition-all duration-200">
+      <header className="h-[56px] w-full bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-30 px-6 flex items-center justify-between transition-all duration-200">
         {/* Left side: Hamburger (mobile) + Breadcrumbs */}
         <div className="flex items-center gap-4">
           <button

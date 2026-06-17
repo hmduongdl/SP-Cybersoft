@@ -403,11 +403,15 @@ export function PostTaskAdmin() {
       <Toaster position="top-right" richColors duration={1500} />
 
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-none pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-none pb-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-outline font-semibold">Nội dung</p>
-          <h1 className="mt-2 font-manrope font-bold text-headline-lg text-on-surface">Quản Lý Bài Viết</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
+          <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-primary font-semibold">Quản lý bài viết</span>
+          </nav>
+          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Quản lý bài viết</h1>
+          <p className="mt-1 text-sm text-on-surface-variant font-inter">
             Lên lịch và quản lý các bài đăng công việc cho đội ngũ nhân sự.
           </p>
         </div>

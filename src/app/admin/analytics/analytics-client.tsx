@@ -93,7 +93,7 @@ export default function AnalyticsClient({
       {/* KPI Cards Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card 1: Total Posts */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] p-6 flex flex-col justify-between shadow-ambient">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center">
               <span className="material-symbols-outlined text-primary text-[20px]">post_add</span>
@@ -113,7 +113,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Card 2: Company Completion */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] p-6 flex flex-col justify-between shadow-ambient">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center">
               <span className="material-symbols-outlined text-on-tertiary-fixed-variant text-[20px]">verified</span>
@@ -136,7 +136,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Card 3: Pending Users */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] p-6 flex flex-col justify-between shadow-ambient">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-error-container flex items-center justify-center">
               <span className="material-symbols-outlined text-error text-[20px]">group_off</span>
@@ -159,7 +159,7 @@ export default function AnalyticsClient({
       {/* Charts Section (Bento Style) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         {/* Department Completion Chart */}
-        <div className="bg-surface-container-lowest p-[24px] rounded-[16px] shadow-ambient border-none">
+        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] border-none">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Hiệu suất phòng ban</h4>
@@ -213,7 +213,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Weekly Engagement Trends */}
-        <div className="bg-surface-container-lowest p-[24px] rounded-[16px] shadow-ambient border-none overflow-hidden">
+        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] border-none overflow-hidden">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Xu hướng Check-in tuần</h4>
@@ -279,7 +279,7 @@ export default function AnalyticsClient({
       {/* Export Section */}
       <section className="bg-surface-container-highest/20 p-lg rounded-2xl border border-primary/10 flex flex-col lg:flex-row justify-between items-center gap-lg">
         <div className="flex gap-4 items-center">
-          <div className="w-12 h-12 bg-surface-container-lowest rounded-xl shadow-ambient flex items-center justify-center text-secondary">
+          <div className="w-12 h-12 bg-white rounded-xl border border-slate-100 shadow-ambient flex items-center justify-center text-secondary">
             <span className="material-symbols-outlined text-3xl">description</span>
           </div>
           <div>
@@ -323,13 +323,13 @@ export default function AnalyticsClient({
       </section>
 
       {/* User Completion Table */}
-      <section className="bg-surface-container-lowest rounded-2xl shadow-[0_20px_40px_rgba(19,27,46,0.06)] overflow-hidden border-none">
+      <section className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] overflow-hidden border-none">
         <div className="p-6 border-none flex justify-between items-center">
           <h4 className="font-manrope font-bold text-lg text-on-surface">Chi tiết hiệu suất nhân sự</h4>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-surface-container-low font-inter text-[11px] font-semibold text-on-surface-variant uppercase tracking-[0.05em]">
+            <thead className="bg-slate-50 font-inter text-[11px] font-semibold text-slate-500 uppercase tracking-[0.05em] border-none">
               <tr>
                 <th className="px-6 py-4 font-semibold">Thành viên</th>
                 <th className="px-6 py-4 font-semibold">Bộ phận</th>
@@ -356,7 +356,7 @@ export default function AnalyticsClient({
                   <tr 
                     key={user.id} 
                     className={cn(
-                      "hover:bg-surface-container transition-all duration-150 group border-none",
+                      "hover:bg-slate-50 even:bg-slate-50/40 transition-all duration-150 group border-none",
                       isRed && "bg-rose-500/[0.02]"
                     )}
                   >

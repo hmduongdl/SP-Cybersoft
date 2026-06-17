@@ -43,21 +43,21 @@ function getPostStatus(
     return {
       status: "SUBMITTED",
       label: "Đã duyệt",
-      badgeClass: "bg-emerald-500/10 text-emerald-700 border-none",
+      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-100",
     };
   }
   if (checkinState === "PENDING") {
     return {
       status: "PENDING_REVIEW",
       label: "Chờ duyệt",
-      badgeClass: "bg-indigo-500/10 text-indigo-600 border-none",
+      badgeClass: "bg-amber-50 text-amber-700 border border-amber-100",
     };
   }
   if (checkinState === "REJECTED") {
     return {
       status: "REJECTED",
       label: "Bị từ chối",
-      badgeClass: "bg-rose-500/10 text-rose-600 border-none",
+      badgeClass: "bg-rose-50 text-rose-700 border border-rose-100",
     };
   }
   if (post.is_archived) {

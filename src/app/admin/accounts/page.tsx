@@ -252,11 +252,15 @@ export default function AdminAccountsPage() {
       <Toaster position="top-right" richColors duration={1500} />
 
       {/* Header section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 pb-6">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-on-surface-variant font-semibold">Hệ thống</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-on-surface tracking-tight font-manrope">Quản Lý Thành Viên</h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
+          <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-primary font-semibold">Quản lý thành viên</span>
+          </nav>
+          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Quản lý thành viên</h1>
+          <p className="mt-1 text-sm text-on-surface-variant font-inter">
             Quản lý nhân sự, phòng ban và Ngôi sao hy vọng.
           </p>
         </div>

@@ -56,10 +56,15 @@ export function DashboardOverview({
 
       {/* Welcome Header */}
       <div>
-        <h1 className="font-manrope text-[48px] font-extrabold text-on-surface tracking-tight leading-tight">
+        <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+          <span>Dashboard</span>
+          <span>/</span>
+          <span className="text-primary font-semibold">Tổng quan</span>
+        </nav>
+        <h1 className="font-manrope font-bold text-headline-lg text-on-surface">
           Chào mừng quay lại, {userName}!
         </h1>
-        <p className="font-inter text-body-md text-on-surface-variant mt-1">
+        <p className="mt-1 text-sm text-on-surface-variant font-inter">
           {pendingCount > 0
             ? `Bạn có ${pendingCount} bài viết cần check-in trong tuần này.`
             : "Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả check-in tuần này."}
@@ -132,14 +137,14 @@ export function DashboardOverview({
       {/* Bottom Grid: Announcements + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10">
 
-        {/* LEFT: Featured Announcement + Secondary */}
+        {/* LEFT: Featured Announcement */}
         <div>
           <h2 className="font-manrope text-headline-md font-bold text-on-surface mb-6">
             Tin tức &amp; Thông báo
           </h2>
 
           {/* Featured Spotlight Card */}
-          <div className="bg-surface-container-lowest rounded-[24px] p-10 flex flex-col justify-center min-h-[400px] shadow-ambient relative overflow-hidden mb-6">
+          <div className="bg-surface-container-lowest rounded-[24px] p-10 flex flex-col justify-center min-h-[400px] shadow-ambient relative overflow-hidden">
             <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-gradient-to-br from-primary/10 to-transparent rounded-full blur-[80px] -mr-40 -mt-40 pointer-events-none" />
             <div className="relative z-10 space-y-8">
               <div>
@@ -153,30 +158,9 @@ export function DashboardOverview({
               <p className="font-inter text-body-lg text-on-surface-variant leading-relaxed max-w-lg">
                 Sử dụng AI để duyệt nhanh các bài nộp check-in với độ chính xác cao, giúp tối ưu hóa thời gian phản hồi.
               </p>
-              <button className="gradient-primary hover:opacity-90 text-white px-8 py-4 rounded-xl font-inter font-bold transition-all active:scale-95 shadow-ambient shadow-primary/20 w-fit">
+              <button className="gradient-primary hover:opacity-90 text-on-primary px-8 py-4 rounded-xl font-inter font-bold transition-all duration-150 w-fit">
                 Xem chi tiết
               </button>
-            </div>
-          </div>
-
-          {/* Secondary Announcement */}
-          <div className="flex gap-4 items-start p-5 bg-surface-container-lowest rounded-2xl shadow-ambient">
-            <div className="w-10 h-10 bg-tertiary-fixed rounded-xl flex items-center justify-center shrink-0">
-              <Award className="w-5 h-5 text-on-tertiary-fixed-variant" />
-            </div>
-            <div className="flex-grow space-y-1">
-              <h4 className="font-bold text-on-surface text-sm sm:text-base">
-                Ra mắt chương trình chăm sóc sức khỏe nhân viên mới
-              </h4>
-              <p className="text-body-sm text-on-surface-variant leading-relaxed">
-                Chúng tôi rất vui mừng thông báo về sự hợp tác của công ty với Headspace để mang lại quyền lợi thiền định và giảm áp lực công việc cho nhân viên.
-              </p>
-              <div className="flex items-center gap-3 pt-1">
-                <span className="px-2 py-0.5 bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-lg text-[10px] font-bold">
-                  Phúc lợi
-                </span>
-                <span className="text-[11px] text-outline font-medium">10 tháng 6, 2026</span>
-              </div>
             </div>
           </div>
         </div>

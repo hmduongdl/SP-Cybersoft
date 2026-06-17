@@ -89,21 +89,16 @@ export default function ReportsClient({ checkins }: Props) {
     <div className="w-full h-auto space-y-6 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors duration={1500} />
 
-      {/* Breadcrumbs */}
-      <nav className="flex gap-2 text-label-sm text-outline text-xs">
-        <span>Dashboard</span>
-        <span>/</span>
-        <span className="text-primary font-semibold">Báo cáo cá nhân</span>
-      </nav>
-
       {/* Header Section */}
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
-        <div>
-          <p className="text-sm uppercase tracking-[0.2em] text-indigo-500 font-bold mb-2">Thống kê</p>
-          <h1 className="text-4xl font-extrabold text-on-surface tracking-tight font-manrope">Báo Cáo Của Tôi</h1>
-          <p className="mt-2 text-on-surface-variant text-base">Xem lại toàn bộ lịch sử share bài và trạng thái duyệt check-in.</p>
-        </div>
-      </header>
+      <div>
+        <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+          <span>Dashboard</span>
+          <span>/</span>
+          <span className="text-primary font-semibold">Báo cáo cá nhân</span>
+        </nav>
+        <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Báo cáo cá nhân</h1>
+        <p className="mt-1 text-sm text-on-surface-variant font-inter">Xem lại toàn bộ lịch sử share bài và trạng thái duyệt check-in.</p>
+      </div>
 
       {/* Stats KPI Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg">
@@ -274,9 +269,9 @@ export default function ReportsClient({ checkins }: Props) {
                           <span
                             className={clsx(
                               "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border",
-                              isApproved && "bg-emerald-50 text-emerald-700 border-emerald-200",
-                              isPending && "bg-indigo-50 text-indigo-700 border-indigo-200",
-                              isRejected && "bg-rose-50 text-rose-700 border-rose-200"
+                               isApproved && "bg-emerald-50 text-emerald-700 border-emerald-100",
+                               isPending && "bg-amber-50 text-amber-700 border-amber-100",
+                               isRejected && "bg-rose-50 text-rose-700 border-rose-100"
                             )}
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-current" />

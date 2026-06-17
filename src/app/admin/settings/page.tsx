@@ -108,8 +108,13 @@ export default function AdminSettingsPage() {
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-3xl font-extrabold text-on-surface tracking-tight font-manrope">Cấu hình hệ thống</h1>
-        <p className="text-on-surface-variant text-sm mt-1">Quản lý phòng ban, API Key AI và các thông số cài đặt khác.</p>
+        <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+          <span>Dashboard</span>
+          <span>/</span>
+          <span className="text-primary font-semibold">Cấu hình hệ thống</span>
+        </nav>
+        <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Cấu hình hệ thống</h1>
+        <p className="mt-1 text-sm text-on-surface-variant font-inter">Quản lý phòng ban, API Key AI và các thông số cài đặt khác.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -61,9 +61,15 @@ export default function TasksPageClient({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Toaster position="top-right" richColors duration={1500} />
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
+      <header className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-2">
         <div>
-          <h1 className="text-3xl md:text-[32px] font-bold text-on-surface tracking-tight font-manrope">Nhiệm vụ Check-in</h1>
+          <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-primary font-semibold">Nhiệm vụ Check-in</span>
+          </nav>
+          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Nhiệm vụ Check-in</h1>
+          <p className="mt-1 text-sm text-on-surface-variant font-inter">Hoàn thành check-in bằng cách chia sẻ bài đăng trên Facebook cá nhân.</p>
         </div>
 
         {/* View Mode Tabs */}

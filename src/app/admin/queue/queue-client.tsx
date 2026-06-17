@@ -281,12 +281,15 @@ export default function QueueClient({
   return (
     <div className="space-y-6 text-on-surface animate-in fade-in duration-300">
       {/* Header */}
-      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-2">
         <div>
-          <h1 className="text-[32px] font-bold text-on-surface tracking-tight font-manrope">
-            Hàng đợi Check-in
-          </h1>
-          <p className="text-sm text-on-surface-variant mt-1 font-inter">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
+          <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-primary font-semibold">Hàng đợi Check-in</span>
+          </nav>
+          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Hàng đợi Check-in</h1>
+          <p className="mt-1 text-sm text-on-surface-variant font-inter">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
         </div>
         {/* Export */}
         <div className="flex items-center gap-2 bg-surface-container-lowest p-2 rounded-[16px] shadow-ambient">
@@ -386,9 +389,9 @@ export default function QueueClient({
                 analysisReason: item.note?.startsWith("[AI Scan] ") ? item.note.replace("[AI Scan] ", "") : (item.note || "")
               } : null);
 
-              const statusMeta = item.status === "PENDING" ? { label: "Chờ duyệt", bg: "bg-amber-500/10 text-amber-700" }
-                : item.status === "APPROVED" || item.status === "AUTO_APPROVED" ? { label: item.status === "AUTO_APPROVED" ? "Tự động duyệt" : "Đã duyệt", bg: "bg-emerald-500/10 text-emerald-700" }
-                : item.status === "REJECTED" ? { label: "Từ chối", bg: "bg-rose-500/10 text-rose-700" }
+              const statusMeta = item.status === "PENDING" ? { label: "Chờ duyệt", bg: "bg-amber-50 text-amber-700 border border-amber-100" }
+                : item.status === "APPROVED" || item.status === "AUTO_APPROVED" ? { label: item.status === "AUTO_APPROVED" ? "Tự động duyệt" : "Đã duyệt", bg: "bg-emerald-50 text-emerald-700 border border-emerald-100" }
+                : item.status === "REJECTED" ? { label: "Từ chối", bg: "bg-rose-50 text-rose-700 border border-rose-100" }
                 : { label: item.status, bg: "bg-surface-container text-on-surface-variant" };
 
               return (
