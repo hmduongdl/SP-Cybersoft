@@ -13,7 +13,8 @@ import {
   Image as ImageIcon, 
   Calendar as CalendarIcon, 
   Loader2,
-  Archive, 
+  Lock,
+  Unlock,
   AlertTriangle, 
   FileText, 
   FileEdit,
@@ -21,7 +22,6 @@ import {
   User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import { formatDateTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
@@ -62,6 +62,35 @@ interface DensityState {
 
 function toDateTimeValue(dateKey: string, time: string) {
   return `${dateKey}T${time}`;
+}
+
+/** Safe thumbnail with fallback when image fails to load */
+function PostThumbnail({ src, alt }: { src: string | null; alt: string }) {
+  const [imgSrc, setImgSrc] = useState(src || "");
+  const [failed, setFailed] = useState(false);
+
+  // Reset state when src prop changes
+  useEffect(() => {
+    setImgSrc(src || "");
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-indigo-50 flex items-center justify-center">
+        <ImageIcon className="h-5 w-5 text-indigo-400" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={imgSrc}
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
 export function PostTaskAdmin() {
@@ -338,22 +367,15 @@ export function PostTaskAdmin() {
     }
   };
 
-  // Archive / Unarchive individual post
+  // Toggle Archive/Active individual post via dedicated endpoint
   const handleToggleArchive = async (post: ManagedPost) => {
     try {
-      const res = await fetch(`/api/posts`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ids: [post.id],
-          data: { is_archived: !post.is_archived }
-        }),
-      });
-      if (!res.ok) throw new Error("Cập nhật trạng thái lưu trữ thất bại.");
-      toast.success(post.is_archived ? "Đã mở khóa bài đăng" : "Đã lưu trữ bài đăng thành công");
+      const res = await fetch(`/api/posts/${post.id}/status`, { method: "PATCH" });
+      if (!res.ok) throw new Error("Cập nhật trạng thái bài viết thất bại.");
+      toast.success(post.is_archived ? "Đã mở khóa bài viết thành công!" : "Đã khóa bài viết thành công!");
       loadPosts(1);
     } catch (error: any) {
-      toast.error(error.message || "Lỗi khi cập nhật.");
+      toast.error(error.message || "Lỗi khi cập nhật trạng thái.");
     }
   };
 
@@ -512,7 +534,7 @@ export function PostTaskAdmin() {
                     onClick={() => handleBulkArchive(true)}
                     className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white border border-indigo-200 hover:bg-indigo-100/50 text-indigo-700 rounded-lg shadow-sm transition-all"
                   >
-                    <Archive className="h-3.5 w-3.5" />
+                    <Lock className="h-3.5 w-3.5" />
                     Lưu trữ bài chọn
                   </button>
                 ) : (
@@ -603,11 +625,7 @@ export function PostTaskAdmin() {
                       {/* Thumbnail */}
                       <td className="px-5 py-4">
                         <div className="w-16 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden relative shadow-sm">
-                          {post.thumbnail_url ? (
-                            <Image className="object-cover" src={post.thumbnail_url} alt="" fill sizes="64px" />
-                          ) : (
-                            <div className="w-full h-full bg-indigo-50 text-indigo-500 text-[10px] flex items-center justify-center font-bold">No Image</div>
-                          )}
+                          <PostThumbnail src={post.thumbnail_url} alt={post.title} />
                         </div>
                       </td>
 
@@ -673,9 +691,14 @@ export function PostTaskAdmin() {
                           <button
                             onClick={() => handleToggleArchive(post)}
                             title={post.is_archived ? "Mở khóa bài viết" : "Khóa/Lưu trữ bài viết"}
-                            className="p-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-600 hover:text-slate-900 transition-all"
+                            className={cn(
+                              "p-2 bg-white border rounded-lg transition-all",
+                              post.is_archived
+                                ? "border-rose-200 text-rose-500 hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700"
+                                : "border-slate-200 text-slate-400 hover:bg-sky-50 hover:border-sky-300 hover:text-sky-600"
+                            )}
                           >
-                            <Archive className="h-4 w-4" />
+                            {post.is_archived ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
                           </button>
 
                           <button

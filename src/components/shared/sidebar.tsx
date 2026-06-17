@@ -66,8 +66,8 @@ export function Sidebar() {
         {/* Brand Logo Area */}
         <div className="px-2 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 select-none bg-slate-900 rounded-lg relative">
-              <Image src="/SPlogo-white.png" alt="SPS Logo" fill className="object-contain p-1" sizes="48px" />
+            <div className="flex items-center justify-center w-12 h-12 select-none bg-slate-900 rounded-lg relative flex items-center justify-center">
+              <img src="/SPlogo-white.png" alt="SPS Logo" className="w-full h-full object-contain p-1" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
