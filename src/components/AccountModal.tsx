@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Building2, Loader2, X, Link, UserCircle, Camera } from "lucide-react";
+import { User, Mail, Building2, Loader2, X, Link, UserCircle, Camera, UploadCloud } from "lucide-react";
 import { UserAvatar } from "./shared/user-avatar";
+import { cn } from "@/lib/utils";
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -16,20 +17,22 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
 
-
   const [name, setName] = useState(session?.user?.name ?? "");
   const [username, setUsername] = useState("");
   const [usernameChanged, setUsernameChanged] = useState(false);
   const [email, setEmail] = useState(session?.user?.email ?? "");
   const [department, setDepartment] = useState("");
-
   const [facebookLink, setFacebookLink] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Avatar upload state
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync session data when it arrives
   useEffect(() => {
@@ -41,12 +44,15 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
     }
   }, [session, status]);
 
-  // Load full profile and departments from API when modal opens
+  // Load full profile when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
     let active = true;
     setLoading(true);
+    setUploading(false);
+    setUploadProgress(0);
+    setIsDragging(false);
 
     async function loadData() {
       try {
@@ -63,7 +69,6 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             setDepartment(data.user.department ?? "");
             setFacebookLink(data.user.facebook_link ?? "");
             setAvatarUrl(data.user.avatar_url ?? null);
-
           }
         }
       } catch (error) {
@@ -79,6 +84,127 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // ── Upload avatar via XHR ──
+  const uploadAvatar = async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Vui lòng chọn file ảnh.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Dung lượng vượt quá 2MB.");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      const url = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              if (data.url) {
+                setUploadProgress(100);
+                resolve(data.url);
+              } else {
+                reject(new Error(data.error || "Server không trả về URL."));
+              }
+            } catch {
+              reject(new Error("Response không phải JSON hợp lệ."));
+            }
+          } else {
+            let msg = "Tải ảnh lên thất bại.";
+            try {
+              const data = JSON.parse(xhr.responseText);
+              msg = data.error || msg;
+            } catch {}
+            reject(new Error(msg));
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Mất kết nối tới máy chủ."));
+        });
+
+        xhr.addEventListener("abort", () => {
+          reject(new Error("Upload bị huỷ."));
+        });
+
+        xhr.open("POST", "/api/upload/avatar");
+        xhr.send(fd);
+      });
+
+      setAvatarUrl(url);
+      toast.success("Tải ảnh đại diện thành công!");
+    } catch (err: any) {
+      setUploadProgress(0);
+      toast.error(err.message || "Tải ảnh thất bại.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) uploadAvatar(f);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) uploadAvatar(f);
+  };
+
+  // ── Clipboard paste ──
+  useEffect(() => {
+    if (!isOpen || uploading) return;
+
+    const onPaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf("image") === 0) {
+          const file = items[i].getAsFile();
+          if (file) {
+            e.preventDefault();
+            uploadAvatar(file);
+            break;
+          }
+        }
+      }
+    };
+
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [isOpen, uploading]);
+
   const handleSaveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -89,33 +215,11 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
     setSaving(true);
     try {
-      let finalAvatarUrl = avatarUrl;
-
-      // Upload avatar first if a new file was selected
-      if (avatarFile) {
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", avatarFile);
-        const uploadRes = await fetch("/api/user/profile", {
-          method: "POST",
-          body: uploadFormData,
-        });
-        if (!uploadRes.ok) {
-          const errData = await uploadRes.json();
-          throw new Error(errData.error || "Tải ảnh đại diện thất bại.");
-        }
-        const uploadData = await uploadRes.json();
-        finalAvatarUrl = uploadData.avatar_url;
-        setAvatarUrl(finalAvatarUrl);
-      }
-
-      // Build payload — chỉ gửi các trường được phép cập nhật
-      const payload: Record<string, unknown> = {};
-      payload.email = email.trim();
-      payload.facebook_link = facebookLink.trim() || null;
-      payload.username = username.trim();
-      if (finalAvatarUrl !== undefined) {
-        payload.avatar_url = finalAvatarUrl;
-      }
+      const payload: Record<string, unknown> = {
+        email: email.trim(),
+        facebook_link: facebookLink.trim() || null,
+        username: username.trim(),
+      };
 
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -128,10 +232,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
         throw new Error(data.error ?? "Cập nhật thất bại.");
       }
 
-      if (update) {
-        await update();
-      }
-
+      if (update) await update();
       window.dispatchEvent(new CustomEvent("profile-updated"));
       toast.success("Cập nhật thông tin cá nhân thành công!");
       router.refresh();
@@ -181,50 +282,105 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           ) : (
             <form onSubmit={handleSaveProfile} className="space-y-6">
 
-              {/* Avatar upload */}
-              <div className="flex items-center gap-5 mb-6">
-                <div className="relative group">
-                  <UserAvatar name={name || null} />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const input = document.getElementById("avatar-upload");
-                      if (input) input.click();
-                    }}
-                    disabled={saving}
-                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-indigo-700 transition disabled:opacity-50"
+              {/* ── Avatar upload ── */}
+              <div className="flex items-start gap-5 mb-6">
+                <div className="relative flex-shrink-0">
+                  {avatarUrl ? (
+                    <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200">
+                      <img
+                        src={avatarUrl}
+                        alt="Avatar"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+                        }}
+                      />
+                      <div className="hidden w-full h-full items-center justify-center">
+                        <UserAvatar name={name || null} size="lg" />
+                      </div>
+                    </div>
+                  ) : (
+                    <UserAvatar name={name || null} size="lg" />
+                  )}
+
+                  {/* Upload progress ring */}
+                  {uploading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/60 rounded-full">
+                      <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
+                        <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+                        <circle
+                          cx="20" cy="20" r="16"
+                          fill="none" stroke="#818cf8" strokeWidth="3"
+                          strokeLinecap="round"
+                          strokeDasharray={`${uploadProgress * 1.0048} 100.48`}
+                        />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => !uploading && fileInputRef.current?.click()}
+                    className={cn(
+                      "border-2 border-dashed rounded-xl p-4 cursor-pointer transition-all",
+                      isDragging
+                        ? "border-indigo-400 bg-indigo-50"
+                        : "border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30"
+                    )}
                   >
-                    <Camera className="w-4 h-4" />
-                  </button>
-                  <input
-                    id="avatar-upload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (!file.type.startsWith("image/")) {
-                        toast.error("Vui lòng chọn file ảnh.");
-                        return;
-                      }
-                      setAvatarFile(file);
-                      const reader = new FileReader();
-                      reader.onloadend = () => setAvatarPreview(reader.result as string);
-                      reader.readAsDataURL(file);
-                    }}
-                    className="hidden"
-                    disabled={saving}
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {name || "Ảnh đại diện"}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/webp"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "p-2.5 rounded-xl transition-colors",
+                        isDragging ? "bg-indigo-200" : "bg-slate-100"
+                      )}>
+                        <UploadCloud className={cn(
+                          "w-5 h-5",
+                          isDragging ? "text-indigo-600" : "text-slate-500"
+                        )} />
+                      </div>
+                      <div>
+                        {uploading ? (
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium text-indigo-600">Đang tải lên... ({uploadProgress}%)</p>
+                            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden w-32">
+                              <div
+                                className="h-full bg-indigo-500 rounded-full transition-all duration-200"
+                                style={{ width: `${uploadProgress}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <p className="text-sm font-semibold text-slate-800">
+                              Kéo thả ảnh hoặc <span className="text-indigo-600 underline underline-offset-2">click để chọn</span>
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">JPG, PNG, WEBP — Tối đa 2MB</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+                    <Camera className="w-3 h-3" />
+                    Hoặc nhấn <kbd className="px-1 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-500 text-[10px] font-mono">Ctrl+V</kbd> để dán ảnh từ clipboard
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    JPG, PNG. Tối đa 2MB.
-                  </p>
                 </div>
-              </div>              {/* Grid fields */}
+              </div>
+
+              {/* Grid fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* KHÓA CỨNG: Họ và tên */}
                 <div className="space-y-2">
@@ -240,7 +396,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   />
                 </div>
 
-                {/* Tên đăng nhập (Cho sửa 1 lần) */}
+                {/* Tên đăng nhập */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                     <User className="w-4 h-4 text-slate-400" /> Tên đăng nhập
@@ -254,27 +410,25 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                   />
                   {usernameChanged ? (
-                    <p className="text-[10px] text-slate-500 mt-1">Bạn đã đổi username nên không thể đổi lại lần nữa.</p>
+                    <p className="text-[10px] text-slate-500 mt-1">Bạn đã đổi username nên không thể đổi lại.</p>
                   ) : (
-                    <p className="text-[10px] text-amber-600 mt-1 font-medium">Lưu ý: Bạn chỉ được đổi username 1 lần duy nhất trong suốt vòng đời tài khoản.</p>
+                    <p className="text-[10px] text-amber-600 mt-1 font-medium">Bạn chỉ được đổi username 1 lần duy nhất.</p>
                   )}
                 </div>
 
-                {/* KHÓA CỨNG: Phòng ban — badge tĩnh */}
+                {/* Phòng ban */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                     <Building2 className="w-4 h-4 text-slate-400" /> Phòng ban
                   </label>
                   <div className="pt-1">
-                    <span
-                      className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border ${departmentBadgeClass}`}
-                    >
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border ${departmentBadgeClass}`}>
                       {departmentLabel}
                     </span>
                   </div>
                 </div>
 
-                {/* CHO PHÉP SỬA: Email liên lạc (Gmail) */}
+                {/* Email */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                     <Mail className="w-4 h-4 text-slate-400" /> Email liên lạc
@@ -290,7 +444,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   />
                 </div>
 
-                {/* CHO PHÉP SỬA: Link Facebook */}
+                {/* Facebook */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                     <Link className="w-4 h-4 text-slate-400" /> Link Facebook
@@ -304,8 +458,6 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
-
-
               </div>
 
               {/* Actions */}
