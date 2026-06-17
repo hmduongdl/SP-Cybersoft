@@ -17,12 +17,13 @@ async function main() {
   const password = await bcryptjs.hash("12345678", 10);
 
   // ── 3. Tạo tài khoản Admin ──────────────────────────────────────────────────
+  const adminPassword = await bcryptjs.hash("Ho@ngLong27425", 10);
   const admin = await prisma.user.create({
     data: {
-      username: "admin_duong",
+      username: "HMD27425",
       name: "Hoàng Minh Dương",
       email: "admin@kinetichr.com",
-      password,
+      password: adminPassword,
       role: "ADMIN",
       department: "SALES",
       is_first_login: false,
@@ -113,8 +114,8 @@ async function main() {
   // ── 6. Tổng kết ────────────────────────────────────────────────────────────
   console.log("\n=== Seed hoàn tất ===");
   console.log("\nDanh sách tài khoản:");
-  console.log("  Admin: admin_duong / 12345678  (SALES, hope_stars=5, đã onboard)");
-  console.log("  User : loc_kỹ_thuật / 12345678 (TECH, hope_stars=1, chưa onboard)\n");
+  console.log("  Admin: HMD27425 / Ho@ngLong27425  (SALES, đã onboard)");
+  console.log("  User : loc_kỹ_thuật / 12345678 (TECH, chưa onboard)\n");
 }
 
 main()
