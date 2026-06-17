@@ -30,11 +30,11 @@ const imageSizeClasses = {
 };
 
 const bgColors = [
-  "bg-indigo-600 text-indigo-50",
-  "bg-emerald-600 text-emerald-50",
-  "bg-slate-700 text-slate-100",
-  "bg-indigo-500 text-indigo-50",
-  "bg-teal-600 text-teal-50",
+  "bg-primary text-on-primary",
+  "bg-secondary-container text-on-secondary-container",
+  "bg-surface-container-high text-on-surface",
+  "bg-primary-container text-primary-fixed",
+  "bg-tertiary-fixed text-on-tertiary-fixed-variant",
 ];
 
 function getColorClass(initials: string): string {
@@ -50,7 +50,7 @@ export function UserAvatar({ name, src, className = "", size = "md" }: UserAvata
       <img
         src={src}
         alt={name || "Avatar"}
-        className={`${imageSizeClasses[size]} rounded-lg-full object-cover border-2 border-white shadow-ambient shrink-0 ${className}`}
+        className={`${imageSizeClasses[size]} rounded-full object-cover shadow-ambient shrink-0 ${className}`}
         onError={() => setImgFailed(true)}
       />
     );
@@ -61,7 +61,7 @@ export function UserAvatar({ name, src, className = "", size = "md" }: UserAvata
 
   return (
     <div
-      className={`${sizeClasses[size]} rounded-lg-full flex items-center justify-center font-semibold tracking-wide shadow-ambient shrink-0 ${colorClass} ${className}`}
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold tracking-wide shadow-ambient shrink-0 ${colorClass} ${className}`}
       title={name || "Người dùng"}
     >
       {initials}

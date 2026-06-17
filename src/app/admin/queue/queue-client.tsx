@@ -6,12 +6,9 @@ import {
   Check,
   X,
   Search,
-  Filter,
   Clock,
   Loader2,
   Sparkles,
-  CheckCircle2,
-  AlertCircle,
   ChevronDown,
   ImageIcon,
 } from "lucide-react";
@@ -243,17 +240,6 @@ export default function QueueClient({
   const autoApprovedCount = _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length;
   const reviewedCount = _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
 
-  const getExifSublabel = (item: Checkin) => {
-    if (!item.exif_time) return { label: "Lỗi: Không tìm thấy Metadata EXIF", type: "error" as const };
-    const postStart = new Date(item.post.start_at).getTime();
-    const exifTimeMs = new Date(item.exif_time).getTime();
-    const postEnd = postStart + 24 * 60 * 60 * 1000;
-    if (exifTimeMs > postEnd) {
-      return { label: `Ảnh chụp sau deadline (quá 24h từ lúc đăng)`, type: "error" as const };
-    }
-    return { label: "EXIF hợp lệ", type: "success" as const };
-  };
-
   // Start/End date for export
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -293,69 +279,47 @@ export default function QueueClient({
   ];
 
   return (
-    <div className="space-y-6 text-[#131b2e] animate-in fade-in duration-300" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="space-y-6 text-on-surface animate-in fade-in duration-300">
       {/* Header */}
       <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <span className="text-xs uppercase tracking-[0.2em] text-[#0050cb] font-bold">Kiểm duyệt</span>
-          <h1 className="text-[32px] font-bold text-[#131b2e] tracking-tight mt-1 font-manrope" style={{ fontFamily: "'Manrope', sans-serif" }}>
+          <h1 className="text-[32px] font-bold text-on-surface tracking-tight font-manrope">
             Hàng đợi Check-in
           </h1>
-          <p className="text-sm text-[#44495a] mt-1">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
+          <p className="text-sm text-on-surface-variant mt-1 font-inter">Duyệt hoặc từ chối các bài nộp check-in của nhân viên.</p>
         </div>
         {/* Export */}
-        <div className="flex items-center gap-2 bg-[#faf8ff] p-2 rounded-lg-xl shadow-[0_2px_8px_rgba(19,27,46,0.04)]">
+        <div className="flex items-center gap-2 bg-surface-container-lowest p-2 rounded-[16px] shadow-ambient">
           <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg-lg bg-[#f2f3ff] text-xs text-[#44495a] focus:outline-none focus:ring-1 focus:ring-[#0050cb]/30 border-0" />
-          <span className="text-xs text-[#44495a]">→</span>
+            className="px-2.5 py-1.5 rounded-lg bg-surface-container-low text-xs text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary/30 border-0 font-inter" />
+          <span className="text-xs text-on-surface-variant">→</span>
           <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-            className="px-2.5 py-1.5 rounded-lg-lg bg-[#f2f3ff] text-xs text-[#44495a] focus:outline-none focus:ring-1 focus:ring-[#0050cb]/30 border-0" />
+            className="px-2.5 py-1.5 rounded-lg bg-surface-container-low text-xs text-on-surface-variant focus:outline-none focus:ring-1 focus:ring-primary/30 border-0 font-inter" />
           <button onClick={handleExport} disabled={isExporting}
-            className="px-3.5 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-all flex items-center gap-1.5 cursor-pointer"
-            style={{ background: "linear-gradient(135deg, #0050cb, #0066ff)" }}>
+            className="px-3.5 py-1.5 rounded-lg text-xs font-bold text-white transition-all flex items-center gap-1.5 cursor-pointer gradient-primary font-inter">
             {isExporting ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
             Xuất báo cáo
           </button>
         </div>
       </header>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        {[
-          { label: "Chờ duyệt", value: pendingCount, icon: Clock, color: "bg-amber-50 text-amber-600" },
-          { label: "Tự động duyệt", value: autoApprovedCount, icon: Sparkles, color: "bg-emerald-50 text-emerald-600" },
-          { label: "Đã duyệt / Từ chối", value: reviewedCount, icon: CheckCircle2, color: "bg-indigo-50 text-indigo-600" },
-        ].map((s) => (
-          <div key={s.label} className="bg-surface-container-lowest rounded-lg-2xl p-5 flex items-center justify-between shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
-            <div>
-              <p className="text-xs font-bold text-[#44495a] uppercase tracking-wider">{s.label}</p>
-              <p className="text-3xl font-bold text-[#131b2e] mt-1" style={{ fontFamily: "'Manrope', sans-serif" }}>{s.value}</p>
-            </div>
-            <div className={`p-3 rounded-lg-xl ${s.color}`}>
-              <s.icon className="w-5 h-5" />
-            </div>
-          </div>
-        ))}
-      </div>
-
       {/* Control bar: tabs + search + dept filter */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         {/* Tab pills */}
-        <div className="flex p-1 rounded-lg-xl bg-[#f2f3ff] w-fit">
+        <div className="flex p-1 rounded-[12px] bg-surface-container-low w-fit border-none">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => handleTabChangeInternal(tab.key)}
               className={cn(
-                "relative px-4 py-2 rounded-lg-lg text-xs font-semibold transition-all duration-200 flex items-center gap-1.5",
+                "relative px-4 py-2 rounded-[10px] text-xs font-medium transition-all duration-200 flex items-center gap-1.5 font-inter",
                 activeTab === tab.key
-                  ? "bg-surface-container-lowest text-[#0050cb] shadow-ambient"
-                  : "text-[#44495a] hover:text-[#131b2e]"
+                  ? "bg-surface-container-highest text-primary font-semibold font-manrope"
+                  : "bg-transparent text-on-surface-variant hover:text-on-surface"
               )}
-              style={activeTab === tab.key ? { fontFamily: "'Manrope', sans-serif", fontWeight: 600 } : {}}
             >
               {tab.label}
-              <span className="ml-0.5 px-1.5 py-0.5 rounded-lg-full text-[9px] font-bold text-white" style={{ background: "#0050cb" }}>
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary text-white leading-none font-inter">
                 {tab.count}
               </span>
             </button>
@@ -365,32 +329,32 @@ export default function QueueClient({
         {/* Search & Dept */}
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[#44495a]" />
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60" />
             <input type="text" placeholder="Tìm nhân viên, bài viết..."
               value={searchTerm} onChange={e => handleSearchChange(e.target.value)}
-              className="w-full sm:w-52 pl-9 pr-3 py-2 rounded-lg-xl text-xs bg-[#f2f3ff] text-[#131b2e] placeholder:text-[#44495a]/40 focus:outline-none focus:ring-2 focus:ring-[#0050cb]/20 border-0 transition-all" />
+              className="w-full sm:w-52 pl-9 pr-3 py-2 rounded-xl text-xs bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-primary/20 border-0 transition-all font-inter" />
           </div>
           <div className="relative">
             <select value={deptFilter} onChange={e => handleDeptChange(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-2 rounded-lg-xl text-xs bg-[#f2f3ff] text-[#131b2e] focus:outline-none focus:ring-2 focus:ring-[#0050cb]/20 border-0 cursor-pointer">
+              className="appearance-none pl-3 pr-8 py-2 rounded-xl text-xs bg-surface-container-low text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 border-0 cursor-pointer font-inter">
               <option value="ALL">Tất cả</option>
               <option value="TECH">TECH</option>
               <option value="SALES">SALES</option>
               <option value="Other">Khác</option>
             </select>
-            <ChevronDown className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#44495a]" />
+            <ChevronDown className="w-3 h-3 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant" />
           </div>
         </div>
       </div>
 
       {/* Select All */}
       {activeTab === "PENDING" && filteredCheckins.length > 0 && (
-        <button onClick={handleSelectAll} className="flex items-center gap-2 text-xs font-semibold text-[#44495a] hover:text-[#0050cb] transition-colors">
+        <button onClick={handleSelectAll} className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant hover:text-primary transition-all duration-150 font-inter select-none">
           <div className={cn(
-            "w-4 h-4 rounded-lg border-2 flex items-center justify-center transition-colors",
+            "w-4 h-4 rounded border-none flex items-center justify-center transition-all duration-150",
             filteredCheckins.every(c => selectedIds.has(c.id))
-              ? "bg-[#0050cb] border-[#0050cb]"
-              : "border-[#c4c8da]"
+              ? "bg-primary text-white"
+              : "bg-surface-container hover:bg-surface-container-high"
           )}>
             {filteredCheckins.every(c => selectedIds.has(c.id)) && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
           </div>
@@ -400,21 +364,20 @@ export default function QueueClient({
 
       {/* Empty state */}
       {filteredCheckins.length === 0 ? (
-        <div className="bg-surface-container-lowest rounded-lg-2xl p-16 text-center shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
-          <div className="w-16 h-16 rounded-lg-full bg-[#f2f3ff] flex items-center justify-center mx-auto mb-4">
-            <ImageIcon className="w-7 h-7 text-[#c4c8da]" />
+        <div className="bg-surface-container-lowest rounded-[16px] p-16 text-center shadow-[0_20px_40px_rgba(19,27,46,0.06)] border-none">
+          <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto mb-4 text-on-surface-variant/40">
+            <ImageIcon className="w-7 h-7" />
           </div>
-          <h3 className="text-lg font-bold text-[#131b2e] font-manrope">Hàng đợi trống</h3>
-          <p className="text-xs text-[#44495a] mt-1 max-w-sm mx-auto">
+          <h3 className="text-lg font-bold text-on-surface font-manrope">Hàng đợi trống</h3>
+          <p className="text-xs text-on-surface-variant mt-1 max-w-sm mx-auto font-inter">
             Không có lượt check-in nào phù hợp với bộ lọc hiện tại.
           </p>
         </div>
       ) : (
         <>
-          {/* Card Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {/* Card Grid: 3 columns desktop, 2 tablet, 1 mobile */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredCheckins.map((item) => {
-              const exifInfo = getExifSublabel(item);
               const isSelected = selectedIds.has(item.id);
               const isProcessed = processedIds.has(item.id);
               const scanResult = aiScanResults[item.id] || (item.ai_confidence !== null ? {
@@ -423,26 +386,25 @@ export default function QueueClient({
                 analysisReason: item.note?.startsWith("[AI Scan] ") ? item.note.replace("[AI Scan] ", "") : (item.note || "")
               } : null);
 
-              const statusMeta = item.status === "PENDING" ? { label: "Chờ duyệt", bg: "bg-amber-50 text-amber-700" }
-                : item.status === "APPROVED" || item.status === "AUTO_APPROVED" ? { label: item.status === "AUTO_APPROVED" ? "Tự động duyệt" : "Đã duyệt", bg: "bg-emerald-50 text-emerald-700" }
-                : item.status === "REJECTED" ? { label: "Từ chối", bg: "bg-rose-50 text-rose-700" }
-                : { label: item.status, bg: "bg-surface-container-low text-on-surface-variant" };
+              const statusMeta = item.status === "PENDING" ? { label: "Chờ duyệt", bg: "bg-amber-500/10 text-amber-700" }
+                : item.status === "APPROVED" || item.status === "AUTO_APPROVED" ? { label: item.status === "AUTO_APPROVED" ? "Tự động duyệt" : "Đã duyệt", bg: "bg-emerald-500/10 text-emerald-700" }
+                : item.status === "REJECTED" ? { label: "Từ chối", bg: "bg-rose-500/10 text-rose-700" }
+                : { label: item.status, bg: "bg-surface-container text-on-surface-variant" };
 
               return (
                 <div
                   key={item.id}
                   className={cn(
-                    "relative rounded-lg-2xl overflow-hidden transition-all duration-300 flex flex-col",
+                    "relative rounded-[16px] overflow-hidden transition-all duration-300 flex flex-col border-none shadow-[0_20px_40px_rgba(19,27,46,0.06)] bg-surface-container-lowest",
                     isProcessed && "opacity-0 scale-90 translate-y-4 max-h-0 pointer-events-none duration-500"
                   )}
-                  style={{ background: "#ffffff", boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}
                 >
                   {/* Selection checkbox overlay */}
                   {activeTab === "PENDING" && (
                     <button onClick={(e) => { e.stopPropagation(); handleSelectOne(item.id); }}
                       className={cn(
-                        "absolute top-3 left-3 z-20 w-6 h-6 rounded-lg-xl flex items-center justify-center transition-all duration-200 cursor-pointer",
-                        isSelected ? "bg-[#0050cb]" : "bg-surface-container-lowest/90 shadow-ambient"
+                        "absolute top-3 left-3 z-20 w-6 h-6 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border-none",
+                        isSelected ? "bg-primary" : "bg-surface-container-lowest/90 shadow-ambient"
                       )}>
                       {isSelected ? <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} /> : null}
                     </button>
@@ -452,12 +414,12 @@ export default function QueueClient({
                   <div className="relative w-full aspect-video cursor-zoom-in overflow-hidden"
                     onClick={() => setZoomImageUrl(item.image_url)}>
                     <Image src={item.image_url} alt="Checkin proof" fill
-                      className="object-cover transition-transform duration-500 hover:scale-105"
+                      className="object-cover rounded-t-[16px]"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
                     {/* Status badge top-right */}
                     <span className={cn(
-                      "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-lg-full text-[10px] font-bold shadow-ambient",
+                      "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-ambient border-none",
                       statusMeta.bg
                     )}>
                       {statusMeta.label}
@@ -465,37 +427,42 @@ export default function QueueClient({
                   </div>
 
                   {/* Card body */}
-                  <div className="p-4 space-y-3 flex-1 flex flex-col">
+                  <div className="p-4 space-y-3 flex-1 flex flex-col bg-surface-container-lowest">
                     {/* User info row: avatar + name + dept */}
                     <div className="flex items-center gap-2.5">
-                      <div className="relative flex-shrink-0">
-                        <UserAvatar name={item.user.name} size="sm" />
-                        <div className="absolute -inset-0.5 rounded-lg-full border-2 border-[#0050cb]/10 pointer-events-none" />
+                      {/* Avatar: 32px with gap ring */}
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 p-[2px] bg-surface-container-low ring-2 ring-primary ring-offset-2 ring-offset-surface-container-low bg-clip-content">
+                        <UserAvatar 
+                          name={item.user.name} 
+                          src={item.user.avatar_url} 
+                          size="sm" 
+                          className="border-none shadow-none w-full h-full object-cover" 
+                        />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-[#131b2e] truncate" style={{ fontFamily: "'Inter', sans-serif" }}>
+                        <p className="text-sm font-semibold text-on-surface truncate font-inter">
                           {item.user.name || "Thành viên"}
                         </p>
                       </div>
                       <span className={cn(
-                        "px-2 py-0.5 rounded-lg-full text-[10px] font-bold uppercase tracking-wide",
-                        item.user.department === "TECH" ? "bg-blue-50 text-blue-700" :
-                        item.user.department === "SALES" ? "bg-pink-50 text-pink-700" :
-                        "bg-surface-container-low text-on-surface-variant"
+                        "px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider font-inter border-none",
+                        item.user.department === "TECH" ? "bg-blue-500/10 text-blue-700" :
+                        item.user.department === "SALES" ? "bg-pink-500/10 text-pink-700" :
+                        "bg-surface-container text-on-surface-variant"
                       )}>
                         {item.user.department || "N/A"}
                       </span>
                     </div>
 
                     {/* Timestamp */}
-                    <div className="text-xs text-[#44495a]">
+                    <div className="text-xs text-on-surface-variant font-inter">
                       {new Date(item.submitted_at).toLocaleString("vi-VN", {
                         hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric"
                       })}
                     </div>
 
                     {/* Post title */}
-                    <p className="text-xs font-semibold text-[#44495a] line-clamp-1">
+                    <p className="text-xs font-semibold text-on-surface-variant line-clamp-1 font-inter">
                       📌 {item.post.title}
                     </p>
 
@@ -504,24 +471,16 @@ export default function QueueClient({
                       {item.user.facebook_profile_url ? (
                         <FacebookProfilePreview facebookLink={item.user.facebook_profile_url} />
                       ) : (
-                        <span className="text-[10px] font-medium text-[#44495a] opacity-50">Chưa có link FB</span>
+                        <span className="text-[10px] font-medium text-on-surface-variant/40 font-inter">Chưa có link FB</span>
                       )}
                     </div>
 
-                    {/* System error */}
-                    {exifInfo.type === "error" && (
-                      <div className="flex items-center gap-1.5 p-2 rounded-lg-lg bg-[#ffdad6] text-[#410002] text-[10px] font-semibold">
-                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                        <span>{exifInfo.label}</span>
-                      </div>
-                    )}
-
-                    {/* AI Confidence meter */}
+                    {/* AI Confidence meter: thin 4px, gradient primary */}
                     {scanResult && (
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-semibold text-[#44495a] flex items-center gap-1">
-                            <Sparkles className="w-3 h-3 text-[#0050cb]" />
+                        <div className="flex items-center justify-between font-inter">
+                          <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1">
+                            <Sparkles className="w-3 h-3 text-primary" />
                             Độ tin cậy AI
                           </span>
                           <span className={cn(
@@ -531,40 +490,29 @@ export default function QueueClient({
                             {Math.round(scanResult.confidence * 100)}%
                           </span>
                         </div>
-                        <div className="w-full h-1 rounded-lg-full bg-[#e1e2ec] overflow-hidden">
-                          <div className="h-full rounded-lg-full transition-all duration-500"
+                        <div className="w-full h-1 rounded-full bg-surface-container-high overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500 gradient-primary"
                             style={{
-                              width: `${Math.round(scanResult.confidence * 100)}%`,
-                              background: scanResult.isValid
-                                ? "linear-gradient(90deg, #0050cb, #0066ff)"
-                                : "linear-gradient(90deg, #ba1a1a, #ff5252)"
+                              width: `${Math.round(scanResult.confidence * 100)}%`
                             }} />
                         </div>
-                        <p className="text-[10px] text-[#44495a] leading-relaxed mt-1">
+                        <p className="text-[10px] text-on-surface-variant leading-relaxed mt-1 font-inter">
                           {scanResult.analysisReason || "Đã quét bằng AI."}
                         </p>
                       </div>
                     )}
 
-                    {/* AI Scan button */}
+                    {/* AI Scan loading placeholder */}
                     {!scanResult && scanningId === item.id && (
                       <div className="space-y-1.5 py-1">
-                        <div className="h-2.5 bg-[#e1e2ec] rounded-lg-full animate-pulse w-3/4" />
-                        <div className="h-2.5 bg-[#e1e2ec] rounded-lg-full animate-pulse w-full" />
+                        <div className="h-1 bg-surface-container-high rounded-full animate-pulse w-3/4" />
+                        <div className="h-2 bg-surface-container-high rounded animate-pulse w-full" />
                       </div>
-                    )}
-                    {!scanResult && scanningId !== item.id && activeTab === "PENDING" && (
-                      <button onClick={() => handleAIScan(item.id)} disabled={isActionLoading}
-                        className="w-full py-2 rounded-lg-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border-0"
-                        style={{ background: "#f2f3ff", color: "#0050cb" }}>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        AI Quét
-                      </button>
                     )}
 
                     {/* Reject reason display */}
                     {item.status === "REJECTED" && item.reject_reason && (
-                      <div className="p-2.5 rounded-lg-lg bg-[#ffdad6] text-[#410002] text-[10px] font-semibold">
+                      <div className="p-2.5 rounded-lg bg-error-container text-on-error-container text-[10px] font-semibold font-inter border-none">
                         Lý do: {item.reject_reason}
                       </div>
                     )}
@@ -581,8 +529,8 @@ export default function QueueClient({
                               {presetReasons.map((r) => (
                                 <button key={r} onClick={() => setRejectReason(r)}
                                   className={cn(
-                                    "px-2.5 py-1 rounded-lg-full text-[10px] font-bold border transition-colors bg-surface-container-lowest text-[#44495a] border-[#c4c8da] hover:border-[#0050cb]",
-                                    rejectReason === r && "border-[#0050cb]"
+                                    "px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all duration-150 bg-surface-container-lowest text-on-surface-variant border-outline-variant hover:border-primary font-inter",
+                                    rejectReason === r && "border-primary"
                                   )}>
                                   {r}
                                 </button>
@@ -590,48 +538,40 @@ export default function QueueClient({
                             </div>
                             <textarea placeholder="Nhập lý do từ chối..."
                               value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg-xl text-xs resize-none transition-all outline-none"
-                              style={{ background: "#f2f3ff", outline: "none", color: "#131b2e" }}
-                              onFocus={e => { e.target.style.outline = "2px solid rgba(0, 80, 203, 0.3)"; e.target.style.outlineOffset = "0"; }}
-                              onBlur={e => { e.target.style.outline = "none"; }}
+                              className="w-full px-3 py-2 bg-surface-container-low rounded-xl text-xs resize-none transition-all border-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest font-inter"
                               rows={2} />
                             <div className="flex gap-2 justify-end">
                               <button onClick={() => { setIsRejectingId(null); setRejectReason(""); }}
-                                className="px-3 py-1.5 rounded-lg-lg text-xs font-bold text-[#44495a] hover:bg-[#f2f3ff] transition-colors">
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-all duration-150 font-inter">
                                 Hủy
                               </button>
                               <button onClick={() => handleSingleRejectSubmit(item.id)} disabled={isActionLoading}
-                                className="px-3 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-colors"
-                                style={{ background: "#ba1a1a" }}>
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all duration-150 bg-[#ba1a1a] hover:opacity-90 font-inter">
                                 Xác nhận
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-3 gap-2 pt-1">
+                          <div className={cn("grid gap-2 pt-1", !scanResult ? "grid-cols-3" : "grid-cols-2")}>
                             {/* Reject */}
                             <button onClick={() => { setIsRejectingId(item.id); setRejectReason(""); }}
                               disabled={isActionLoading || scanningId === item.id}
-                              className="px-2.5 py-2 rounded-lg-xl text-xs font-bold transition-all cursor-pointer border-0"
-                              style={{ color: "#410002", background: "#ffdad6" }}>
-                              <X className="w-3 h-3 inline-block mr-1" />
+                              className="px-3 py-1.5 rounded-[8px] bg-error-container text-on-error-container text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer border-none flex items-center justify-center gap-1 font-inter">
+                              <X className="w-3.5 h-3.5" />
                               Từ chối
                             </button>
                             {/* AI Scan */}
                             {!scanResult && (
                               <button onClick={() => handleAIScan(item.id)} disabled={isActionLoading}
-                                className="px-2.5 py-2 rounded-lg-xl text-xs font-bold transition-all cursor-pointer border-0"
-                                style={{ background: "#f2f3ff", color: "#0050cb" }}>
-                                <Sparkles className="w-3 h-3 inline-block mr-1" />
-                                AI
+                                className="px-3 py-1.5 rounded-[8px] bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-xs font-semibold active:scale-[0.98] transition-all cursor-pointer border-none flex items-center justify-center gap-1 font-inter">
+                                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                                AI Scan
                               </button>
                             )}
-                            {scanResult && <div />}
                             {/* Approve */}
                             <button onClick={() => handleSingleApprove(item.id)} disabled={isActionLoading || scanningId === item.id}
-                              className="px-2.5 py-2 rounded-lg-xl text-xs font-bold text-white transition-all cursor-pointer border-0 shadow-ambient"
-                              style={{ background: "linear-gradient(135deg, #0050cb, #0066ff)" }}>
-                              <Check className="w-3 h-3 inline-block mr-1" />
+                              className="px-3 py-1.5 rounded-[8px] gradient-primary text-white text-xs font-semibold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer border-none flex items-center justify-center gap-1 font-inter">
+                              <Check className="w-3.5 h-3.5" />
                               Duyệt
                             </button>
                           </div>
@@ -648,32 +588,30 @@ export default function QueueClient({
         </>
       )}
 
-      {/* Floating Bulk Action Bar */}
+      {/* Floating Bulk Action Bar - Glass style */}
       {activeTab === "PENDING" && selectedIds.size > 0 && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl animate-in slide-in-from-bottom-10 fade-in duration-300">
-          <div className="flex items-center justify-between gap-4 px-5 py-3 rounded-lg-2xl shadow-[0_20px_40px_rgba(19,27,46,0.06)]"
-            style={{ background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#131b2e]">
+          <div className="flex items-center justify-between gap-4 px-5 py-3 rounded-[16px] shadow-[0_20px_40px_rgba(19,27,46,0.12)] border-none"
+            style={{ background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#131b2e] font-inter">
               <span>Đã chọn</span>
-              <span className="text-[#0050cb] font-bold">{selectedIds.size}</span>
+              <span className="text-primary font-bold text-base">{selectedIds.size}</span>
               <span>mục</span>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => setSelectedIds(new Set())}
-                className="px-3 py-1.5 rounded-lg-lg text-xs font-bold text-[#44495a] hover:bg-[#f2f3ff] transition-colors">
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-all duration-150 font-inter">
                 Hủy
               </button>
               <button onClick={() => { setIsBatchRejecting(true); setBatchRejectReason(""); }} disabled={isActionLoading}
-                className="px-3.5 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-all cursor-pointer shadow-ambient"
-                style={{ background: "#ba1a1a" }}>
-                <X className="w-3 h-3 inline-block mr-1" />
-                Từ chối
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-error-container text-on-error-container hover:opacity-95 active:scale-[0.98] transition-all cursor-pointer border-none font-inter">
+                <X className="w-3.5 h-3.5 inline-block mr-1" />
+                Từ chối tất cả
               </button>
               <button onClick={handleBatchApprove} disabled={isActionLoading}
-                className="px-3.5 py-1.5 rounded-lg-lg text-xs font-bold text-white transition-all cursor-pointer shadow-ambient"
-                style={{ background: "linear-gradient(135deg, #0050cb, #0066ff)" }}>
-                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin inline-block mr-1" /> : <Check className="w-3 h-3 inline-block mr-1" />}
-                Duyệt
+                className="px-3.5 py-2 rounded-xl text-xs font-bold text-white gradient-primary hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer border-none font-inter">
+                {isActionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin inline-block mr-1" /> : <Check className="w-3.5 h-3.5 inline-block mr-1" />}
+                Duyệt tất cả
               </button>
             </div>
           </div>
@@ -684,34 +622,34 @@ export default function QueueClient({
       {zoomImageUrl && (
         <div onClick={() => setZoomImageUrl(null)}
           className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300">
-          <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-lg-2xl animate-in zoom-in-95 duration-200"
+          <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
             style={{ boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
             <Image src={zoomImageUrl} alt="Zoomed preview" fill className="object-contain" sizes="90vw" />
             <button onClick={() => setZoomImageUrl(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-lg-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors backdrop-blur-sm">
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-all duration-150 backdrop-blur-sm">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
 
-      {/* Batch Rejection Modal */}
+      {/* Batch Rejection Modal - Glass modal shell */}
       {isBatchRejecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div onClick={() => setIsBatchRejecting(false)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div className="relative w-full max-w-md rounded-lg-2xl overflow-hidden animate-in zoom-in-95 duration-200"
-            style={{ background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(24px)", WebkitBackdropFilter: "blur(24px)", boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
+          <div onClick={() => setIsBatchRejecting(false)} className="absolute inset-0 bg-[#131b2e]/40 backdrop-blur-[4px]" />
+          <div className="relative w-full max-w-md rounded-[16px] overflow-hidden animate-in zoom-in-95 duration-200 border-none"
+            style={{ background: "rgba(255, 255, 255, 0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: "0 40px 80px rgba(19, 27, 46, 0.12)" }}>
             <div className="p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-[#131b2e] font-manrope" style={{ fontFamily: "'Manrope', sans-serif" }}>
+                <h3 className="text-lg font-bold text-on-surface font-manrope">
                   Từ chối hàng loạt
                 </h3>
-                <button onClick={() => setIsBatchRejecting(false)} className="w-7 h-7 rounded-lg-full flex items-center justify-center hover:bg-[#f2f3ff] transition-colors">
-                  <X className="w-4 h-4 text-[#44495a]" />
+                <button onClick={() => setIsBatchRejecting(false)} className="w-8 h-8 rounded-[8px] bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-all shrink-0">
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <p className="text-xs text-[#44495a]">
+              <p className="text-xs text-on-surface-variant font-inter">
                 Áp dụng lý do từ chối cho <strong>{selectedIds.size}</strong> lượt check-in đã chọn:
               </p>
 
@@ -719,8 +657,8 @@ export default function QueueClient({
                 {presetReasons.map((r) => (
                   <button key={r} onClick={() => setBatchRejectReason(r)}
                     className={cn(
-                      "px-2.5 py-1 rounded-lg-full text-[10px] font-bold border transition-colors",
-                      batchRejectReason === r ? "border-[#0050cb] bg-[#d8e2ff] text-[#003fa4]" : "border-[#c4c8da] text-[#44495a] hover:border-[#0050cb]"
+                      "px-2.5 py-1 rounded-full text-[10px] font-bold border-none transition-all duration-150 font-inter",
+                      batchRejectReason === r ? "bg-primary-container text-primary" : "bg-surface-container text-on-surface-variant hover:bg-surface-container-high"
                     )}>
                     {r}
                   </button>
@@ -729,20 +667,16 @@ export default function QueueClient({
 
               <textarea placeholder="Nhập lý do cụ thể..."
                 value={batchRejectReason} onChange={e => setBatchRejectReason(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg-xl text-xs resize-none transition-all outline-none"
-                style={{ background: "#f2f3ff", outline: "none", color: "#131b2e" }}
-                onFocus={e => { e.target.style.outline = "2px solid rgba(0, 80, 203, 0.3)"; }}
-                onBlur={e => { e.target.style.outline = "none"; }}
+                className="w-full px-4 py-3 bg-surface-container-low rounded-xl text-xs resize-none transition-all border-none focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest font-inter"
                 rows={3} />
 
               <div className="flex gap-2 justify-end pt-1">
                 <button onClick={() => { setIsBatchRejecting(false); setBatchRejectReason(""); }}
-                  className="px-4 py-2 rounded-lg-lg text-xs font-bold text-[#44495a] hover:bg-[#f2f3ff] transition-colors">
+                  className="px-4 py-2 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-all duration-150 font-inter">
                   Hủy
                 </button>
                 <button onClick={handleBatchRejectSubmit} disabled={isActionLoading || !batchRejectReason.trim()}
-                  className="px-4 py-2 rounded-lg-lg text-xs font-bold text-white transition-all shadow-ambient"
-                  style={{ background: "#ba1a1a" }}>
+                  className="px-4 py-2 rounded-lg text-xs font-bold text-white transition-all bg-[#ba1a1a] hover:opacity-90 active:scale-[0.98] font-inter border-none">
                   Từ chối tất cả
                 </button>
               </div>

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu, User, LogOut, ChevronDown, Bell, FileText, ExternalLink } from "lucide-react";
+import { Menu, User, LogOut, ChevronDown, Bell, FileText } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
 import { AccountModal } from "../AccountModal";
@@ -16,11 +16,6 @@ interface RecentPost {
   start_at: string;
   isNew: boolean;
 }
-
-const AUTHOR_LABELS: Record<string, string> = {
-  songphuong_tech: "Song Phương Technology",
-  songphuong: "Song Phương",
-};
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -130,16 +125,19 @@ export function SiteHeader() {
 
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
   const userEmail = session?.user?.email || profile?.email || "";
-  const isFacebookLinked = profile?.facebook_profile_url ? true : false;
-  const userDepartment = profile?.department || session?.user?.department || "";
+  const rawDepartment = profile?.department || session?.user?.department || "";
+  const departmentLabel =
+    rawDepartment === "TECH" ? "Kỹ Thuật"
+    : rawDepartment === "SALES" ? "Kinh Doanh"
+    : rawDepartment;
 
   return (
     <>
-      <header className="h-16 w-full backdrop-blur-md bg-surface-container-lowest/80 border-none/80 sticky top-0 z-30 px-6 flex items-center justify-between shadow-ambient transition-all duration-200">
+      <header className="h-[56px] w-full bg-surface-container-lowest/80 backdrop-blur-[20px] sticky top-0 z-30 px-6 flex items-center justify-between transition-all duration-200">
         {/* Left side: Hamburger (mobile) + Breadcrumbs */}
         <div className="flex items-center gap-4">
           <button
-            className="md:hidden p-2 rounded-lg-lg hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors"
+            className="md:hidden p-2 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-all duration-150"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open sidebar menu"
           >
@@ -147,20 +145,20 @@ export function SiteHeader() {
           </button>
 
           {/* Breadcrumbs */}
-          <nav className="flex items-center space-x-1.5 text-xs xs:text-sm font-medium" aria-label="Breadcrumb">
-            <Link href="/dashboard" className="text-on-surface-variant hover:text-on-surface transition-colors hidden md:inline">
+          <nav className="flex items-center space-x-1.5 text-sm font-medium font-inter" aria-label="Breadcrumb">
+            <Link href="/dashboard" className="text-on-surface-variant hover:text-on-surface transition-all duration-150 hidden md:inline">
               Trang chủ
             </Link>
             {breadcrumbs.map((crumb, idx) => {
               const isLast = idx === breadcrumbs.length - 1;
               return (
                 <span key={crumb.href} className={`items-center space-x-1.5 ${isLast ? "flex" : "hidden md:flex"}`}>
-                  <span className="text-outline">/</span>
+                  <span className="text-on-surface-variant/40">/</span>
                   <span
                     className={
                       isLast
                         ? "text-on-surface font-semibold truncate max-w-[120px] sm:max-w-none"
-                        : "text-on-surface-variant hover:text-on-surface transition-colors"
+                        : "text-on-surface-variant hover:text-on-surface transition-all duration-150"
                     }
                   >
                     {crumb.label}
@@ -171,33 +169,35 @@ export function SiteHeader() {
           </nav>
         </div>
 
-        {/* Right side: Search, Department, Bell, User Dropdown */}
-        <div className="flex items-center gap-4">
+        {/* Right side: Department, Bell, User Dropdown */}
+        <div className="flex items-center gap-3">
           {/* Department Badge */}
-          <div className="hidden xs:flex">
-            <span className="inline-flex items-center rounded-lg-full bg-indigo-50 border border-indigo-100 px-3 py-0.5 text-xs font-semibold text-indigo-700 shadow-ambient whitespace-nowrap">
-              {userDepartment}
-            </span>
-          </div>
+          {rawDepartment && (
+            <div className="hidden xs:flex">
+              <span className="inline-flex items-center rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container whitespace-nowrap">
+                {departmentLabel}
+              </span>
+            </div>
+          )}
 
           {/* Notification Bell */}
-          <div className="relative" ref={notifRef}>
+          <div className="relative shrink-0" ref={notifRef}>
             <button
               onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchRecentPosts(); }}
-              className="relative p-1.5 text-outline hover:text-on-surface-variant rounded-lg-full hover:bg-surface-container-low transition duration-150"
+              className="relative w-9 h-9 flex items-center justify-center bg-surface-container text-on-surface-variant hover:text-on-surface rounded-[10px] transition-all duration-150"
             >
               <Bell className="h-5 w-5" />
               {recentPosts.some(p => p.isNew) && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-lg-full border border-white animate-pulse" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
               )}
             </button>
 
             {/* Notification Dropdown */}
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-80 origin-top-right rounded-lg-2xl border-none bg-surface-container-lowest p-2 shadow-ambient ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-4 py-3 border-none">
-                  <h4 className="text-sm font-bold text-on-surface">Thông báo</h4>
-                  <p className="text-xs text-on-surface-variant">
+                  <h4 className="text-sm font-bold text-on-surface font-manrope">Thông báo</h4>
+                  <p className="text-xs text-on-surface-variant font-inter">
                     {recentPosts.filter(p => p.isNew).length > 0
                       ? `${recentPosts.filter(p => p.isNew).length} bài viết mới hôm nay`
                       : 'Không có bài viết mới'}
@@ -210,30 +210,30 @@ export function SiteHeader() {
                         key={post.id}
                         href={role === "ADMIN" ? "/admin/posts" : "/tasks"}
                         onClick={() => setNotifOpen(false)}
-                        className="flex items-start gap-3 px-4 py-3 hover:bg-surface-container-low rounded-lg-xl transition-colors group"
+                        className="flex items-start gap-3 px-4 py-3 hover:bg-surface-container-low rounded-xl transition-all duration-150 group"
                       >
                         <div className="shrink-0 mt-0.5">
-                          <FileText className="h-4 w-4 text-outline group-hover:text-indigo-500" />
+                          <FileText className="h-4 w-4 text-outline group-hover:text-primary" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-on-surface truncate">
+                            <p className="text-sm font-semibold text-on-surface truncate font-inter">
                               {post.title}
                             </p>
                             {post.isNew && (
-                              <span className="shrink-0 px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-lg text-[10px] font-bold">
+                              <span className="shrink-0 px-1.5 py-0.5 bg-rose-50 text-rose-600 rounded-lg text-[10px] font-bold font-inter">
                                 MỚI
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-1">
+                          <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-1 font-inter">
                             {post.description || "Không có mô tả"}
                           </p>
                         </div>
                       </Link>
                     ))
                   ) : (
-                    <div className="px-4 py-8 text-center text-sm text-outline">
+                    <div className="px-4 py-8 text-center text-sm text-outline font-inter">
                       Chưa có thông báo nào
                     </div>
                   )}
@@ -241,7 +241,7 @@ export function SiteHeader() {
                 <Link
                   href={role === "ADMIN" ? "/admin/posts" : "/tasks"}
                   onClick={() => setNotifOpen(false)}
-                  className="block mt-1 py-2.5 text-center text-xs font-semibold text-indigo-600 hover:bg-indigo-50 rounded-lg-xl transition-colors border-none"
+                  className="block mt-1 py-2.5 text-center text-xs font-semibold text-primary hover:bg-surface-container rounded-xl transition-all duration-150 border-none font-inter"
                 >
                   Xem tất cả bài viết
                 </Link>
@@ -250,44 +250,51 @@ export function SiteHeader() {
           </div>
 
           {/* User Dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          <div className="relative shrink-0" ref={dropdownRef}>
             {status === "loading" ? (
-              <div className="flex items-center gap-2 p-1.5 animate-pulse">
-                <div className="h-7 w-7 rounded-lg-full bg-surface-container" />
-                <div className="h-4 w-20 bg-surface-container rounded-lg hidden sm:block" />
-              </div>
+              <div className="w-9 h-9 rounded-[10px] bg-surface-container animate-pulse" />
             ) : (
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-2 p-1.5 rounded-lg-full hover:bg-surface-container-low transition text-on-surface-variant hover:text-on-surface border border-transparent hover:border-outline-variant/10"
+                className="relative w-9 h-9 flex items-center justify-center bg-surface-container rounded-[10px] hover:opacity-90 transition-all overflow-hidden shrink-0"
               >
-                <UserAvatar name={userDisplayName} src={profile?.avatar_url || (session?.user as any)?.avatar_url} size="sm" />
-                <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">
-                  {userDisplayName}
-                </span>
-                <ChevronDown className="h-4 w-4 text-outline hidden sm:block" />
+                <div className="w-full h-full overflow-hidden rounded-[10px] flex items-center justify-center">
+                  <UserAvatar 
+                    name={userDisplayName} 
+                    src={profile?.avatar_url || (session?.user as any)?.avatar_url} 
+                    size="md" 
+                    className="w-full h-full object-cover rounded-none shadow-none"
+                  />
+                </div>
               </button>
             )}
 
             {/* Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-lg-2xl border-none bg-surface-container-lowest p-2 shadow-ambient ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* User Info Header */}
                 <div className="px-4 py-3 border-none flex items-center gap-3">
-                  <UserAvatar name={userDisplayName} src={profile?.avatar_url || (session?.user as any)?.avatar_url} size="md" />
+                  <div className="w-10 h-10 rounded-[10px] overflow-hidden flex items-center justify-center shrink-0">
+                    <UserAvatar 
+                      name={userDisplayName} 
+                      src={profile?.avatar_url || (session?.user as any)?.avatar_url} 
+                      size="md" 
+                      className="w-full h-full object-cover rounded-none shadow-none"
+                    />
+                  </div>
                   <div className="overflow-hidden text-left flex-1">
-                    <h4 className="text-sm font-semibold text-on-surface truncate">{userDisplayName}</h4>
-                    <p className="text-xs text-on-surface-variant truncate">{userEmail || "Chưa cập nhật email"}</p>
+                    <h4 className="text-sm font-semibold text-on-surface truncate font-inter">{userDisplayName}</h4>
+                    <p className="text-xs text-on-surface-variant truncate font-inter">{userEmail || "Chưa cập nhật email"}</p>
                   </div>
                 </div>
 
                 <div className="px-4 py-2.5 flex items-center gap-1.5">
-                  <span className="rounded-lg-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                  <span className="rounded-full bg-primary-container px-2 py-0.5 text-[10px] font-semibold text-primary font-inter">
                     Quyền: {role === "ADMIN" ? "Admin" : "Nhân viên"}
                   </span>
-                  {userDepartment && (
-                    <span className="rounded-lg-full bg-surface-container border-none px-2 py-0.5 text-[10px] font-semibold text-on-surface-variant">
-                      {userDepartment}
+                  {rawDepartment && (
+                    <span className="rounded-full bg-secondary-container px-2 py-0.5 text-[10px] font-semibold text-on-secondary-container font-inter">
+                      {departmentLabel}
                     </span>
                   )}
                 </div>
@@ -299,7 +306,7 @@ export function SiteHeader() {
                       setDropdownOpen(false);
                       setProfileModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container hover:text-indigo-600 rounded-lg-lg transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container hover:text-primary rounded-xl transition-all duration-150 text-left font-inter"
                   >
                     <User className="h-4 w-4" />
                     Thông tin tài khoản
@@ -309,7 +316,7 @@ export function SiteHeader() {
                       setDropdownOpen(false);
                       signOut({ callbackUrl: "/login" });
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg-lg transition-colors text-left"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl transition-all duration-150 text-left font-inter"
                   >
                     <LogOut className="h-4 w-4" />
                     Đăng xuất
@@ -325,4 +332,3 @@ export function SiteHeader() {
     </>
   );
 }
-

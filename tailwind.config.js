@@ -6,6 +6,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Requested colors
         primary: '#0050cb',
         'primary-gradient-end': '#0066ff',
         surface: '#faf8ff',
@@ -26,6 +27,8 @@ module.exports = {
         'on-tertiary-fixed-variant': '#0d5c34',
         'error-container': '#ffdad6',
         'on-error-container': '#410002',
+        
+        // Other support colors
         outline: '#737685',
         error: '#ba1a1a',
         background: '#faf8ff',
@@ -46,13 +49,26 @@ module.exports = {
         tertiary: '#7b2400',
         'on-tertiary': '#ffffff',
         'on-tertiary-fixed': '#390c00',
-        'on-tertiary-fixed-variant': '#832700',
         'surface-dim': '#d9d9e4',
         'surface-variant': '#e1e2ec',
       },
       fontFamily: {
         manrope: ['var(--font-manrope)', 'sans-serif'],
         inter: ['var(--font-inter)', 'sans-serif'],
+      },
+      borderRadius: {
+        // Enforcing softer, rounder corners globally for a friendlier interface
+        'none': '0px',
+        'xs': '4px',
+        'sm': '8px',
+        'DEFAULT': '12px',
+        'md': '14px',
+        'lg': '16px',
+        'xl': '20px',
+        '2xl': '24px',
+        '3xl': '32px',
+        '4xl': '40px',
+        'full': '9999px',
       },
       backgroundImage: {
         'gradient-primary': 'linear-gradient(135deg, #0050cb, #0066ff)',

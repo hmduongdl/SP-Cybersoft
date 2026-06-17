@@ -11,7 +11,7 @@ export function Button({ className, variant = 'primary', ...props }: ButtonProps
         <button
             className={twMerge(
                 clsx(
-                    'inline-flex items-center justify-center rounded-lg-xl px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
+                    'inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60',
                     {
                         'gradient-primary text-on-primary hover:opacity-90': variant === 'primary',
                         'bg-surface-container-low text-on-surface-variant hover:bg-surface-container': variant === 'secondary',

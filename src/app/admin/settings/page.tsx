@@ -115,7 +115,7 @@ export default function AdminSettingsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* Department Management */}
-        <div className="bg-surface-container-lowest rounded-lg-2xl shadow-ambient border-none overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-2xl shadow-ambient border-none overflow-hidden">
           <div className="p-6 border-none flex items-center gap-2">
             <Building2 className="text-indigo-600 w-5 h-5" />
             <h2 className="text-lg font-bold text-on-surface font-manrope">Quản lý Phòng ban</h2>
@@ -128,11 +128,11 @@ export default function AdminSettingsPage() {
                 value={newDeptName}
                 onChange={(e) => setNewDeptName(e.target.value)}
                 placeholder="Tên phòng ban mới..."
-                className="flex-1 px-3 py-2 bg-surface-container-low border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="flex-1 px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <button 
                 type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-lg-lg hover:bg-indigo-700 transition flex items-center gap-1"
+                className="px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-xl hover:bg-indigo-700 transition-all duration-150 flex items-center gap-1"
               >
                 <Plus className="w-4 h-4" /> Thêm
               </button>
@@ -140,11 +140,11 @@ export default function AdminSettingsPage() {
 
             <ul className="space-y-2">
               {departments.map((dept) => (
-                <li key={dept.id} className="flex items-center justify-between p-3 rounded-lg-lg border-none bg-surface-container-low">
+                <li key={dept.id} className="flex items-center justify-between p-3 rounded-lg border-none bg-surface-container-low">
                   <span className="text-sm font-medium text-on-surface-variant">{dept.name}</span>
                   <button 
                     onClick={() => handleDeleteDept(dept.id)}
-                    className="p-1.5 text-outline hover:text-rose-500 hover:bg-rose-50 rounded-lg-xl transition"
+                    className="p-1.5 text-outline hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all duration-150"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -158,7 +158,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* AI & System Settings */}
-        <div className="bg-surface-container-lowest rounded-lg-2xl shadow-ambient border-none overflow-hidden">
+        <div className="bg-surface-container-lowest rounded-2xl shadow-ambient border-none overflow-hidden">
           <div className="p-6 border-none flex items-center gap-2">
             <Server className="text-indigo-600 w-5 h-5" />
             <h2 className="text-lg font-bold text-on-surface font-manrope">Cấu hình AI & API</h2>
@@ -172,7 +172,7 @@ export default function AdminSettingsPage() {
               <select 
                 value={settings.ai_model}
                 onChange={(e) => setSettings({ ...settings, ai_model: e.target.value })}
-                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="gpt-4o">GPT-4o (OpenAI)</option>
                 <option value="gpt-4-turbo">GPT-4 Turbo</option>
@@ -191,13 +191,13 @@ export default function AdminSettingsPage() {
                 value={settings.ai_api_key}
                 onChange={(e) => setSettings({ ...settings, ai_api_key: e.target.value })}
                 placeholder="Nhập API Key..."
-                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
               />
             </div>
             
             <button 
               onClick={handleSaveSettings}
-              className="w-full py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-lg-lg hover:bg-indigo-700 transition shadow flex items-center justify-center gap-2"
+              className="w-full py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-xl hover:bg-indigo-700 transition-all duration-150 flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" /> Lưu cấu hình AI
             </button>

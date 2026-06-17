@@ -34,7 +34,7 @@ export const colors = {
   'tertiary-fixed': '#d5f8e8',
   'tertiary-fixed-dim': '#ffb59c',
   'on-tertiary-fixed': '#390c00',
-  'on-tertiary-fixed-variant': '#832700',
+  'on-tertiary-fixed-variant': '#0d5c34', // Updated to exact spec
 
   'error-container': '#ffdad6',
   'on-error-container': '#410002',
@@ -62,11 +62,16 @@ export const spacing = {
 } as const;
 
 export const borderRadius = {
-  none: '0',
-  DEFAULT: '0.25rem',
-  lg: '0.5rem',
-  xl: '0.75rem',
-  '2xl': '20px',
+  none: '0px',
+  xs: '4px',
+  sm: '8px',
+  DEFAULT: '12px',
+  md: '14px',
+  lg: '16px',
+  xl: '20px',
+  '2xl': '24px',
+  '3xl': '32px',
+  '4xl': '40px',
   full: '9999px',
 } as const;
 

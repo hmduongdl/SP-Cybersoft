@@ -61,20 +61,18 @@ export default function TasksPageClient({
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <Toaster position="top-right" richColors duration={1500} />
-      <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
+      <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 pb-2">
         <div>
-          <p className="text-sm uppercase tracking-[0.3em] text-indigo-500 font-bold mb-2">Bảng tin</p>
-          <h1 className="text-4xl font-extrabold text-on-surface tracking-tight font-manrope">Danh Sách Bài Share</h1>
-          <p className="mt-2 text-on-surface-variant text-lg">Quản lý và cập nhật tiến độ công việc mạng xã hội.</p>
+          <h1 className="text-3xl md:text-[32px] font-bold text-on-surface tracking-tight font-manrope">Nhiệm vụ Check-in</h1>
         </div>
 
         {/* View Mode Tabs */}
-        <div className="flex items-center bg-surface-container p-1 rounded-lg-xl border-none/80 shadow-ambient">
+        <div className="flex items-center bg-surface-container-low p-1 rounded-xl border-none">
           <button
             onClick={() => setViewMode("list")}
             className={cn(
-              "px-4 py-2 text-xs font-bold rounded-lg-lg transition-all flex items-center gap-1.5",
-              viewMode === "list" ? "bg-surface-container-lowest text-indigo-600 shadow-ambient" : "text-on-surface-variant hover:text-on-surface"
+              "px-4 py-2 text-xs font-bold rounded-[10px] transition-all flex items-center gap-1.5 font-inter",
+              viewMode === "list" ? "bg-surface-container-highest text-primary" : "bg-transparent text-on-surface-variant hover:text-on-surface"
             )}
           >
             <List className="w-3.5 h-3.5" />
@@ -83,8 +81,8 @@ export default function TasksPageClient({
           <button
             onClick={() => setViewMode("calendar")}
             className={cn(
-              "px-4 py-2 text-xs font-bold rounded-lg-lg transition-all flex items-center gap-1.5",
-              viewMode === "calendar" ? "bg-surface-container-lowest text-indigo-600 shadow-ambient" : "text-on-surface-variant hover:text-on-surface"
+              "px-4 py-2 text-xs font-bold rounded-[10px] transition-all flex items-center gap-1.5 font-inter",
+              viewMode === "calendar" ? "bg-surface-container-highest text-primary" : "bg-transparent text-on-surface-variant hover:text-on-surface"
             )}
           >
             <Calendar className="w-3.5 h-3.5" />

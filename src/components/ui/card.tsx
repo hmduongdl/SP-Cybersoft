@@ -11,7 +11,7 @@ export function Card({ className, variant = 'default', ...props }: CardProps) {
         <div
             className={twMerge(
                 clsx(
-                    'rounded-lg-3xl bg-surface-container-low p-6 shadow-ambient',
+                    'rounded-3xl bg-surface-container-low p-6 shadow-ambient',
                     {
                         'bg-surface-container-high': variant === 'highlight',
                     },

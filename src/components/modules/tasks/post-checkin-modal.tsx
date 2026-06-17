@@ -208,11 +208,11 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-on-background/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in">
       {/* Modal Container */}
-      <div className="bg-surface-container-lowest w-full max-w-4xl rounded-lg-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] overflow-hidden flex flex-col md:flex-row relative border-none animate-in zoom-in-95 duration-200">
+      <div className="bg-surface-container-lowest w-full max-w-4xl rounded-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] overflow-hidden flex flex-col md:flex-row relative border-none animate-in zoom-in-95 duration-200">
         
         {/* Close Button */}
         <button 
-          className="absolute top-4 right-4 text-outline hover:text-on-surface transition-colors z-30" 
+          className="absolute top-4 right-4 text-outline hover:text-on-surface transition-all duration-150 z-30" 
           onClick={onClose}
         >
           <span className="material-symbols-outlined">close</span>
@@ -228,13 +228,13 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                 href={post.originalUrl} 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="text-primary hover:bg-primary/10 p-1 rounded-lg-xl transition-all flex items-center"
+                className="text-primary hover:bg-primary/10 p-1 rounded-xl transition-all duration-150 flex items-center"
               >
                 <span className="material-symbols-outlined text-[20px]">open_in_new</span>
               </a>
             </div>
             
-            <div className="bg-surface-container-low p-md rounded-lg-xl border-none flex items-start gap-md mt-md">
+            <div className="bg-surface-container-low p-md rounded-xl border-none flex items-start gap-md mt-md">
               <span className="material-symbols-outlined text-primary mt-0.5">info</span>
               <p className="font-body-sm text-body-sm text-on-surface-variant">
                 <span className="font-bold">Yêu cầu từ Admin:</span> {post.description || "Hãy share bài viết công khai kèm hashtag chung của chiến dịch nội bộ."}
@@ -246,7 +246,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
           <div className="space-y-lg">
             
             {/* Auto Action (Facebook share) */}
-            <div className="p-lg bg-[#1877F2]/5 rounded-lg-2xl border border-[#1877F2]/10 flex flex-col gap-md">
+            <div className="p-lg bg-[#1877F2]/5 rounded-2xl border border-[#1877F2]/10 flex flex-col gap-md">
               <div>
                 <h4 className="font-title-md text-title-md text-on-surface flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[#1877F2] text-[20px]">bolt</span>
@@ -259,7 +259,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
               <button 
                 onClick={handleAutoCheckin} 
                 disabled={isAutoChecking || isManualUploading || isExpired}
-                className="w-full bg-[#1877F2] text-white hover:bg-[#166FE5] py-3.5 rounded-lg-xl font-label-md text-label-md font-bold transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-[#1877F2] text-white hover:bg-[#166FE5] py-3.5 rounded-xl font-label-md text-label-md font-bold transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
@@ -282,11 +282,11 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                   className={cn(
-                    "dashed-border min-h-[180px] flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-low transition-colors p-xl text-center group rounded-lg-2xl",
+                    "dashed-border min-h-[180px] flex flex-col items-center justify-center cursor-pointer hover:bg-surface-container-low transition-all duration-150 p-xl text-center group rounded-2xl",
                     isDragging ? "bg-primary/5 border-primary" : "border-outline-variant/30"
                   )}
                 >
-                  <div className="w-14 h-14 bg-primary-fixed/30 rounded-lg-full flex items-center justify-center mb-md group-hover:scale-110 transition-transform">
+                  <div className="w-14 h-14 bg-primary-fixed/30 rounded-full flex items-center justify-center mb-md transition-transform">
                     <span className="material-symbols-outlined text-primary text-3xl">cloud_upload</span>
                   </div>
                   <p className="font-title-md text-title-md text-on-surface mb-xs">Kéo thả ảnh chụp màn hình vào đây hoặc click để chọn</p>
@@ -301,11 +301,11 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                 </div>
               ) : (
                 <div className="space-y-md">
-                  <div className="relative group rounded-lg-2xl overflow-hidden border border-outline-variant/30 bg-surface-container-low min-h-[200px]">
+                  <div className="relative group rounded-2xl overflow-hidden bg-surface-container-low min-h-[200px]">
                     <Image alt="Screenshot preview" fill className="object-contain" src={previewImage} sizes="500px" />
-                    <div className="absolute inset-0 bg-on-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-md">
-                      <button 
-                        className="bg-error text-white px-lg py-2 rounded-lg-lg flex items-center gap-2 font-semibold hover:bg-error-container" 
+                    <div className="absolute inset-0 bg-on-background/40 opacity-0 group-hover:opacity-100 transition-all duration-150 flex items-center justify-center gap-md">
+                      <button
+                        className="bg-error text-white px-lg py-2 rounded-xl flex items-center gap-2 font-semibold hover:bg-error-container transition-all duration-150" 
                         onClick={() => setPreviewImage(null)}
                       >
                         <span className="material-symbols-outlined">delete</span>
@@ -317,7 +317,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                   <button 
                     onClick={handleManualSubmit}
                     disabled={isManualUploading || isExpired}
-                    className="w-full bg-primary hover:bg-primary-container text-white py-3 rounded-lg-xl font-label-md text-label-md font-bold transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2"
+                    className="w-full bg-primary hover:bg-primary-container text-white py-3 rounded-xl font-label-md text-label-md font-bold transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2"
                   >
                     {isManualUploading ? "Đang gửi..." : "Gửi minh chứng để phê duyệt"}
                   </button>
@@ -338,7 +338,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
               <span className="font-label-md text-label-md uppercase tracking-wider font-bold">Thời hạn check-in</span>
             </div>
             
-            <div className="bg-on-background rounded-lg-2xl p-lg text-center shadow-[0_32px_64px_rgba(19,27,46,0.12)] border border-primary/20">
+            <div className="bg-on-background rounded-2xl p-lg text-center shadow-[0_32px_64px_rgba(19,27,46,0.12)] border border-primary/20">
               <div className="font-display-lg text-3xl font-bold text-secondary tracking-tight">
                 {isExpired ? "00:00:00" : timeLeft}
               </div>
@@ -346,10 +346,10 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
             </div>
             
             <div>
-              <div className="h-2 w-full bg-outline-variant/20 rounded-lg-full overflow-hidden">
+              <div className="h-2 w-full bg-outline-variant/20 rounded-full overflow-hidden">
                 <div 
                   className={cn(
-                    "h-full rounded-lg-full transition-all duration-1000",
+                    "h-full rounded-full transition-all duration-1000",
                     elapsedPercentage >= 90 ? "bg-error" : elapsedPercentage >= 75 ? "bg-tertiary" : "bg-secondary"
                   )} 
                   style={{ width: `${elapsedPercentage}%` }}
@@ -369,7 +369,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                     <UserAvatar key={idx} name={a.name} size="sm" className="border-2 border-surface-container-low" />
                   ))}
                   {colleagueAvatars.length > 3 && (
-                    <div className="h-7 w-7 rounded-lg-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-bold text-[9px] text-primary">
+                    <div className="h-7 w-7 rounded-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-bold text-[9px] text-primary">
                       +{colleagueAvatars.length - 3}
                     </div>
                   )}
@@ -380,7 +380,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
               </div>
             </div>
 
-            <div className="p-md bg-surface-bright rounded-lg-xl border border-outline-variant/30">
+            <div className="p-md bg-surface-bright rounded-xl">
               <p className="font-label-sm text-xs text-outline mb-xs font-semibold">Hạn chót</p>
               <p className="font-title-md text-sm text-on-surface font-bold">{deadlineText}</p>
             </div>

@@ -9,9 +9,12 @@ import { AIAssistant } from "@/components/AIAssistant";
 import { useSession } from "next-auth/react";
 import { OnboardingModal } from "@/components/OnboardingModal";
 
+import { useLayout } from "@/components/shared/layout-context";
+
 export default function ClientLayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { sidebarCollapsed } = useLayout();
   const isLoginPage = pathname === "/login" || pathname === "/login/";
   const isNotOnboarded = session?.user?.is_onboarded === false;
 
@@ -25,7 +28,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
       <Sidebar />
 
       {/* Main Content Pane */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden md:pl-[280px]">
+      <div className={`flex flex-col flex-1 min-w-0 overflow-hidden transition-all duration-300 ${sidebarCollapsed ? "md:pl-16" : "md:pl-[240px]"}`}>
         {/* Top Header */}
         <SiteHeader />
 

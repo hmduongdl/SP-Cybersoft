@@ -11,12 +11,15 @@ interface LayoutContextType {
   role: Role;
   setRole: (role: Role) => void;
   isLoadingRole: boolean;
+  sidebarCollapsed: boolean;
+  setSidebarCollapsed: (collapsed: boolean) => void;
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
 
 export function LayoutProvider({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [role, setRole] = useState<Role>("USER");
   const [isLoadingRole, setIsLoadingRole] = useState(true);
   const { data: session, status } = useSession();
@@ -41,6 +44,14 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     setIsLoadingRole(false);
   }, [session, status]);
 
+  // Load sidebarCollapsed from localStorage on mount
+  useEffect(() => {
+    const savedCollapsed = localStorage.getItem("sidebar_collapsed");
+    if (savedCollapsed === "true") {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
   const handleSetRole = (newRole: Role) => {
     const actualRole = session?.user?.role as Role;
     if (actualRole !== "ADMIN" && newRole === "ADMIN") {
@@ -51,6 +62,11 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("simulated_role", newRole);
   };
 
+  const handleSetSidebarCollapsed = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    localStorage.setItem("sidebar_collapsed", collapsed ? "true" : "false");
+  };
+
   return (
     <LayoutContext.Provider
       value={{
@@ -59,6 +75,8 @@ export function LayoutProvider({ children }: { children: React.ReactNode }) {
         role,
         setRole: handleSetRole,
         isLoadingRole,
+        sidebarCollapsed,
+        setSidebarCollapsed: handleSetSidebarCollapsed,
       }}
     >
       {children}

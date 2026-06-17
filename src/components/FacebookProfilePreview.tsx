@@ -80,7 +80,7 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
         href={facebookLink}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg-full text-[9px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all duration-150"
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-semibold bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-all duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <ExternalLink className="w-3 h-3" />
@@ -99,7 +99,7 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
             transform: "translate(-50%, -100%)",
           }}
         >
-          <div className="bg-surface-bright rounded-lg-xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] p-3 min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-surface-bright rounded-xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] p-3 min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
             {loading ? (
               <div className="flex items-center justify-center py-3">
                 <Loader2 className="w-4 h-4 animate-spin text-outline" />
@@ -111,7 +111,7 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
               </div>
             ) : ogData ? (
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-lg-full overflow-hidden bg-surface-container flex-shrink-0 relative">
+                <div className="w-9 h-9 rounded-full overflow-hidden bg-surface-container flex-shrink-0 relative">
                   {ogData.ogImage ? (
                     <Image
                       src={ogData.ogImage}

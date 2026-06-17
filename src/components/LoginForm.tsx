@@ -10,7 +10,7 @@ function SubmitButton() {
 
   return (
     <button
-      className="w-full py-4 gradient-primary text-on-primary font-semibold font-inter rounded-lg-xl ambient-shadow hover:scale-[1.01] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-300 flex items-center justify-center gap-2"
+      className="w-full py-4 gradient-primary text-on-primary font-semibold font-inter rounded-[10px] hover:scale-[1.01] active:scale-[0.98] disabled:opacity-60 disabled:pointer-events-none transition-all duration-300 flex items-center justify-center gap-2"
       type="submit"
       disabled={pending}
     >
@@ -56,16 +56,16 @@ export default function LoginForm() {
         <div className="flex md:hidden items-center gap-3 mb-6">
           <h1 className="text-xl font-bold text-primary font-manrope">SPS AI</h1>
         </div>
-        <h2 className="text-2xl font-bold text-on-surface font-manrope mb-1">Đăng nhập</h2>
-        <p className="text-sm text-on-surface-variant">Chào mừng bạn quay trở lại với SPS AI.</p>
+        <h2 className="text-2xl font-semibold text-on-surface font-manrope mb-1">Đăng nhập</h2>
+        <p className="text-sm text-on-surface-variant font-inter">Chào mừng bạn quay trở lại với SPS AI.</p>
       </div>
 
       {/* Form Card */}
-      <div className="bg-surface-container-lowest p-8 rounded-lg-2xl ambient-shadow">
+      <div className="bg-surface-container-lowest p-10 rounded-[20px] shadow-[0_20px_40px_rgba(19,27,46,0.06)] border-none">
         <form action={formAction} className="space-y-5">
           {/* Error Alert */}
           {state?.error && (
-            <div className="flex items-center gap-3 p-4 rounded-lg-lg bg-error-container text-sm font-semibold text-on-error-container">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-error-container text-sm font-semibold text-on-error-container border-none">
               <span className="material-symbols-outlined text-[20px] flex-shrink-0">error</span>
               <span>{state.error}</span>
             </div>
@@ -73,12 +73,12 @@ export default function LoginForm() {
 
           {/* Username Field */}
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-outline uppercase tracking-wider" htmlFor="username">
+            <label className="block text-xs font-semibold text-outline uppercase tracking-wider font-inter" htmlFor="username">
               Email hoặc Username
             </label>
             <div className="relative group">
               <input
-                className="w-full px-4 py-3.5 bg-surface-container-low border-none rounded-lg-lg text-sm text-on-surface placeholder:text-outline/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright"
+                className="w-full px-4 py-3.5 bg-surface-container-low border-none rounded-lg text-sm text-on-surface placeholder:text-outline/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest"
                 id="username"
                 name="username"
                 placeholder="Email hoặc tên đăng nhập"
@@ -92,13 +92,13 @@ export default function LoginForm() {
           {/* Password Field */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold text-outline uppercase tracking-wider" htmlFor="password">
+              <label className="block text-xs font-semibold text-outline uppercase tracking-wider font-inter" htmlFor="password">
                 Mật khẩu
               </label>
             </div>
             <div className="relative group">
               <input
-                className="w-full px-4 py-3.5 bg-surface-container-low border-none rounded-lg-lg text-sm text-on-surface placeholder:text-outline/50 transition-all duration-200 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-surface-bright"
+                className="w-full px-4 py-3.5 bg-surface-container-low border-none rounded-lg text-sm text-on-surface placeholder:text-outline/50 transition-all duration-200 pr-12 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-lowest"
                 id="password"
                 name="password"
                 placeholder="••••••••"
@@ -122,7 +122,7 @@ export default function LoginForm() {
           <div className="text-right">
             <button
               type="button"
-              className="text-xs font-semibold text-primary hover:opacity-70 transition-opacity"
+              className="text-xs font-semibold text-primary hover:opacity-70 transition-opacity font-inter"
               onClick={() => setShowForgotMsg(!showForgotMsg)}
             >
               Quên mật khẩu?
@@ -130,9 +130,9 @@ export default function LoginForm() {
           </div>
 
           {showForgotMsg && (
-            <div className="p-3 rounded-lg-lg bg-primary-container text-sm text-on-primary-fixed-variant flex items-start gap-2">
+            <div className="p-3 rounded-lg bg-primary-container text-sm text-on-primary-fixed-variant flex items-start gap-2 border-none">
               <span className="material-symbols-outlined text-[18px] flex-shrink-0 mt-0.5">info</span>
-              <span>
+              <span className="font-inter">
                 Tài khoản của bạn do Phòng Nhân sự (HR) cấp và quản lý. Vui lòng liên hệ trực tiếp với HR Admin để được cấp lại mật khẩu mới.
               </span>
             </div>
@@ -142,9 +142,9 @@ export default function LoginForm() {
           <SubmitButton />
         </form>
 
-        {/* Footer Link */}
-        <div className="mt-8 pt-6 border-t border-surface-container-high/50 text-center">
-          <p className="text-sm text-on-surface-variant">
+        {/* Footer Link - Borderless layout replacement */}
+        <div className="mt-8 pt-6 text-center">
+          <p className="text-sm text-on-surface-variant font-inter">
             Bạn chưa có tài khoản?{" "}
             <a className="text-primary font-bold ml-1 hover:underline" href="#">
               Liên hệ quản trị viên

@@ -12,7 +12,6 @@ import {
   Clock,
   ShieldCheck,
   AlertTriangle,
-  CheckCircle2,
   XCircle,
   RefreshCw,
   Clipboard,
@@ -90,9 +89,9 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
 
   if (countdown.expired && !allowLateSubmit) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
+      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-red-500/10 text-red-600 text-sm font-medium border-none">
         <XCircle className="w-4 h-4 flex-shrink-0" />
-        <span>Cửa sổ 24h đã hết — không thể nộp thêm</span>
+        <span className="font-inter text-xs">Cửa sổ 24h đã hết — không thể nộp thêm</span>
       </div>
     );
   }
@@ -108,21 +107,21 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
   return (
     <div
       className={cn(
-        "rounded-lg-xl border px-4 py-3 space-y-2 transition-colors",
+        "rounded-xl px-4 py-3 space-y-2 transition-all duration-150 border-none",
         urgency
-          ? "bg-amber-500/10 border-amber-500/30"
-          : "bg-inverse-surface/60 border-slate-700/60"
+          ? "bg-amber-500/10"
+          : "bg-surface-container"
       )}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-xs font-semibold text-outline uppercase tracking-wider">
-          <Clock className={cn("w-3.5 h-3.5", urgency ? "text-amber-400" : "text-indigo-400")} />
+        <div className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant/70 uppercase tracking-wider font-inter">
+          <Clock className={cn("w-3.5 h-3.5", urgency ? "text-amber-600" : "text-primary")} />
           Cửa sổ nộp bài còn lại
         </div>
         <div
           className={cn(
-            "font-mono text-lg font-bold tabular-nums tracking-tight",
-            urgency ? "text-amber-300" : "text-white"
+            "font-mono text-base font-bold tabular-nums tracking-tight",
+            urgency ? "text-amber-700" : "text-on-surface"
           )}
         >
           {countdown.hours}<span className="opacity-60 mx-0.5">:</span>
@@ -130,13 +129,13 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
           {countdown.secs}
         </div>
       </div>
-      <div className="h-1.5 bg-slate-700/50 rounded-lg-full overflow-hidden">
+      <div className="h-1 bg-on-surface/5 rounded-full overflow-hidden">
         <div
           className={cn(
-            "h-full rounded-lg-full transition-all duration-1000",
+            "h-full rounded-full transition-all duration-1000",
             urgency
               ? "bg-gradient-to-r from-amber-500 to-red-500"
-              : "bg-gradient-to-r from-indigo-500 to-violet-500"
+              : "gradient-primary"
           )}
           style={{ width: `${100 - pct}%` }}
         />
@@ -152,21 +151,23 @@ function ExifStatusBadge({ status, exifDate }: { status: ExifStatus; exifDate: D
 
   if (status === "scanning") {
     return (
-      <div className="flex items-center gap-3 p-3.5 rounded-lg-xl bg-indigo-500/10 border border-indigo-500/20 animate-pulse">
-        <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
-        <span className="text-sm text-indigo-300">Đang phân tích dữ liệu EXIF từ máy chủ...</span>
+      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-500/10 border-none animate-pulse">
+        <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" />
+        <span className="text-xs font-medium text-indigo-700 font-inter">Đang phân tích dữ liệu EXIF từ máy chủ...</span>
       </div>
     );
   }
 
   if (status === "valid" && exifDate) {
     return (
-      <div className="flex items-start gap-3 p-3.5 rounded-lg-xl bg-emerald-500/10 border border-emerald-500/25">
-        <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="text-sm font-semibold text-emerald-300">✓ Phát hiện thời gian chụp ảnh hợp lệ</p>
-          <p className="text-xs text-emerald-400/80 mt-0.5">{formatViDate(exifDate)}</p>
-          <p className="text-xs text-emerald-500/70 mt-1">Ảnh đủ điều kiện duyệt tự động.</p>
+      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-500/10 border-none">
+        <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+          <span className="material-symbols-outlined text-[16px] font-bold">check</span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-emerald-800 font-manrope">✓ Phát hiện thời gian chụp ảnh hợp lệ</p>
+          <p className="text-[11px] text-emerald-600 mt-0.5 font-mono font-semibold">{formatViDate(exifDate)}</p>
+          <p className="text-[11px] text-emerald-600/80 mt-1 font-inter">Ảnh đủ điều kiện duyệt tự động.</p>
         </div>
       </div>
     );
@@ -174,23 +175,23 @@ function ExifStatusBadge({ status, exifDate }: { status: ExifStatus; exifDate: D
 
   if (status === "invalid") {
     return (
-      <div className="flex items-start gap-3 p-3.5 rounded-lg-xl bg-amber-500/10 border border-amber-500/25">
-        <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-rose-500/10 border-none">
+        <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-amber-300">⚠ Thời gian chụp nằm ngoài cửa sổ 24h</p>
-          <p className="text-xs text-amber-400/80 mt-0.5">EXIF: {exifDate ? formatViDate(exifDate) : "—"}</p>
-          <p className="text-xs text-amber-500/70 mt-1">Bài viết sẽ được chuyển sang hàng đợi để Admin duyệt thủ công.</p>
+          <p className="text-xs font-semibold text-rose-800 font-manrope">⚠ Thời gian chụp nằm ngoài cửa sổ 24h</p>
+          <p className="text-[11px] text-rose-600 mt-0.5 font-mono">EXIF: {exifDate ? formatViDate(exifDate) : "—"}</p>
+          <p className="text-[11px] text-rose-600/80 mt-1 font-inter">Bài viết sẽ được chuyển sang hàng đợi để Admin duyệt thủ công.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-start gap-3 p-3.5 rounded-lg-xl bg-amber-500/10 border border-amber-500/25">
-      <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+    <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border-none">
+      <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
       <div>
-        <p className="text-sm font-semibold text-amber-300">⚠ Không phát hiện thông tin EXIF</p>
-        <p className="text-xs text-amber-400/80 mt-1">
+        <p className="text-xs font-semibold text-amber-800 font-manrope">⚠ Không phát hiện thông tin EXIF</p>
+        <p className="text-[11px] text-amber-600/85 mt-1 font-inter leading-relaxed">
           Ảnh chụp màn hình máy tính thường không có EXIF. Bài viết sẽ được chuyển sang hàng đợi để Admin duyệt thủ công.
         </p>
       </div>
@@ -275,6 +276,36 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
         .finally(() => setCheckingExisting(false));
     }
   }, [isOpen, post.id]);
+
+  // Handle image scan trigger (simulates trigger scan logic when img is loaded)
+  useEffect(() => {
+    if (imageUrl) {
+      setExifStatus("scanning");
+      fetch(`/api/admin/ai-scan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image_url: imageUrl, post_id: post.id }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.exif) {
+            const hasExif = !!data.exif.exif_created_at;
+            if (hasExif) {
+              const dt = new Date(data.exif.exif_created_at);
+              setExifDate(dt);
+              setExifStatus(data.exif.is_exif_valid ? "valid" : "invalid");
+            } else {
+              setExifStatus("no_exif");
+            }
+          } else {
+            setExifStatus("no_exif");
+          }
+        })
+        .catch(() => {
+          setExifStatus("no_exif");
+        });
+    }
+  }, [imageUrl, post.id]);
 
   if (!isOpen) return null;
 
@@ -434,31 +465,26 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
   const isFormValid = !!imageUrl && isChecked1 && isChecked2 && submitStatus !== "loading";
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // Render
-  // ──────────────────────────────────────────────────────────────────────────
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#131b2e]/40 backdrop-blur-[4px]"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-inverse-surface w-full max-w-lg rounded-lg-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] shadow-black/40 border-none/80 flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
+      <div className="bg-surface-container-lowest/92 backdrop-blur-[20px] w-full max-w-[520px] rounded-[24px] shadow-[0_40px_80px_rgba(19,27,46,0.12)] border-none flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
 
         {/* ── Header ── */}
-        <div className="px-6 pt-5 pb-4 border-b border-slate-800 flex items-start justify-between gap-4 flex-shrink-0">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg-full text-xs font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 mb-2">
-              <ShieldCheck className="w-3 h-3" />
-              Nộp Minh Chứng
-            </span>
-            <h2 className="text-lg font-bold text-white leading-snug line-clamp-2 font-manrope">{post.title}</h2>
+        <div className="px-6 pt-5 pb-4 flex items-start justify-between gap-4 flex-shrink-0">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold text-on-surface font-manrope leading-snug">Nộp minh chứng</h2>
+            <p className="text-sm font-normal text-on-surface-variant font-inter truncate w-full mt-1" title={post.title}>
+              {post.title}
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 p-1.5 rounded-lg-lg text-on-surface-variant hover:text-white hover:bg-inverse-surface transition-colors mt-0.5"
+            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-[8px] bg-surface-container text-on-surface-variant hover:text-on-surface transition-all shrink-0"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -467,31 +493,41 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
           {/* ── Loading existing checkin ── */}
           {checkingExisting && (
             <div className="flex flex-col items-center justify-center px-6 py-16">
-              <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+              <Loader2 className="w-8 h-8 text-primary animate-spin" />
             </div>
           )}
 
           {/* ── Already submitted (not rejected) ── */}
           {!checkingExisting && existingCheckin && existingCheckin.status !== "REJECTED" && (
-            <div className="flex flex-col items-center justify-center text-center px-6 py-16 space-y-4">
-              <div className="w-16 h-16 rounded-lg-full flex items-center justify-center bg-indigo-500/10 border-2 border-indigo-500/30">
-                <CheckCircle2 className="w-8 h-8 text-indigo-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-white mb-1 font-manrope">Đã nộp minh chứng</h3>
-                <p className="text-sm text-outline">
-                  {existingCheckin.status === "AUTO_APPROVED"
-                    ? "Bài nộp đã được tự động duyệt. ✅"
-                    : existingCheckin.status === "APPROVED"
-                    ? "Bài nộp đã được Admin duyệt. ✅"
-                    : existingCheckin.status === "PENDING"
-                    ? "Bài nộp đang chờ Admin xem xét."
-                    : `Trạng thái: ${existingCheckin.status}`}
-                </p>
-              </div>
+            <div className="flex flex-col items-center justify-center text-center px-6 py-12 space-y-6">
+              {existingCheckin.status === "AUTO_APPROVED" || existingCheckin.status === "APPROVED" ? (
+                <>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center bg-tertiary-fixed text-on-tertiary-fixed-variant">
+                    <span className="material-symbols-outlined text-[40px] font-bold">check</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">Đã tự động duyệt!</h3>
+                    <p className="text-sm text-on-surface-variant font-inter">
+                      Bản ghi check-in này đã được xác thực thành công.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
+                    <Clock className="w-10 h-10" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">Chờ kiểm duyệt</h3>
+                    <p className="text-sm text-on-surface-variant font-inter">
+                      Bài nộp hiện tại đang trong trạng thái chờ quản trị viên phê duyệt.
+                    </p>
+                  </div>
+                </>
+              )}
               <button
                 onClick={onClose}
-                className="mt-2 px-8 py-3 rounded-lg-xl bg-inverse-surface hover:bg-slate-700 text-white font-semibold text-sm transition-colors"
+                className="w-full h-12 flex items-center justify-center rounded-[12px] bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold text-sm transition-all duration-150 font-inter"
               >
                 Đóng
               </button>
@@ -500,21 +536,39 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
           {/* ── Success screen ── */}
           {submitStatus === "success" && submitResult && (
-            <div className="flex flex-col items-center justify-center text-center px-6 py-16 space-y-5">
-              <div className="w-20 h-20 rounded-lg-full flex items-center justify-center bg-emerald-500/10 border-2 border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.15)]">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white mb-2 font-manrope">
-                  {submitResult.status === "AUTO_APPROVED"
-                    ? "Tự động xác thực thành công! 🎉"
-                    : "Đã nhận minh chứng"}
-                </h3>
-                <p className="text-sm text-outline max-w-xs mx-auto leading-relaxed">{submitResult.message}</p>
-              </div>
+            <div className="flex flex-col items-center justify-center text-center px-6 py-12 space-y-6">
+              {submitResult.status === "AUTO_APPROVED" ? (
+                <>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center bg-tertiary-fixed text-on-tertiary-fixed-variant">
+                    <span className="material-symbols-outlined text-[40px] font-bold">check</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">
+                      Đã tự động duyệt!
+                    </h3>
+                    <p className="text-sm text-on-surface-variant max-w-xs mx-auto leading-relaxed font-inter">
+                      Dữ liệu ảnh trùng khớp và đạt tiêu chuẩn. Minh chứng của bạn đã được phê duyệt tự động.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-20 h-20 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
+                    <Clock className="w-10 h-10" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">
+                      Chờ kiểm duyệt
+                    </h3>
+                    <p className="text-sm text-on-surface-variant max-w-xs mx-auto leading-relaxed font-inter">
+                      Minh chứng của bạn đã được nhận và đang chờ quản trị viên phê duyệt.
+                    </p>
+                  </div>
+                </>
+              )}
               <button
                 onClick={onClose}
-                className="mt-2 px-8 py-3 rounded-lg-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors shadow-[0_32px_64px_rgba(19,27,46,0.12)] shadow-indigo-600/20"
+                className="w-full h-12 flex items-center justify-center rounded-[12px] bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold text-sm transition-all duration-150 font-inter"
               >
                 Đóng
               </button>
@@ -524,16 +578,16 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
           {/* ── Error screen ── */}
           {submitStatus === "error" && (
             <div className="flex flex-col items-center justify-center text-center px-6 py-12 space-y-4">
-              <div className="w-16 h-16 rounded-lg-full flex items-center justify-center bg-red-500/10 border-2 border-red-500/30">
-                <XCircle className="w-8 h-8 text-red-400" />
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-error-container text-on-error-container">
+                <span className="material-symbols-outlined text-[20px] font-bold">close</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white mb-1 font-manrope">Gửi thất bại</h3>
-                <p className="text-sm text-outline">{submitError}</p>
+                <h3 className="text-lg font-bold text-on-surface mb-1 font-manrope">Gửi thất bại</h3>
+                <p className="text-sm text-on-surface-variant font-inter">{submitError}</p>
               </div>
               <button
                 onClick={() => setSubmitStatus("idle")}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg-xl bg-inverse-surface hover:bg-slate-700 text-white font-medium text-sm transition-colors"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-medium text-sm transition-all duration-150"
               >
                 <RefreshCw className="w-4 h-4" />
                 Thử lại
@@ -547,41 +601,43 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
               {/* ── Rejected notice ── */}
               {existingCheckin?.status === "REJECTED" && isWindowOpen && (
-                <div className="flex items-start gap-3 p-4 rounded-lg-xl bg-amber-500/10 border border-amber-500/25">
-                  <RefreshCw className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-300">Bài nộp trước bị từ chối — bạn có thể nộp lại</p>
+                <div className="flex items-start gap-4 p-4 rounded-[16px] bg-error-container/20 border-none">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-error-container text-on-error-container shrink-0">
+                    <span className="material-symbols-outlined text-[20px] font-bold">close</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-on-error-container font-manrope">Minh chứng bị từ chối</p>
                     {existingCheckin.reject_reason && (
-                      <p className="text-xs text-amber-400/80 mt-1">
+                      <p className="text-xs text-on-surface-variant mt-1 font-inter break-words">
                         Lý do: {existingCheckin.reject_reason}
                       </p>
                     )}
+                    <p className="text-[11px] text-on-surface-variant/70 mt-1 font-inter">Vui lòng tải lên ảnh minh chứng hợp lệ khác.</p>
                   </div>
                 </div>
               )}
 
               {/* Post info + CTA link */}
-              <div className="flex gap-3 p-4 bg-inverse-surface/50 rounded-lg-xl border-none/50">
+              <div className="flex gap-3 p-4 bg-surface-container-low rounded-xl border-none">
                 {postThumb ? (
-                  <div className="w-14 h-14 rounded-lg-lg overflow-hidden border-none flex-shrink-0 relative bg-inverse-surface">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden border-none flex-shrink-0 relative bg-surface-container">
                     <Image src={postThumb} alt={post.title} fill className="object-cover" sizes="56px" />
                   </div>
                 ) : (
-                  <div className="w-14 h-14 rounded-lg-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
                     <ImageIcon className="w-6 h-6 text-on-surface-variant" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
-                  <p className="text-xs text-on-surface-variant font-medium uppercase tracking-wide">Bài viết cần chia sẻ</p>
+                  <p className="text-xs text-on-surface-variant font-semibold uppercase tracking-wide font-inter">Bài viết cần chia sẻ</p>
                   <a
                     href={postUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors w-fit shadow-[0_32px_64px_rgba(19,27,46,0.12)] shadow-indigo-600/20 group"
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#0050cb] hover:bg-[#0066ff] text-white text-xs font-semibold transition-all duration-150 w-fit group font-inter"
                   >
-                    <span className="w-5 h-5 rounded-lg-full bg-surface-container-lowest/20 flex items-center justify-center font-bold text-[10px] flex-shrink-0">1</span>
                     Đi tới bài viết gốc
-                    <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                    <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-all duration-150" />
                   </a>
                 </div>
               </div>
@@ -594,13 +650,13 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                 <div className="space-y-3">
                   {/* Progress bar */}
                   {uploading && (
-                    <div className="flex items-center gap-3 p-4 rounded-lg-xl bg-indigo-500/10 border border-indigo-500/20">
-                      <Loader2 className="w-5 h-5 text-indigo-400 animate-spin flex-shrink-0" />
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-primary-container/20 border-none">
+                      <Loader2 className="w-5 h-5 text-primary animate-spin flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-indigo-300">Đang tải ảnh lên... ({uploadProgress}%)</p>
-                        <div className="mt-2 h-1.5 bg-slate-700/50 rounded-lg-full overflow-hidden">
+                        <p className="text-sm font-medium text-primary font-inter">Đang tải ảnh lên... ({uploadProgress}%)</p>
+                        <div className="mt-2 h-1.5 bg-on-surface/5 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-lg-full transition-all duration-200"
+                            className="h-full bg-gradient-to-r from-primary to-primary-gradient-end rounded-full transition-all duration-150"
                             style={{ width: `${uploadProgress}%` }}
                           />
                         </div>
@@ -614,11 +670,16 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
-                    className={cn(
-                      "border-2 border-dashed rounded-lg-xl cursor-pointer transition-all duration-200 relative overflow-hidden",
+                    style={
                       isDragging
-                        ? "border-indigo-400 bg-indigo-500/10 scale-[1.01]"
-                        : "border-slate-700 hover:border-indigo-500/60 bg-inverse-surface/30 hover:bg-indigo-500/5"
+                        ? { outline: "2px dashed #0050cb", outlineOffset: "-2px" }
+                        : { outline: "2px dashed rgba(0, 80, 203, 0.25)", outlineOffset: "-2px" }
+                    }
+                    className={cn(
+                      "rounded-[16px] cursor-pointer transition-all duration-150 relative overflow-hidden border-none",
+                      isDragging
+                        ? "bg-primary-container/30 scale-[1.01]"
+                        : "bg-surface-container-low hover:bg-surface-container"
                     )}
                   >
                     <input
@@ -632,60 +693,56 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     <div className="flex flex-col items-center text-center space-y-3 py-10 px-6">
                       <div
                         className={cn(
-                          "p-4 rounded-lg-2xl transition-colors",
-                          isDragging ? "bg-indigo-500/20" : "bg-slate-700/50"
+                          "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-150",
+                          isDragging ? "bg-primary text-white" : "bg-primary-container text-primary"
                         )}
                       >
-                        <UploadCloud
-                          className={cn(
-                            "w-8 h-8 transition-colors",
-                            isDragging ? "text-indigo-400" : "text-outline"
-                          )}
-                        />
+                        <UploadCloud className="w-6 h-6" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-outline">
-                          Kéo thả ảnh hoặc <span className="text-indigo-400 underline underline-offset-2">click để chọn</span>
+                        <p className="text-sm font-semibold text-on-surface-variant font-inter">
+                          Kéo thả ảnh hoặc <span className="text-primary underline underline-offset-2">click để chọn</span>
                         </p>
-                        <p className="text-xs text-on-surface-variant mt-1">JPG, PNG, WEBP — Tối đa 10MB</p>
+                        <p className="text-xs text-on-surface-variant/70 mt-1 font-inter">JPG, PNG, WEBP — Tối đa 10MB</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Paste hint */}
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant">
-                    <Clipboard className="w-3 h-3" />
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant/80 font-inter">
+                    <Clipboard className="w-3.5 h-3.5 text-on-surface-variant/60" />
                     <span>
-                      Hoặc nhấn <kbd className="px-1 py-0.5 rounded-lg bg-inverse-surface border-none text-outline text-[10px] font-mono">Ctrl+V</kbd> để dán ảnh từ clipboard
+                      Dán từ clipboard bằng <kbd className="px-1.5 py-0.5 rounded-[6px] bg-surface-container text-on-surface-variant text-[10px] font-mono font-semibold">Ctrl+V</kbd>
                     </span>
                   </div>
                 </div>
               ) : (
                 /* ── Preview after upload ── */
-                <div className="rounded-lg-xl border-2 border-slate-700/80 bg-inverse-surface/30 p-2 overflow-hidden transition-all">
-                  <div className="relative w-full rounded-lg-lg overflow-hidden group bg-inverse-surface min-h-[200px]">
+                <div className="rounded-[16px] bg-surface-container-low p-2 overflow-hidden transition-all duration-150 border-none">
+                  <div className="relative w-full h-64 rounded-[12px] overflow-hidden group bg-surface-container-low">
                     <Image
                       src={imageUrl}
                       alt="Xem trước ảnh minh chứng"
                       fill
-                      className="object-contain"
+                      className="object-cover rounded-[12px]"
                       sizes="(max-width: 768px) 100vw, 500px"
                     />
-                    {/* Hover overlay */}
-                    <div className="absolute inset-0 bg-inverse-surface/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 rounded-lg-lg">
+                    {/* Hover overlay with dark gradient CTA */}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-200">
+                      <span className="text-xs font-semibold text-white font-inter">Ảnh minh chứng đã chọn</span>
                       <button
                         type="button"
                         onClick={() => setImageUrl(null)}
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg-lg text-xs font-semibold transition-colors shadow-[0_32px_64px_rgba(19,27,46,0.12)]"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold transition-all duration-150"
                       >
-                        <X className="w-3.5 h-3.5" />
-                        Hủy &amp; Chọn lại
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Đổi ảnh khác
                       </button>
                     </div>
                   </div>
                   <div className="mt-2 px-2 pb-1 flex items-center gap-2">
-                    <UploadCloud className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                    <span className="text-xs text-emerald-400 truncate font-medium">Ảnh đã được tải lên CDN</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-xs text-emerald-700 truncate font-semibold font-inter">Ảnh đã được tải lên CDN thành công</span>
                   </div>
                 </div>
               )}
@@ -695,7 +752,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
               {/* Cam kết / Checkboxes */}
               <div className="space-y-3 pt-1">
-                <p className="text-xs font-semibold text-outline uppercase tracking-wider">Cam kết bắt buộc</p>
+                <p className="text-xs font-semibold text-on-surface-variant/80 uppercase tracking-wider font-inter">Cam kết bắt buộc</p>
                 {[
                   { id: "check1", value: isChecked1, onChange: setIsChecked1, label: "Tôi cam đoan đã chia sẻ bài viết này ở chế độ công khai trên trang cá nhân." },
                   { id: "check2", value: isChecked2, onChange: setIsChecked2, label: "Tôi xác nhận ảnh tải lên là thật và chịu trách nhiệm về nội dung." },
@@ -704,47 +761,47 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} className="sr-only" />
                     <div
                       className={cn(
-                        "w-5 h-5 rounded-lg-xl border-2 flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
-                        value ? "bg-indigo-600 border-indigo-600" : "border-slate-600 bg-inverse-surface group-hover:border-indigo-500/70"
+                        "w-5 h-5 rounded-lg border-none flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
+                        value ? "bg-primary text-white" : "bg-surface-container hover:bg-surface-container-high"
                       )}
                     >
-                      {value && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                      {value && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
                     </div>
-                    <span className="text-sm text-outline group-hover:text-outline leading-relaxed transition-colors">{label}</span>
+                    <span className="text-sm text-on-surface-variant group-hover:text-on-surface leading-relaxed transition-all duration-150 font-inter">{label}</span>
                   </label>
                 ))}
               </div>
 
               {/* Footer Actions */}
-              <div className="flex gap-3 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex-1 px-4 py-3 rounded-lg-xl text-sm font-semibold text-outline hover:text-white bg-inverse-surface hover:bg-slate-700 transition-colors"
-                >
-                  Hủy
-                </button>
+              <div className="flex flex-col gap-3 pt-2">
                 <button
                   type="submit"
                   disabled={!isFormValid}
                   className={cn(
-                    "flex-[2] flex items-center justify-center gap-2.5 px-5 py-3 rounded-lg-xl text-sm font-semibold text-white transition-all duration-200",
+                    "w-full h-12 flex items-center justify-center gap-2.5 rounded-[12px] text-sm font-semibold text-white transition-all duration-150 font-inter",
                     isFormValid
-                      ? "bg-indigo-600 hover:bg-indigo-500 shadow-[0_32px_64px_rgba(19,27,46,0.12)] shadow-indigo-600/25 active:scale-[0.98] cursor-pointer"
-                      : "bg-inverse-surface text-on-surface-variant cursor-not-allowed"
+                      ? "gradient-primary hover:brightness-105 active:scale-[0.98] cursor-pointer"
+                      : "bg-surface-container text-on-surface-variant/40 cursor-not-allowed"
                   )}
                 >
                   {submitStatus === "loading" ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Đang nộp bài...
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      Đang xử lý…
                     </>
                   ) : (
                     <>
                       <ShieldCheck className="w-4 h-4" />
-                      Nộp bằng chứng
+                      Nộp minh chứng
                     </>
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-semibold text-on-surface-variant hover:underline transition-all duration-150 text-center font-inter"
+                >
+                  Hủy
                 </button>
               </div>
             </form>

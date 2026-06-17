@@ -188,7 +188,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm px-4">
-      <div className="bg-surface-container-lowest rounded-lg-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-surface-container-lowest rounded-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-6 py-4 border-none bg-surface-container-low/50">
           <div>
             <h2 className="text-xl font-semibold text-on-surface font-manrope">Tài khoản cá nhân</h2>
@@ -197,7 +197,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-outline hover:text-on-surface-variant hover:bg-surface-container rounded-lg-full transition-colors"
+            className="p-2 text-outline hover:text-on-surface-variant hover:bg-surface-container rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -219,7 +219,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={saving}
-                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-lg-full flex items-center justify-center shadow-[0_32px_64px_rgba(19,27,46,0.12)] hover:bg-indigo-700 transition disabled:opacity-50"
+                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-[0_32px_64px_rgba(19,27,46,0.12)] hover:bg-indigo-700 transition disabled:opacity-50"
                   >
                     <Camera className="w-4 h-4" />
                   </button>
@@ -251,7 +251,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
-                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-surface-container disabled:text-on-surface-variant disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-surface-container disabled:text-on-surface-variant disabled:cursor-not-allowed"
                     required
                     disabled={saving || usernameChanged}
                   />
@@ -270,7 +270,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     required
                     disabled={saving}
                   />
@@ -285,7 +285,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     value={email}
                     readOnly
                     disabled
-                    className="w-full px-3 py-2 bg-surface-container border-none rounded-lg-lg text-sm text-on-surface-variant cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-surface-container border-none rounded-lg text-sm text-on-surface-variant cursor-not-allowed"
                   />
                 </div>
 
@@ -299,7 +299,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     onChange={(e) => setFacebookLink(e.target.value)}
                     placeholder="https://facebook.com/your-username"
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                   />
                 </div>
 
@@ -311,7 +311,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-on-surface"
+                    className="w-full px-3 py-2 bg-surface-container-lowest border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-on-surface"
                   >
                     {departments.map((dept) => (
                       <option key={dept.id} value={dept.name}>
@@ -328,14 +328,14 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                   type="button"
                   onClick={onClose}
                   disabled={saving}
-                  className="px-4 py-2.5 text-sm font-semibold text-on-surface-variant bg-surface-container-lowest border-none rounded-lg-xl hover:bg-surface-container-low transition-all"
+                  className="px-4 py-2.5 text-sm font-semibold text-on-surface-variant bg-surface-container-lowest border-none rounded-xl hover:bg-surface-container-low transition-all"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg-xl hover:bg-indigo-700 transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-[0_32px_64px_rgba(19,27,46,0.12)] flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

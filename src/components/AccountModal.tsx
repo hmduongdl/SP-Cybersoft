@@ -264,7 +264,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm px-4">
-      <div className="bg-surface-bright rounded-lg-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-surface-bright rounded-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-surface-container-low">
           <div>
@@ -274,7 +274,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-lg-full transition-all duration-150"
+            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full transition-all duration-150"
           >
             <X className="w-5 h-5" />
           </button>
@@ -293,7 +293,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <div className="flex items-start gap-5 mb-6">
                 <div className="relative flex-shrink-0">
                   {avatarUrl ? (
-                    <div className="w-20 h-20 rounded-lg-full overflow-hidden">
+                    <div className="w-20 h-20 rounded-full overflow-hidden">
                       <img
                         src={avatarUrl}
                         alt="Avatar"
@@ -313,7 +313,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
                   {/* Upload progress ring */}
                   {uploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-on-surface/60 rounded-lg-full">
+                    <div className="absolute inset-0 flex items-center justify-center bg-on-surface/60 rounded-full">
                       <svg className="w-10 h-10 -rotate-90" viewBox="0 0 40 40">
                         <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
                         <circle
@@ -334,7 +334,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     onDrop={handleDrop}
                     onClick={() => !uploading && fileInputRef.current?.click()}
                     className={cn(
-                      "border-2 border-dashed rounded-lg-xl p-4 cursor-pointer transition-all",
+                      "border-2 border-dashed rounded-xl p-4 cursor-pointer transition-all",
                       isDragging
                         ? "border-indigo-400 bg-indigo-50"
                         : "hover:bg-surface-container-low"
@@ -350,7 +350,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        "p-2.5 rounded-lg-xl transition-colors",
+                        "p-2.5 rounded-xl transition-colors",
                         isDragging ? "bg-indigo-200" : "bg-surface-container"
                       )}>
                         <UploadCloud className={cn(
@@ -362,9 +362,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                         {uploading ? (
                           <div className="space-y-1">
                             <p className="text-sm font-medium text-primary">Đang tải lên... ({uploadProgress}%)</p>
-                            <div className="h-1.5 bg-surface-container-high rounded-lg-full overflow-hidden w-32">
+                            <div className="h-1.5 bg-surface-container-high rounded-full overflow-hidden w-32">
                               <div
-                                className="h-full bg-primary rounded-lg-full transition-all duration-200"
+                                className="h-full bg-primary rounded-full transition-all duration-200"
                                 style={{ width: `${uploadProgress}%` }}
                               />
                             </div>
@@ -399,7 +399,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     value={name ?? ""}
                     readOnly
                     disabled
-                    className="w-full px-3 py-2 bg-surface-container-low text-on-surface-variant rounded-lg-lg text-sm cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-surface-container-low text-on-surface-variant rounded-lg text-sm cursor-not-allowed"
                   />
                 </div>
 
@@ -414,7 +414,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
                     disabled={saving || usernameChanged}
                     required
-                    className="w-full px-3 py-2 bg-surface-bright rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150 disabled:bg-surface-container-low disabled:text-on-surface-variant disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2 bg-surface-bright rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150 disabled:bg-surface-container-low disabled:text-on-surface-variant disabled:cursor-not-allowed"
                   />
                   {usernameChanged ? (
                     <p className="text-[10px] text-on-surface-variant mt-1">Bạn đã đổi username nên không thể đổi lại.</p>
@@ -429,7 +429,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     <Building2 className="w-4 h-4 text-on-surface-variant" /> Phòng ban
                   </label>
                   <div className="pt-1">
-                    <span className={`inline-flex items-center px-3 py-1.5 rounded-lg-full text-sm font-semibold border ${departmentBadgeClass}`}>
+                    <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-semibold border ${departmentBadgeClass}`}>
                       {departmentLabel}
                     </span>
                   </div>
@@ -447,7 +447,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     placeholder="nguyenvana@gmail.com"
                     disabled={saving}
                     required
-                    className="w-full px-3 py-2 bg-surface-bright rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                    className="w-full px-3 py-2 bg-surface-bright rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
                   />
                 </div>
 
@@ -462,7 +462,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     onChange={(e) => setFacebookLink(e.target.value)}
                     placeholder="https://facebook.com/username"
                     disabled={saving}
-                    className="w-full px-3 py-2 bg-surface-bright rounded-lg-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                    className="w-full px-3 py-2 bg-surface-bright rounded-lg text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
                   />
                 </div>
               </div>
@@ -473,14 +473,14 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   type="button"
                   onClick={onClose}
                   disabled={saving}
-                  className="px-4 py-2.5 text-sm font-semibold text-on-surface-variant bg-surface-container-low rounded-lg-xl hover:bg-surface-container transition-all duration-150"
+                  className="px-4 py-2.5 text-sm font-semibold text-on-surface-variant bg-surface-container-low rounded-xl hover:bg-surface-container transition-all duration-150"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="px-5 py-2.5 text-sm font-semibold text-on-primary gradient-primary rounded-lg-xl transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2.5 text-sm font-semibold text-on-primary gradient-primary rounded-xl transition-all duration-150 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {saving ? (
                     <>

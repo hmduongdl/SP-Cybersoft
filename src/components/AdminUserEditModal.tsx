@@ -141,7 +141,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
           <button
             onClick={onClose}
             disabled={saving}
-            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-lg-full transition-all duration-150"
+            className="p-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-full transition-all duration-150"
           >
             <X className="h-5 w-5" />
           </button>
@@ -164,7 +164,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={saving}
-                  className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                  className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
                 />
               </div>
 
@@ -179,7 +179,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   disabled={saving}
-                  className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                  className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
                 />
               </div>
             </div>
@@ -197,7 +197,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               />
             </div>
 
@@ -211,7 +211,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               >
                 <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
                 <option value="SALES">Phòng Kinh Doanh (SALES)</option>
@@ -228,7 +228,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 value={role}
                 onChange={(e) => setRole(e.target.value as "ADMIN" | "USER")}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               >
                 <option value="USER">USER (Nhân viên)</option>
                 <option value="ADMIN">ADMIN (Quản trị)</option>
@@ -247,7 +247,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 disabled={saving}
-                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-lg-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
+                className="w-full px-3.5 py-2.5 bg-surface-bright rounded-xl text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150"
               />
               <p className="text-[10px] text-on-surface-variant mt-1">
                 Chỉ nhập nếu muốn thay đổi mật khẩu. Để trống sẽ giữ nguyên mật khẩu hiện tại.
@@ -271,7 +271,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
             </div>
 
             {/* Hope Stars Section */}
-            <div className="p-4 bg-amber-50 rounded-lg-xl">
+            <div className="p-4 bg-amber-50 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-amber-800 flex items-center gap-1.5">
@@ -287,7 +287,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                   type="button"
                   onClick={handleAddStar}
                   disabled={addingStar}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-95"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-95"
                 >
                   {addingStar ? (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -306,14 +306,14 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2.5 rounded-lg-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant text-sm font-semibold transition-all duration-150"
+              className="px-4 py-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant text-sm font-semibold transition-all duration-150"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-lg-xl gradient-primary text-on-primary text-sm font-semibold transition-all duration-150 disabled:opacity-50"
+              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl gradient-primary text-on-primary text-sm font-semibold transition-all duration-150 disabled:opacity-50"
             >
               {saving ? (
                 <>

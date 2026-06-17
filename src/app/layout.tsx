@@ -1,11 +1,24 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
 import { LayoutProvider } from "@/components/shared/layout-context";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import ClientLayoutWrapper from "./client-layout-wrapper";
+
+const manrope = Manrope({
+  subsets: ["vietnamese", "latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-manrope",
+});
+
+const inter = Inter({
+  subsets: ["vietnamese", "latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "SPS AI Check-in Tool",
@@ -26,7 +39,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
-      <body className="h-full antialiased overflow-hidden">
+      <body className={`${inter.variable} ${manrope.variable} h-full antialiased overflow-hidden`}>
         <SessionProviderWrapper>
           <LayoutProvider>
             <ClientLayoutWrapper>

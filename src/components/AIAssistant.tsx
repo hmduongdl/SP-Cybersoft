@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Sparkles, X, AlertTriangle, Bot } from "lucide-react";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
 
 interface Message {
   role: "user" | "assistant";
@@ -105,9 +104,9 @@ function formatMessageContent(content: string): React.ReactNode {
 function LoadingDots() {
   return (
     <div className="flex items-center gap-1 px-1">
-      <span className="h-1.5 w-1.5 rounded-lg-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "0ms" }} />
-      <span className="h-1.5 w-1.5 rounded-lg-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "150ms" }} />
-      <span className="h-1.5 w-1.5 rounded-lg-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "300ms" }} />
     </div>
   );
 }
@@ -124,12 +123,9 @@ function formatTimestamp(date: Date): string {
 }
 
 export function AIAssistant() {
-  const { data: session } = useSession();
-
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [usePro, setUsePro] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [quotaStatus, setQuotaStatus] = useState<QuotaStatus | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
@@ -193,7 +189,7 @@ export function AIAssistant() {
         },
         body: JSON.stringify({
           messages: chatHistory.map(m => ({ role: m.role, content: m.content })),
-          usePro,
+          usePro: false,
         }),
       });
 
@@ -275,7 +271,7 @@ export function AIAssistant() {
       {/* Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 h-[52px] w-[52px] gradient-primary text-on-primary rounded-lg-full flex items-center justify-center transition-all duration-150 hover:scale-105"
+        className="fixed bottom-6 right-6 z-50 h-[52px] w-[52px] gradient-primary text-on-primary rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105"
         style={{ boxShadow: "0 8px 24px rgba(0, 80, 203, 0.35)" }}
         aria-label="Mở Trợ lý AI"
       >
@@ -286,7 +282,7 @@ export function AIAssistant() {
             <Sparkles className="h-5 w-5" />
             {!hasPulsed && (
               <span
-                className="absolute inset-0 rounded-lg-full animate-ping opacity-50"
+                className="absolute inset-0 rounded-full animate-ping opacity-50"
                 style={{
                   background: "linear-gradient(135deg, #0050cb, #0066ff)",
                   animationIterationCount: 1,
@@ -319,19 +315,9 @@ export function AIAssistant() {
               Trợ lý AI
             </h3>
             <div className="flex items-center gap-2">
-              {session && (
-                <select
-                  value={usePro ? "pro" : "flash"}
-                  onChange={(e) => setUsePro(e.target.value === "pro")}
-                  className="bg-surface-container-low text-on-surface-variant text-[11px] font-inter font-medium rounded-lg-lg px-2 py-1 focus:outline-none cursor-pointer"
-                >
-                  <option value="flash" className="bg-surface-container-lowest text-on-surface-variant">Flash</option>
-                  <option value="pro" className="bg-surface-container-lowest text-on-surface-variant">Pro</option>
-                </select>
-              )}
               <button
                 onClick={() => setIsOpen(false)}
-                className="h-7 w-7 rounded-lg-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-all duration-150"
+                className="h-7 w-7 rounded-full flex items-center justify-center text-on-surface-variant hover:bg-surface-container-low transition-all duration-150"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -342,7 +328,7 @@ export function AIAssistant() {
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center px-4 space-y-3">
-                <div className="h-12 w-12 gradient-primary rounded-lg-2xl flex items-center justify-center opacity-90">
+                <div className="h-12 w-12 gradient-primary rounded-2xl flex items-center justify-center opacity-90">
                   <Bot className="h-6 w-6 text-on-primary" />
                 </div>
                 <div>
@@ -354,21 +340,21 @@ export function AIAssistant() {
                 <div className="mt-2 flex flex-col gap-2 w-full max-w-[260px]">
                   <button
                     onClick={() => setInput("Tôi có bài nào chưa share không?")}
-                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-lg-xl transition-all duration-150 text-left flex items-center justify-between group"
+                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
                   >
                     <span>Tôi có bài nào chưa share không?</span>
                     <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
                     onClick={() => setInput("Có bài nào tôi quá hạn không?")}
-                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-lg-xl transition-all duration-150 text-left flex items-center justify-between group"
+                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
                   >
                     <span>Có bài nào tôi quá hạn không?</span>
                     <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
                   <button
                     onClick={() => setInput("Tình hình share bài của tôi trong 2 tháng qua?")}
-                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-lg-xl transition-all duration-150 text-left flex items-center justify-between group"
+                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
                   >
                     <span>Tình hình share bài trong 2 tháng qua?</span>
                     <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -418,7 +404,7 @@ export function AIAssistant() {
 
           {/* Quota Exceeded Banner */}
           {quotaExceeded && (
-            <div className="mx-3 mb-1 px-3 py-2 bg-red-500/10 rounded-lg-xl flex items-start gap-2">
+            <div className="mx-3 mb-1 px-3 py-2 bg-red-500/10 rounded-xl flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] font-semibold text-red-500 font-inter">Đã hết hạn mức sử dụng AI</p>
@@ -433,7 +419,7 @@ export function AIAssistant() {
           <div className="px-3 pb-3 pt-1 shrink-0">
             <form
               onSubmit={handleSend}
-              className="flex items-center gap-2 bg-surface-container rounded-lg-xl px-3 py-2"
+              className="flex items-center gap-2 bg-surface-container rounded-xl px-3 py-2"
             >
               <input
                 type="text"
@@ -446,7 +432,7 @@ export function AIAssistant() {
               <button
                 type="submit"
                 disabled={isLoading || !input.trim() || quotaExceeded}
-                className="h-8 w-8 rounded-lg-full gradient-primary text-on-primary flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+                className="h-8 w-8 rounded-full gradient-primary text-on-primary flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
               >
                 <Send className="h-3.5 w-3.5" />
               </button>
@@ -466,9 +452,9 @@ export function AIAssistant() {
                     </span>
                   )}
                 </div>
-                <div className="w-full h-1 bg-surface-container-high rounded-lg-full overflow-hidden">
+                <div className="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
                   <div
-                    className="h-full rounded-lg-full transition-all duration-500"
+                    className="h-full rounded-full transition-all duration-500"
                     style={{
                       width: `${Math.min(quotaStatus.usage_percent, 100)}%`,
                       background: "linear-gradient(135deg, #0050cb, #0066ff)",

@@ -148,19 +148,19 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
           <div className="flex items-center space-x-2">
             <button
               onClick={prev}
-              className="w-9 h-9 rounded-lg-full flex items-center justify-center bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={next}
-              className="w-9 h-9 rounded-lg-full flex items-center justify-center bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
               onClick={today}
-              className="px-4 py-1.5 rounded-lg-full bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient text-xs font-bold text-on-surface-variant transition-all"
+              className="px-4 py-1.5 rounded-full bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient text-xs font-bold text-on-surface-variant transition-all"
             >
               Hôm nay
             </button>
@@ -168,28 +168,28 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
         </div>
 
         {/* Legend */}
-        <div className="hidden md:flex items-center space-x-4 px-4 py-2 bg-[#f2f3ff] rounded-lg-xl">
+        <div className="hidden md:flex items-center space-x-4 px-4 py-2 bg-[#f2f3ff] rounded-xl">
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-lg-full bg-surface-container" />
+            <div className="w-3 h-3 rounded-full bg-surface-container" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Trống</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-lg-full bg-amber-300" />
+            <div className="w-3 h-3 rounded-full bg-amber-300" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Một phần</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-lg-full bg-emerald-400" />
+            <div className="w-3 h-3 rounded-full bg-emerald-400" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Hoàn thành</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-lg-full bg-red-300" />
+            <div className="w-3 h-3 rounded-full bg-red-300" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Quá hạn</span>
           </div>
         </div>
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-surface-container-lowest rounded-lg-[24px] overflow-hidden shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
+      <div className="bg-surface-container-lowest rounded-[24px] overflow-hidden shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
         {/* Day Names Header */}
         <div className="grid grid-cols-7 bg-[#f2f3ff]">
           {weekDays.map((day) => (
@@ -234,7 +234,7 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
                 <div className="flex justify-between items-start mb-1 z-10">
                   <span
                     className={cn(
-                      "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-lg-full",
+                      "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full",
                       isCurrentDay
                         ? "bg-[#0050cb] text-white shadow-ambient"
                         : "text-on-surface-variant"
@@ -262,7 +262,7 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
                     <>
                       <CalendarPostCard post={dayPosts[0]} onClick={handleCellClick} />
                       <CalendarPostCard post={dayPosts[1]} onClick={handleCellClick} />
-                      <div className="text-[10px] font-bold text-[#0050cb] text-center py-0.5 bg-surface-container-lowest rounded-lg-xl border border-[#f2f3ff]">
+                      <div className="text-[10px] font-bold text-[#0050cb] text-center py-0.5 bg-surface-container-lowest rounded-xl border border-[#f2f3ff]">
                         +{dayPosts.length - 2} bài
                       </div>
                     </>
@@ -274,7 +274,7 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
                   <div className="absolute bottom-2 right-2 z-10">
                     <div
                       className={cn(
-                        "w-2 h-2 rounded-lg-full",
+                        "w-2 h-2 rounded-full",
                         dayStatus === "completed"
                           ? "bg-emerald-400"
                           : dayStatus === "partial"
@@ -314,7 +314,7 @@ function CalendarPostCard({
     <div
       onClick={() => onClick(post)}
       className={cn(
-        "group flex items-center gap-1.5 p-1.5 rounded-lg-lg transition-all duration-200 cursor-pointer border bg-surface-container-lowest hover:shadow-ambient",
+        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 cursor-pointer border bg-surface-container-lowest hover:shadow-ambient",
         isSubmitted
           ? "border-emerald-200 hover:border-emerald-300"
           : isRejected
@@ -325,7 +325,7 @@ function CalendarPostCard({
       )}
     >
       {/* Mini thumbnail */}
-      <div className="w-6 h-6 rounded-lg-xl overflow-hidden bg-surface-container flex-shrink-0 relative">
+      <div className="w-6 h-6 rounded-xl overflow-hidden bg-surface-container flex-shrink-0 relative">
         {thumbnailUrl ? (
           <Image
             src={thumbnailUrl}
