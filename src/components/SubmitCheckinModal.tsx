@@ -282,8 +282,8 @@ export function SubmitCheckinModal({
         setImageUrl(result.url);
         toast.success("Ảnh từ clipboard đã được tải lên!");
       }
-    } catch (err: any) {
-      toast.error(`Tải ảnh từ clipboard thất bại: ${err.message}`);
+    } catch {
+      toast.error("Tải ảnh thất bại, vui lòng kiểm tra kết nối hoặc thử lại.");
     } finally {
       setUploading(false);
     }
@@ -291,14 +291,22 @@ export function SubmitCheckinModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    // Only listen when no image is uploaded yet
     if (imageUrl) return;
 
     const onPaste = (e: ClipboardEvent) => {
-      const file = e.clipboardData?.files?.[0];
-      if (file) {
-        e.preventDefault();
-        pasteImage(file);
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf("image") === 0) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            pasteImage(file);
+            break;
+          }
+        }
       }
     };
 
@@ -479,6 +487,18 @@ export function SubmitCheckinModal({
               {/* ── Uploadthing Dropzone ── */}
               {!imageUrl ? (
                 <div className="space-y-3">
+                  {/* Loading overlay for clipboard paste uploads */}
+                  {uploading && (
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 animate-pulse">
+                      <Loader2 className="w-5 h-5 text-indigo-400 animate-spin flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-indigo-300">Đang tải ảnh lên...</p>
+                        <div className="mt-2 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full animate-pulse" style={{ width: "60%" }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <UploadDropzone
                     endpoint="screenshotUploader"
                     onUploadBegin={() => setUploading(true)}
