@@ -57,7 +57,7 @@ export async function getCachedPosts(userId?: string) {
   }
   return db.post.findMany({
     where: { is_archived: false },
-    orderBy: { start_at: "asc" },
+    orderBy: { start_at: "desc" },
     select: selectFields,
   });
 }

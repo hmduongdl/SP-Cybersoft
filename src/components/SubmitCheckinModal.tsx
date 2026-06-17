@@ -243,6 +243,7 @@ export function SubmitCheckinModal({
   const [exifStatus, setExifStatus] = useState<ExifStatus>("idle");
   const [exifDate, setExifDate] = useState<Date | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Normalise post fields to handle both API shapes
   const postUrl = post.url || post.originalUrl || "";
@@ -261,6 +262,7 @@ export function SubmitCheckinModal({
       setExifStatus("idle");
       setExifDate(null);
       setUploading(false);
+      setUploadProgress(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -274,15 +276,32 @@ export function SubmitCheckinModal({
     }
 
     setUploading(true);
+    setUploadProgress(10);
+
+    const progressInterval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 150);
+
     try {
       const [result] = await uploadFiles("screenshotUploader", {
         files: [file],
       });
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
       if (result?.url) {
         setImageUrl(result.url);
         toast.success("Ảnh từ clipboard đã được tải lên!");
       }
     } catch {
+      clearInterval(progressInterval);
+      setUploadProgress(0);
       toast.error("Tải ảnh thất bại, vui lòng kiểm tra kết nối hoặc thử lại.");
     } finally {
       setUploading(false);
@@ -489,12 +508,12 @@ export function SubmitCheckinModal({
                 <div className="space-y-3">
                   {/* Loading overlay for clipboard paste uploads */}
                   {uploading && (
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 animate-pulse">
+                    <div className="flex items-center gap-3 p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
                       <Loader2 className="w-5 h-5 text-indigo-400 animate-spin flex-shrink-0" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-indigo-300">Đang tải ảnh lên...</p>
+                        <p className="text-sm font-medium text-indigo-300">Đang tải ảnh lên... ({uploadProgress}%)</p>
                         <div className="mt-2 h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full animate-pulse" style={{ width: "60%" }} />
+                          <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                         </div>
                       </div>
                     </div>
@@ -512,6 +531,7 @@ export function SubmitCheckinModal({
                     }}
                     onUploadError={(err: Error) => {
                       setUploading(false);
+                      console.error("[uploadthing error] Failed to upload via Dropzone:", err);
                       toast.error(`Tải ảnh thất bại: ${err.message}`);
                     }}
                     content={{
