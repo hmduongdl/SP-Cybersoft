@@ -41,6 +41,7 @@ export default async function TaskListContainer(props: {
       url: post.url,
       thumbnail_url: post.thumbnail_url,
       allow_late_submit: post.allow_late_submit,
+      is_archived: post.is_archived,
       start_at: new Date(post.start_at as unknown as string).toISOString(),
       status,
       team: post.team,

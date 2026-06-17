@@ -20,6 +20,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [name, setName] = useState(session?.user?.name || "");
+  const [username, setUsername] = useState("");
+  const [usernameChanged, setUsernameChanged] = useState(false);
   const [email, setEmail] = useState(session?.user?.email || "");
   const [department, setDepartment] = useState("Other");
   const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
@@ -41,6 +43,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       setDepartment(deptFromSession || "Other");
       setAvatarUrl((session.user as any)?.avatar_url || null);
       setFacebookLink((session.user as any)?.facebook_profile_url || "");
+      // username is updated by the API GET call, so it's not strictly needed from session here if not available
     }
   }, [session, status]);
 
@@ -70,6 +73,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           const data = await profileRes.json();
           if (data?.user) {
             setName(data.user.name || name);
+            setUsername(data.user.username || "");
+            setUsernameChanged(data.user.username_changed || false);
             setEmail(data.user.email || email);
             setDepartment(data.user.department || "Other");
             setAvatarUrl(data.user.avatar_url || null);
@@ -108,8 +113,17 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     event.preventDefault();
 
     const trimmedName = name.trim();
+    const trimmedUsername = username.trim();
     if (!trimmedName) {
       toast.error("Vui lòng nhập họ và tên.");
+      return;
+    }
+    if (!trimmedUsername) {
+      toast.error("Vui lòng nhập username.");
+      return;
+    }
+    if (trimmedUsername.includes(" ")) {
+      toast.error("Username không được chứa khoảng trắng.");
       return;
     }
 
@@ -137,6 +151,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
       // Update profile fields
       const payload = {
         name: trimmedName,
+        username: trimmedUsername,
         department: department,
         facebook_profile_url: facebookLink.trim() || null,
         ...(finalAvatarUrl !== undefined ? { avatar_url: finalAvatarUrl } : {}),
@@ -228,6 +243,25 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               </div>
 
               <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
+                    <User className="w-4 h-4 text-slate-400" /> Username
+                  </label>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                    required
+                    disabled={saving || usernameChanged}
+                  />
+                  {usernameChanged ? (
+                    <p className="text-[10px] text-slate-500 mt-1">Bạn đã đổi username nên không thể đổi lại lần nữa.</p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 mt-1 font-medium">Lưu ý: Bạn chỉ được đổi username 1 lần duy nhất trong suốt vòng đời tài khoản.</p>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                     <User className="w-4 h-4 text-slate-400" /> Họ và tên

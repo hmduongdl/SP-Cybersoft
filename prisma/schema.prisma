@@ -10,6 +10,7 @@ datasource db {
 model User {
   id                   String    @id @default(uuid())
   username             String    @unique
+  username_changed     Boolean   @default(false)
   is_first_login       Boolean   @default(true)
   name                 String
   full_name            String?

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Building2, Loader2, X, Link, UserCircle } from "lucide-react";
+import { User, Mail, Building2, Loader2, X, Link, UserCircle, Camera } from "lucide-react";
+import { UserAvatar } from "./user-avatar";
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -18,10 +19,14 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
   const [name, setName] = useState(session?.user?.name ?? "");
   const [username, setUsername] = useState("");
+  const [usernameChanged, setUsernameChanged] = useState(false);
   const [email, setEmail] = useState(session?.user?.email ?? "");
   const [department, setDepartment] = useState("");
 
   const [facebookLink, setFacebookLink] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -32,6 +37,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       setName(session.user.name ?? "");
       setEmail(session.user.email ?? "");
       setDepartment((session.user as any)?.department ?? "");
+      setAvatarUrl((session.user as any)?.avatar_url || null);
     }
   }, [session, status]);
 
@@ -52,9 +58,11 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           if (data?.user) {
             setName(data.user.name ?? name);
             setUsername(data.user.username ?? "");
+            setUsernameChanged(data.user.username_changed ?? false);
             setEmail(data.user.email ?? email);
             setDepartment(data.user.department ?? "");
             setFacebookLink(data.user.facebook_link ?? "");
+            setAvatarUrl(data.user.avatar_url ?? null);
 
           }
         }
@@ -81,11 +89,33 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
     setSaving(true);
     try {
+      let finalAvatarUrl = avatarUrl;
+
+      // Upload avatar first if a new file was selected
+      if (avatarFile) {
+        const uploadFormData = new FormData();
+        uploadFormData.append("file", avatarFile);
+        const uploadRes = await fetch("/api/user/profile", {
+          method: "POST",
+          body: uploadFormData,
+        });
+        if (!uploadRes.ok) {
+          const errData = await uploadRes.json();
+          throw new Error(errData.error || "Tải ảnh đại diện thất bại.");
+        }
+        const uploadData = await uploadRes.json();
+        finalAvatarUrl = uploadData.avatar_url;
+        setAvatarUrl(finalAvatarUrl);
+      }
+
       // Build payload — chỉ gửi các trường được phép cập nhật
       const payload: Record<string, unknown> = {};
       payload.email = email.trim();
-
       payload.facebook_link = facebookLink.trim() || null;
+      payload.username = username.trim();
+      if (finalAvatarUrl !== undefined) {
+        payload.avatar_url = finalAvatarUrl;
+      }
 
       const response = await fetch("/api/user/profile", {
         method: "PUT",
@@ -151,8 +181,50 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           ) : (
             <form onSubmit={handleSaveProfile} className="space-y-6">
 
-
-              {/* Grid fields */}
+              {/* Avatar upload */}
+              <div className="flex items-center gap-5 mb-6">
+                <div className="relative group">
+                  <UserAvatar name={name || null} url={avatarPreview || avatarUrl || undefined} />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const input = document.getElementById("avatar-upload");
+                      if (input) input.click();
+                    }}
+                    disabled={saving}
+                    className="absolute -bottom-1 -right-1 w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-indigo-700 transition disabled:opacity-50"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (!file.type.startsWith("image/")) {
+                        toast.error("Vui lòng chọn file ảnh.");
+                        return;
+                      }
+                      setAvatarFile(file);
+                      const reader = new FileReader();
+                      reader.onloadend = () => setAvatarPreview(reader.result as string);
+                      reader.readAsDataURL(file);
+                    }}
+                    className="hidden"
+                    disabled={saving}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-slate-800">
+                    {name || "Ảnh đại diện"}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    JPG, PNG. Tối đa 2MB.
+                  </p>
+                </div>
+              </div>              {/* Grid fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* KHÓA CỨNG: Họ và tên */}
                 <div className="space-y-2">
@@ -168,7 +240,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   />
                 </div>
 
-                {/* KHÓA CỨNG: Tên đăng nhập */}
+                {/* Tên đăng nhập (Cho sửa 1 lần) */}
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
                     <User className="w-4 h-4 text-slate-400" /> Tên đăng nhập
@@ -176,10 +248,16 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   <input
                     type="text"
                     value={username ?? ""}
-                    readOnly
-                    disabled
-                    className="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-500 cursor-not-allowed"
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
+                    disabled={saving || usernameChanged}
+                    required
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                   />
+                  {usernameChanged ? (
+                    <p className="text-[10px] text-slate-500 mt-1">Bạn đã đổi username nên không thể đổi lại lần nữa.</p>
+                  ) : (
+                    <p className="text-[10px] text-amber-600 mt-1 font-medium">Lưu ý: Bạn chỉ được đổi username 1 lần duy nhất trong suốt vòng đời tài khoản.</p>
+                  )}
                 </div>
 
                 {/* KHÓA CỨNG: Phòng ban — badge tĩnh */}

@@ -229,13 +229,24 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
 
+  // Existing checkin for resubmit logic
+  const [existingCheckin, setExistingCheckin] = useState<{
+    id: string;
+    status: string;
+    reject_reason?: string | null;
+  } | null>(null);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const postUrl = post.url || post.originalUrl || "";
   const postStartAt = post.start_at || post.scheduledAt || new Date().toISOString();
   const postThumb = post.thumbnailUrl || post.thumbnail_url;
 
-  // ── Reset on open ──
+  const windowEndMs = new Date(postStartAt).getTime() + 24 * 60 * 60 * 1000;
+  const isWindowOpen = Date.now() <= windowEndMs || !!(post as any).allow_late_submit;
+
+  // ── Reset & fetch existing checkin on open ──
   useEffect(() => {
     if (isOpen) {
       setImageUrl(null);
@@ -249,8 +260,21 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
       setUploading(false);
       setUploadProgress(0);
       setIsDragging(false);
+      setExistingCheckin(null);
+      setCheckingExisting(true);
+
+      // Fetch existing checkin for this post
+      fetch(`/api/checkins?post_id=${post.id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.checkins?.length > 0) {
+            setExistingCheckin(data.checkins[0]);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setCheckingExisting(false));
     }
-  }, [isOpen]);
+  }, [isOpen, post.id]);
 
   if (!isOpen) return null;
 
@@ -440,6 +464,40 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
         {/* ── Body ── */}
         <div className="overflow-y-auto flex-1">
+          {/* ── Loading existing checkin ── */}
+          {checkingExisting && (
+            <div className="flex flex-col items-center justify-center px-6 py-16">
+              <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+            </div>
+          )}
+
+          {/* ── Already submitted (not rejected) ── */}
+          {!checkingExisting && existingCheckin && existingCheckin.status !== "REJECTED" && (
+            <div className="flex flex-col items-center justify-center text-center px-6 py-16 space-y-4">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-indigo-500/10 border-2 border-indigo-500/30">
+                <CheckCircle2 className="w-8 h-8 text-indigo-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white mb-1">Đã nộp minh chứng</h3>
+                <p className="text-sm text-slate-400">
+                  {existingCheckin.status === "AUTO_APPROVED"
+                    ? "Bài nộp đã được tự động duyệt. ✅"
+                    : existingCheckin.status === "APPROVED"
+                    ? "Bài nộp đã được Admin duyệt. ✅"
+                    : existingCheckin.status === "PENDING"
+                    ? "Bài nộp đang chờ Admin xem xét."
+                    : `Trạng thái: ${existingCheckin.status}`}
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="mt-2 px-8 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm transition-colors"
+              >
+                Đóng
+              </button>
+            </div>
+          )}
+
           {/* ── Success screen ── */}
           {submitStatus === "success" && submitResult && (
             <div className="flex flex-col items-center justify-center text-center px-6 py-16 space-y-5">
@@ -484,8 +542,23 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
           )}
 
           {/* ── Main form ── */}
-          {(submitStatus === "idle" || submitStatus === "loading") && (
+          {(submitStatus === "idle" || submitStatus === "loading") && !checkingExisting && (!existingCheckin || existingCheckin.status === "REJECTED") && (
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
+
+              {/* ── Rejected notice ── */}
+              {existingCheckin?.status === "REJECTED" && isWindowOpen && (
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                  <RefreshCw className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-amber-300">Bài nộp trước bị từ chối — bạn có thể nộp lại</p>
+                    {existingCheckin.reject_reason && (
+                      <p className="text-xs text-amber-400/80 mt-1">
+                        Lý do: {existingCheckin.reject_reason}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Post info + CTA link */}
               <div className="flex gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">

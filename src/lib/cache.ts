@@ -14,7 +14,7 @@ export const CACHE_TAGS = {
 // ─── Dashboard ───────────────────────────────────────────
 
 export async function getCachedTotalPostsCount() {
-  return db.post.count({ where: { is_archived: false } });
+  return db.post.count();
 }
 
 export async function getCachedUserCompletedCount(userId: string) {
@@ -48,6 +48,7 @@ export async function getCachedPosts(userId?: string) {
     team: true,
     description: true,
     allow_late_submit: true,
+    is_archived: true,
   };
   if (userId) {
     selectFields.checkins = {
@@ -55,10 +56,20 @@ export async function getCachedPosts(userId?: string) {
       select: { status: true },
     };
   }
-  return db.post.findMany({
-    where: { is_archived: false },
+  const posts = await db.post.findMany({
     orderBy: { start_at: "desc" },
     select: selectFields,
+  });
+
+  const now = Date.now();
+  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
+
+  return posts.map(post => {
+    // Nếu post đã quá 30h so với thời điểm start_at, tự động khóa
+    if (now - post.start_at.getTime() > THIRTY_HOURS) {
+      return { ...post, is_archived: true };
+    }
+    return post;
   });
 }
 
@@ -135,7 +146,7 @@ export async function getCachedAnalyticsPosts() {
 // ─── API: Posts ──────────────────────────────────────────
 
 export async function getCachedPostsApi() {
-  return db.post.findMany({
+  const posts = await db.post.findMany({
     orderBy: { start_at: "desc" },
     select: {
       id: true,
@@ -149,6 +160,16 @@ export async function getCachedPostsApi() {
       team: true,
       _count: { select: { checkins: true } },
     },
+  });
+
+  const now = Date.now();
+  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
+
+  return posts.map(post => {
+    if (now - post.start_at.getTime() > THIRTY_HOURS) {
+      return { ...post, is_archived: true };
+    }
+    return post;
   });
 }
 

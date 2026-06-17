@@ -34,6 +34,7 @@ type Post = {
   team?: "ALL" | "TECH" | "SALES";
   status: "PENDING" | "COMPLETED" | "EXPIRED";
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
+  is_archived?: boolean;
 };
 
 type Avatar = {
@@ -96,12 +97,16 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
   const renderSinglePost = (post: Post) => {
     const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
     const isSubmitted = !!checkinState;
+    const isLocked = post.is_archived;
     const thumbnailUrl = post.thumbnail_url || post.thumbnailUrl;
 
     return (
       <div
-        className="group absolute inset-0 cursor-pointer overflow-hidden transition-all duration-300 hover:scale-[1.03] hover:shadow-inner"
-        onClick={() => onCheckIn(post)}
+        className={cn(
+          "group absolute inset-0 overflow-hidden transition-all duration-300",
+          !isLocked ? "cursor-pointer hover:scale-[1.03] hover:shadow-inner" : "cursor-not-allowed opacity-80"
+        )}
+        onClick={() => { if (!isLocked) onCheckIn(post); }}
         onMouseEnter={(e) => handlePostMouseEnter(post, e)}
         onMouseLeave={handlePostMouseLeave}
       >
@@ -122,6 +127,10 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
             {isSubmitted ? (
               <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold text-[9px] border border-emerald-600 shadow-sm">
                 Đã nộp
+              </span>
+            ) : isLocked ? (
+              <span className="px-2 py-0.5 rounded-full bg-slate-500 text-white font-bold text-[9px] border border-slate-600 shadow-sm">
+                Đã khóa
               </span>
             ) : (
               <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white font-bold text-[9px] border border-indigo-700 shadow-sm animate-pulse">
@@ -148,12 +157,15 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
       <div className="relative w-full h-full overflow-hidden bg-slate-100">
         {/* Top-Left Half (Post 1) */}
         <div
-          className="absolute inset-0 cursor-pointer transition-all duration-200 z-10 origin-top-left hover:scale-[1.05] hover:z-30 hover:brightness-105 group/p1"
+          className={cn(
+            "absolute inset-0 transition-all duration-200 z-10 origin-top-left",
+            !post1.is_archived ? "cursor-pointer hover:scale-[1.05] hover:z-30 hover:brightness-105 group/p1" : "cursor-not-allowed opacity-80"
+          )}
           style={{ 
             clipPath: "polygon(0 0, 100% 0, 0 100%)",
             transformOrigin: "25% 25%" 
           }}
-          onClick={() => onCheckIn(post1)}
+          onClick={() => { if (!post1.is_archived) onCheckIn(post1); }}
           onMouseEnter={(e) => handlePostMouseEnter(post1, e)}
           onMouseLeave={handlePostMouseLeave}
         >
@@ -180,12 +192,15 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
 
         {/* Bottom-Right Half (Post 2) */}
         <div
-          className="absolute inset-0 cursor-pointer transition-all duration-200 z-20 origin-bottom-right hover:scale-[1.05] hover:z-30 hover:brightness-105 group/p2"
+          className={cn(
+            "absolute inset-0 transition-all duration-200 z-20 origin-bottom-right",
+            !post2.is_archived ? "cursor-pointer hover:scale-[1.05] hover:z-30 hover:brightness-105 group/p2" : "cursor-not-allowed opacity-80"
+          )}
           style={{ 
             clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
             transformOrigin: "75% 75%" 
           }}
-          onClick={() => onCheckIn(post2)}
+          onClick={() => { if (!post2.is_archived) onCheckIn(post2); }}
           onMouseEnter={(e) => handlePostMouseEnter(post2, e)}
           onMouseLeave={handlePostMouseLeave}
         >

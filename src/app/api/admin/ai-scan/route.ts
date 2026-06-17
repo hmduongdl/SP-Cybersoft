@@ -26,11 +26,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Fetch check-in and associated post details
+    // 3. Fetch check-in and associated post/user details
     const checkin = await db.checkin.findUnique({
       where: { id: checkinId },
       include: {
         post: true,
+        user: true,
       },
     });
 
@@ -81,14 +82,15 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Invoke Gemini 3 Flash via AIBox
+    // 5. Workflow Tự động duyệt: Gemini trích xuất -> Model Khác quyết định
     let isValid = true;
     let confidence = 95; // From 0 to 100 as requested
-    let reason = "Ảnh chụp màn hình thể hiện bài viết đã được chia sẻ công khai thành công lên Facebook cá nhân. Thông tin bài viết trùng khớp hoàn toàn với tiêu đề yêu cầu.";
+    let reason = "Minh chứng hợp lệ.";
 
     if (base64Image) {
       try {
-        const response = await aibox.chat.completions.create({
+        // BƯỚC 1: Gemini đọc ảnh và trích xuất thông tin
+        const geminiResponse = await aibox.chat.completions.create({
           model: MODEL_VISION_ONLY,
           messages: [
             {
@@ -96,7 +98,10 @@ export async function POST(request: Request) {
               content: [
                 {
                   type: "text",
-                  text: `Hãy phân tích hình ảnh screenshot này. Đây có phải là minh chứng đã chia sẻ thành công liên kết '${checkin.post.url}' với tiêu đề '${checkin.post.title}' lên Facebook cá nhân ở chế độ công khai (hình quả địa cầu) hay không? Hãy phân tích chi tiết và trả về JSON định dạng: { "isValid": boolean, "confidence": number, "reason": string }`
+                  text: `Hãy đọc hình ảnh screenshot này và trích xuất các thông tin sau:
+1. Tên của người dùng đã chia sẻ bài viết (tên hiển thị trên Facebook/Mạng xã hội).
+2. Tiêu đề hoặc nội dung của bài viết được chia sẻ trong ảnh.
+Trả về JSON định dạng: { "extracted_username": "tên người chia sẻ", "extracted_title": "tiêu đề bài viết" }`
                 },
                 {
                   type: "image_url",
@@ -110,15 +115,52 @@ export async function POST(request: Request) {
           response_format: { type: "json_object" }
         });
 
-        const textResponse = response.choices[0]?.message?.content;
-        if (textResponse) {
-          const parsedResult = JSON.parse(textResponse);
-          isValid = parsedResult.isValid;
-          confidence = parsedResult.confidence;
-          reason = parsedResult.reason || parsedResult.analysisReason || "";
-        }
+        const extractedText = geminiResponse.choices[0]?.message?.content || "{}";
+        const extractedData = JSON.parse(extractedText);
+        
+        console.log("AI Scan - Extracted Data from Gemini:", extractedData);
+
+        // BƯỚC 2: Model khác đánh giá dữ liệu trích xuất
+        const expectedName = checkin.user.name || checkin.user.username;
+        const expectedTitle = checkin.post.title;
+        const expectedUrl = checkin.post.url;
+
+        // Import MODEL_CHAT_FLASH
+        const { MODEL_CHAT_FLASH } = await import("@/lib/aibox");
+
+        const decisionResponse = await aibox.chat.completions.create({
+          model: MODEL_CHAT_FLASH,
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý ảo kiểm duyệt minh chứng bài viết mạng xã hội.
+Thông tin dự kiến (Expected):
+- Tên nhân viên: '${expectedName}'
+- Tiêu đề bài viết cần share: '${expectedTitle}'
+- Link bài viết: '${expectedUrl}'
+
+Thông tin AI đọc được từ ảnh (Extracted by Vision Model):
+- Tên người chia sẻ bài trong ảnh: '${extractedData.extracted_username || "Không rõ"}'
+- Tiêu đề/Nội dung bài viết trong ảnh: '${extractedData.extracted_title || "Không rõ"}'
+
+Nhiệm vụ:
+Hãy đánh giá xem thông tin trích xuất từ ảnh có ĐỦ khớp với thông tin dự kiến hay không. 
+(Ghi chú: Tên người chia sẻ trên ảnh không nhất thiết phải giống hệt 100% tên nhân viên, nhưng phải có nét tương đồng hoặc hợp lý. Tiêu đề bài viết trong ảnh phải giống hoặc liên quan chặt chẽ đến bài viết cần share).
+Trả về JSON định dạng: { "isValid": boolean, "confidence": number (0-100), "reason": "Lý do chi tiết" }`
+            }
+          ],
+          response_format: { type: "json_object" }
+        });
+
+        const decisionText = decisionResponse.choices[0]?.message?.content || "{}";
+        const decisionData = JSON.parse(decisionText);
+        
+        isValid = decisionData.isValid;
+        confidence = decisionData.confidence;
+        reason = decisionData.reason || decisionData.analysisReason || "";
+        
       } catch (apiError) {
-        console.error("AIBox Gemini API call failed, falling back to mock:", apiError);
+        console.error("AI Workflow failed, falling back to mock:", apiError);
       }
     } else {
       // Smart Mock Fallback when image base64 cannot be loaded

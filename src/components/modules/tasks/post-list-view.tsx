@@ -25,9 +25,10 @@ type Post = {
   status: "PENDING" | "COMPLETED" | "EXPIRED";
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
   allow_late_submit?: boolean;
+  is_archived?: boolean;
 };
 
-type PostStatus = "NOT_SUBMITTED" | "SUBMITTED" | "PENDING_REVIEW" | "REJECTED" | "EXPIRED";
+type PostStatus = "NOT_SUBMITTED" | "SUBMITTED" | "PENDING_REVIEW" | "REJECTED" | "EXPIRED" | "LOCKED";
 
 function getPostStatus(
   post: Post,
@@ -59,6 +60,13 @@ function getPostStatus(
       badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
     };
   }
+  if (post.is_archived) {
+    return {
+      status: "LOCKED",
+      label: "Đã khoá",
+      badgeClass: "bg-slate-100 text-slate-500 border-slate-200",
+    };
+  }
   if (isExpired) {
     return {
       status: "EXPIRED",
@@ -69,7 +77,7 @@ function getPostStatus(
   return {
     status: "NOT_SUBMITTED",
     label: "Chưa nộp",
-    badgeClass: "bg-slate-100 text-slate-600 border-slate-200",
+    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
   };
 }
 
@@ -240,6 +248,15 @@ function ActionCell({
           Đã khoá
         </button>
       );
+    case "LOCKED":
+      return (
+        <button
+          disabled
+          className="whitespace-nowrap rounded-lg bg-slate-100 text-slate-400 font-semibold px-3.5 py-1.5 text-xs cursor-not-allowed border border-slate-200"
+        >
+          Đã khoá
+        </button>
+      );
     case "SUBMITTED":
       return (
         <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
@@ -287,7 +304,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
 
     const scheduled = new Date(post.start_at || post.scheduledAt || now);
     const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
-    const isActuallyExpired = now > deadline && !post.allow_late_submit;
+    const isActuallyExpired = (now > deadline && !post.allow_late_submit) || post.is_archived;
     const submitted = !!post.checkinStatus || post.status === "COMPLETED";
 
     if (filter === "EXPIRED") return isActuallyExpired && !submitted;
