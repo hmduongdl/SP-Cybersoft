@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useFacebookSDK, sharePost } from "@/hooks/useFacebookSDK";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { differenceInSeconds, format } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -299,8 +300,8 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
                 </div>
               ) : (
                 <div className="space-y-md">
-                  <div className="relative group rounded-2xl overflow-hidden border border-outline-variant/30 bg-slate-50 flex items-center justify-center">
-                    <img alt="Screenshot preview" className="max-h-[200px] object-contain" src={previewImage}/>
+                  <div className="relative group rounded-2xl overflow-hidden border border-outline-variant/30 bg-slate-50 min-h-[200px]">
+                    <Image alt="Screenshot preview" fill className="object-contain" src={previewImage} sizes="500px" />
                     <div className="absolute inset-0 bg-on-background/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-md">
                       <button 
                         className="bg-error text-white px-lg py-2 rounded-lg flex items-center gap-2 font-semibold hover:bg-error-container" 
@@ -364,13 +365,9 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2.5 overflow-hidden">
                   {colleagueAvatars.slice(0, 3).map((a, idx) => (
-                    <img 
-                      key={idx} 
-                      alt={a.name} 
-                      title={a.name} 
-                      className="h-7 w-7 rounded-full border-2 border-surface-container-low object-cover" 
-                      src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} 
-                    />
+                    <div key={idx} className="h-7 w-7 rounded-full border-2 border-surface-container-low overflow-hidden relative bg-slate-200" title={a.name}>
+                      <Image alt={a.name} fill className="object-cover" src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} sizes="28px" />
+                    </div>
                   ))}
                   {colleagueAvatars.length > 3 && (
                     <div className="h-7 w-7 rounded-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-bold text-[9px] text-primary">

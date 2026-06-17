@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { cn } from "@/lib/utils";
 import { toast, Toaster } from "sonner";
+import Image from "next/image";
 
 type Props = {
   totalPostsThisMonth: number;
@@ -282,9 +283,9 @@ export default function AnalyticsClient({
                   <tr key={user.id} className={cn("hover:bg-surface-container/30 transition-colors", isRed && "bg-rose-50/10")}>
                     <td className="px-lg py-md">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container border border-outline-variant/20">
+                        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface-container border border-outline-variant/20 relative">
                           {user.image ? (
-                            <img className="w-full h-full object-cover" src={user.image} alt={user.name} />
+                            <Image className="object-cover" src={user.image} alt={user.name} fill sizes="40px" />
                           ) : (
                             <div className="w-full h-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
                               {user.name.charAt(0).toUpperCase()}

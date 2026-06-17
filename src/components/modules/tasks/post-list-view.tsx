@@ -4,7 +4,10 @@ import React, { useEffect, useState, useCallback } from "react";
 import { differenceInSeconds } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Clock, CheckCircle2, AlertCircle, XCircle, Star } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Pagination } from "@/components/ui/pagination";
 import type { UseHopeStarResult } from "@/app/actions/hope-star-actions";
 
 type Post = {
@@ -150,10 +153,12 @@ const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUs
         {/* Aspect Ratio 16:9 Thumbnail */}
         <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-100 border border-slate-200/50 relative">
           {thumbnailUrl ? (
-            <img 
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-              src={thumbnailUrl} 
+            <Image
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+              src={thumbnailUrl}
               alt={post.title}
+              fill
+              sizes="(max-width: 640px) 100vw, 300px"
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-indigo-100/50 text-indigo-400 select-none">
@@ -238,14 +243,18 @@ const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUs
   );
 };
 
-export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar }: {
+export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar, currentPage = 1, totalPages = 1 }: {
   posts: Post[];
   onCheckIn?: (post: Post) => void;
   userHopeStars?: number;
   userUsedStarsThisMonth?: number;
   onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
+  currentPage?: number;
+  totalPages?: number;
 }) {
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "COMPLETED" | "EXPIRED">("ALL");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const filteredPosts = posts.filter((post) => {
     if (filter === "ALL") return true;
@@ -317,18 +326,34 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
 
       {/* Grid Layout of cards - minimum 3 columns on Desktop */}
       {filteredPosts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPosts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)}
-              userHopeStars={userHopeStars}
-              userUsedStarsThisMonth={userUsedStarsThisMonth}
-              onUseHopeStar={onUseHopeStar}
-            />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)}
+                userHopeStars={userHopeStars}
+                userUsedStarsThisMonth={userUsedStarsThisMonth}
+                onUseHopeStar={onUseHopeStar}
+              />
+            ))}
+          </div>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => {
+              const params = new URLSearchParams(searchParams.toString());
+              if (page <= 1) {
+                params.delete("page");
+              } else {
+                params.set("page", String(page));
+              }
+              const qs = params.toString();
+              router.push(qs ? `/posts?${qs}` : "/posts");
+            }}
+          />
+        </>
       ) : (
         <div className="py-20 text-center flex flex-col items-center justify-center bg-white rounded-2xl border border-slate-200/80 shadow-sm">
           <div className="w-16 h-16 rounded-full bg-slate-50 flex items-center justify-center mb-4 text-slate-400">

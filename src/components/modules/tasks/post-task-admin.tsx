@@ -21,8 +21,10 @@ import {
   User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { formatDateTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
 import { Card } from "@/components/ui/card";
+import { Pagination } from "@/components/ui/pagination";
 import { toast, Toaster } from "sonner";
 
 interface ManagedPost {
@@ -70,6 +72,11 @@ export function PostTaskAdmin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ACTIVE"); // "ACTIVE", "ARCHIVED", "ALL"
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPosts, setTotalPosts] = useState(0);
+
   // Bulk Operations State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -95,13 +102,16 @@ export function PostTaskAdmin() {
   const [checkingDensity, setCheckingDensity] = useState(false);
 
   // Load posts
-  async function loadPosts() {
+  async function loadPosts(page = 1) {
     setLoadingPosts(true);
     try {
-      const response = await fetch("/api/posts", { cache: "no-store" });
+      const response = await fetch(`/api/posts?page=${page}&limit=20`, { cache: "no-store" });
       if (!response.ok) throw new Error("Không thể tải danh sách bài viết.");
       const data = await response.json();
       setPosts(data.posts ?? []);
+      setCurrentPage(data.currentPage || 1);
+      setTotalPages(data.totalPages || 1);
+      setTotalPosts(data.total || 0);
     } catch (error: any) {
       toast.error(error.message || "Lỗi tải danh sách bài viết.");
     } finally {
@@ -123,7 +133,7 @@ export function PostTaskAdmin() {
   }
 
   useEffect(() => {
-    loadPosts();
+    loadPosts(1);
     loadUsers();
   }, []);
 
@@ -305,7 +315,7 @@ export function PostTaskAdmin() {
 
       toast.success(editingPost ? "Cập nhật bài viết thành công!" : "Tạo bài viết mới thành công!");
       setIsModalOpen(false);
-      loadPosts();
+      loadPosts(1);
     } catch (error: any) {
       toast.error(error.message || "Đã xảy ra lỗi.");
     } finally {
@@ -322,7 +332,7 @@ export function PostTaskAdmin() {
       if (!res.ok) throw new Error("Xóa bài viết thất bại.");
       toast.success("Xóa bài viết thành công!");
       setSelectedIds(prev => prev.filter(id => id !== postId));
-      loadPosts();
+      loadPosts(1);
     } catch (error: any) {
       toast.error(error.message || "Lỗi khi xóa bài viết.");
     }
@@ -341,7 +351,7 @@ export function PostTaskAdmin() {
       });
       if (!res.ok) throw new Error("Cập nhật trạng thái lưu trữ thất bại.");
       toast.success(post.is_archived ? "Đã mở khóa bài đăng" : "Đã lưu trữ bài đăng thành công");
-      loadPosts();
+      loadPosts(1);
     } catch (error: any) {
       toast.error(error.message || "Lỗi khi cập nhật.");
     }
@@ -361,7 +371,7 @@ export function PostTaskAdmin() {
       if (!res.ok) throw new Error("Xóa hàng loạt thất bại.");
       toast.success(`Đã xóa thành công ${selectedIds.length} bài đăng!`);
       setSelectedIds([]);
-      loadPosts();
+      loadPosts(1);
     } catch (error: any) {
       toast.error(error.message || "Lỗi xóa hàng loạt.");
     }
@@ -382,7 +392,7 @@ export function PostTaskAdmin() {
       if (!res.ok) throw new Error("Cập nhật hàng loạt thất bại.");
       toast.success(archive ? `Đã lưu trữ ${selectedIds.length} bài đăng` : `Đã mở khóa ${selectedIds.length} bài đăng`);
       setSelectedIds([]);
-      loadPosts();
+      loadPosts(1);
     } catch (error: any) {
       toast.error(error.message || "Lỗi cập nhật hàng loạt.");
     }
@@ -594,7 +604,7 @@ export function PostTaskAdmin() {
                       <td className="px-5 py-4">
                         <div className="w-16 h-10 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden relative shadow-sm">
                           {post.thumbnail_url ? (
-                            <img className="w-full h-full object-cover" src={post.thumbnail_url} alt="" />
+                            <Image className="object-cover" src={post.thumbnail_url} alt="" fill sizes="64px" />
                           ) : (
                             <div className="w-full h-full bg-indigo-50 text-indigo-500 text-[10px] flex items-center justify-center font-bold">No Image</div>
                           )}
@@ -682,6 +692,15 @@ export function PostTaskAdmin() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+        {!loadingPosts && filteredPosts.length > 0 && (
+          <div className="px-5 pb-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={(page) => loadPosts(page)}
+            />
           </div>
         )}
       </Card>

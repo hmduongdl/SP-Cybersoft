@@ -2,6 +2,8 @@
 
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache";
 
 export interface UseHopeStarResult {
   success: boolean;
@@ -137,6 +139,10 @@ export async function useHopeStar(postId: string): Promise<UseHopeStarResult> {
         usedThisMonth: usedThisMonth + 1,
       };
     });
+
+    // Revalidate cache after using a hope star
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
 
     return {
       success: true,

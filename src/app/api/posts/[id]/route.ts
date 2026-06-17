@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { postTaskSchema } from '@/lib/posts';
 import { auth } from '@/auth';
+import { revalidateTag } from 'next/cache';
+import { CACHE_TAGS } from '@/lib/cache';
 
 interface RouteContext {
     params: Promise<{
@@ -35,6 +37,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         },
     });
 
+    // Revalidate cache after updating a post
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
+
     return NextResponse.json({ post });
 }
 
@@ -48,6 +55,11 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     await db.post.delete({
         where: { id },
     });
+
+    // Revalidate cache after deleting a post
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
     return NextResponse.json({ ok: true });
 }

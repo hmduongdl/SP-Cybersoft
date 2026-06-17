@@ -4,6 +4,7 @@ import { useFormStatus } from "react-dom";
 import { useActionState, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { authenticate } from "@/app/actions/auth-actions";
+import Image from "next/image";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -51,8 +52,8 @@ export default function LoginForm() {
       {/* Logo for mobile */}
       <div className="text-center mb-8">
         <div className="inline-flex lg:hidden items-center gap-3 mb-6">
-          <div className="w-9 h-9 rounded-lg overflow-hidden">
-            <img src="/SPlogo-white.png" alt="SPS AI" className="w-full h-full object-contain" />
+          <div className="w-9 h-9 rounded-lg overflow-hidden relative bg-slate-800">
+            <Image src="/SPlogo-white.png" alt="SPS AI" fill className="object-contain" sizes="36px" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">SPS AI</h1>
         </div>

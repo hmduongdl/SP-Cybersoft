@@ -2,31 +2,31 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { DAILY_POST_LIMIT, getDayRange, getLocalDateKey, postTaskSchema } from '@/lib/posts';
 import { auth } from '@/auth';
+import { revalidateTag } from 'next/cache';
+import { CACHE_TAGS, getCachedPostsApi, getCachedTotalEmployees } from '@/lib/cache';
 
-export async function GET() {
+export async function GET(request: Request) {
     const session = await auth();
     if (!session?.user?.id) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const [posts, totalEmployees] = await Promise.all([
-        db.post.findMany({
-            orderBy: { start_at: 'desc' },
-            include: {
-                _count: {
-                    select: { checkins: true },
-                },
-            },
-        }),
-        db.user.count({
-            where: {
-                role: 'USER',
-            },
-        }),
+    const url = new URL(request.url);
+    const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50));
+    const skip = (page - 1) * limit;
+
+    const [allPosts, totalEmployees] = await Promise.all([
+        getCachedPostsApi(),
+        getCachedTotalEmployees(),
     ]);
 
+    const paginatedPosts = allPosts.slice(skip, skip + limit);
+    const totalPosts = allPosts.length;
+    const totalPages = Math.ceil(totalPosts / limit);
+
     return NextResponse.json({
-        posts: posts.map((post) => ({
+        posts: paginatedPosts.map((post) => ({
             id: post.id,
             title: post.title,
             description: post.description,
@@ -38,6 +38,9 @@ export async function GET() {
             successfulCheckins: post._count.checkins,
             totalEmployees,
         })),
+        total: totalPosts,
+        totalPages,
+        currentPage: page,
     });
 }
 
@@ -77,6 +80,11 @@ export async function POST(request: Request) {
         },
     });
 
+    // Revalidate cache after creating a post
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
+
     return NextResponse.json(
         {
             post,
@@ -109,6 +117,11 @@ export async function DELETE(request: Request) {
                 id: { in: ids }
             }
         });
+
+        // Revalidate cache after deleting posts
+        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
         return NextResponse.json({ success: true, message: 'Đã xóa các bài đăng thành công.' });
     } catch (error: any) {
@@ -144,6 +157,11 @@ export async function PATCH(request: Request) {
             },
             data: updateData
         });
+
+        // Revalidate cache after updating posts
+        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
         return NextResponse.json({ success: true, message: 'Đã cập nhật các bài đăng thành công.' });
     } catch (error: any) {

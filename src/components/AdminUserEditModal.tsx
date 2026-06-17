@@ -2,8 +2,9 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Star, X, User, Mail, KeyRound, Camera, Link, Building2 } from "lucide-react";
+import { Loader2, Star, X, User, Mail, KeyRound, Camera, Link, Building2, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import Image from "next/image";
 
 interface UserAccount {
   id: string;
@@ -37,6 +38,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [isActive, setIsActive] = useState(user.is_active);
+  const [role, setRole] = useState<"ADMIN" | "USER">(user.role);
   const [saving, setSaving] = useState(false);
   const [addingStar, setAddingStar] = useState(false);
 
@@ -51,6 +53,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
     setAvatarPreview(null);
     setNewPassword("");
     setIsActive(user.is_active);
+    setRole(user.role);
   }, [user]);
 
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,6 +124,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
         name: name.trim(),
         username: username.trim(),
         email: email.trim(),
+        role,
         department,
         avatar_url: finalAvatarUrl || null,
         is_active: isActive,
@@ -184,12 +188,14 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
             {/* Avatar Section */}
             <div className="flex items-center gap-5 pb-4 border-b border-slate-100">
               <div className="relative group">
-                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 flex items-center justify-center">
+                <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 bg-slate-100 relative flex items-center justify-center">
                   {avatarPreview || avatarUrl ? (
-                    <img
+                    <Image
                       src={avatarPreview || avatarUrl}
                       alt="Avatar"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="80px"
                     />
                   ) : (
                     <User className="w-8 h-8 text-slate-400" />
@@ -306,6 +312,23 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
               >
                 <option value="TECH">Phòng Kỹ Thuật (TECH)</option>
                 <option value="SALES">Phòng Kinh Doanh (SALES)</option>
+              </select>
+            </div>
+
+            {/* Role */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 uppercase">
+                <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
+                Vai trò (Role)
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as "ADMIN" | "USER")}
+                disabled={saving}
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              >
+                <option value="USER">USER (Nhân viên)</option>
+                <option value="ADMIN">ADMIN (Quản trị)</option>
               </select>
             </div>
 

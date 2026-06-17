@@ -21,6 +21,8 @@ import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { uploadImage } from "@/lib/upload";
 import exifr from "exifr";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache";
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
@@ -341,6 +343,11 @@ export async function POST(request: Request) {
         // reviewed_by và reject_reason để null, chờ admin điền
       },
     });
+
+    // Revalidate cache after a new check-in submission
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
     // ── 9. Trả về kết quả ────────────────────────────────────────────────────
     return NextResponse.json(

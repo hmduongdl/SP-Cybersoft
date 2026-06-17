@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import { ExternalLink, AlertTriangle, Loader2, User } from "lucide-react";
+import Image from "next/image";
 
 interface OGData {
   ogTitle: string | null;
@@ -112,10 +113,12 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 relative">
                   {ogData.ogImage ? (
-                    <img
+                    <Image
                       src={ogData.ogImage}
                       alt=""
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="36px"
                       onError={handleImgError}
                     />
                   ) : null}

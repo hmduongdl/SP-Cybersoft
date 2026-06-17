@@ -1,0 +1,27 @@
+export default function PostListSkeleton() {
+  return (
+    <div className="space-y-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="animate-pulse bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col sm:flex-row"
+        >
+          {/* Thumbnail placeholder */}
+          <div className="sm:w-48 h-40 bg-slate-200 shrink-0" />
+          <div className="flex-1 p-5 space-y-3">
+            {/* Title */}
+            <div className="h-5 bg-slate-200 rounded-md w-3/4" />
+            {/* Description */}
+            <div className="h-4 bg-slate-100 rounded-md w-full" />
+            <div className="h-4 bg-slate-100 rounded-md w-5/6" />
+            {/* Meta row */}
+            <div className="flex items-center gap-3 pt-2">
+              <div className="h-6 bg-slate-200 rounded-full w-20" />
+              <div className="h-4 bg-slate-100 rounded w-24" />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

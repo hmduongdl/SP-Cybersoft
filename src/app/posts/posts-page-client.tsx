@@ -10,7 +10,7 @@ import { Toaster } from "sonner";
 import { useHopeStar } from "@/app/actions/hope-star-actions";
 
 
-export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate, userHopeStars = 0, userUsedStarsThisMonth = 0 }: { posts: any[], completedAvatarsByDate: any, userHopeStars?: number, userUsedStarsThisMonth?: number }) {
+export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate, userHopeStars = 0, userUsedStarsThisMonth = 0, currentPage = 1, totalPages = 1 }: { posts: any[], completedAvatarsByDate: any, userHopeStars?: number, userUsedStarsThisMonth?: number, currentPage?: number, totalPages?: number }) {
   const [view, setView] = useState<"LIST" | "CALENDAR">("LIST");
   const [posts, setPosts] = useState(initialPosts);
 
@@ -88,6 +88,8 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
           onUseHopeStar={handleUseHopeStar}
           userHopeStars={userHopeStars}
           userUsedStarsThisMonth={userUsedStarsThisMonth}
+          currentPage={currentPage}
+          totalPages={totalPages}
         />
       ) : (
         <PostCalendarView posts={posts} completedAvatarsByDate={completedAvatarsByDate} onCheckIn={handleCheckIn} />

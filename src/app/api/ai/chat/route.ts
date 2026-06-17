@@ -121,11 +121,16 @@ export async function POST(req: NextRequest) {
         start_at: { gte: oneDayAgo },
         is_archived: false,
       },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        url: true,
+        start_at: true,
         checkins: {
-          where: { user_id: userId }
-        }
-      }
+          where: { user_id: userId },
+          select: { status: true, reject_reason: true },
+        },
+      },
     });
 
     // 4.3. Phân loại tasks của User để làm Context cho AI

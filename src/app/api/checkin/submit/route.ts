@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import exifr from "exifr";
 import { uploadImage } from "@/lib/upload";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +127,11 @@ export async function POST(request: Request) {
         is_ai_flagged: status === "PENDING" && !exifFound,
       },
     });
+
+    // Revalidate cache after a new check-in submission
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
     // 8. Return response
     return NextResponse.json({

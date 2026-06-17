@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, FormEvent } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 const TEAM_LABELS: Record<string, string> = {
   TECH: "Phòng Kỹ thuật",
@@ -166,11 +167,13 @@ export function OnboardingModal() {
             >
               {avatarPreview ? (
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-indigo-500/30 shadow-lg shadow-indigo-500/10">
-                    <img
+                  <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-indigo-500/30 shadow-lg shadow-indigo-500/10 relative bg-slate-800">
+                    <Image
                       src={avatarPreview}
                       alt="Avatar preview"
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      sizes="112px"
                     />
                   </div>
                   <span className="text-xs text-slate-500 hover:text-slate-400 transition-colors">

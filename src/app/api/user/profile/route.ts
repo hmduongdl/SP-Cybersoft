@@ -95,6 +95,15 @@ export async function PUT(request: Request) {
       db.user.update({
         where: { id: session.user.id },
         data: updateData,
+        select: {
+          id: true,
+          username: true,
+          name: true,
+          email: true,
+          department: true,
+          avatar_url: true,
+          facebook_profile_url: true,
+        },
       }),
     ]);
 
@@ -142,6 +151,15 @@ export async function POST(request: Request) {
       where: { id: session.user.id },
       data: {
         avatar_url: uploadResult.url,
+      },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        email: true,
+        department: true,
+        avatar_url: true,
+        facebook_profile_url: true,
       },
     });
 

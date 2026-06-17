@@ -17,6 +17,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: true,
               username: true,
               avatar_url: true,
+              role: true,
               department: true,
               facebook_profile_url: true,
               is_first_login: true,
@@ -25,6 +26,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (dbUser) {
             token.name = dbUser.name;
             token.picture = dbUser.avatar_url;
+            token.role = dbUser.role ? dbUser.role : "USER";
             token.department = dbUser.department ?? "";
             token.avatar_url = dbUser.avatar_url;
             token.username = dbUser.username ?? null;

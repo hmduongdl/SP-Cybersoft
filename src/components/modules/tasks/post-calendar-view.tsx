@@ -17,6 +17,7 @@ import {
 } from "date-fns";
 import { vi } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 import { Clock, CheckCircle2, AlertCircle, XCircle, ExternalLink, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 
 type Post = {
@@ -234,7 +235,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
             className="relative w-5 h-5 rounded-full border border-white bg-slate-200 overflow-hidden shadow-sm pointer-events-auto"
             title={a.name}
           >
-            <img src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} alt={a.name} className="w-full h-full object-cover" />
+            <Image src={a.imageUrl || `https://ui-avatars.com/api/?name=${a.name}`} alt={a.name} fill className="object-cover" sizes="20px" />
           </div>
         ))}
         {extraCount > 0 && (

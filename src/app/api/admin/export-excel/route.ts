@@ -32,21 +32,31 @@ export async function GET(request: Request) {
     // Fetch all users with checkins in range
     const users = await db.user.findMany({
       where: { role: 'USER' },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        department: true,
+        avatar_url: true,
         checkins: {
           where: {
             post: Object.keys(postWhereClause).length ? postWhereClause : undefined,
           },
-          include: {
-            post: true
-          }
-        }
-      }
+          select: {
+            id: true,
+            status: true,
+            post: {
+              select: { id: true, start_at: true },
+            },
+          },
+        },
+      },
     });
 
     // Fetch posts within date range to compute total expected posts
     const posts = await db.post.findMany({
-      where: postWhereClause
+      where: postWhereClause,
+      select: { id: true, start_at: true },
     });
     const totalExpectedPosts = posts.length;
 

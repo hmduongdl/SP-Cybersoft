@@ -21,7 +21,10 @@ export async function POST(request: Request) {
     // Execute everything in a transaction to prevent race conditions
     const result = await db.$transaction(async (tx) => {
       // 1. Verify post exists and is past 24h window
-      const post = await tx.post.findUnique({ where: { id: postId } });
+      const post = await tx.post.findUnique({
+        where: { id: postId },
+        select: { id: true, start_at: true },
+      });
       if (!post) {
         throw { status: 404, message: "Bài viết không tồn tại." };
       }
@@ -39,6 +42,7 @@ export async function POST(request: Request) {
           post_id: postId,
           status: { in: ["APPROVED", "AUTO_APPROVED"] },
         },
+        select: { id: true },
       });
       if (existingCheckin) {
         throw { status: 400, message: "Bài viết này đã có check-in được duyệt." };
@@ -87,6 +91,7 @@ export async function POST(request: Request) {
       // Find existing PENDING/REJECTED checkin to update, or create new
       const existingAnyCheckin = await tx.checkin.findFirst({
         where: { user_id: userId, post_id: postId },
+        select: { id: true },
         orderBy: { submitted_at: "desc" },
       });
 

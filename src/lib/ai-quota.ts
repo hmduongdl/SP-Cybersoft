@@ -16,7 +16,15 @@ export async function checkAndResetQuota(
   userId: string,
   estimatedCost: number
 ): Promise<QuotaResult> {
-  const user = await db.user.findUnique({ where: { id: userId } });
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      tokens_used_today: true,
+      daily_token_limit: true,
+      last_token_reset: true,
+    },
+  });
   if (!user) {
     return { allowed: false, message: "Người dùng không tồn tại." };
   }

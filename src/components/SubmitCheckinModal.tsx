@@ -16,6 +16,7 @@ import {
   XCircle,
   RefreshCw,
 } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -496,11 +497,15 @@ export function SubmitCheckinModal({
               {/* Post info + CTA link */}
               <div className="flex gap-3 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
                 {postThumb ? (
-                  <img
-                    src={postThumb}
-                    alt={post.title}
-                    className="w-14 h-14 rounded-lg object-cover border border-slate-700 flex-shrink-0"
-                  />
+                  <div className="w-14 h-14 rounded-lg overflow-hidden border border-slate-700 flex-shrink-0 relative bg-slate-800">
+                    <Image
+                      src={postThumb}
+                      alt={post.title}
+                      fill
+                      className="object-cover"
+                      sizes="56px"
+                    />
+                  </div>
                 ) : (
                   <div className="w-14 h-14 rounded-lg bg-slate-700 flex items-center justify-center flex-shrink-0">
                     <ImageIcon className="w-6 h-6 text-slate-500" />
@@ -552,11 +557,13 @@ export function SubmitCheckinModal({
                 />
 
                 {previewUrl ? (
-                  <div className="relative w-full rounded-lg overflow-hidden group">
-                    <img
+                  <div className="relative w-full rounded-lg overflow-hidden group bg-slate-900 min-h-[200px]">
+                    <Image
                       src={previewUrl}
                       alt="Xem trước ảnh"
-                      className="w-full max-h-52 object-contain bg-slate-950 rounded-lg"
+                      fill
+                      className="object-contain"
+                      sizes="(max-width: 768px) 100vw, 500px"
                     />
                     {/* Hover overlay */}
                     <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 rounded-lg">

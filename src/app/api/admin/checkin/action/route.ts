@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,11 @@ export async function POST(request: Request) {
         },
       });
     }
+
+    // Revalidate cache after admin approves/rejects checkins
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
     return NextResponse.json({
       success: true,

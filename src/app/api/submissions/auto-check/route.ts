@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     // 1. Tìm kiếm bài viết
     const post = await db.post.findUnique({
       where: { id: postId },
+      select: { id: true, start_at: true },
     });
 
     if (!post) {
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
             user_id: session.user.id,
             post_id: postId,
           },
+          select: { id: true },
         });
 
         if (existing) {

@@ -1,100 +1,17 @@
-import { db } from "@/lib/db";
-import { format } from "date-fns";
-import PostsPageClient from "./posts-page-client";
-import { auth } from "@/auth";
+import { Suspense } from "react";
+import PostListSkeleton from "@/components/shared/post-list-skeleton";
+import PostListContainer from "./post-list-container";
 
 export const dynamic = "force-dynamic";
 
-export default async function PostsPage() {
-  const session = await auth();
-  const userId = session?.user?.id;
-
-  // Fetch data concurrently for better performance
-  const [postsFromDb, allCheckins, currentUser] = await Promise.all([
-    db.post.findMany({
-      orderBy: { start_at: 'asc' },
-      include: userId
-        ? {
-            checkins: {
-              where: { user_id: userId },
-              select: { status: true },
-            },
-          }
-        : undefined,
-    }),
-    db.checkin.findMany({
-      where: {
-        status: {
-          in: ["APPROVED", "AUTO_APPROVED"],
-        },
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, avatar_url: true },
-        },
-        post: {
-          select: { start_at: true },
-        },
-      },
-    }),
-    userId
-      ? db.user.findUnique({
-          where: { id: userId },
-          select: { hope_stars: true, used_stars_this_month: true },
-        })
-      : Promise.resolve(null),
-  ]);
-
-  // Map to frontend Post structure
-  const posts = postsFromDb.map(post => {
-    // If the user has a checkin, check its status
-    const userCheckin = (post as any).checkins?.[0];
-    let status = "PENDING";
-    
-    if (userCheckin && (userCheckin.status === "APPROVED" || userCheckin.status === "AUTO_APPROVED")) {
-      status = "COMPLETED";
-    }
-
-    return {
-      id: post.id,
-      title: post.title,
-      description: post.description || "",
-      url: post.url,
-      thumbnail_url: post.thumbnail_url,
-      start_at: post.start_at.toISOString(),
-      status,
-      team: post.team,
-      checkinStatus: userCheckin ? userCheckin.status : null,
-    };
-  });
-
-  const completedAvatarsByDate: Record<string, any[]> = {};
-
-  allCheckins.forEach(sub => {
-    if (!sub.post || !sub.user) return;
-    const dateKey = format(new Date(sub.post.start_at), "yyyy-MM-dd");
-    if (!completedAvatarsByDate[dateKey]) {
-      completedAvatarsByDate[dateKey] = [];
-    }
-    
-    // Deduplicate user by ID per date
-    if (!completedAvatarsByDate[dateKey].some(u => u.id === sub.user.id)) {
-      completedAvatarsByDate[dateKey].push({
-        id: sub.user.id,
-        name: sub.user.name || "Unknown",
-        imageUrl: sub.user.avatar_url,
-      });
-    }
-  });
-
+export default function PostsPage(props: {
+  searchParams?: Promise<{ page?: string }>;
+}) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <PostsPageClient
-        posts={posts}
-        completedAvatarsByDate={completedAvatarsByDate}
-        userHopeStars={currentUser?.hope_stars ?? 0}
-        userUsedStarsThisMonth={currentUser?.used_stars_this_month ?? 0}
-      />
+      <Suspense fallback={<PostListSkeleton />}>
+        <PostListContainer searchParams={props.searchParams} />
+      </Suspense>
     </div>
   );
 }

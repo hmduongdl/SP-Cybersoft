@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 interface UserAvatarProps {
   src: string | null | undefined;
@@ -22,12 +23,16 @@ export function UserAvatar({ src, name, size = "md" }: UserAvatarProps) {
 
   if (hasSrc) {
     return (
-      <img
-        src={src}
-        alt={name || "Avatar"}
-        className={`${dims} rounded-full object-cover border ${border} group-hover:scale-105 transition-transform duration-200`}
-        onError={() => setImgError(true)}
-      />
+      <div className={`${dims} relative rounded-full overflow-hidden border ${border} bg-slate-700 group-hover:scale-105 transition-transform duration-200`}>
+        <Image
+          src={src}
+          alt={name || "Avatar"}
+          fill
+          className="object-cover"
+          sizes="40px"
+          onError={() => setImgError(true)}
+        />
+      </div>
     );
   }
 

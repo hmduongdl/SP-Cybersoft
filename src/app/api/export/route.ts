@@ -14,17 +14,27 @@ export async function GET(request: Request) {
     // Fetch users and their checkins
     const users = await db.user.findMany({
       where: { role: 'USER' },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        department: true,
         checkins: {
           where: {
             status: { in: ['APPROVED', 'AUTO_APPROVED'] }
-          }
-        }
-      }
+          },
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
     });
 
     // Determine the total expected posts (posts that have passed their 24h deadline)
-    const allPosts = await db.post.findMany();
+    const allPosts = await db.post.findMany({
+      select: { id: true, start_at: true },
+    });
     const now = new Date();
     const totalExpectedPosts = allPosts.filter(p => {
       const deadline = new Date(p.start_at.getTime() + 24 * 60 * 60 * 1000);

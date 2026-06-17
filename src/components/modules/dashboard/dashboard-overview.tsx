@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Info
 } from "lucide-react";
+import Image from "next/image";
 
 interface ActivityFeedItem {
   id: string;
@@ -181,12 +182,14 @@ export function DashboardOverview({
                 {activityFeed.length > 0 ? (
                   activityFeed.map((feed) => (
                     <div className="flex gap-3 items-start hover:bg-slate-50 p-2 rounded-xl transition duration-150" key={feed.id}>
-                      <div className="relative shrink-0">
+                      <div className="relative shrink-0 w-9 h-9">
                         {feed.userImage ? (
-                          <img 
-                            alt={feed.userName} 
-                            className="w-9 h-9 rounded-full border border-slate-200 object-cover" 
+                          <Image
+                            alt={feed.userName}
+                            className="object-cover rounded-full border border-slate-200"
                             src={feed.userImage}
+                            fill
+                            sizes="36px"
                           />
                         ) : (
                           <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-150 text-indigo-600 flex items-center justify-center font-bold text-xs">

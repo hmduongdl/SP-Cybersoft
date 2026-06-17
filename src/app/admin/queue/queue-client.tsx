@@ -1,19 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { toast } from "sonner";
-import { 
-  Check, 
-  X, 
-  Search, 
-  Image as ImageIcon, 
-  Filter, 
-  Calendar, 
-  Clock, 
-  AlertTriangle, 
-  Loader2, 
-  Eye, 
-  CheckSquare, 
+import {
+  Check,
+  X,
+  Search,
+  Image as ImageIcon,
+  Filter,
+  Calendar,
+  Clock,
+  AlertTriangle,
+  Loader2,
+  Eye,
+  CheckSquare,
   Square,
   Inbox,
   AlertCircle,
@@ -21,8 +21,11 @@ import {
   ExternalLink,
   CheckCircle2
 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import FacebookProfilePreview from "@/components/FacebookProfilePreview";
+import { Pagination } from "@/components/ui/pagination";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface Checkin {
   id: string;
@@ -54,14 +57,32 @@ interface Checkin {
 
 interface QueueClientProps {
   initialCheckins: any[];
+  currentPage?: number;
+  totalPages?: number;
+  activeTab?: "PENDING" | "AUTO_APPROVED" | "REVIEWED";
+  searchTerm?: string;
+  deptFilter?: string;
+  pendingCount?: number;
+  autoApprovedCount?: number;
+  reviewedCount?: number;
 }
 
-export default function QueueClient({ initialCheckins }: QueueClientProps) {
+export default function QueueClient({
+  initialCheckins,
+  currentPage: _currentPage,
+  totalPages: _totalPages,
+  activeTab: initialTab = "PENDING",
+  searchTerm: initialSearch = "",
+  deptFilter: initialDept = "ALL",
+  pendingCount: _pendingCount,
+  autoApprovedCount: _autoApprovedCount,
+  reviewedCount: _reviewedCount,
+}: QueueClientProps) {
   const [checkins, setCheckins] = useState<Checkin[]>(initialCheckins);
-  const [activeTab, setActiveTab] = useState<"PENDING" | "AUTO_APPROVED" | "REVIEWED">("PENDING");
+  const [activeTab, setActiveTab] = useState<"PENDING" | "AUTO_APPROVED" | "REVIEWED">(initialTab as "PENDING" | "AUTO_APPROVED" | "REVIEWED");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState("");
-  const [deptFilter, setDeptFilter] = useState("ALL");
+  const [searchTerm, setSearchTerm] = useState(initialSearch);
+  const [deptFilter, setDeptFilter] = useState(initialDept);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
   
   // Single Rejection States
@@ -129,28 +150,50 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
   };
 
   // Filter lists based on tab and Search
-  const filteredCheckins = checkins.filter((item) => {
-    // 1. Tab filter
-    if (activeTab === "PENDING" && item.status !== "PENDING") return false;
-    if (activeTab === "AUTO_APPROVED" && item.status !== "AUTO_APPROVED") return false;
-    if (activeTab === "REVIEWED" && item.status !== "APPROVED" && item.status !== "REJECTED") return false;
+  const filteredCheckins = checkins; // Server-side filtering already applied
 
-    // 2. Search filter
-    const userName = item.user.name?.toLowerCase() || "";
-    const postTitle = item.post.title?.toLowerCase() || "";
-    const query = searchTerm.toLowerCase();
-    const matchesSearch = userName.includes(query) || postTitle.includes(query);
+  // Use passed-in counts (server-computed)
+  const pendingCount = _pendingCount ?? checkins.filter(c => c.status === "PENDING").length;
+  const autoApprovedCount = _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length;
+  const reviewedCount = _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
 
-    // 3. Department filter
-    const matchesDept = deptFilter === "ALL" || item.user.department === deptFilter;
+  // Debounce timer for search
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-    return matchesSearch && matchesDept;
-  });
+  const navigateWithParams = useCallback((params: Record<string, string>) => {
+    const sp = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([key, value]) => {
+      if (!value || value === "ALL" || (key === "page" && value === "1")) {
+        sp.delete(key);
+      } else {
+        sp.set(key, value);
+      }
+    });
+    const qs = sp.toString();
+    router.push(qs ? `/admin/queue?${qs}` : "/admin/queue");
+  }, [router, searchParams]);
 
-  // Counts based on actual statuses
-  const pendingCount = checkins.filter(c => c.status === "PENDING").length;
-  const autoApprovedCount = checkins.filter(c => c.status === "AUTO_APPROVED").length;
-  const reviewedCount = checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
+  const handleTabChangeInternal = (tab: string) => {
+    setSelectedIds(new Set());
+    setAiScanResults({});
+    navigateWithParams({ tab, page: "1", search: "", dept: "" });
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (searchTimeout) clearTimeout(searchTimeout);
+    const timeout = setTimeout(() => {
+      navigateWithParams({ search: value, page: "1" });
+    }, 400);
+    setSearchTimeout(timeout);
+  };
+
+  const handleDeptChange = (value: string) => {
+    setDeptFilter(value);
+    navigateWithParams({ dept: value, page: "1" });
+  };
 
   const handleSelectAll = () => {
     const visibleIds = filteredCheckins.map(c => c.id);
@@ -419,7 +462,7 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
         {/* Status Tabs */}
         <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200/50">
           <button
-            onClick={() => { setActiveTab("PENDING"); setSelectedIds(new Set()); }}
+            onClick={() => handleTabChangeInternal("PENDING")}
             className={cn(
               "px-4 py-2 rounded-md text-xs font-bold transition-all",
               activeTab === "PENDING"
@@ -430,7 +473,7 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
             Chờ Duyệt ({pendingCount})
           </button>
           <button
-            onClick={() => { setActiveTab("AUTO_APPROVED"); setSelectedIds(new Set()); }}
+            onClick={() => handleTabChangeInternal("AUTO_APPROVED")}
             className={cn(
               "px-4 py-2 rounded-md text-xs font-bold transition-all",
               activeTab === "AUTO_APPROVED"
@@ -441,7 +484,7 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
             Đã Tự Động Duyệt ({autoApprovedCount})
           </button>
           <button
-            onClick={() => { setActiveTab("REVIEWED"); setSelectedIds(new Set()); }}
+            onClick={() => handleTabChangeInternal("REVIEWED")}
             className={cn(
               "px-4 py-2 rounded-md text-xs font-bold transition-all",
               activeTab === "REVIEWED"
@@ -464,7 +507,7 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
               type="text"
               placeholder="Tìm nhân viên, bài viết..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="w-full sm:w-56 pl-9 pr-4 py-2 rounded-lg text-sm border border-slate-200 bg-slate-50 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -473,7 +516,7 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
           <div className="relative">
             <select
               value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
+              onChange={(e) => handleDeptChange(e.target.value)}
               className="appearance-none w-full pr-8 pl-4 py-2 rounded-lg text-sm border border-slate-200 bg-slate-50 text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
             >
               <option value="ALL">Tất cả Phòng Ban</option>
@@ -520,7 +563,8 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCheckins.map((item) => {
             const exifInfo = getExifSublabel(item);
             const isSelected = selectedIds.has(item.id);
@@ -569,9 +613,9 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
                       <div className="flex flex-col gap-1.5">
                         
                         {/* Avatar */}
-                        <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden shadow-sm flex-shrink-0 bg-slate-100">
+                        <div className="w-10 h-10 rounded-full border border-slate-200 overflow-hidden shadow-sm flex-shrink-0 bg-slate-100 relative">
                           {item.user.avatar_url ? (
-                            <img src={item.user.avatar_url} alt={item.user.name || "Avatar"} className="w-full h-full object-cover" />
+                            <Image src={item.user.avatar_url} alt={item.user.name || "Avatar"} fill className="object-cover" sizes="40px" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center font-bold text-slate-500 text-sm">
                               {item.user.name ? item.user.name.charAt(0) : "U"}
@@ -628,10 +672,12 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
                         onClick={() => setZoomImageUrl(item.image_url)}
                         className="relative aspect-[3/4] w-full rounded-lg overflow-hidden bg-slate-900 border border-slate-200 group/img cursor-zoom-in shadow-inner"
                       >
-                        <img 
-                          src={item.image_url} 
-                          alt="Checkin proof" 
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover/img:scale-105"
+                        <Image
+                          src={item.image_url}
+                          alt="Checkin proof"
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover/img:scale-105"
+                          sizes="(max-width: 768px) 50vw, 33vw"
                         />
                         <div className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
                           <span className="p-2 bg-white/20 backdrop-blur-md text-white rounded-full">
@@ -801,6 +847,11 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
             );
           })}
         </div>
+        <Pagination
+          currentPage={_currentPage ?? 1}
+          totalPages={_totalPages ?? 1}
+          onPageChange={(page) => navigateWithParams({ page: String(page) })}
+        />
       )}
 
       {/* Floating Batch Operations Bar at the bottom */}
@@ -846,10 +897,12 @@ export default function QueueClient({ initialCheckins }: QueueClientProps) {
           className="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300"
         >
           <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-xl animate-in zoom-in-95 duration-200">
-            <img 
-              src={zoomImageUrl} 
-              alt="Zoomed preview" 
-              className="max-w-full max-h-[85vh] object-contain shadow-2xl rounded-xl border border-slate-800"
+            <Image
+              src={zoomImageUrl}
+              alt="Zoomed preview"
+              fill
+              className="object-contain shadow-2xl rounded-xl border border-slate-800"
+              sizes="90vw"
             />
             <button 
               onClick={() => setZoomImageUrl(null)}
