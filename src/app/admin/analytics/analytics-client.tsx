@@ -91,9 +91,9 @@ export default function AnalyticsClient({
       </div>
 
       {/* KPI Cards Section */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 w-full">
         {/* Card 1: Total Posts */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-surface-container-lowest rounded-2xl shadow-ambient p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center">
               <span className="material-symbols-outlined text-primary text-[20px]">post_add</span>
@@ -113,7 +113,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Card 2: Company Completion */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-surface-container-lowest rounded-2xl shadow-ambient p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-tertiary-fixed flex items-center justify-center">
               <span className="material-symbols-outlined text-on-tertiary-fixed-variant text-[20px]">verified</span>
@@ -136,7 +136,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Card 3: Pending Users */}
-        <div className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-surface-container-lowest rounded-2xl shadow-ambient p-6 flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-error-container flex items-center justify-center">
               <span className="material-symbols-outlined text-error text-[20px]">group_off</span>

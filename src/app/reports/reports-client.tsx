@@ -101,54 +101,54 @@ export default function ReportsClient({ checkins }: Props) {
       </div>
 
       {/* Stats KPI Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-lg">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
         {/* Card 1: Total */}
-        <div className="bg-surface-container-lowest p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-all duration-150 border-none">
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Tổng bài đã nộp</p>
-            <h3 className="font-headline-lg text-headline-lg text-on-surface font-manrope">{stats.total}</h3>
-            <p className="text-[11px] text-outline mt-2">Toàn bộ lịch sử check-in</p>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Tổng bài đã nộp</p>
+            <h3 className="text-[28px] font-bold text-on-surface font-manrope leading-tight">{stats.total}</h3>
+            <p className="text-[11px] text-outline mt-1.5 truncate">Toàn bộ lịch sử check-in</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant">
-            <span className="material-symbols-outlined text-3xl">history</span>
+          <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0 ml-3">
+            <span className="material-symbols-outlined text-2xl">history</span>
           </div>
         </div>
 
         {/* Card 2: Approved */}
-        <div className="bg-surface-container-lowest p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-all duration-150 border-none">
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Đã phê duyệt</p>
-            <h3 className="font-headline-lg text-headline-lg text-emerald-600 font-manrope">{stats.approved}</h3>
-            <p className="text-[11px] text-emerald-600/80 mt-2 font-medium">
+        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Đã phê duyệt</p>
+            <h3 className="text-[28px] font-bold text-emerald-600 font-manrope leading-tight">{stats.approved}</h3>
+            <p className="text-[11px] text-emerald-600/80 mt-1.5 truncate font-medium">
               +{stats.approved * 100} Star Points tích lũy
             </p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <span className="material-symbols-outlined text-3xl">verified</span>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 ml-3">
+            <span className="material-symbols-outlined text-2xl">verified</span>
           </div>
         </div>
 
         {/* Card 3: Pending */}
-        <div className="bg-surface-container-lowest p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-all duration-150 border-none">
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Đang chờ duyệt</p>
-            <h3 className="font-headline-lg text-headline-lg text-indigo-600 font-manrope">{stats.pending}</h3>
-            <p className="text-[11px] text-indigo-500/85 mt-2 font-medium">Chờ Admin kiểm tra</p>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Đang chờ duyệt</p>
+            <h3 className="text-[28px] font-bold text-indigo-600 font-manrope leading-tight">{stats.pending}</h3>
+            <p className="text-[11px] text-indigo-500/85 mt-1.5 truncate font-medium">Chờ Admin kiểm tra</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-            <span className="material-symbols-outlined text-3xl">pending</span>
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 ml-3">
+            <span className="material-symbols-outlined text-2xl">pending</span>
           </div>
         </div>
 
         {/* Card 4: Rejected */}
-        <div className="bg-surface-container-lowest p-lg rounded-2xl card-shadow flex items-center justify-between group hover:translate-y-[-2px] transition-all duration-150 border-none">
-          <div>
-            <p className="font-label-sm text-label-sm text-on-surface-variant mb-1 uppercase tracking-wider text-xs">Bị từ chối</p>
-            <h3 className="font-headline-lg text-headline-lg text-rose-600 font-manrope">{stats.rejected}</h3>
-            <p className="text-[11px] text-rose-500/85 mt-2 font-medium">Cần kiểm tra & nộp lại</p>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Bị từ chối</p>
+            <h3 className="text-[28px] font-bold text-rose-600 font-manrope leading-tight">{stats.rejected}</h3>
+            <p className="text-[11px] text-rose-500/85 mt-1.5 truncate font-medium">Cần kiểm tra &amp; nộp lại</p>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
-            <span className="material-symbols-outlined text-3xl">cancel</span>
+          <div className="w-11 h-11 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0 ml-3">
+            <span className="material-symbols-outlined text-2xl">cancel</span>
           </div>
         </div>
       </section>
