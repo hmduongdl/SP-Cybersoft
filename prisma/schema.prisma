@@ -43,8 +43,6 @@ model Post {
   team          Team      @default(ALL)
   is_archived   Boolean   @default(false)
   allow_late_submit Boolean @default(false)
-  author_name   String?
-  author_id     String?
   created_at    DateTime  @default(now())
   checkins      Checkin[]
 }

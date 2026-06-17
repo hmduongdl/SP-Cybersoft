@@ -146,7 +146,6 @@ export async function getCachedPostsApi() {
       start_at: true,
       is_archived: true,
       allow_late_submit: true,
-      author_name: true,
       team: true,
       _count: { select: { checkins: true } },
     },

@@ -125,13 +125,6 @@ export function SiteHeader() {
 
         {/* Right side: Search, Department, Bell, User Dropdown */}
         <div className="flex items-center gap-4">
-          {/* Quick Search Box (⌘K) */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80 text-slate-400 text-xs w-44 lg:w-48 hover:bg-slate-100/70 hover:border-slate-300 transition duration-150 cursor-pointer select-none">
-            <span className="material-symbols-outlined text-[16px]">search</span>
-            <span>Tìm kiếm...</span>
-            <kbd className="ml-auto font-sans text-[10px] font-semibold text-slate-400 bg-white border border-slate-200 px-1 rounded">⌘K</kbd>
-          </div>
-
           {/* Department Badge */}
           <div className="hidden xs:flex">
             <span className="inline-flex items-center rounded-full bg-indigo-50 border border-indigo-100 px-3 py-0.5 text-xs font-semibold text-indigo-700 shadow-sm whitespace-nowrap">

@@ -17,7 +17,6 @@ import {
   AlertTriangle,
   FileText,
   FileEdit,
-  FolderOpen,
   User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,7 +34,6 @@ interface ManagedPost {
   start_at: string;
   is_archived: boolean;
   allow_late_submit: boolean;
-  author_name: string | null;
   team: "ALL" | "TECH" | "SALES";
   successfulCheckins: number;
   totalEmployees: number;
@@ -201,56 +199,6 @@ export function PostTaskAdmin() {
     };
   }, [formData.date, isModalOpen]);
 
-  // Helper to match post URL to a User (Author)
-  const getAuthorForUrl = (url: string) => {
-    if (!url) return null;
-    
-    const normalize = (u: string) => {
-      return u
-        .toLowerCase()
-        .replace(/^https?:\/\//, "")
-        .replace(/^(www|m|web|d|touch)\./, "")
-        .replace(/\/$/, "");
-    };
-
-    const normPost = normalize(url);
-
-    for (const u of users) {
-      if (!u.facebook_profile_url) continue;
-      const normProfile = normalize(u.facebook_profile_url);
-      if (!normProfile) continue;
-
-      if (normPost.includes(normProfile)) {
-        return u;
-      }
-
-      // Check numeric IDs
-      const profileIdMatch = u.facebook_profile_url.match(/[?&]id=(\d+)/) || u.facebook_profile_url.match(/\/user\/(\d+)/);
-      if (profileIdMatch) {
-        const profileId = profileIdMatch[1];
-        const postIdMatch = url.match(/[?&]id=(\d+)/) || url.match(/\/user\/(\d+)/) || url.match(/\/profile\.php\?id=(\d+)/);
-        if (postIdMatch && postIdMatch[1] === profileId) {
-          return u;
-        }
-      }
-    }
-
-    // Fallback: search for username token in URL
-    for (const u of users) {
-      if (u.username) {
-        const cleanUser = u.username.toLowerCase().trim();
-        if (cleanUser && normPost.includes(`facebook.com/${cleanUser}/`)) {
-          return u;
-        }
-      }
-    }
-    return null;
-  };
-
-  // Memoized detected author for the currently active modal form
-  const detectedAuthor = React.useMemo(() => {
-    return getAuthorForUrl(formData.url);
-  }, [formData.url, users]);
 
   // Open modal for adding
   const handleOpenAddModal = () => {
@@ -323,22 +271,13 @@ export function PostTaskAdmin() {
 
     setSaving(true);
     try {
-      const authorFromSelect = users.find(u => u.id === formData.author_id);
-      const authorName = detectedAuthor
-        ? (detectedAuthor.name || `@${detectedAuthor.username}`)
-        : authorFromSelect
-          ? (authorFromSelect.name || `@${authorFromSelect.username}`)
-          : null;
-
-      const payload: Record<string, any> = {
+      const payload = {
         title: formData.title,
         url: formData.url,
         thumbnail_url: formData.thumbnail_url || null,
         description: formData.description,
         start_at: toDateTimeValue(formData.date, formData.time),
         team: "ALL",
-        author_name: authorName,
-        author_id: formData.author_id || detectedAuthor?.id || null,
       };
 
       const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
@@ -592,7 +531,6 @@ export function PostTaskAdmin() {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredPosts.map((post) => {
                   const isChecked = selectedIds.includes(post.id);
-                  const author = getAuthorForUrl(post.url);
 
                   return (
                     <tr 
@@ -619,24 +557,11 @@ export function PostTaskAdmin() {
                         </div>
                       </td>
 
-                      {/* Title & Author */}
+                      {/* Title */}
                       <td className="px-5 py-4 max-w-sm">
-                        <div className="space-y-1">
-                          <span className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors block truncate">
-                            {post.title}
-                          </span>
-                          <div className="flex gap-1.5 flex-wrap">
-                            {post.author_name ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                Tác giả: {post.author_name}
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200 italic">
-                                Chưa xác định
-                              </span>
-                            )}
-                          </div>
-                        </div>
+                        <span className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors block truncate">
+                          {post.title}
+                        </span>
                       </td>
 
                       {/* Scheduled at */}
@@ -787,48 +712,33 @@ export function PostTaskAdmin() {
                         />
                       </div>
                       
-                      {/* Live Author Detection */}
-                      {formData.url && (
-                        <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-100">
-                          <div className="flex items-center gap-2">
-                            <User className="h-3.5 w-3.5 text-indigo-500" />
-                            <span className="font-semibold text-slate-600">Tác giả phát hiện:</span>
-                            {detectedAuthor ? (
-                              <span className="font-bold text-indigo-700 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                                {detectedAuthor.name || `@${detectedAuthor.username}`}
-                                {detectedAuthor.department && (
-                                  <span className="font-normal text-slate-500 text-[10px] bg-slate-200 px-1.5 py-0.5 rounded">
-                                    {detectedAuthor.department}
-                                  </span>
-                                )}
-                              </span>
-                            ) : (
-                              <span className="text-amber-600 font-medium">Không xác định — chọn thủ công bên dưới</span>
-                            )}
-                          </div>
-
-                          {/* Manual author select — always visible as fallback */}
-                          {!detectedAuthor && users.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-slate-200 flex items-center gap-2">
-                              <span className="text-slate-500 shrink-0">Chọn tác giả:</span>
-                              <select
-                                value={formData.author_id || ""}
-                                onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
-                                disabled={saving}
-                                className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-                              >
-                                <option value="">-- Chọn người đăng --</option>
-                                {users.map((u) => (
-                                  <option key={u.id} value={u.id}>
-                                    {u.name || u.username} ({u.department || "N/A"})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          )}
+                      {/* Author select dropdown */}
+                      <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-100">
+                        <div className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-indigo-500" />
+                          <span className="font-semibold text-slate-600">Tác giả:</span>
+                          <select
+                            value={formData.author_id || ""}
+                            onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
+                            disabled={saving}
+                            className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                          >
+                            <option value="">-- Chọn người đăng --</option>
+                            {users
+                              .filter(u => u.facebook_profile_url)
+                              .map((u) => (
+                                <option key={u.id} value={u.id}>
+                                  {u.name || u.username} ({u.department || "N/A"})
+                                </option>
+                              ))}
+                          </select>
                         </div>
-                      )}
+                        {users.filter(u => u.facebook_profile_url).length === 0 && (
+                          <p className="mt-1 text-amber-600 text-[10px]">
+                            Chưa có người dùng nào có Facebook profile. Vào Quản lý tài khoản để thêm.
+                          </p>
+                        )}
+                      </div>
 
                       {formErrors.url && (
                         <p className="text-xs text-red-500 font-semibold">{formErrors.url}</p>
