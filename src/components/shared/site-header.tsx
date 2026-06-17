@@ -102,24 +102,27 @@ export function SiteHeader() {
           </button>
 
           {/* Breadcrumbs */}
-          <nav className="flex items-center space-x-1.5 text-sm font-medium" aria-label="Breadcrumb">
-            <Link href="/dashboard" className="text-slate-500 hover:text-slate-800 transition-colors">
+          <nav className="flex items-center space-x-1.5 text-xs xs:text-sm font-medium" aria-label="Breadcrumb">
+            <Link href="/dashboard" className="text-slate-500 hover:text-slate-800 transition-colors hidden md:inline">
               Trang chủ
             </Link>
-            {breadcrumbs.map((crumb, idx) => (
-              <span key={crumb.href} className="flex items-center space-x-1.5">
-                <span className="text-slate-300">/</span>
-                <span
-                  className={
-                    idx === breadcrumbs.length - 1
-                      ? "text-slate-900 font-semibold"
-                      : "text-slate-500 hover:text-slate-800 transition-colors"
-                  }
-                >
-                  {crumb.label}
+            {breadcrumbs.map((crumb, idx) => {
+              const isLast = idx === breadcrumbs.length - 1;
+              return (
+                <span key={crumb.href} className={`items-center space-x-1.5 ${isLast ? "flex" : "hidden md:flex"}`}>
+                  <span className="text-slate-300">/</span>
+                  <span
+                    className={
+                      isLast
+                        ? "text-slate-900 font-semibold truncate max-w-[120px] sm:max-w-none"
+                        : "text-slate-500 hover:text-slate-800 transition-colors"
+                    }
+                  >
+                    {crumb.label}
+                  </span>
                 </span>
-              </span>
-            ))}
+              );
+            })}
           </nav>
         </div>
 

@@ -12,6 +12,7 @@
         "@auth/prisma-adapter": "^2.11.2",
         "@hookform/resolvers": "^5.4.0",
         "@prisma/client": "^5.16.0",
+        "@uploadthing/react": "^7.3.3",
         "@vercel/blob": "^2.4.0",
         "bcryptjs": "^3.0.3",
         "cloudinary": "^2.10.0",
@@ -29,6 +30,7 @@
         "recharts": "^3.8.1",
         "sonner": "^2.0.7",
         "tailwind-merge": "^1.14.0",
+        "uploadthing": "^7.7.4",
         "zod": "^4.4.3"
     },
     "devDependencies": {

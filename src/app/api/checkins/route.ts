@@ -1,25 +1,27 @@
 /**
  * POST /api/checkins
  *
- * Nhận multipart form-data từ frontend SubmitCheckinModal, thực hiện toàn bộ
- * pipeline kiểm tra minh chứng checkin:
+ * Hỗ trợ hai luồng input:
+ *   (A) JSON  — { post_id, image_url }   → ảnh đã upload qua Uploadthing CDN
+ *   (B) FormData — post_id + image_file    → ảnh upload trực tiếp (cũ)
  *
+ * Pipeline:
  *  1. Xác thực phiên đăng nhập (NextAuth session)
- *  2. Parse & validate multipart form-data (post_id + image_file)
+ *  2. Parse input (JSON hoặc FormData)
  *  3. Kiểm tra Post tồn tại và chưa hết hạn cửa sổ 24h
  *  4. Kiểm tra User chưa từng nộp checkin cho Post này (chống spam)
- *  5. Validate file ảnh (loại file, dung lượng)
- *  6. Upload ảnh qua upload adapter (local / Cloudinary / Vercel Blob)
- *  7. Phân tích EXIF server-side bằng exifr — KHÔNG tin kết quả từ client
- *  8. Xác định trạng thái: AUTO_APPROVED | PENDING
- *  9. Tạo bản ghi Checkin trong database
- * 10. Trả về JSON { success, status, exif_time, message }
+ *  5. Với JSON: fetch ảnh từ CDN để phân tích EXIF server-side
+ *     Với FormData: validate + upload file qua Vercel Blob
+ *  6. Phân tích EXIF server-side bằng exifr — KHÔNG tin kết quả từ client
+ *  7. Xác định trạng thái: AUTO_APPROVED | PENDING
+ *  8. Tạo bản ghi Checkin trong database
+ *  9. Trả về JSON { success, status, exif_time, message }
  */
 
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import { uploadImage } from "@/lib/upload";
+import { uploadImage, deleteImage } from "@/lib/upload";
 import exifr from "exifr";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
@@ -179,54 +181,128 @@ export async function POST(request: Request) {
   const userId = session.user.id;
 
   try {
-    // ── 2. Parse multipart form-data ────────────────────────────────────────
-    let formData: FormData;
-    try {
-      formData = await request.formData();
-    } catch {
-      return NextResponse.json(
-        { success: false, error: "Dữ liệu form không hợp lệ hoặc không phải multipart/form-data." },
-        { status: 400 }
-      );
-    }
+    // ── 2. Parse input — hỗ trợ cả FormData (cũ) và JSON (Uploadthing) ─────
+    const contentType = request.headers.get("content-type") || "";
+    const isJson = contentType.includes("application/json");
 
-    const postId = (formData.get("post_id") ?? formData.get("postId")) as string | null;
-    const imageFile = (formData.get("image_file") ?? formData.get("image")) as File | null;
+    let postId: string;
+    let imageUrl: string;
+    let imageBuffer: Buffer | null = null;
+    let imageFileType: string = "image/jpeg";
 
-    if (!postId || typeof postId !== "string" || postId.trim() === "") {
-      return NextResponse.json(
-        { success: false, error: "Thiếu trường post_id." },
-        { status: 400 }
-      );
-    }
+    if (isJson) {
+      // ── (A) JSON flow (Uploadthing: ảnh đã upload lên CDN) ────────────────
+      let body: { post_id?: string; image_url?: string };
+      try {
+        body = await request.json();
+      } catch {
+        return NextResponse.json(
+          { success: false, error: "JSON body không hợp lệ." },
+          { status: 400 }
+        );
+      }
 
-    if (!imageFile || typeof imageFile.arrayBuffer !== "function") {
-      return NextResponse.json(
-        { success: false, error: "Thiếu trường image_file hoặc file không hợp lệ." },
-        { status: 400 }
-      );
-    }
+      postId = (body.post_id ?? "").trim();
+      imageUrl = (body.image_url ?? "").trim();
 
-    // ── 3a. Validate file type ───────────────────────────────────────────────
-    if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(imageFile.type)) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Định dạng ảnh không được hỗ trợ: "${imageFile.type}". Chỉ chấp nhận JPG, PNG, WEBP.`,
-        },
-        { status: 422 }
-      );
-    }
+      if (!postId) {
+        return NextResponse.json(
+          { success: false, error: "Thiếu trường post_id." },
+          { status: 400 }
+        );
+      }
 
-    // ── 3b. Validate file size ───────────────────────────────────────────────
-    if (imageFile.size > MAX_FILE_SIZE_BYTES) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Dung lượng ảnh (${(imageFile.size / 1024 / 1024).toFixed(1)} MB) vượt quá giới hạn 10 MB.`,
-        },
-        { status: 422 }
-      );
+      if (!imageUrl) {
+        return NextResponse.json(
+          { success: false, error: "Thiếu trường image_url." },
+          { status: 400 }
+        );
+      }
+
+      // Fetch ảnh từ CDN để phân tích EXIF server-side
+      try {
+        const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
+        if (!imgRes.ok) throw new Error(`CDN responded ${imgRes.status}`);
+        const arrayBuffer = await imgRes.arrayBuffer();
+        imageBuffer = Buffer.from(arrayBuffer);
+        imageFileType = imgRes.headers.get("content-type") || "image/jpeg";
+      } catch (fetchErr) {
+        console.warn("[checkins] Could not fetch image from CDN for EXIF:", fetchErr);
+        // Không block — vẫn tiếp tục với PENDING status
+        imageBuffer = null;
+      }
+    } else {
+      // ── (B) FormData flow (cũ: upload file trực tiếp) ──────────────────────
+      let formData: FormData;
+      try {
+        formData = await request.formData();
+      } catch {
+        return NextResponse.json(
+          { success: false, error: "Dữ liệu form không hợp lệ hoặc không phải multipart/form-data." },
+          { status: 400 }
+        );
+      }
+
+      const rawPostId = (formData.get("post_id") ?? formData.get("postId")) as string | null;
+      const imageFile = (formData.get("image_file") ?? formData.get("image")) as File | null;
+
+      if (!rawPostId || typeof rawPostId !== "string" || rawPostId.trim() === "") {
+        return NextResponse.json(
+          { success: false, error: "Thiếu trường post_id." },
+          { status: 400 }
+        );
+      }
+      postId = rawPostId.trim();
+
+      if (!imageFile || typeof imageFile.arrayBuffer !== "function") {
+        return NextResponse.json(
+          { success: false, error: "Thiếu trường image_file hoặc file không hợp lệ." },
+          { status: 400 }
+        );
+      }
+
+      // ── 3a. Validate file type ───────────────────────────────────────────────
+      if (!(ALLOWED_MIME_TYPES as readonly string[]).includes(imageFile.type)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Định dạng ảnh không được hỗ trợ: "${imageFile.type}". Chỉ chấp nhận JPG, PNG, WEBP.`,
+          },
+          { status: 422 }
+        );
+      }
+
+      // ── 3b. Validate file size ───────────────────────────────────────────────
+      if (imageFile.size > MAX_FILE_SIZE_BYTES) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Dung lượng ảnh (${(imageFile.size / 1024 / 1024).toFixed(1)} MB) vượt quá giới hạn 10 MB.`,
+          },
+          { status: 422 }
+        );
+      }
+
+      // Read buffer & upload to Vercel Blob
+      const arrayBuffer = await imageFile.arrayBuffer();
+      imageBuffer = Buffer.from(arrayBuffer);
+      imageFileType = imageFile.type;
+
+      const uploadFilename = `${userId}_${postId}_${Date.now()}${
+        imageFile.name ? "." + imageFile.name.split(".").pop()?.toLowerCase() : ".jpg"
+      }`;
+
+      const uploadResult = await uploadImage(
+        imageBuffer,
+        uploadFilename,
+        imageFileType,
+        "checkins"
+      ).catch((reason) => {
+        console.error("[checkins] Upload failed:", reason instanceof Error ? reason.message : reason);
+        throw reason;
+      });
+
+      imageUrl = uploadResult.url;
     }
 
     // ── 4a. Kiểm tra Post tồn tại ────────────────────────────────────────────
@@ -268,62 +344,46 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── 4c. Kiểm tra trùng lặp (chống spam) ─────────────────────────────────
+    // ── 4c. Kiểm tra trùng lặp (chống spam) & xử lý nộp lại ────────────────
     const existingCheckin = await db.checkin.findFirst({
       where: {
         user_id: userId,
         post_id: post.id,
       },
-      select: { id: true, status: true },
+      select: { id: true, status: true, image_url: true },
     });
 
     if (existingCheckin) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Bạn đã nộp minh chứng cho bài viết này rồi. Mỗi người chỉ được nộp một lần.",
-          existing: {
-            id: existingCheckin.id,
-            status: existingCheckin.status,
+      // Nếu bài nộp trước đó bị REJECTED → cho phép nộp lại:
+      // xoá ảnh cũ trên Vercel Blob, xoá bản ghi cũ, rồi fall through tạo mới
+      if (existingCheckin.status === "REJECTED") {
+        console.log(
+          `[checkins] Re-submit: deleting old image for checkin ${existingCheckin.id}`
+        );
+        await deleteImage(existingCheckin.image_url);
+        await db.checkin.delete({ where: { id: existingCheckin.id } });
+        // Fall through to create new checkin below
+      } else {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Bạn đã nộp minh chứng cho bài viết này rồi. Mỗi người chỉ được nộp một lần.",
+            existing: {
+              id: existingCheckin.id,
+              status: existingCheckin.status,
+            },
           },
-        },
-        { status: 409 } // 409 Conflict
-      );
+          { status: 409 } // 409 Conflict
+        );
+      }
     }
 
-    // ── 5. Đọc buffer ảnh (một lần, dùng chung cho EXIF và upload) ───────────
-    const arrayBuffer = await imageFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // ── 5. Phân tích EXIF từ buffer ─────────────────────────────────────────
+    const exif: ExifResult = imageBuffer
+      ? await parseExifFromBuffer(imageBuffer)
+      : { exifTime: null, exifFound: false, sourceTag: null };
 
-    // ── 6. Upload ảnh ────────────────────────────────────────────────────────
-    // Chạy song song với EXIF parse để tối ưu latency
-    const uploadFilename = `${userId}_${post.id}_${Date.now()}${
-      imageFile.name ? "." + imageFile.name.split(".").pop()?.toLowerCase() : ".jpg"
-    }`;
-
-    const [uploadResult, exifResult] = await Promise.allSettled([
-      uploadImage(buffer, uploadFilename, imageFile.type, "checkins"),
-      parseExifFromBuffer(buffer),
-    ]);
-
-    // Upload thất bại → dừng lại, không tạo bản ghi DB
-    if (uploadResult.status === "rejected") {
-      console.error("[checkins] Upload failed:", uploadResult.reason);
-      return NextResponse.json(
-        { success: false, error: "Không thể tải ảnh lên. Vui lòng thử lại sau." },
-        { status: 503 }
-      );
-    }
-
-    const { url: imageUrl } = uploadResult.value;
-
-    // EXIF parse thất bại hoàn toàn (không phải "không tìm thấy tag") → fallback PENDING
-    const exif: ExifResult =
-      exifResult.status === "fulfilled"
-        ? exifResult.value
-        : { exifTime: null, exifFound: false, sourceTag: null };
-
-    // ── 7. Xác định trạng thái Checkin ──────────────────────────────────────
+    // ── 6. Xác định trạng thái Checkin ──────────────────────────────────────
     const { status, aiConfidence, reason } = determineStatus(
       exif.exifFound,
       exif.exifTime,

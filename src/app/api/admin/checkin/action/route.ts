@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { deleteImage } from "@/lib/upload";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
@@ -50,6 +51,17 @@ export async function POST(request: Request) {
         },
       });
     } else {
+      // REJECT: fetch checkins to delete their images before updating DB
+      const checkins = await db.checkin.findMany({
+        where: { id: { in: checkinIds } },
+        select: { id: true, image_url: true },
+      });
+
+      // Xoá ảnh trên Vercel Blob (fire-and-forget an toàn)
+      for (const c of checkins) {
+        await deleteImage(c.image_url);
+      }
+
       await db.checkin.updateMany({
         where: {
           id: { in: checkinIds },

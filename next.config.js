@@ -1,10 +1,27 @@
 const nextConfig = {
   reactStrictMode: true,
+  // Tăng giới hạn body cho Server Actions / Route Handlers lớn hơn mặc định 4MB
+  // để hỗ trợ upload ảnh chụp màn hình dung lượng cao (tối đa 10MB)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
+  },
   images: {
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com',
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'utfs.io',
+        port: '',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ufs.sh',
         port: '',
       },
       {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   UploadCloud,
@@ -15,9 +15,11 @@ import {
   CheckCircle2,
   XCircle,
   RefreshCw,
+  Clipboard,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { UploadDropzone, uploadFiles } from "@/lib/uploadthing";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -161,7 +163,7 @@ function ExifStatusBadge({
     return (
       <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 animate-pulse">
         <Loader2 className="w-4 h-4 text-indigo-400 animate-spin flex-shrink-0" />
-        <span className="text-sm text-indigo-300">Đang phân tích dữ liệu EXIF ảnh...</span>
+        <span className="text-sm text-indigo-300">Đang phân tích dữ liệu EXIF từ máy chủ...</span>
       </div>
     );
   }
@@ -229,9 +231,7 @@ export function SubmitCheckinModal({
   onClose,
   onSuccess,
 }: SubmitCheckinModalProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isChecked1, setIsChecked1] = useState(false);
   const [isChecked2, setIsChecked2] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
@@ -242,27 +242,17 @@ export function SubmitCheckinModal({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [exifStatus, setExifStatus] = useState<ExifStatus>("idle");
   const [exifDate, setExifDate] = useState<Date | null>(null);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   // Normalise post fields to handle both API shapes
   const postUrl = post.url || post.originalUrl || "";
   const postStartAt = post.start_at || post.scheduledAt || new Date().toISOString();
   const postThumb = post.thumbnailUrl || post.thumbnail_url;
 
-  // ── Clean-up Object URL on unmount ──
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
   // ── Reset on open ──
   useEffect(() => {
     if (isOpen) {
-      setFile(null);
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+      setImageUrl(null);
       setIsChecked1(false);
       setIsChecked2(false);
       setSubmitStatus("idle");
@@ -270,117 +260,70 @@ export function SubmitCheckinModal({
       setSubmitError(null);
       setExifStatus("idle");
       setExifDate(null);
+      setUploading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
+  // ── Paste from clipboard ──
+  const pasteImage = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Ảnh từ clipboard vượt quá 4MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const [result] = await uploadFiles("screenshotUploader", {
+        files: [file],
+      });
+      if (result?.url) {
+        setImageUrl(result.url);
+        toast.success("Ảnh từ clipboard đã được tải lên!");
+      }
+    } catch (err: any) {
+      toast.error(`Tải ảnh từ clipboard thất bại: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // Only listen when no image is uploaded yet
+    if (imageUrl) return;
+
+    const onPaste = (e: ClipboardEvent) => {
+      const file = e.clipboardData?.files?.[0];
+      if (file) {
+        e.preventDefault();
+        pasteImage(file);
+      }
+    };
+
+    document.addEventListener("paste", onPaste);
+    return () => document.removeEventListener("paste", onPaste);
+  }, [isOpen, imageUrl, pasteImage]);
+
   if (!isOpen) return null;
 
-  // ── File validation & EXIF scanning ──
-  const processFile = async (selectedFile: File) => {
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowedTypes.includes(selectedFile.type)) {
-      toast.error("Định dạng không hợp lệ. Chỉ chấp nhận JPG, PNG, WEBP.");
-      return;
-    }
-    const maxSizeBytes = 10 * 1024 * 1024; // 10 MB
-    if (selectedFile.size > maxSizeBytes) {
-      toast.error("Dung lượng vượt quá 10MB.");
-      return;
-    }
-
-    setFile(selectedFile);
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setPreviewUrl(URL.createObjectURL(selectedFile));
-
-    // Parse EXIF client-side
-    setExifStatus("scanning");
-    setExifDate(null);
-    try {
-      // Dynamic import to keep initial bundle small
-      const exifr = (await import("exifr")).default;
-      const meta = await exifr.parse(selectedFile, [
-        "DateTimeOriginal",
-        "CreateDate",
-        "DateTimeDigitized",
-      ]);
-
-      const rawDate =
-        meta?.DateTimeOriginal || meta?.CreateDate || meta?.DateTimeDigitized;
-
-      if (!rawDate) {
-        setExifStatus("no_exif");
-        return;
-      }
-
-      const parsed = rawDate instanceof Date ? rawDate : new Date(rawDate);
-      if (isNaN(parsed.getTime())) {
-        setExifStatus("no_exif");
-        return;
-      }
-
-      setExifDate(parsed);
-
-      // Check 24-hour window
-      const windowStart = new Date(postStartAt).getTime();
-      const windowEnd = windowStart + 24 * 60 * 60 * 1000;
-      const taken = parsed.getTime();
-
-      setExifStatus(taken >= windowStart && taken <= windowEnd ? "valid" : "invalid");
-    } catch {
-      setExifStatus("no_exif");
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (f) processFile(f);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) processFile(f);
-  };
-
-  const handleRemoveFile = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
-    }
-    setExifStatus("idle");
-    setExifDate(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // ── Submit ──
+  // ── Submit (sends the CDN URL to the API) ──
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file || !isChecked1 || !isChecked2) return;
+    if (!imageUrl || !isChecked1 || !isChecked2) return;
 
     setSubmitStatus("loading");
     setSubmitError(null);
 
     try {
-      const fd = new FormData();
-      // Field names match POST /api/checkins spec
-      fd.append("post_id", post.id);
-      fd.append("image_file", file);
-
       const res = await fetch("/api/checkins", {
         method: "POST",
-        body: fd,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          post_id: post.id,
+          image_url: imageUrl,
+        }),
       });
 
       const data = await res.json();
@@ -400,7 +343,7 @@ export function SubmitCheckinModal({
   };
 
   const isFormValid =
-    !!file && isChecked1 && isChecked2 && submitStatus !== "loading";
+    !!imageUrl && isChecked1 && isChecked2 && submitStatus !== "loading";
 
   // ──────────────────────────────────────────────────────────────────────────
   // Render
@@ -533,34 +476,45 @@ export function SubmitCheckinModal({
               {/* Countdown Timer */}
               <CountdownTimer startAt={postStartAt} allowLateSubmit={(post as any).allow_late_submit} />
 
-              {/* Upload Zone */}
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={cn(
-                  "border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 relative overflow-hidden",
-                  isDragging
-                    ? "border-indigo-500 bg-indigo-500/5 scale-[1.01]"
-                    : previewUrl
-                    ? "border-slate-700 bg-slate-800/30 p-2"
-                    : "border-slate-700 hover:border-indigo-500/60 bg-slate-800/30 hover:bg-indigo-500/5 p-6"
-                )}
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  accept="image/jpeg,image/jpg,image/png,image/webp"
-                  className="hidden"
-                />
-
-                {previewUrl ? (
+              {/* ── Uploadthing Dropzone ── */}
+              {!imageUrl ? (
+                <div className="space-y-3">
+                  <UploadDropzone
+                    endpoint="screenshotUploader"
+                    onUploadBegin={() => setUploading(true)}
+                    onClientUploadComplete={(res: { url: string }[]) => {
+                      setUploading(false);
+                      const url = res?.[0]?.url;
+                      if (url) {
+                        setImageUrl(url);
+                        toast.success("Tải ảnh lên thành công!");
+                      }
+                    }}
+                    onUploadError={(err: Error) => {
+                      setUploading(false);
+                      toast.error(`Tải ảnh thất bại: ${err.message}`);
+                    }}
+                    content={{
+                      label: "click để chọn ảnh",
+                      allowedContent: "JPG, PNG, WEBP — Tối đa 4MB",
+                      button: "Chọn ảnh từ máy tính",
+                    }}
+                  />
+                  {/* Paste hint */}
+                  <div className="flex items-center justify-center gap-1.5 text-xs text-slate-600">
+                    <Clipboard className="w-3 h-3" />
+                    <span>
+                      Hoặc nhấp <kbd className="px-1 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400 text-[10px] font-mono">Ctrl+V</kbd> để dán ảnh từ clipboard
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* ── Preview after successful upload ── */
+                <div className="rounded-xl border-2 border-slate-700/80 bg-slate-800/30 p-2 overflow-hidden transition-all">
                   <div className="relative w-full rounded-lg overflow-hidden group bg-slate-900 min-h-[200px]">
                     <Image
-                      src={previewUrl}
-                      alt="Xem trước ảnh"
+                      src={imageUrl}
+                      alt="Xem trước ảnh minh chứng"
                       fill
                       className="object-contain"
                       sizes="(max-width: 768px) 100vw, 500px"
@@ -569,59 +523,23 @@ export function SubmitCheckinModal({
                     <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3 rounded-lg">
                       <button
                         type="button"
-                        onClick={handleRemoveFile}
+                        onClick={() => setImageUrl(null)}
                         className="flex items-center gap-1.5 px-3.5 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-lg"
                       >
                         <X className="w-3.5 h-3.5" />
                         Hủy &amp; Chọn lại
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
-                        className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-xs font-semibold transition-colors"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        Thay ảnh
-                      </button>
-                    </div>
-                    {/* File name tag */}
-                    <div className="mt-2 px-2 pb-1 flex items-center gap-2">
-                      <ImageIcon className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
-                      <span className="text-xs text-slate-400 truncate">{file?.name}</span>
-                      <span className="text-xs text-slate-600 flex-shrink-0">
-                        {file ? (file.size / 1024 / 1024).toFixed(2) : ""}MB
-                      </span>
                     </div>
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center text-center space-y-3 py-4">
-                    <div
-                      className={cn(
-                        "p-4 rounded-2xl transition-colors",
-                        isDragging ? "bg-indigo-500/20" : "bg-slate-700/50"
-                      )}
-                    >
-                      <UploadCloud
-                        className={cn(
-                          "w-8 h-8 transition-colors",
-                          isDragging ? "text-indigo-400" : "text-slate-400"
-                        )}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-300">
-                        Kéo thả ảnh hoặc{" "}
-                        <span className="text-indigo-400 underline underline-offset-2">
-                          click để chọn
-                        </span>
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        JPG, PNG, WEBP — Tối đa 10MB
-                      </p>
-                    </div>
+                  {/* CDN url tag */}
+                  <div className="mt-2 px-2 pb-1 flex items-center gap-2">
+                    <UploadCloud className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    <span className="text-xs text-emerald-400 truncate font-medium">
+                      Ảnh đã được tải lên CDN
+                    </span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* EXIF Status */}
               {exifStatus !== "idle" && (

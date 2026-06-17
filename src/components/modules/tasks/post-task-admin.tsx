@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { formatDateTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
+import { UploadButton } from "@/lib/uploadthing";
 import { toast, Toaster } from "sonner";
 
 interface ManagedPost {
@@ -830,18 +831,40 @@ export function PostTaskAdmin() {
                     {/* Thumbnail url */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-slate-700 uppercase" htmlFor="form-thumb">
-                        Thumbnail URL (Ảnh bìa)
+                        Thumbnail (Ảnh bìa)
                       </label>
                       <div className="relative">
                         <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <input 
+                        <input
                           id="form-thumb"
                           type="url"
                           placeholder="https://example.com/image.jpg"
                           value={formData.thumbnail_url}
                           onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
                           disabled={saving}
-                          className="w-full bg-white border border-slate-250 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono" 
+                          className="w-full bg-white border border-slate-250 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-mono"
+                        />
+                      </div>
+                      {/* Uploadthing button for quick upload */}
+                      <div className="pt-1">
+                        <UploadButton
+                          endpoint="documentUploader"
+                          onClientUploadComplete={(res: { url: string }[]) => {
+                            const url = res?.[0]?.url;
+                            if (url) {
+                              setFormData((prev) => ({ ...prev, thumbnail_url: url }));
+                              toast.success("Ảnh bìa đã được tải lên và tự động điền URL!");
+                            }
+                          }}
+                          onUploadError={(err: Error) => {
+                            toast.error(`Tải ảnh bìa thất bại: ${err.message}`);
+                          }}
+                          content={{
+                            button({ ready: _ready, isUploading }: { ready: boolean; isUploading: boolean }) {
+                              if (isUploading) return "Đang tải lên...";
+                              return "Tải ảnh bìa lên";
+                            },
+                          }}
                         />
                       </div>
                       {formErrors.thumbnail_url && (
