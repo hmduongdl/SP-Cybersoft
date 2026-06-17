@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLayout } from "./layout-context";
 import { useSession, signOut } from "next-auth/react";
 import { twMerge } from "tailwind-merge";
@@ -12,6 +11,7 @@ import { UserAvatar } from "./user-avatar";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { sidebarOpen, setSidebarOpen, role, setRole } = useLayout();
   const { data: session, status } = useSession();
   
@@ -51,8 +51,12 @@ export function Sidebar() {
   const filteredItems = navItems.filter((item) => !item.adminOnly || role === "ADMIN");
 
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
-  const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
-  const userRole = profile?.department || session?.user?.department || "";
+  const userEmail = session?.user?.email || profile?.email || "";
+  const rawDepartment = profile?.department || session?.user?.department || "";
+  const departmentLabel =
+    rawDepartment === "TECH" ? "Phòng Kỹ Thuật"
+    : rawDepartment === "SALES" ? "Phòng Kinh Doanh"
+    : rawDepartment;
   const userImage = session?.user?.image || profile?.avatar_url || null;
 
   const sidebarContent = (
@@ -91,13 +95,15 @@ export function Sidebar() {
           {filteredItems.map(({ label, href, icon }) => {
             const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
             return (
-              <Link
+              <button
                 key={label}
-                href={href}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => {
+                  setSidebarOpen(false);
+                  router.push(href);
+                }}
                 className={twMerge(
                   clsx(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-4",
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 border-l-4 w-full text-left cursor-pointer",
                     isActive
                       ? "text-indigo-400 bg-indigo-500/10 border-indigo-500 font-medium shadow-[inset_4px_0_12px_rgba(99,102,241,0.05)]"
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-900 border-transparent"
@@ -106,7 +112,7 @@ export function Sidebar() {
               >
                 <span className="material-symbols-outlined text-[22px]">{icon}</span>
                 <span className="text-sm font-medium">{label}</span>
-              </Link>
+              </button>
             );
           })}
         </nav>
@@ -156,8 +162,8 @@ export function Sidebar() {
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
                 <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
-                {userRole && (
-                  <p className="text-[10px] text-indigo-400/80 truncate font-medium">{userRole}</p>
+                {departmentLabel && (
+                  <p className="text-[10px] text-indigo-400/80 truncate font-medium">{departmentLabel}</p>
                 )}
               </div>
             </div>
@@ -200,7 +206,7 @@ export function Sidebar() {
         <aside
           className={twMerge(
             clsx(
-              "absolute top-0 bottom-0 left-0 w-[280px] shadow-2xl transition-transform duration-300 ease-in-out transform bg-slate-950",
+              "absolute top-0 bottom-0 left-0 w-[280px] shadow-2xl transition-transform duration-300 ease-in-out transform bg-slate-950 z-10",
               sidebarOpen ? "translate-x-0" : "-translate-x-full"
             )
           )}

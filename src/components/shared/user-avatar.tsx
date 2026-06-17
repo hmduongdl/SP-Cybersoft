@@ -10,21 +10,13 @@ interface UserAvatarProps {
 
 /**
  * Avatar component hiển thị ảnh người dùng.
- * Khi không có ảnh hoặc ảnh lỗi → fallback chữ cái đầu tên.
+ * Khi không có ảnh hoặc ảnh lỗi → fallback SVG person icon.
  */
 export function UserAvatar({ src, name, size = "md" }: UserAvatarProps) {
   const [imgError, setImgError] = useState(false);
 
   const dims = size === "sm" ? "h-7 w-7 text-[11px]" : "h-10 w-10 text-sm";
   const border = size === "sm" ? "border-slate-200" : "border-slate-800";
-
-  const initials = (name || "U")
-    .trim()
-    .split(/\s+/)
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   const hasSrc = src && !imgError;
 
@@ -41,10 +33,21 @@ export function UserAvatar({ src, name, size = "md" }: UserAvatarProps) {
 
   return (
     <div
-      className={`${dims} rounded-full border ${border} bg-indigo-600 flex items-center justify-center text-white font-bold shrink-0`}
+      className={`${dims} rounded-full border ${border} bg-slate-700 flex items-center justify-center shrink-0`}
       title={name || "Người dùng"}
     >
-      {initials}
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className={size === "sm" ? "w-4 h-4 text-slate-400" : "w-5 h-5 text-slate-400"}
+      >
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4.418 3.582-8 8-8s8 3.582 8 8" />
+      </svg>
     </div>
   );
 }

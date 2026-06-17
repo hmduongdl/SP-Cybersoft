@@ -143,8 +143,8 @@ export default function AnalyticsClient({
               <span className="material-symbols-outlined text-on-surface-variant">more_vert</span>
             </button>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minHeight={0}>
               <BarChart data={departmentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} dy={10} />
@@ -177,8 +177,8 @@ export default function AnalyticsClient({
               </span>
             </div>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full min-w-0">
+            <ResponsiveContainer width="100%" height="100%" minHeight={0}>
               <LineChart data={trendChartData} margin={{ top: 10, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 10, fontWeight: 500 }} dy={10} />

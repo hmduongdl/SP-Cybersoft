@@ -85,7 +85,7 @@ export function SiteHeader() {
   const breadcrumbs = getBreadcrumbs();
 
   const userDisplayName = session?.user?.name || profile?.name || "Thành viên";
-  const userEmail = session?.user?.email || profile?.email || profile?.gmail || "";
+  const userEmail = session?.user?.email || profile?.email || "";
   const userImage = session?.user?.image || profile?.avatar_url || null;
   const isFacebookLinked = profile?.facebook_profile_url ? true : false;
   const userDepartment = profile?.department || session?.user?.department || "";

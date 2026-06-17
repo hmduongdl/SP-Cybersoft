@@ -14,7 +14,6 @@ model User {
   name                 String
   full_name            String?
   email                String    @unique
-  gmail                String?
   facebook_profile_url String?
   password             String
   role                 UserRole  @default(USER)
@@ -25,7 +24,7 @@ model User {
   daily_token_limit    Int       @default(100000)
   last_token_reset     DateTime  @default(now())
   tokens_used_today    Int       @default(0)
-  hope_stars           Int       @default(3)
+  hope_stars           Int       @default(0)
   used_stars_this_month Int      @default(0)
   last_star_reset_at   DateTime  @default(now())
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
