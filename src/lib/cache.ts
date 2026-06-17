@@ -66,7 +66,7 @@ export async function getCachedPosts(userId?: string) {
 
   return posts.map(post => {
     // Nếu post đã quá 30h so với thời điểm start_at, tự động khóa
-    if (now - post.start_at.getTime() > THIRTY_HOURS) {
+    if (now - (post.start_at as unknown as Date).getTime() > THIRTY_HOURS) {
       return { ...post, is_archived: true };
     }
     return post;
@@ -166,7 +166,7 @@ export async function getCachedPostsApi() {
   const THIRTY_HOURS = 30 * 60 * 60 * 1000;
 
   return posts.map(post => {
-    if (now - post.start_at.getTime() > THIRTY_HOURS) {
+    if (now - (post.start_at as unknown as Date).getTime() > THIRTY_HOURS) {
       return { ...post, is_archived: true };
     }
     return post;

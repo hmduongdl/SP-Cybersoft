@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { User, Mail, Building2, Loader2, X, Link, UserCircle, Camera } from "lucide-react";
-import { UserAvatar } from "./user-avatar";
+import { UserAvatar } from "./shared/user-avatar";
 
 interface AccountModalProps {
   isOpen: boolean;
@@ -184,7 +184,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               {/* Avatar upload */}
               <div className="flex items-center gap-5 mb-6">
                 <div className="relative group">
-                  <UserAvatar name={name || null} url={avatarPreview || avatarUrl || undefined} />
+                  <UserAvatar name={name || null} />
                   <button
                     type="button"
                     onClick={() => {
