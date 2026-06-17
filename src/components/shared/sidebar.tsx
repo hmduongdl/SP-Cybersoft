@@ -40,8 +40,8 @@ export function Sidebar() {
 
   const navItems = [
     { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
-    { label: "Calendar", href: "/calendar", icon: "calendar_today", adminOnly: false },
-    { label: "List View", href: "/posts", icon: "list_alt", adminOnly: false },
+    { label: "Bài Share", href: "/posts", icon: "article", adminOnly: false },
+    { label: "Nhiệm vụ", href: "/tasks", icon: "task_alt", adminOnly: false },
     { label: "Duyệt Bài", href: "/admin/queue", icon: "rate_review", adminOnly: true },
     { label: "Reports", href: "/admin/analytics", icon: "analytics", adminOnly: true },
     { label: "Quản lý Post", href: "/admin/posts", icon: "post_add", adminOnly: true },

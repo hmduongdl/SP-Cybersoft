@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import { differenceInSeconds } from "date-fns";
+import { useEffect, useState, useCallback } from "react";
+import { differenceInSeconds, format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Clock, CheckCircle2, AlertCircle, XCircle, Star } from "lucide-react";
+import { ExternalLink, Clock, CheckCircle2, AlertCircle, XCircle, Star, ImageIcon } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Pagination } from "@/components/ui/pagination";
 import type { UseHopeStarResult } from "@/app/actions/hope-star-actions";
+import { vi } from "date-fns/locale";
 
 type Post = {
   id: string;
@@ -25,20 +26,56 @@ type Post = {
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
 };
 
-const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUseHopeStar }: {
-  post: Post;
-  onCheckIn: (post: Post) => void;
-  userHopeStars?: number;
-  userUsedStarsThisMonth?: number;
-  onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
-}) => {
-  const [timeLeft, setTimeLeft] = useState("24:00:00");
-  const [isExpired, setIsExpired] = useState(false);
-  const [remainingHours, setRemainingHours] = useState(24);
+type PostStatus = "NOT_SUBMITTED" | "SUBMITTED" | "PENDING_REVIEW" | "REJECTED" | "EXPIRED";
 
-  const startAtDate = post.start_at || post.scheduledAt || new Date().toISOString();
-  const originalUrl = post.url || post.originalUrl || "#";
-  const thumbnailUrl = post.thumbnail_url || post.thumbnailUrl;
+function getPostStatus(
+  post: Post,
+  now: Date
+): { status: PostStatus; label: string; badgeClass: string } {
+  const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
+  const scheduled = new Date(post.start_at || post.scheduledAt || now);
+  const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
+  const isExpired = now > deadline;
+
+  if (checkinState === "APPROVED" || checkinState === "AUTO_APPROVED") {
+    return {
+      status: "SUBMITTED",
+      label: "Đã nộp",
+      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    };
+  }
+  if (checkinState === "PENDING") {
+    return {
+      status: "PENDING_REVIEW",
+      label: "Chờ duyệt",
+      badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+    };
+  }
+  if (checkinState === "REJECTED") {
+    return {
+      status: "REJECTED",
+      label: "Bị từ chối",
+      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
+    };
+  }
+  if (isExpired) {
+    return {
+      status: "EXPIRED",
+      label: "Quá hạn",
+      badgeClass: "bg-red-50 text-red-700 border-red-200",
+    };
+  }
+  return {
+    status: "NOT_SUBMITTED",
+    label: "Chưa nộp",
+    badgeClass: "bg-slate-100 text-slate-600 border-slate-200",
+  };
+}
+
+function DeadlineCell({ startAtDate }: { startAtDate: string }) {
+  const [timeLeft, setTimeLeft] = useState("--:--:--");
+  const [remainingHours, setRemainingHours] = useState(24);
+  const [isExpired, setIsExpired] = useState(false);
 
   useEffect(() => {
     const calculateTime = () => {
@@ -57,7 +94,7 @@ const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUs
       const h = Math.floor(diffSeconds / 3600);
       const m = Math.floor((diffSeconds % 3600) / 60);
       const s = diffSeconds % 60;
-      
+
       setTimeLeft(
         `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
       );
@@ -70,15 +107,48 @@ const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUs
     return () => clearInterval(interval);
   }, [startAtDate]);
 
-  // Determine checkin state flags
-  const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
-  const isSubmitted = !!checkinState;
+  if (isExpired) {
+    return (
+      <span className="text-xs font-semibold text-red-500">Đã quá hạn</span>
+    );
+  }
 
-  // Hope star state
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 text-xs font-mono font-bold px-2 py-1 rounded-md border",
+        remainingHours <= 2
+          ? "bg-red-50 text-red-600 border-red-200"
+          : remainingHours <= 6
+          ? "bg-amber-50 text-amber-600 border-amber-200"
+          : "bg-slate-50 text-slate-600 border-slate-200"
+      )}
+    >
+      <Clock className="w-3 h-3" />
+      {timeLeft}
+    </span>
+  );
+}
+
+function ActionCell({
+  post,
+  postStatus,
+  onCheckIn,
+  userHopeStars,
+  userUsedStarsThisMonth,
+  onUseHopeStar,
+}: {
+  post: Post;
+  postStatus: PostStatus;
+  onCheckIn?: (post: Post) => void;
+  userHopeStars?: number;
+  userUsedStarsThisMonth?: number;
+  onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
+}) {
   const [isUsingHopeStar, setIsUsingHopeStar] = useState(false);
   const hasStars = (userHopeStars ?? 0) > 0;
   const canUseStarThisMonth = (userUsedStarsThisMonth ?? 0) < 3;
-  const canUseHopeStar = isExpired && !isSubmitted && hasStars && canUseStarThisMonth;
+  const canUseHopeStar = postStatus === "EXPIRED" && hasStars && canUseStarThisMonth;
 
   const handleUseHopeStarClick = useCallback(async () => {
     if (!onUseHopeStar || !canUseHopeStar) return;
@@ -97,151 +167,66 @@ const PostCard = ({ post, onCheckIn, userHopeStars, userUsedStarsThisMonth, onUs
     }
   }, [post.id, onUseHopeStar, canUseHopeStar]);
 
-  // Team badge styling
-  let teamBadgeClass = "bg-indigo-50 text-indigo-700 border-indigo-150";
-  let teamLabel = "Tất cả";
-  if (post.team === "TECH") {
-    teamBadgeClass = "bg-blue-50 text-blue-700 border-blue-150";
-    teamLabel = "Tech";
-  } else if (post.team === "SALES") {
-    teamBadgeClass = "bg-pink-50 text-pink-700 border-pink-150";
-    teamLabel = "Sales";
-  }
-
-  return (
-    <div className="flex flex-col bg-white rounded-xl border border-slate-200/80 shadow-soft hover:shadow-lg transition-all duration-300 overflow-hidden group">
-      {/* 1. Header Card Panel */}
-      <div className="p-4 border-b border-slate-100 flex flex-col gap-2 bg-slate-50/40">
-        <div className="flex items-center justify-between gap-2">
-          {/* Team Badge */}
-          <span className={cn("px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border tracking-wider", teamBadgeClass)}>
-            {teamLabel}
-          </span>
-          
-          {/* Countdown Clock */}
-          {isSubmitted ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Done
-            </span>
-          ) : isExpired ? (
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-100">
-              <AlertCircle className="w-3.5 h-3.5" /> Quá 24h
-            </span>
-          ) : (
-            <span className={cn(
-              "inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2 py-0.5 rounded-full border shadow-sm",
-              remainingHours <= 2 
-                ? "bg-rose-500 text-white border-rose-600 animate-pulse" 
-                : remainingHours <= 6 
-                  ? "bg-amber-50 text-amber-700 border-amber-200" 
-                  : "bg-indigo-50 text-indigo-700 border-indigo-100"
-            )}>
-              <Clock className="w-3.5 h-3.5 animate-spin-slow" />
-              {timeLeft}
-            </span>
-          )}
-        </div>
-
-        {/* Post Title */}
-        <h3 className="font-headline-md text-sm font-bold uppercase text-slate-900 tracking-tight line-clamp-1 mt-1 group-hover:text-indigo-600 transition-colors duration-200">
-          {post.title}
-        </h3>
-      </div>
-
-      {/* 2. Body Card Panel */}
-      <div className="p-4 flex-1 flex flex-col gap-3">
-        {/* Aspect Ratio 16:9 Thumbnail */}
-        <div className="aspect-video w-full rounded-lg overflow-hidden bg-slate-100 border border-slate-200/50 relative">
-          {thumbnailUrl ? (
-            <Image
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              src={thumbnailUrl}
-              alt={post.title}
-              fill
-              sizes="(max-width: 640px) 100vw, 300px"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-indigo-100/50 text-indigo-400 select-none">
-              <span className="material-symbols-outlined text-3xl mb-1">image</span>
-              <span className="text-[10px] font-semibold tracking-wider uppercase">TeamSync Banner</span>
-            </div>
-          )}
-        </div>
-
-        {/* Description & URL */}
-        <div className="flex-grow flex flex-col justify-between gap-3">
-          <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-            {post.description || "Hãy thực hiện like và chia sẻ bài viết này công khai trên Facebook cá nhân."}
-          </p>
-
-          <a 
-            href={originalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 hover:underline transition-colors mt-1"
+  switch (postStatus) {
+    case "NOT_SUBMITTED":
+      return (
+        <button
+          onClick={() => onCheckIn?.(post)}
+          className="whitespace-nowrap rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-[0.97] text-white font-semibold px-3.5 py-1.5 text-xs transition-all duration-200 shadow-sm hover:shadow-md"
+        >
+          Nộp bằng chứng
+        </button>
+      );
+    case "EXPIRED":
+      if (canUseHopeStar) {
+        return (
+          <button
+            onClick={handleUseHopeStarClick}
+            disabled={isUsingHopeStar}
+            className="whitespace-nowrap rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-[0.97] text-white font-semibold px-3.5 py-1.5 text-xs transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-60 inline-flex items-center gap-1"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
-            <span>Xem link bài gốc</span>
-          </a>
-        </div>
-      </div>
-
-      {/* 3. Footer Card Panel */}
-      <div className="p-4 pt-0">
-        {!isSubmitted ? (
-          isExpired ? (
-            <div className="space-y-2">
-              <button
-                className="w-full rounded-lg bg-slate-100 text-slate-400 font-semibold py-2.5 text-center text-xs cursor-not-allowed border border-slate-200"
-                disabled
-              >
-                Đã khoá (Quá 24 giờ)
-              </button>
-              {canUseHopeStar && (
-                <button
-                  onClick={handleUseHopeStarClick}
-                  disabled={isUsingHopeStar}
-                  className="w-full rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white font-semibold py-2.5 text-center text-xs transition-all duration-200 shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 disabled:opacity-60"
-                >
-                  {isUsingHopeStar ? (
-                    <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                  ) : (
-                    <Star className="w-3.5 h-3.5 fill-white/30" />
-                  )}
-                  {isUsingHopeStar ? "Đang xử lý..." : `Sử dụng 1 Ngôi sao hy vọng (Còn ${userHopeStars} sao)`}
-                </button>
-              )}
-            </div>
-          ) : (
-            <button 
-              onClick={() => onCheckIn(post)}
-              className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold py-2.5 text-center text-xs transition-all duration-200 shadow-sm hover:shadow-md"
-            >
-              Nộp bằng chứng share
-            </button>
-          )
-        ) : (
-          checkinState === "APPROVED" || checkinState === "AUTO_APPROVED" ? (
-            <div className="w-full rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold py-2.5 text-center text-xs flex items-center justify-center gap-1.5 shadow-sm">
-              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              Đã duyệt (Approved)
-            </div>
-          ) : checkinState === "PENDING" ? (
-            <div className="w-full rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-semibold py-2.5 text-center text-xs flex items-center justify-center gap-1.5 shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-              Chờ duyệt (Pending)
-            </div>
-          ) : (
-            <div className="w-full rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-semibold py-2.5 text-center text-xs flex items-center justify-center gap-1.5 shadow-sm">
-              <XCircle className="w-4 h-4 text-rose-500" />
-              Bị từ chối (Rejected)
-            </div>
-          )
-        )}
-      </div>
-    </div>
-  );
-};
+            {isUsingHopeStar ? (
+              <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            ) : (
+              <Star className="w-3 h-3 fill-white/30" />
+            )}
+            {isUsingHopeStar ? "Đang xử lý..." : "Dùng sao hy vọng"}
+          </button>
+        );
+      }
+      return (
+        <button
+          disabled
+          className="whitespace-nowrap rounded-lg bg-slate-100 text-slate-400 font-semibold px-3.5 py-1.5 text-xs cursor-not-allowed border border-slate-200"
+        >
+          Đã khoá
+        </button>
+      );
+    case "SUBMITTED":
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Đã duyệt
+        </span>
+      );
+    case "PENDING_REVIEW":
+      return (
+        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+          Chờ duyệt
+        </span>
+      );
+    case "REJECTED":
+      return (
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-600 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+          <XCircle className="w-3.5 h-3.5" />
+          Bị từ chối
+        </span>
+      );
+    default:
+      return null;
+  }
+}
 
 export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar, currentPage = 1, totalPages = 1 }: {
   posts: Post[];
@@ -256,13 +241,15 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  const now = new Date();
+
   const filteredPosts = posts.filter((post) => {
     if (filter === "ALL") return true;
     if (filter === "COMPLETED") return !!post.checkinStatus || post.status === "COMPLETED";
 
-    const scheduled = new Date(post.start_at || post.scheduledAt || new Date());
+    const scheduled = new Date(post.start_at || post.scheduledAt || now);
     const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
-    const isActuallyExpired = new Date() > deadline;
+    const isActuallyExpired = now > deadline;
     const submitted = !!post.checkinStatus || post.status === "COMPLETED";
 
     if (filter === "EXPIRED") return isActuallyExpired && !submitted;
@@ -274,7 +261,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header section with Filter Buttons */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-2">
         <div>
           <h2 className="font-headline-lg text-2xl font-bold text-slate-900 mb-1">Danh sách bài viết</h2>
           <p className="text-sm text-slate-500">Thực hiện Like, Share bài truyền thông nội bộ và check-in đúng hạn.</p>
@@ -324,20 +311,117 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
         </div>
       )}
 
-      {/* Grid Layout of cards - minimum 3 columns on Desktop */}
+      {/* Table Layout */}
       {filteredPosts.length > 0 ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPosts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                onCheckIn={(p) => onCheckIn ? onCheckIn(p) : console.log("Check-in", p)}
-                userHopeStars={userHopeStars}
-                userUsedStarsThisMonth={userUsedStarsThisMonth}
-                onUseHopeStar={onUseHopeStar}
-              />
-            ))}
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+            <table className="min-w-full divide-y divide-slate-200">
+              <thead>
+                <tr className="bg-slate-50">
+                  <th className="py-3.5 pl-4 pr-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Bài viết
+                  </th>
+                  <th className="px-3 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Trạng thái
+                  </th>
+                  <th className="px-3 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Deadline
+                  </th>
+                  <th className="py-3.5 pl-3 pr-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Thao tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredPosts.map((post) => {
+                  const startAtDate = post.start_at || post.scheduledAt || now.toISOString();
+                  const thumbnailUrl = post.thumbnail_url || post.thumbnailUrl;
+                  const { status: postStatus, label: statusLabel, badgeClass } = getPostStatus(post, now);
+
+                  return (
+                    <tr key={post.id} className="hover:bg-slate-50/60 transition-colors duration-150">
+                      {/* Thumbnail + Title */}
+                      <td className="py-3 pl-4 pr-3 whitespace-nowrap">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {/* Thumbnail 48px */}
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 relative">
+                            {thumbnailUrl ? (
+                              <Image
+                                className="object-cover"
+                                src={thumbnailUrl}
+                                alt={post.title}
+                                fill
+                                sizes="48px"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                <ImageIcon className="w-5 h-5" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Title + URL link */}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 truncate max-w-[280px]">
+                              {post.title}
+                            </p>
+                            <a
+                              href={post.url || post.originalUrl || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-500 hover:text-indigo-600 hover:underline mt-0.5"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Xem bài gốc
+                            </a>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Status badge */}
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase border tracking-wider",
+                            badgeClass
+                          )}
+                        >
+                          {postStatus === "PENDING_REVIEW" && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+                          )}
+                          {postStatus === "SUBMITTED" && <CheckCircle2 className="w-3 h-3" />}
+                          {postStatus === "REJECTED" && <XCircle className="w-3 h-3" />}
+                          {postStatus === "EXPIRED" && <AlertCircle className="w-3 h-3" />}
+                          {statusLabel}
+                        </span>
+                      </td>
+
+                      {/* Deadline countdown */}
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        {postStatus === "SUBMITTED" || postStatus === "PENDING_REVIEW" || postStatus === "REJECTED" ? (
+                          <span className="text-xs text-slate-400">
+                            {format(new Date(startAtDate), "dd/MM/yyyy HH:mm", { locale: vi })}
+                          </span>
+                        ) : (
+                          <DeadlineCell startAtDate={startAtDate} />
+                        )}
+                      </td>
+
+                      {/* Action */}
+                      <td className="py-3 pl-3 pr-4 whitespace-nowrap text-right">
+                        <ActionCell
+                          post={post}
+                          postStatus={postStatus}
+                          onCheckIn={onCheckIn}
+                          userHopeStars={userHopeStars}
+                          userUsedStarsThisMonth={userUsedStarsThisMonth}
+                          onUseHopeStar={onUseHopeStar}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
           <Pagination
             currentPage={currentPage}
@@ -350,7 +434,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                 params.set("page", String(page));
               }
               const qs = params.toString();
-              router.push(qs ? `/posts?${qs}` : "/posts");
+              router.push(qs ? `/tasks?${qs}` : "/tasks");
             }}
           />
         </>
@@ -366,4 +450,3 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
     </div>
   );
 }
-

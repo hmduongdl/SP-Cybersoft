@@ -852,7 +852,8 @@ export default function QueueClient({
           totalPages={_totalPages ?? 1}
           onPageChange={(page) => navigateWithParams({ page: String(page) })}
         />
-      )}
+      </>
+    )}
 
       {/* Floating Batch Operations Bar at the bottom */}
       {activeTab === "PENDING" && selectedIds.size > 0 && (

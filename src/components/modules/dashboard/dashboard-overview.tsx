@@ -217,7 +217,7 @@ export function DashboardOverview({
             </div>
 
             <Link 
-              href="/posts" 
+              href="/tasks" 
               className="w-full mt-6 py-3 border border-slate-200 hover:bg-slate-50 text-slate-650 hover:text-slate-900 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1 shadow-sm"
             >
               <span>Xem danh sách bài viết</span>

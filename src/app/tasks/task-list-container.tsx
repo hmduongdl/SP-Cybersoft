@@ -1,16 +1,14 @@
 import { auth } from "@/auth";
-import { format } from "date-fns";
-import PostsPageClient from "./posts-page-client";
+import TasksPageClient from "./tasks-page-client";
 import {
   getCachedPosts,
-  getCachedApprovedCheckins,
   getCachedUserStarData,
 } from "@/lib/cache";
 
 const POSTS_PER_PAGE = 12;
 
-export default async function PostListContainer(props: {
-  searchParams?: Promise<{ page?: string; view?: string }>;
+export default async function TaskListContainer(props: {
+  searchParams?: Promise<{ page?: string }>;
 }) {
   const searchParams = await props.searchParams;
   const session = await auth();
@@ -19,9 +17,8 @@ export default async function PostListContainer(props: {
   const page = Math.max(1, Number(searchParams?.page) || 1);
   const skip = (page - 1) * POSTS_PER_PAGE;
 
-  const [allPosts, allCheckins, currentUser] = await Promise.all([
+  const [allPosts, currentUser] = await Promise.all([
     getCachedPosts(userId ?? undefined),
-    getCachedApprovedCheckins(),
     userId ? getCachedUserStarData(userId) : Promise.resolve(null),
   ]);
 
@@ -50,33 +47,13 @@ export default async function PostListContainer(props: {
     };
   });
 
-  const completedAvatarsByDate: Record<string, any[]> = {};
-  allCheckins.forEach(sub => {
-    if (!sub.post || !sub.user) return;
-    const dateKey = format(new Date(sub.post.start_at), "yyyy-MM-dd");
-    if (!completedAvatarsByDate[dateKey]) {
-      completedAvatarsByDate[dateKey] = [];
-    }
-    if (!completedAvatarsByDate[dateKey].some(u => u.id === sub.user.id)) {
-      completedAvatarsByDate[dateKey].push({
-         id: sub.user.id,
-         name: sub.user.name || "Unknown",
-         imageUrl: sub.user.avatar_url,
-      });
-    }
-  });
-
-  const defaultView = searchParams?.view === "calendar" ? "CALENDAR" : "LIST";
-
   return (
-    <PostsPageClient
+    <TasksPageClient
       posts={posts}
-      completedAvatarsByDate={completedAvatarsByDate}
       userHopeStars={currentUser?.hope_stars ?? 0}
       userUsedStarsThisMonth={currentUser?.used_stars_this_month ?? 0}
       currentPage={page}
       totalPages={totalPages}
-      defaultView={defaultView}
     />
   );
 }

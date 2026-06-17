@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PostListView } from "@/components/modules/tasks/post-list-view";
 import { PostCalendarView } from "@/components/modules/tasks/post-calendar-view";
 import { SubmitCheckinModal } from "@/components/SubmitCheckinModal";
@@ -9,12 +10,49 @@ import { cn } from "@/lib/utils";
 import { Toaster } from "sonner";
 import { useHopeStar } from "@/app/actions/hope-star-actions";
 
+const STORAGE_KEY = "posts-view-preference";
 
-export default function PostsPageClient({ posts: initialPosts, completedAvatarsByDate, userHopeStars = 0, userUsedStarsThisMonth = 0, currentPage = 1, totalPages = 1 }: { posts: any[], completedAvatarsByDate: any, userHopeStars?: number, userUsedStarsThisMonth?: number, currentPage?: number, totalPages?: number }) {
-  const [view, setView] = useState<"LIST" | "CALENDAR">("LIST");
+function getInitialView(defaultView: "LIST" | "CALENDAR"): "LIST" | "CALENDAR" {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "LIST" || stored === "CALENDAR") return stored;
+  }
+  return defaultView;
+}
+
+export default function PostsPageClient({
+  posts: initialPosts,
+  completedAvatarsByDate,
+  userHopeStars = 0,
+  userUsedStarsThisMonth = 0,
+  currentPage = 1,
+  totalPages = 1,
+  defaultView = "LIST",
+}: {
+  posts: any[],
+  completedAvatarsByDate: any,
+  userHopeStars?: number,
+  userUsedStarsThisMonth?: number,
+  currentPage?: number,
+  totalPages?: number,
+  defaultView?: "LIST" | "CALENDAR",
+}) {
+  const [view, setView] = useState<"LIST" | "CALENDAR">(() => getInitialView(defaultView));
   const [posts, setPosts] = useState(initialPosts);
-
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Sync view to URL and localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, view);
+    const params = new URLSearchParams(searchParams.toString());
+    const viewParam = view === "CALENDAR" ? "calendar" : "list";
+    if (params.get("view") !== viewParam) {
+      params.set("view", viewParam);
+      router.replace(`/posts?${params.toString()}`, { scroll: false });
+    }
+  }, [view, router, searchParams]);
 
   const handleCheckIn = (post: any) => {
     setSelectedPost(post);
@@ -50,8 +88,8 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-2">
         <div>
           <p className="text-sm uppercase tracking-[0.3em] text-indigo-500 font-bold mb-2">Bảng tin</p>
-          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Danh Sách Bài Share</h1>
-          <p className="mt-2 text-slate-500 text-lg">Quản lý và cập nhật tiến độ công việc mạng xã hội.</p>
+          <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Bài Share</h1>
+          <p className="mt-2 text-slate-500 text-lg">Quản lý và cập nhật tiến độ bài đăng mạng xã hội.</p>
         </div>
 
         {/* View Toggle */}
@@ -76,7 +114,7 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
                 : "text-slate-600 hover:text-slate-900 hover:scale-105"
             )}
           >
-            <CalendarIcon className="w-4 h-4" /> Lịch Trình
+            <CalendarIcon className="w-4 h-4" /> Lịch
           </button>
         </div>
       </header>
@@ -96,11 +134,11 @@ export default function PostsPageClient({ posts: initialPosts, completedAvatarsB
       )}
 
       {selectedPost && (
-        <SubmitCheckinModal 
-          post={selectedPost} 
-          isOpen={!!selectedPost} 
-          onClose={handleModalClose} 
-          onSuccess={handleModalSuccess} 
+        <SubmitCheckinModal
+          post={selectedPost}
+          isOpen={!!selectedPost}
+          onClose={handleModalClose}
+          onSuccess={handleModalSuccess}
         />
       )}
     </div>

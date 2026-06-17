@@ -61,8 +61,7 @@ export function SiteHeader() {
 
     const labelMap: Record<string, string> = {
       dashboard: "Tổng quan",
-      calendar: "Lịch Công Việc",
-      posts: "Danh Sách Bài Share",
+      posts: "Bài Share",
       admin: "Quản trị",
       queue: "Duyệt Bài",
       analytics: "Báo Cáo Chi Tiết",

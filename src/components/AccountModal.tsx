@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { User, Mail, Building2, Loader2, X, Camera, Link, Phone, UserCircle } from "lucide-react";
+import { User, Mail, Building2, Loader2, X, Camera, Link, UserCircle } from "lucide-react";
 import { UserAvatar } from "./shared/user-avatar";
 
 interface AccountModalProps {
@@ -21,7 +21,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState(session?.user?.email ?? "");
   const [department, setDepartment] = useState("");
-  const [phone, setPhone] = useState("");
+
   const [facebookLink, setFacebookLink] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
@@ -60,7 +60,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             setDepartment(data.user.department ?? "");
             setAvatarUrl(data.user.avatar_url ?? null);
             setFacebookLink(data.user.facebook_link ?? "");
-            setPhone(data.user.phone ?? "");
+
           }
         }
       } catch (error) {
@@ -123,7 +123,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       // Build payload — chỉ gửi các trường được phép cập nhật
       const payload: Record<string, unknown> = {};
       payload.email = email.trim();
-      payload.phone = phone.trim() || null;
+
       payload.facebook_link = facebookLink.trim() || null;
       if (finalAvatarUrl !== undefined) {
         payload.avatar_url = finalAvatarUrl;
@@ -298,20 +298,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                   />
                 </div>
 
-                {/* CHO PHÉP SỬA: Số điện thoại */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-2 uppercase">
-                    <Phone className="w-4 h-4 text-slate-400" /> Số điện thoại
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone ?? ""}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="0901234567"
-                    disabled={saving}
-                    className="w-full px-3 py-2 bg-white border border-slate-250 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  />
-                </div>
+
               </div>
 
               {/* Actions */}

@@ -487,7 +487,7 @@ export function PostTaskAdmin() {
               </select>
 
               <button
-                onClick={loadPosts}
+                onClick={() => loadPosts()}
                 disabled={loadingPosts}
                 title="Tải lại danh sách"
                 className="p-2.5 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-colors"

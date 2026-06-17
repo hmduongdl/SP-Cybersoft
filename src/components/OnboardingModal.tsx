@@ -25,7 +25,6 @@ export function OnboardingModal() {
     full_name: user?.name || "",
     username: user?.username || "",
     email: user?.email || "",
-    phone: user?.phone || "",
     facebook_link: user?.facebook_link || "",
   });
 
@@ -36,7 +35,6 @@ export function OnboardingModal() {
         full_name: prev.full_name || user.name || "",
         username: prev.username || user.username || "",
         email: prev.email || user.email || "",
-        phone: prev.phone || user.phone || "",
         facebook_link: prev.facebook_link || user.facebook_link || "",
       }));
     }
@@ -96,7 +94,7 @@ export function OnboardingModal() {
       fd.append("full_name", formData.full_name.trim());
       fd.append("username", formData.username.trim());
       fd.append("email", formData.email.trim());
-      if (formData.phone.trim()) fd.append("phone", formData.phone.trim());
+
       if (formData.facebook_link.trim()) fd.append("facebook_link", formData.facebook_link.trim());
       if (avatarFile) fd.append("file", avatarFile);
 
@@ -247,43 +245,23 @@ export function OnboardingModal() {
             </p>
           </div>
 
-          {/* Email & Phone - grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                Email liên lạc <span className="text-red-400">*</span>
-              </label>
-              <div className="relative group">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                  mail
-                </span>
-                <input
-                  type="email"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="nguyenvana@gmail.com"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                Số điện thoại
-              </label>
-              <div className="relative group">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                  call
-                </span>
-                <input
-                  type="tel"
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  placeholder="0912 345 678"
-                />
-              </div>
+          {/* Email */}
+          <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+              Email liên lạc <span className="text-red-400">*</span>
+            </label>
+            <div className="relative group">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                mail
+              </span>
+              <input
+                type="email"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-950 border border-slate-800 rounded-xl text-white placeholder-slate-600 focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 outline-none transition-all"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="nguyenvana@gmail.com"
+              />
             </div>
           </div>
 
