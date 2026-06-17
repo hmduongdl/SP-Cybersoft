@@ -35,6 +35,7 @@ export async function GET(request: Request) {
             start_at: post.start_at.toISOString(),
             is_archived: post.is_archived,
             allow_late_submit: post.allow_late_submit,
+            author_name: post.author_name,
             team: post.team,
             successfulCheckins: post._count.checkins,
             totalEmployees,
@@ -79,6 +80,8 @@ export async function POST(request: Request) {
             team: (parsed.data.team as any) || 'ALL',
             is_archived: false,
             allow_late_submit: false,
+            author_name: (body as any).author_name || null,
+            author_id: (body as any).author_id || null,
         },
     });
 
@@ -152,6 +155,12 @@ export async function PATCH(request: Request) {
         }
         if (data.team !== undefined) {
             updateData.team = data.team;
+        }
+        if (data.author_name !== undefined) {
+            updateData.author_name = data.author_name;
+        }
+        if (data.author_id !== undefined) {
+            updateData.author_id = data.author_id;
         }
 
         await db.post.updateMany({

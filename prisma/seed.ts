@@ -27,6 +27,7 @@ async function main() {
       role: "ADMIN",
       department: "SALES",
       is_first_login: false,
+      facebook_profile_url: "https://www.facebook.com/HoangMinhDuong.kinetic",
     },
   });
   console.log(`✓ Đã tạo Admin: ${admin.name} (${admin.email})`);
@@ -41,6 +42,7 @@ async function main() {
       role: "USER",
       department: "TECH",
       is_first_login: true,
+      facebook_profile_url: "https://www.facebook.com/nguyen.phuoc.loc.tech",
     },
   });
   console.log(`✓ Đã tạo User: ${user.name} (${user.email})`);
@@ -52,11 +54,11 @@ async function main() {
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
   const posts = await Promise.all([
-    // Post 1: Đang hoạt động - hôm nay
+    // Post 1: Đang hoạt động - hôm nay (tác giả: Hoàng Minh Dương)
     prisma.post.create({
       data: {
         title: "Chia sẻ bài viết tuyển dụng tháng 6 - Vị trí Senior Developer",
-        url: "https://www.facebook.com/photo/?fbid=123456789",
+        url: "https://www.facebook.com/HoangMinhDuong.kinetic/posts/pfbid0abc123xyz",
         thumbnail_url: null,
         description: "Like và share bài viết tuyển dụng trên trang Facebook công ty, kèm hashtag #Kinetichr #TuyenDung",
         start_at: today,
@@ -65,11 +67,11 @@ async function main() {
         allow_late_submit: false,
       },
     }),
-    // Post 2: Cho phép nộp bù - đã quá 24h nhưng vẫn nộp được
+    // Post 2: Cho phép nộp bù - đã quá 24h (tác giả: Nguyễn Phước Lộc)
     prisma.post.create({
       data: {
         title: "Giới thiệu sản phẩm mới Q2 - Team Sales ưu tiên",
-        url: "https://www.facebook.com/photo/?fbid=987654321",
+        url: "https://www.facebook.com/nguyen.phuoc.loc.tech/posts/pfbid0def456ghi",
         thumbnail_url: null,
         description: "Chia sẻ bài giới thiệu sản phẩm mới lên trang cá nhân ở chế độ công khai",
         start_at: yesterday,
@@ -78,11 +80,11 @@ async function main() {
         allow_late_submit: true,
       },
     }),
-    // Post 3: Đã khóa - Admin đã archive
+    // Post 3: Đã khóa - Admin đã archive (tác giả: Hoàng Minh Dương)
     prisma.post.create({
       data: {
         title: "Sự kiện team building tháng 5 (Đã kết thúc)",
-        url: "https://www.facebook.com/photo/?fbid=111111111",
+        url: "https://www.facebook.com/HoangMinhDuong.kinetic/posts/pfbid0ghi789jkl",
         thumbnail_url: null,
         description: "Bài viết đã hết hạn và được admin khóa lại",
         start_at: new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000),
@@ -91,11 +93,11 @@ async function main() {
         allow_late_submit: false,
       },
     }),
-    // Post 4: Sắp tới - ngày mai
+    // Post 4: Sắp tới - ngày mai (tác giả: Nguyễn Phước Lộc)
     prisma.post.create({
       data: {
         title: "Workshop nội bộ: Clean Code & Best Practices",
-        url: "https://www.facebook.com/events/222222222",
+        url: "https://www.facebook.com/nguyen.phuoc.loc.tech/posts/pfbid0mno012pqr",
         thumbnail_url: null,
         description: "Đăng ký và chia sẻ sự kiện workshop nội bộ tháng này",
         start_at: tomorrow,

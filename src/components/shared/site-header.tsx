@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu, User, Facebook, LogOut, ChevronDown, CheckCircle2, AlertCircle } from "lucide-react";
+import { Menu, User, LogOut, ChevronDown } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
 import { AccountModal } from "../AccountModal";
@@ -169,47 +169,33 @@ export function SiteHeader() {
             {dropdownOpen && (
               <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* User Info Header */}
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tài khoản</p>
-                  <p className="text-sm font-semibold text-slate-900 mt-1 truncate">{userDisplayName}</p>
-                  <p className="text-xs text-slate-500 truncate">{userEmail}</p>
-                  <div className="mt-2 flex items-center gap-1.5">
-                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700 border border-indigo-150">
-                      Quyền: {role === "ADMIN" ? "Admin" : "User"}
-                    </span>
-                    <span className="rounded-full bg-slate-150 px-2 py-0.5 text-[10px] font-medium text-slate-600 border border-slate-200 sm:hidden">
-                      {userDepartment}
-                    </span>
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
+                  <UserAvatar name={userDisplayName} size="md" />
+                  <div className="overflow-hidden text-left flex-1">
+                    <h4 className="text-sm font-semibold text-slate-900 truncate">{userDisplayName}</h4>
+                    <p className="text-xs text-slate-500 truncate">{userEmail || "Chưa cập nhật email"}</p>
                   </div>
                 </div>
 
-                {/* Facebook Status Section */}
-                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                  <div className="flex items-center gap-2">
-                    <Facebook className="h-4 w-4 text-[#1877F2]" />
-                    <span className="text-xs font-medium text-slate-600">Facebook:</span>
-                  </div>
-                  {isFacebookLinked ? (
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      Đã liên kết
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                      <AlertCircle className="h-3.5 w-3.5 text-rose-500" />
-                      Chưa liên kết
-                    </div>
+                <div className="px-4 py-2.5 flex items-center gap-1.5">
+                  <span className="rounded-full bg-indigo-50 border border-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                    Quyền: {role === "ADMIN" ? "Admin" : "Nhân viên"}
+                  </span>
+                  {userDepartment && (
+                    <span className="rounded-full bg-slate-100 border border-slate-200 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                      {userDepartment}
+                    </span>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="mt-1">
+                <div className="mt-1 border-t border-slate-100 pt-1">
                   <button
                     onClick={() => {
                       setDropdownOpen(false);
                       setProfileModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-indigo-600 rounded-lg transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-indigo-600 rounded-lg transition-colors text-left"
                   >
                     <User className="h-4 w-4" />
                     Thông tin tài khoản
@@ -219,7 +205,7 @@ export function SiteHeader() {
                       setDropdownOpen(false);
                       signOut({ callbackUrl: "/login" });
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-lg transition-colors text-left"
                   >
                     <LogOut className="h-4 w-4" />
                     Đăng xuất

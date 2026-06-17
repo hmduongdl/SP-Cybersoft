@@ -34,6 +34,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
             description: parsed.data.description,
             start_at: parsed.data.start_at,
             team: (parsed.data.team as any) || 'ALL',
+            author_name: (body as any).author_name ?? undefined,
+            author_id: (body as any).author_id ?? undefined,
         },
     });
 

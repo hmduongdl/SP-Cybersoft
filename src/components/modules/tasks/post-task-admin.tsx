@@ -34,6 +34,8 @@ interface ManagedPost {
   thumbnail_url: string | null;
   start_at: string;
   is_archived: boolean;
+  allow_late_submit: boolean;
+  author_name: string | null;
   team: "ALL" | "TECH" | "SALES";
   successfulCheckins: number;
   totalEmployees: number;
@@ -120,6 +122,7 @@ export function PostTaskAdmin() {
     date: getLocalDateKey(new Date()),
     time: "09:00",
     team: "ALL" as "ALL" | "TECH" | "SALES",
+    author_id: "",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -260,6 +263,7 @@ export function PostTaskAdmin() {
       date: getLocalDateKey(new Date()),
       time: "09:00",
       team: "ALL",
+      author_id: "",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -280,6 +284,7 @@ export function PostTaskAdmin() {
       date: dateKey,
       time: timeKey,
       team: post.team || "ALL",
+      author_id: "",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -318,13 +323,22 @@ export function PostTaskAdmin() {
 
     setSaving(true);
     try {
-      const payload = {
+      const authorFromSelect = users.find(u => u.id === formData.author_id);
+      const authorName = detectedAuthor
+        ? (detectedAuthor.name || `@${detectedAuthor.username}`)
+        : authorFromSelect
+          ? (authorFromSelect.name || `@${authorFromSelect.username}`)
+          : null;
+
+      const payload: Record<string, any> = {
         title: formData.title,
         url: formData.url,
         thumbnail_url: formData.thumbnail_url || null,
         description: formData.description,
         start_at: toDateTimeValue(formData.date, formData.time),
-        team: "ALL", // Default to ALL team target
+        team: "ALL",
+        author_name: authorName,
+        author_id: formData.author_id || detectedAuthor?.id || null,
       };
 
       const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
@@ -612,13 +626,13 @@ export function PostTaskAdmin() {
                             {post.title}
                           </span>
                           <div className="flex gap-1.5 flex-wrap">
-                            {author ? (
+                            {post.author_name ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                Tác giả: {author.name || `@${author.username}`}
+                                Tác giả: {post.author_name}
                               </span>
                             ) : (
                               <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 border border-slate-200 italic">
-                                Không rõ tác giả
+                                Chưa xác định
                               </span>
                             )}
                           </div>
@@ -775,21 +789,43 @@ export function PostTaskAdmin() {
                       
                       {/* Live Author Detection */}
                       {formData.url && (
-                        <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs flex items-center gap-2 animate-in fade-in duration-100">
-                          <User className="h-3.5 w-3.5 text-indigo-500" />
-                          <span className="font-semibold text-slate-600">Tác giả phát hiện:</span>
-                          {detectedAuthor ? (
-                            <span className="font-bold text-indigo-700 flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
-                              {detectedAuthor.name || `@${detectedAuthor.username}`}
-                              {detectedAuthor.department && (
-                                <span className="font-normal text-slate-500 text-[10px] bg-slate-200 px-1.5 py-0.5 rounded">
-                                  {detectedAuthor.department}
-                                </span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic">Không tìm thấy profile tương ứng</span>
+                        <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs animate-in fade-in duration-100">
+                          <div className="flex items-center gap-2">
+                            <User className="h-3.5 w-3.5 text-indigo-500" />
+                            <span className="font-semibold text-slate-600">Tác giả phát hiện:</span>
+                            {detectedAuthor ? (
+                              <span className="font-bold text-indigo-700 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                                {detectedAuthor.name || `@${detectedAuthor.username}`}
+                                {detectedAuthor.department && (
+                                  <span className="font-normal text-slate-500 text-[10px] bg-slate-200 px-1.5 py-0.5 rounded">
+                                    {detectedAuthor.department}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-amber-600 font-medium">Không xác định — chọn thủ công bên dưới</span>
+                            )}
+                          </div>
+
+                          {/* Manual author select — always visible as fallback */}
+                          {!detectedAuthor && users.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-slate-200 flex items-center gap-2">
+                              <span className="text-slate-500 shrink-0">Chọn tác giả:</span>
+                              <select
+                                value={formData.author_id || ""}
+                                onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
+                                disabled={saving}
+                                className="flex-1 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
+                              >
+                                <option value="">-- Chọn người đăng --</option>
+                                {users.map((u) => (
+                                  <option key={u.id} value={u.id}>
+                                    {u.name || u.username} ({u.department || "N/A"})
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           )}
                         </div>
                       )}

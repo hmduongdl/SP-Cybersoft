@@ -17,17 +17,17 @@ export default async function TaskListContainer(props: {
   const page = Math.max(1, Number(searchParams?.page) || 1);
   const skip = (page - 1) * POSTS_PER_PAGE;
 
-  const [allPosts, currentUser] = await Promise.all([
+  const [rawPosts, currentUser] = await Promise.all([
     getCachedPosts(userId ?? undefined),
     userId ? getCachedUserStarData(userId) : Promise.resolve(null),
   ]);
 
-  const paginatedPosts = allPosts.slice(skip, skip + POSTS_PER_PAGE);
-  const totalPosts = allPosts.length;
+  const paginatedRaw = rawPosts.slice(skip, skip + POSTS_PER_PAGE);
+  const totalPosts = rawPosts.length;
   const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
 
-  const posts = paginatedPosts.map(post => {
-    const userCheckin = (post as any).checkins?.[0];
+  const mapPost = (post: any) => {
+    const userCheckin = post.checkins?.[0];
     let status = "PENDING";
 
     if (userCheckin && (userCheckin.status === "APPROVED" || userCheckin.status === "AUTO_APPROVED")) {
@@ -46,11 +46,15 @@ export default async function TaskListContainer(props: {
       team: post.team,
       checkinStatus: userCheckin ? userCheckin.status : null,
     };
-  });
+  };
+
+  const posts = paginatedRaw.map(mapPost);
+  const allPosts = rawPosts.map(mapPost);
 
   return (
     <TasksPageClient
       posts={posts}
+      allPosts={allPosts}
       userHopeStars={currentUser?.hope_stars ?? 0}
       userUsedStarsThisMonth={currentUser?.used_stars_this_month ?? 0}
       currentPage={page}

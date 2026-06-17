@@ -2,24 +2,32 @@
 
 import React, { useState, useCallback } from "react";
 import { PostListView } from "@/components/modules/tasks/post-list-view";
+import { PostCalendarView } from "@/components/modules/tasks/post-calendar-view";
 import { SubmitCheckinModal } from "@/components/SubmitCheckinModal";
 import { Toaster } from "sonner";
 import { useHopeStar } from "@/app/actions/hope-star-actions";
+import { cn } from "@/lib/utils";
+import { List, Calendar } from "lucide-react";
+
+type ViewMode = "list" | "calendar";
 
 export default function TasksPageClient({
-  posts: initialPosts,
+  posts,
+  allPosts = [],
   userHopeStars = 0,
   userUsedStarsThisMonth = 0,
   currentPage = 1,
   totalPages = 1
 }: {
   posts: any[],
+  allPosts?: any[],
   userHopeStars?: number,
   userUsedStarsThisMonth?: number,
   currentPage?: number,
   totalPages?: number
 }) {
-  const [posts, setPosts] = useState(initialPosts);
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [localPosts, setLocalPosts] = useState(posts);
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
 
   const handleCheckIn = (post: any) => {
@@ -32,14 +40,14 @@ export default function TasksPageClient({
 
   const handleModalSuccess = () => {
     if (selectedPost) {
-      setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED", checkinStatus: "PENDING" } : p));
+      setLocalPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED", checkinStatus: "PENDING" } : p));
     }
   };
 
   const handleUseHopeStar = useCallback(async (postId: string) => {
     const result = await useHopeStar(postId);
     if (result.success) {
-      setPosts(prev =>
+      setLocalPosts(prev =>
         prev.map(p =>
           p.id === postId
             ? { ...p, status: "COMPLETED", checkinStatus: "APPROVED" }
@@ -59,17 +67,48 @@ export default function TasksPageClient({
           <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight">Danh Sách Bài Share</h1>
           <p className="mt-2 text-slate-500 text-lg">Quản lý và cập nhật tiến độ công việc mạng xã hội.</p>
         </div>
+
+        {/* View Mode Tabs */}
+        <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shadow-sm">
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5",
+              viewMode === "list" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            <List className="w-3.5 h-3.5" />
+            Danh sách
+          </button>
+          <button
+            onClick={() => setViewMode("calendar")}
+            className={cn(
+              "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5",
+              viewMode === "calendar" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900"
+            )}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Lịch
+          </button>
+        </div>
       </header>
 
-      <PostListView
-        posts={posts}
-        onCheckIn={handleCheckIn}
-        onUseHopeStar={handleUseHopeStar}
-        userHopeStars={userHopeStars}
-        userUsedStarsThisMonth={userUsedStarsThisMonth}
-        currentPage={currentPage}
-        totalPages={totalPages}
-      />
+      {viewMode === "list" ? (
+        <PostListView
+          posts={localPosts}
+          onCheckIn={handleCheckIn}
+          onUseHopeStar={handleUseHopeStar}
+          userHopeStars={userHopeStars}
+          userUsedStarsThisMonth={userUsedStarsThisMonth}
+          currentPage={currentPage}
+          totalPages={totalPages}
+        />
+      ) : (
+        <PostCalendarView
+          posts={allPosts}
+          onCheckIn={handleCheckIn}
+        />
+      )}
 
       {selectedPost && (
         <SubmitCheckinModal

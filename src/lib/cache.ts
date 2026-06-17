@@ -14,7 +14,7 @@ export const CACHE_TAGS = {
 // ─── Dashboard ───────────────────────────────────────────
 
 export async function getCachedTotalPostsCount() {
-  return db.post.count();
+  return db.post.count({ where: { is_archived: false } });
 }
 
 export async function getCachedUserCompletedCount(userId: string) {
@@ -146,6 +146,7 @@ export async function getCachedPostsApi() {
       start_at: true,
       is_archived: true,
       allow_late_submit: true,
+      author_name: true,
       team: true,
       _count: { select: { checkins: true } },
     },
