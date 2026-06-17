@@ -153,7 +153,7 @@ export function SiteHeader() {
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 p-1.5 rounded-full hover:bg-slate-50 transition text-slate-600 hover:text-slate-900 border border-transparent hover:border-slate-200"
               >
-                <UserAvatar name={userDisplayName} size="sm" />
+                <UserAvatar name={userDisplayName} src={profile?.avatar_url || (session?.user as any)?.avatar_url} size="sm" />
                 <span className="text-sm font-medium hidden sm:block max-w-[120px] truncate">
                   {userDisplayName}
                 </span>
@@ -166,7 +166,7 @@ export function SiteHeader() {
               <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border border-slate-200 bg-white p-2 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* User Info Header */}
                 <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-3">
-                  <UserAvatar name={userDisplayName} size="md" />
+                  <UserAvatar name={userDisplayName} src={profile?.avatar_url || (session?.user as any)?.avatar_url} size="md" />
                   <div className="overflow-hidden text-left flex-1">
                     <h4 className="text-sm font-semibold text-slate-900 truncate">{userDisplayName}</h4>
                     <p className="text-xs text-slate-500 truncate">{userEmail || "Chưa cập nhật email"}</p>

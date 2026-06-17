@@ -16,16 +16,41 @@ export async function uploadImage(
   folder: string = "uploads"
 ): Promise<UploadResult> {
   const ext = originalFilename.includes(".") ? "." + originalFilename.split(".").pop() : ".jpg";
-  // Sanitise filename: strip path traversal, replace spaces
   const safeBase = originalFilename
     .replace(ext, "")
     .replace(/[^a-zA-Z0-9_-]/g, "_")
     .slice(0, 60);
-    
+
   const uniqueName = `${safeBase}_${Date.now()}${ext}`;
 
-  // Đẩy file lên Vercel Blob (dùng tham số folder để tách biệt avatars và checkins)
   const blob = await put(`${folder}/${uniqueName}`, fileData, {
+    access: "public",
+    contentType: mimeType,
+  });
+
+  return { url: blob.url, provider: "vercel-blob" };
+}
+
+/**
+ * Upload avatar with fixed filename (userId-based), overwrites old one.
+ * Deletes previous avatar before uploading to save storage.
+ */
+export async function uploadAvatar(
+  fileData: Buffer | ArrayBuffer | File,
+  userId: string,
+  mimeType: string
+): Promise<UploadResult> {
+  const ext = mimeType === "image/png" ? ".png" : ".jpg";
+  const filename = `avatar_${userId}${ext}`;
+
+  // Xoá ảnh cũ trước (nếu có)
+  try {
+    await del(`avatars/${filename}`);
+  } catch {
+    // File chưa tồn tại — bỏ qua
+  }
+
+  const blob = await put(`avatars/${filename}`, fileData, {
     access: "public",
     contentType: mimeType,
   });

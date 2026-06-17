@@ -157,7 +157,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center justify-between p-2.5 bg-slate-900/30 border border-slate-800/80 rounded-xl shadow-md group">
             <div className="flex items-center gap-3 overflow-hidden">
-              <UserAvatar name={userDisplayName} />
+              <UserAvatar name={userDisplayName} src={profile?.avatar_url || (session?.user as any)?.avatar_url} />
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-slate-200 truncate">{userDisplayName}</p>
                 <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>

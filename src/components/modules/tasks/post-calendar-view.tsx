@@ -416,7 +416,7 @@ export function PostCalendarView({ posts, completedAvatarsByDate = {}, onCheckIn
           </p>
 
           <div className="flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-900 pt-2">
-            <span>Bắt đầu: {format(new Date(hoveredPost.start_at || hoveredPost.scheduledAt || new Date()), "HH:mm dd/MM")}</span>
+            <span>Bắt đầu: {format(new Date(hoveredPost.start_at || hoveredPost.scheduledAt || new Date()), "dd/MM/yyyy")}</span>
             <span className="text-indigo-400 font-semibold flex items-center gap-0.5">
               Click to action <ExternalLink className="w-2.5 h-2.5" />
             </span>

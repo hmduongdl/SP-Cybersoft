@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { uploadImage } from "@/lib/upload";
+import { uploadAvatar } from "@/lib/upload";
 import { db } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -18,6 +18,8 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Vui lòng đăng nhập." }, { status: 401 });
   }
+
+  const userId = session.user.id;
 
   let formData: FormData;
   try {
@@ -44,13 +46,13 @@ export async function POST(request: Request) {
   }
 
   const buf = Buffer.from(await file.arrayBuffer());
-  const filename = `avatar_${session.user.id}_${Date.now()}.${file.name.split(".").pop() || "jpg"}`;
 
   try {
-    const result = await uploadImage(buf, filename, file.type, "avatars");
+    // Upload với fixed filename = avatar_{userId} — tự động ghi đè lên ảnh cũ
+    const result = await uploadAvatar(buf, userId, file.type);
 
     await db.user.update({
-      where: { id: session.user.id },
+      where: { id: userId },
       data: { avatar_url: result.url },
     });
 

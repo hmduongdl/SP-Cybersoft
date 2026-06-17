@@ -59,8 +59,8 @@ interface DensityState {
   message: string | null;
 }
 
-function toDateTimeValue(dateKey: string, time: string) {
-  return `${dateKey}T${time}`;
+function toDateTimeValue(dateKey: string) {
+  return `${dateKey}T12:00`;
 }
 
 /** Safe thumbnail with fallback when image fails to load */
@@ -118,7 +118,6 @@ export function PostTaskAdmin() {
     thumbnail_url: "",
     description: "",
     date: getLocalDateKey(new Date()),
-    time: "09:00",
     team: "ALL" as "ALL" | "TECH" | "SALES",
     author_id: "",
   });
@@ -209,7 +208,6 @@ export function PostTaskAdmin() {
       thumbnail_url: "",
       description: "",
       date: getLocalDateKey(new Date()),
-      time: "09:00",
       team: "ALL",
       author_id: "",
     });
@@ -222,7 +220,6 @@ export function PostTaskAdmin() {
     setEditingPost(post);
     const scheduledAt = new Date(post.start_at);
     const dateKey = getLocalDateKey(scheduledAt);
-    const timeKey = `${String(scheduledAt.getHours()).padStart(2, "0")}:00`;
 
     setFormData({
       title: post.title,
@@ -230,7 +227,6 @@ export function PostTaskAdmin() {
       thumbnail_url: post.thumbnail_url ?? "",
       description: post.description,
       date: dateKey,
-      time: timeKey,
       team: post.team || "ALL",
       author_id: "",
     });
@@ -276,7 +272,7 @@ export function PostTaskAdmin() {
         url: formData.url,
         thumbnail_url: formData.thumbnail_url || null,
         description: formData.description,
-        start_at: toDateTimeValue(formData.date, formData.time),
+        start_at: toDateTimeValue(formData.date),
         team: "ALL",
       };
 
@@ -798,31 +794,13 @@ export function PostTaskAdmin() {
                       <div className="space-y-2">
                         <div>
                           <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Ngày đăng</label>
-                          <input 
+                          <input
                             type="date"
                             value={formData.date}
                             onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                             disabled={saving}
                             className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
                           />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Giờ (24h)</label>
-                          <select 
-                            value={formData.time}
-                            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
-                            disabled={saving}
-                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-500"
-                          >
-                            {Array.from({ length: 24 }, (_, hour) => {
-                              const value = `${String(hour).padStart(2, "0")}:00`;
-                              return (
-                                <option key={value} value={value}>
-                                  {value}
-                                </option>
-                              );
-                            })}
-                          </select>
                         </div>
                       </div>
                     </div>

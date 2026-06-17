@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 interface UserAvatarProps {
   name: string | null | undefined;
+  src?: string | null | undefined;
   className?: string;
   size?: "sm" | "md" | "lg";
 }
@@ -20,6 +23,12 @@ const sizeClasses = {
   lg: "h-16 w-16 text-2xl",
 };
 
+const imageSizeClasses = {
+  sm: "h-7 w-7",
+  md: "h-10 w-10",
+  lg: "h-16 w-16",
+};
+
 const bgColors = [
   "bg-indigo-600 text-indigo-50",
   "bg-emerald-600 text-emerald-50",
@@ -33,7 +42,20 @@ function getColorClass(initials: string): string {
   return bgColors[charCode % bgColors.length];
 }
 
-export function UserAvatar({ name, className = "", size = "md" }: UserAvatarProps) {
+export function UserAvatar({ name, src, className = "", size = "md" }: UserAvatarProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  if (src && !imgFailed) {
+    return (
+      <img
+        src={src}
+        alt={name || "Avatar"}
+        className={`${imageSizeClasses[size]} rounded-full object-cover border-2 border-white shadow-sm shrink-0 ${className}`}
+        onError={() => setImgFailed(true)}
+      />
+    );
+  }
+
   const initials = getInitials(name);
   const colorClass = getColorClass(initials);
 

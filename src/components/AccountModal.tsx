@@ -147,6 +147,10 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       });
 
       setAvatarUrl(url);
+      // Cập nhật session + dispatch event site-wide để avatar hiển thị ở mọi nơi
+      if (update) await update();
+      window.dispatchEvent(new CustomEvent("profile-updated"));
+      router.refresh();
       toast.success("Tải ảnh đại diện thành công!");
     } catch (err: any) {
       setUploadProgress(0);
@@ -155,6 +159,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
       setUploading(false);
     }
   };
+
+  const uploadAvatarRef = useRef(uploadAvatar);
+  uploadAvatarRef.current = uploadAvatar;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -194,7 +201,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
           const file = items[i].getAsFile();
           if (file) {
             e.preventDefault();
-            uploadAvatar(file);
+            uploadAvatarRef.current(file);
             break;
           }
         }

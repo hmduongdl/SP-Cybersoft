@@ -214,7 +214,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
               {/* Avatar upload */}
               <div className="flex items-center gap-5">
                 <div className="relative group">
-                  <UserAvatar name={name || null} />
+                  <UserAvatar name={name || null} src={avatarUrl} />
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}

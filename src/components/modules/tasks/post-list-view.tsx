@@ -442,7 +442,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                       <td className="px-3 py-3 whitespace-nowrap">
                         {postStatus === "SUBMITTED" || postStatus === "PENDING_REVIEW" || postStatus === "REJECTED" ? (
                           <span className="text-xs text-slate-400">
-                            {format(new Date(startAtDate), "dd/MM/yyyy HH:mm", { locale: vi })}
+                            {format(new Date(startAtDate), "dd/MM/yyyy", { locale: vi })}
                           </span>
                         ) : (
                           <DeadlineCell startAtDate={startAtDate} allowLateSubmit={post.allow_late_submit} />
