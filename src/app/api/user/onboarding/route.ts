@@ -15,7 +15,6 @@ export async function POST(request: Request) {
     const fullName = (formData.get("full_name") as string)?.trim();
     const username = (formData.get("username") as string)?.trim();
     const email = (formData.get("email") as string)?.trim();
-    const phone = (formData.get("phone") as string)?.trim() || null;
     const facebookLink = (formData.get("facebook_link") as string)?.trim() || null;
 
     // Validate required fields
@@ -77,9 +76,7 @@ export async function POST(request: Request) {
           name: true,
           email: true,
           facebook_profile_url: true,
-          avatar_url: true,
           department: true,
-          is_first_login: true,
         },
       });
     });
