@@ -24,6 +24,7 @@ type Post = {
   team?: "ALL" | "TECH" | "SALES";
   status: "PENDING" | "COMPLETED" | "EXPIRED";
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
+  allow_late_submit?: boolean;
 };
 
 type PostStatus = "NOT_SUBMITTED" | "SUBMITTED" | "PENDING_REVIEW" | "REJECTED" | "EXPIRED";
@@ -35,7 +36,7 @@ function getPostStatus(
   const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
   const scheduled = new Date(post.start_at || post.scheduledAt || now);
   const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
-  const isExpired = now > deadline;
+  const isExpired = now > deadline && !post.allow_late_submit;
 
   if (checkinState === "APPROVED" || checkinState === "AUTO_APPROVED") {
     return {
@@ -72,7 +73,7 @@ function getPostStatus(
   };
 }
 
-function DeadlineCell({ startAtDate }: { startAtDate: string }) {
+function DeadlineCell({ startAtDate, allowLateSubmit }: { startAtDate: string; allowLateSubmit?: boolean }) {
   const [timeLeft, setTimeLeft] = useState("--:--:--");
   const [remainingHours, setRemainingHours] = useState(24);
   const [isExpired, setIsExpired] = useState(false);
@@ -107,7 +108,7 @@ function DeadlineCell({ startAtDate }: { startAtDate: string }) {
     return () => clearInterval(interval);
   }, [startAtDate]);
 
-  if (isExpired) {
+  if (isExpired && !allowLateSubmit) {
     return (
       <span className="text-xs font-semibold text-red-500">Đã quá hạn</span>
     );
@@ -249,7 +250,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
 
     const scheduled = new Date(post.start_at || post.scheduledAt || now);
     const deadline = new Date(scheduled.getTime() + 24 * 60 * 60 * 1000);
-    const isActuallyExpired = now > deadline;
+    const isActuallyExpired = now > deadline && !post.allow_late_submit;
     const submitted = !!post.checkinStatus || post.status === "COMPLETED";
 
     if (filter === "EXPIRED") return isActuallyExpired && !submitted;
@@ -402,7 +403,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                             {format(new Date(startAtDate), "dd/MM/yyyy HH:mm", { locale: vi })}
                           </span>
                         ) : (
-                          <DeadlineCell startAtDate={startAtDate} />
+                          <DeadlineCell startAtDate={startAtDate} allowLateSubmit={post.allow_late_submit} />
                         )}
                       </td>
 

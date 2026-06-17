@@ -29,7 +29,10 @@ export async function PATCH(_request: Request, { params }: RouteContext) {
 
     const updated = await db.post.update({
         where: { id },
-        data: { is_archived: !post.is_archived },
+        data: {
+            is_archived: !post.is_archived,
+            allow_late_submit: post.is_archived,
+        },
     });
 
     revalidateTag(CACHE_TAGS.POSTS_LIST, "default");

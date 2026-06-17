@@ -55,6 +55,7 @@ export const getCachedPosts = unstable_cache(
       start_at: true,
       team: true,
       description: true,
+      allow_late_submit: true,
     };
     if (userId) {
       selectFields.checkins = {
@@ -174,6 +175,7 @@ export const getCachedPostsApi = unstable_cache(
         thumbnail_url: true,
         start_at: true,
         is_archived: true,
+        allow_late_submit: true,
         team: true,
         _count: { select: { checkins: true } },
       },

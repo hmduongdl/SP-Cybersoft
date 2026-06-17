@@ -42,6 +42,7 @@ model Post {
   start_at      DateTime
   team          Team      @default(ALL)
   is_archived   Boolean   @default(false)
+  allow_late_submit Boolean @default(false)
   created_at    DateTime  @default(now())
   checkins      Checkin[]
 }

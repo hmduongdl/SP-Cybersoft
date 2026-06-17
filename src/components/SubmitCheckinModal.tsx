@@ -73,7 +73,7 @@ function formatViDate(date: Date): string {
 
 // ─── Sub-component: Countdown Timer ──────────────────────────────────────────
 
-function CountdownTimer({ startAt }: { startAt: string }) {
+function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLateSubmit?: boolean }) {
   const [countdown, setCountdown] = useState(() => {
     const end = new Date(startAt).getTime() + 24 * 60 * 60 * 1000;
     return formatCountdown(end - Date.now());
@@ -87,7 +87,7 @@ function CountdownTimer({ startAt }: { startAt: string }) {
     return () => clearInterval(id);
   }, [startAt]);
 
-  if (countdown.expired) {
+  if (countdown.expired && !allowLateSubmit) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm font-medium">
         <XCircle className="w-4 h-4 flex-shrink-0" />
@@ -531,7 +531,7 @@ export function SubmitCheckinModal({
               </div>
 
               {/* Countdown Timer */}
-              <CountdownTimer startAt={postStartAt} />
+              <CountdownTimer startAt={postStartAt} allowLateSubmit={(post as any).allow_late_submit} />
 
               {/* Upload Zone */}
               <div

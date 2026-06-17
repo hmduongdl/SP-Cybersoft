@@ -146,6 +146,7 @@ export async function PATCH(request: Request) {
         const updateData: Record<string, any> = {};
         if (data.is_archived !== undefined) {
             updateData.is_archived = data.is_archived;
+            updateData.allow_late_submit = !data.is_archived;
         }
         if (data.team !== undefined) {
             updateData.team = data.team;

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     // 1. Tìm kiếm bài viết
     const post = await db.post.findUnique({
       where: { id: postId },
-      select: { id: true, start_at: true },
+      select: { id: true, start_at: true, allow_late_submit: true },
     });
 
     if (!post) {
@@ -34,12 +34,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Ràng buộc thời gian 24h
+    // 2. Ràng buộc thời gian 24h — bỏ qua nếu Admin đã mở khóa nộp bù
     const serverTime = new Date();
     const postTime = new Date(post.start_at);
     const deadline = new Date(postTime.getTime() + 24 * 60 * 60 * 1000);
 
-    if (serverTime > deadline) {
+    if (serverTime > deadline && !post.allow_late_submit) {
       return NextResponse.json(
         { success: false, message: "Quá thời hạn 24 giờ quy định để tự động check-in bài viết này." },
         { status: 400 }

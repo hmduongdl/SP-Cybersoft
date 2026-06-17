@@ -237,6 +237,7 @@ export async function POST(request: Request) {
         title: true,
         start_at: true,
         is_archived: true,
+        allow_late_submit: true,
       },
     });
 
@@ -255,10 +256,9 @@ export async function POST(request: Request) {
     }
 
     // ── 4b. Kiểm tra cửa sổ 24h của Post ────────────────────────────────────
-    // Người dùng không được nộp sau khi cửa sổ đã đóng.
-    // (Nếu muốn cho phép nộp muộn để admin duyệt, hãy bỏ block này.)
+    // Người dùng không được nộp sau khi cửa sổ đã đóng, trừ khi Admin đã mở khóa nộp bù.
     const windowEndMs = new Date(post.start_at).getTime() + WINDOW_MS;
-    if (Date.now() > windowEndMs) {
+    if (Date.now() > windowEndMs && !post.allow_late_submit) {
       return NextResponse.json(
         {
           success: false,
