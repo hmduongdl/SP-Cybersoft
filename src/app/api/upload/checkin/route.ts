@@ -8,7 +8,19 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { uploadImage } from "@/lib/upload";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(request: Request) {
+  // Kiểm tra env trước
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    console.error("[upload/checkin] Missing BLOB_READ_WRITE_TOKEN env var");
+    return NextResponse.json(
+      { error: "Thiếu cấu hình BLOB_READ_WRITE_TOKEN trên server." },
+      { status: 500 }
+    );
+  }
+
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json(
@@ -20,7 +32,8 @@ export async function POST(request: Request) {
   let formData: FormData;
   try {
     formData = await request.formData();
-  } catch {
+  } catch (e: any) {
+    console.log("[upload/checkin] formData parse error:", e?.message);
     return NextResponse.json(
       { error: "Dữ liệu không phải multipart/form-data." },
       { status: 400 }
@@ -34,6 +47,8 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  console.log("[upload/checkin] file:", file.name, file.type, file.size);
 
   const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
   if (!allowed.includes(file.type)) {
@@ -50,16 +65,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const buf = Buffer.from(await file.arrayBuffer());
   const filename = `${session.user.id}_${Date.now()}.${file.name.split(".").pop() || "jpg"}`;
 
   try {
-    const result = await uploadImage(buf, filename, file.type, "checkins");
+    const result = await uploadImage(file, filename, file.type, "checkins");
+    console.log("[upload/checkin] success:", result.url);
     return NextResponse.json({ url: result.url }, { status: 201 });
-  } catch (err) {
-    console.error("[upload/checkin] Upload failed:", err);
+  } catch (err: any) {
+    console.error("[upload/checkin] uploadImage failed:", err?.message, err?.stack);
     return NextResponse.json(
-      { error: "Không thể tải ảnh lên. Thử lại sau." },
+      { error: err?.message || "Không thể tải ảnh lên. Thử lại sau." },
       { status: 503 }
     );
   }

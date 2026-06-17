@@ -10,7 +10,7 @@ export interface UploadResult {
  * Returns a publicly accessible URL.
  */
 export async function uploadImage(
-  fileData: Buffer | ArrayBuffer,
+  fileData: Buffer | ArrayBuffer | File,
   originalFilename: string,
   mimeType: string,
   folder: string = "uploads"
@@ -26,7 +26,7 @@ export async function uploadImage(
 
   // Đẩy file lên Vercel Blob (dùng tham số folder để tách biệt avatars và checkins)
   const blob = await put(`${folder}/${uniqueName}`, fileData, {
-    access: "public",
+    access: "private",
     contentType: mimeType,
   });
 
