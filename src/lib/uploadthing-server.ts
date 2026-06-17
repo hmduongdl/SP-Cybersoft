@@ -4,10 +4,7 @@ import { UTApi } from "uploadthing/server";
  * Instance UTApi dùng để tương tác với Uploadthing API ở server-side.
  * Tự động đọc UPLOADTHING_SECRET và UPLOADTHING_APP_ID từ biến môi trường.
  */
-export const utapi = new UTApi({
-  apiKey: process.env.UPLOADTHING_SECRET,
-  appId: process.env.UPLOADTHING_APP_ID,
-});
+export const utapi = new UTApi();
 
 /**
  * Trích xuất file key từ URL của Uploadthing.
