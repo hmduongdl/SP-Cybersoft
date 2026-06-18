@@ -16,7 +16,7 @@
 
 ## Tính năng
 
-### 👤 Người dùng (Nhân viên)
+### Người dùng (Nhân viên)
 - Đăng nhập qua NextAuth (credentials)
 - Dashboard tổng quan: số bài chưa check-in, đã hoàn thành, điểm tích lũy
 - Xem danh sách bài viết cần Like & Share (dạng bảng hoặc lịch — chuyển đổi linh hoạt)
@@ -27,7 +27,7 @@
 - Onboarding lần đầu đăng nhập (điền thông tin cá nhân)
 - Trợ lý AI chat hỏi đáp về nhiệm vụ, tình hình share bài
 
-### 🛡️ Quản trị viên
+### Quản trị viên
 - Dashboard thống kê tổng quan với biểu đồ (Recharts)
 - **Quản lý bài viết**: CRUD, bulk archive/unarchive, kiểm tra mật độ ngày đăng
 - **Kiểm duyệt hàng đợi**: Approve/Reject kèm lý do (batch hoặc single), xem ảnh zoom
@@ -38,7 +38,7 @@
 - **Cấu hình hệ thống**: Quản lý phòng ban, cài đặt AI
 - **OG Scraper**: Lấy thông tin meta từ URL bài viết khi tạo post
 
-### 🔒 Chống gian lận
+### Chống gian lận
 - Trích xuất EXIF (`DateTimeOriginal`) server-side từ ảnh — **không tin kết quả client**
 - Kiểm tra thời gian chụp thực tế trong cửa sổ 24h so với mốc bài viết
 - Phân quyền Admin / User qua middleware
@@ -80,7 +80,7 @@ npm install
 
 ### 2. Cấu hình biến môi trường
 
-Tạo file `.env.local` tại thư mục gốc:
+Tạo file `.env` tại thư mục gốc:
 
 ```env
 # Database
@@ -122,71 +122,39 @@ Truy cập [http://localhost:3000](http://localhost:3000) — sẽ redirect đ�
 ## Cấu trúc thư mục
 
 ```
-src/
-├── app/                          # Next.js App Router
-│   ├── actions/                  # Server Actions (auth, hope stars)
-│   ├── admin/                    # Trang quản trị
-│   │   ├── accounts/             # Quản lý tài khoản
-│   │   ├── analytics/            # Thống kê & biểu đồ
-│   │   ├── posts/                # Quản lý bài viết
-│   │   ├── queue/                # Kiểm duyệt hàng đợi
-│   │   └── settings/             # Cấu hình hệ thống
-│   ├── api/                      # API Route Handlers
-│   │   ├── admin/                # API admin
-│   │   ├── ai/                   # API AI chat
-│   │   ├── auth/                 # API xác thực
-│   │   ├── checkin/              # API check-in (legacy)
-│   │   ├── checkins/             # API check-in (chính)
-│   │   ├── export/               # API xuất báo cáo
-│   │   ├── posts/                # API bài viết
-│   │   ├── submissions/          # API nộp minh chứng (legacy)
-│   │   ├── upload/               # API upload ảnh
-│   │   └── user/                 # API người dùng
-│   ├── dashboard/                # Dashboard người dùng
-│   ├── login/                    # Trang đăng nhập
-│   ├── onboarding/               # Onboarding lần đầu
-│   ├── reports/                  # Báo cáo cá nhân
-│   ├── tasks/                    # Task check-in chính
-│   ├── layout.tsx                # Root layout
-│   └── page.tsx                  # Redirect → /dashboard
-├── components/
-│   ├── modules/                  # Feature modules
-│   │   ├── dashboard/            # Dashboard overview
-│   │   └── tasks/                # Post list, calendar, admin table
-│   ├── shared/                   # Site header, sidebar, layout context, avatar
-│   ├── ui/                       # UI primitives (button, card, pagination)
-│   ├── AccountModal.tsx          # Modal chỉnh sửa profile
-│   ├── AdminUserEditModal.tsx    # Admin sửa user
-│   ├── AIAssistant.tsx           # Floating AI chat widget
-│   ├── FacebookProfilePreview.tsx
-│   ├── LoginForm.tsx             # Form đăng nhập
-│   ├── OnboardingModal.tsx       # Onboarding lần đầu
-│   ├── SessionProviderWrapper.tsx
-│   └── SubmitCheckinModal.tsx    # Modal nộp check-in
-├── hooks/
-│   └── useFacebookSDK.ts         # Facebook SDK loader
-├── lib/
-│   ├── db.ts                     # Prisma client singleton
-│   ├── prisma.ts                 # Re-export
-│   ├── cache.ts                  # Các hàm query database
-│   ├── posts.ts                  # Zod schemas + date helpers
-│   ├── ai-quota.ts               # Quản lý hạn mức token AI
-│   ├── aibox.ts                  # AI-Box OpenAI client
-│   ├── upload.ts                 # Vercel Blob helpers
-│   ├── date.ts                   # Date utilities
-│   └── utils.ts                  # cn(), formatPercentage()
-├── auth.ts                       # NextAuth full config
-├── auth.config.ts                # NextAuth config cho middleware
-├── middleware.ts                 # Route protection
-└── types/
-    ├── next-auth.d.ts            # Session token type extensions
-    ├── facebook-sdk.d.ts
-    └── global.d.ts
-
-prisma/
-├── schema.prisma                 # Database schema (5 models)
-├── seed.ts                       # Seed data
-└── migrations/                   # Prisma migrations
+├── src/                       # Next.js App Router source
+│   ├── app/                   # Pages, API routes, server actions
+│   │   ├── actions/           # Server Actions (auth, hope stars)
+│   │   ├── admin/             # Admin pages
+│   │   ├── api/               # API Route Handlers
+│   │   ├── dashboard/         # User dashboard
+│   │   ├── login/             # Login page
+│   │   ├── onboarding/        # First-time onboarding
+│   │   ├── reports/           # Personal reports
+│   │   └── tasks/             # Task check-in pages
+│   ├── components/            # React components
+│   │   ├── modules/           # Feature modules
+│   │   ├── shared/            # Layout, header, sidebar
+│   │   └── ui/                # UI primitives
+│   ├── hooks/                 # Custom React hooks
+│   ├── lib/                   # Utilities, DB client, config
+│   └── types/                 # TypeScript type definitions
+├── prisma/                    # Database schema, migrations, seed
+├── public/                    # Static assets (images, favicon)
+├── scripts/                   # Utility scripts & tools
+│   ├── fix_rounded.py         # Fix rounded corner styles
+│   ├── replace_styles.py      # Style replacement utilities
+│   └── test-action.js         # Action test script
+├── docs/                      # Documentation
+│   ├── PLAN.md                # Implementation plan
+│   ├── RESTRUCTURE.md         # Restructure notes
+│   └── COLORS.md              # Color scheme reference
+├── .env                       # Environment variables
+├── next.config.js             # Next.js configuration
+├── tailwind.config.js         # Tailwind CSS configuration
+├── tsconfig.json              # TypeScript configuration
+├── vercel.json                # Vercel deployment config
+└── package.json               # Dependencies & scripts
 ```
 
 ## API Endpoints
@@ -245,10 +213,10 @@ prisma/
 1. Push code lên GitHub/GitLab.
 2. Tạo project mới trên [Vercel](https://vercel.com).
 3. Kết nối repository.
-4. Thêm biến môi trường (giống `.env.local`) trong **Settings > Environment Variables**.
+4. Thêm biến môi trường (giống `.env`) trong **Settings > Environment Variables**.
 5. Deploy — mỗi lần push nhánh chính tự động build lại.
 
-> **Lưu ý:** Không commit `.env.local` lên Git.
+> **Lưu ý:** Không commit `.env` lên Git.
 
 ## Biến môi trường yêu cầu khi deploy
 

@@ -88,6 +88,7 @@ export default function QueueClient({
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDept);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
 
   // Rejection states
   const [isRejectingId, setIsRejectingId] = useState<string | null>(null);
@@ -106,9 +107,15 @@ export default function QueueClient({
   const searchParams = useSearchParams();
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Sync server-rendered initialCheckins into local state when tab/search/dept/page changes
+  // Sync all prop-driven state when URL params change (tab switch, search, dept, page)
   useEffect(() => {
     setCheckins(initialCheckins);
+    setActiveTab(initialTab as any);
+    setSearchTerm(initialSearch);
+    setDeptFilter(initialDept);
+    setSelectedIds(new Set());
+    setAiScanResults({});
+    setIsTabTransitioning(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams?.toString()]);
 
@@ -126,9 +133,10 @@ export default function QueueClient({
   }, [router, searchParams]);
 
   const handleTabChangeInternal = (tab: string) => {
+    if (tab === activeTab) return;
+    setIsTabTransitioning(true);
     setSelectedIds(new Set());
     setAiScanResults({});
-    setCheckins([]);
     navigateWithParams({ tab, page: "1", search: "", dept: "" });
     router.refresh();
   };
@@ -253,7 +261,12 @@ export default function QueueClient({
     }
   };
 
-  const filteredCheckins = checkins;
+  // Client-side filter by tab status so status changes immediately remove items from view
+  const filteredCheckins = checkins.filter(c => {
+    if (activeTab === "AUTO_APPROVED") return c.status === "AUTO_APPROVED";
+    if (activeTab === "REVIEWED") return c.status === "APPROVED" || c.status === "REJECTED";
+    return c.status === "PENDING";
+  });
   const pendingCount = _pendingCount ?? checkins.filter(c => c.status === "PENDING").length;
   const autoApprovedCount = _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length;
   const reviewedCount = _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
@@ -369,9 +382,9 @@ export default function QueueClient({
         </div>
       </div>
 
-      {/* Select All */}
+      {/* Select All — only in pending tab with items */}
       {activeTab === "PENDING" && filteredCheckins.length > 0 && (
-        <button onClick={handleSelectAll} className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant hover:text-primary transition-all duration-150 font-inter select-none">
+        <button onClick={handleSelectAll} className="flex items-center gap-2 text-xs font-semibold text-on-surface-variant hover:text-primary transition-all duration-150 font-inter select-none animate-in fade-in slide-in-from-left-2 duration-300">
           <div className={cn(
             "w-4 h-4 rounded border-none flex items-center justify-center transition-all duration-150",
             filteredCheckins.every(c => selectedIds.has(c.id))
@@ -384,8 +397,27 @@ export default function QueueClient({
         </button>
       )}
 
+      {/* Tab transition loading state */}
+      {isTabTransitioning && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="rounded-[16px] bg-surface-container-lowest shadow-[0_20px_40px_rgba(19,27,46,0.06)] overflow-hidden animate-pulse">
+              <div className="w-full aspect-video bg-surface-container-low" />
+              <div className="p-4 space-y-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-surface-container-low" />
+                  <div className="h-3 bg-surface-container-low rounded w-2/3" />
+                </div>
+                <div className="h-2 bg-surface-container-low rounded w-1/3" />
+                <div className="h-2 bg-surface-container-low rounded w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Empty state */}
-      {filteredCheckins.length === 0 ? (
+      {!isTabTransitioning && filteredCheckins.length === 0 ? (
         <div className="bg-surface-container-lowest rounded-[16px] p-16 text-center shadow-[0_20px_40px_rgba(19,27,46,0.06)] border-none">
           <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto mb-4 text-on-surface-variant/40">
             <ImageIcon className="w-7 h-7" />
@@ -399,7 +431,7 @@ export default function QueueClient({
         <>
           {/* Card Grid: 3 columns desktop, 2 tablet, 1 mobile */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredCheckins.map((item) => {
+            {filteredCheckins.map((item, idx) => {
               const isSelected = selectedIds.has(item.id);
               const isProcessed = processedIds.has(item.id);
               const scanResult = aiScanResults[item.id] || (item.ai_confidence !== null ? {
@@ -416,13 +448,16 @@ export default function QueueClient({
               return (
                 <div
                   key={item.id}
+                  style={{ animationDelay: `${idx * 60}ms` }}
                   className={cn(
                     "relative rounded-[16px] overflow-hidden transition-all duration-300 flex flex-col border-none shadow-[0_20px_40px_rgba(19,27,46,0.06)] bg-surface-container-lowest",
+                    "animate-in fade-in slide-in-from-bottom-4 duration-300",
+                    "hover:shadow-[0_24px_48px_rgba(19,27,46,0.1)] hover:-translate-y-1",
                     isProcessed && "opacity-0 scale-90 translate-y-4 max-h-0 pointer-events-none duration-500"
                   )}
                 >
-                  {/* Selection checkbox overlay */}
-                  {activeTab === "PENDING" && (
+                  {/* Selection checkbox overlay — only on pending items */}
+                  {item.status === "PENDING" && (
                     <button onClick={(e) => { e.stopPropagation(); handleSelectOne(item.id); }}
                       className={cn(
                         "absolute top-3 left-3 z-20 w-6 h-6 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer border-none",
@@ -542,8 +577,8 @@ export default function QueueClient({
                     {/* Spacer for flex */}
                     <div className="flex-1" />
 
-                    {/* Action row */}
-                    {activeTab === "PENDING" && (
+                    {/* Action row — only for items still pending */}
+                    {item.status === "PENDING" && (
                       <>
                         {isRejectingId === item.id ? (
                           <div className="space-y-2 pt-1 animate-in slide-in-from-bottom-2 duration-200">

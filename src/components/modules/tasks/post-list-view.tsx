@@ -53,13 +53,7 @@ function getPostStatus(
       badgeClass: "bg-amber-50 text-amber-700 border border-amber-100",
     };
   }
-  if (checkinState === "REJECTED") {
-    return {
-      status: "REJECTED",
-      label: "Bị từ chối",
-      badgeClass: "bg-rose-50 text-rose-700 border border-rose-100",
-    };
-  }
+  // Locked/expired takes priority over rejected — only allow resubmit if still within deadline
   if (post.is_archived) {
     return {
       status: "LOCKED",
@@ -72,6 +66,13 @@ function getPostStatus(
       status: "EXPIRED",
       label: "Quá hạn",
       badgeClass: "bg-red-500/10 text-red-600 border-none",
+    };
+  }
+  if (checkinState === "REJECTED") {
+    return {
+      status: "REJECTED",
+      label: "Bị từ chối",
+      badgeClass: "bg-rose-50 text-rose-700 border border-rose-100",
     };
   }
   return {

@@ -581,6 +581,27 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
           {/* ── Main form ── */}
           {(submitStatus === "idle" || submitStatus === "loading") && !checkingExisting && (!existingCheckin || existingCheckin.status === "REJECTED") && (
+            <>
+            {/* Block resubmission when window is closed */}
+            {existingCheckin?.status === "REJECTED" && !isWindowOpen ? (
+              <div className="flex flex-col items-center justify-center text-center px-6 py-12 space-y-6">
+                <div className="w-20 h-20 rounded-full flex items-center justify-center bg-surface-container-low text-on-surface-variant">
+                  <Clock className="w-10 h-10" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">Đã quá hạn nộp lại</h3>
+                  <p className="text-sm text-on-surface-variant font-inter">
+                    Cửa sổ nộp bài đã đóng. Bạn không thể nộp lại minh chứng cho bài viết này.
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="w-full h-12 flex items-center justify-center rounded-[12px] bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold text-sm transition-all duration-150 font-inter"
+                >
+                  Đóng
+                </button>
+              </div>
+            ) : (
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
               {/* ── Rejected notice ── */}
@@ -774,6 +795,8 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                 </button>
               </div>
             </form>
+            )}
+            </>
           )}
         </div>
       </div>
