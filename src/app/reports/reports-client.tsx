@@ -10,6 +10,7 @@ type CheckinItem = {
   id: string;
   postTitle: string;
   postUrl: string;
+  postAuthor: string;
   imageUrl: string;
   submittedAt: string;
   status: string;
@@ -240,21 +241,22 @@ export default function ReportsClient({ checkins }: Props) {
 
                   return (
                     <tr key={item.id} className="hover:bg-surface-container-low/50 transition-all duration-150">
-                      {/* Post Title */}
+                      {/* Post Title & Author */}
                       <td className="p-4">
-                        <div className="space-y-1">
-                          <p className="font-semibold text-on-surface line-clamp-2" title={item.postTitle}>
-                            {item.postTitle}
-                          </p>
+                        <div className="flex flex-col">
                           <a
                             href={item.postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 font-medium transition-all duration-150"
+                            className="text-sm font-bold text-slate-800 hover:text-indigo-600 hover:underline transition-all cursor-pointer flex items-center gap-1.5"
+                            title={item.postTitle}
                           >
-                            <span>Xem bài viết gốc</span>
-                            <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                            <span className="line-clamp-2">{item.postTitle}</span>
+                            <span className="material-symbols-outlined text-[14px] text-slate-400 shrink-0">open_in_new</span>
                           </a>
+                          <span className="text-xs text-slate-400 mt-1">
+                            Tác giả: {item.postAuthor || "Ban truyền thông"}
+                          </span>
                         </div>
                       </td>
 

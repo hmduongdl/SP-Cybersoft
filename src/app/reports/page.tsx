@@ -23,6 +23,7 @@ export default async function ReportsPage() {
         select: {
           title: true,
           url: true,
+          author: true,
         },
       },
     },
@@ -36,6 +37,7 @@ export default async function ReportsPage() {
     id: c.id,
     postTitle: c.post?.title || "Bài viết không xác định",
     postUrl: c.post?.url || "#",
+    postAuthor: c.post?.author || "Ẩn danh",
     imageUrl: c.image_url,
     submittedAt: c.submitted_at.toISOString(),
     status: c.status,

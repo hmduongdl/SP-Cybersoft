@@ -326,8 +326,9 @@ function CalendarPostCard({
 
   return (
     <div
+      title={post.title}
       className={cn(
-        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 border bg-surface-container-lowest hover:shadow-ambient",
+        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 border bg-surface-container-lowest hover:shadow-ambient max-h-[70px] overflow-hidden",
         isSubmitted
           ? "border-emerald-200 hover:border-emerald-300"
           : isRejected
@@ -362,12 +363,12 @@ function CalendarPostCard({
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "text-[10px] leading-tight line-clamp-1 font-medium hover:text-primary hover:underline transition-colors block",
+            "text-[11px] font-bold line-clamp-2 leading-snug break-words mt-1 hover:text-primary hover:underline transition-colors block",
             isSubmitted
               ? "text-emerald-800"
               : isRejected
               ? "text-rose-700"
-              : "text-on-surface-variant"
+              : "text-slate-800"
           )}
         >
           {post.title}

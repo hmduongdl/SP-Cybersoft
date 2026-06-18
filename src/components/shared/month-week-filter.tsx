@@ -102,17 +102,27 @@ export function MonthWeekFilter({
         />
       </div>
 
-      {/* Reset button */}
-      {isDirty && (
+      {/* Nút Clear / Tuần này / Text báo trạng thái */}
+      <div className="flex items-center gap-2">
         <button
-          type="button"
-          onClick={reset}
-          title="Về mặc định (tuần hiện tại)"
-          className="p-2 rounded-xl text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all duration-150"
+          onClick={filter.setThisWeek}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all font-inter"
+          title="Xem tuần hiện tại"
         >
-          <RotateCcw className="h-4 w-4" />
+          <span className="hidden sm:inline">Tuần này</span>
         </button>
-      )}
+
+        {isDirty && (
+          <button
+            onClick={reset}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-all font-inter"
+            title="Xóa bộ lọc ngày (Xem cả tháng)"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Đặt lại</span>
+          </button>
+        )}
+      </div>
 
       {/* Range label chip */}
       <span
@@ -120,8 +130,6 @@ export function MonthWeekFilter({
           "hidden md:inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full",
           hasCustomRange
             ? "bg-primary/10 text-primary"
-            : isCurrentMonth
-            ? "bg-emerald-50 text-emerald-700"
             : "bg-surface-container text-on-surface-variant"
         )}
       >

@@ -94,8 +94,10 @@ export interface MonthWeekFilterState {
   setSelectedMonth: (v: string) => void;
   setDateFrom: (v: string) => void;
   setDateTo: (v: string) => void;
-  /** Reset về mặc định */
+  /** Reset về mặc định (toàn bộ tháng hiện tại) */
   reset: () => void;
+  /** Chọn nhanh tuần hiện tại */
+  setThisWeek: () => void;
   /** Label mô tả khoảng thời gian đang xem */
   rangeLabel: string;
 }
@@ -121,6 +123,12 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
     setDateTo("");
   };
 
+  const setThisWeek = () => {
+    _setSelectedMonth(currentMonthKey);
+    setDateFrom(toDateKey(startOfWeek(now)));
+    setDateTo(toDateKey(endOfWeek(now)));
+  };
+
   const isCurrentMonth = selectedMonth === currentMonthKey;
   const { year, month } = parseMonthKey(selectedMonth);
 
@@ -134,20 +142,11 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
       }
     }
 
-    // Auto-range
-    if (isCurrentMonth) {
-      // Tuần hiện tại
-      return {
-        from: startOfWeek(now),
-        to: endOfWeek(now),
-      };
-    } else {
-      // Toàn bộ tháng
-      return {
-        from: startOfMonth(year, month),
-        to: endOfMonth(year, month),
-      };
-    }
+    // Auto-range: Luôn là toàn bộ tháng nếu không chọn ngày
+    return {
+      from: startOfMonth(year, month),
+      to: endOfMonth(year, month),
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth, dateFrom, dateTo]);
 
@@ -158,13 +157,10 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
     if (dateFrom && dateTo) {
       return `${fmtDate(effectiveRange.from)} – ${fmtDate(effectiveRange.to)}`;
     }
-    if (isCurrentMonth) {
-      return `Tuần này (${fmtDate(effectiveRange.from)} – ${fmtDate(effectiveRange.to)})`;
-    }
     const { year: y, month: m } = parseMonthKey(selectedMonth);
     const d = new Date(y, m, 1);
-    return `Toàn bộ tháng ${d.toLocaleString("vi-VN", { month: "long", year: "numeric" })}`;
-  }, [effectiveRange, isCurrentMonth, selectedMonth, dateFrom, dateTo]);
+    return `Cả tháng ${d.toLocaleString("vi-VN", { month: "long", year: "numeric" })}`;
+  }, [dateFrom, dateTo, effectiveRange, selectedMonth]);
 
   return {
     selectedMonth,
@@ -177,6 +173,7 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
     setDateFrom,
     setDateTo,
     reset,
+    setThisWeek,
     rangeLabel,
   };
 }
