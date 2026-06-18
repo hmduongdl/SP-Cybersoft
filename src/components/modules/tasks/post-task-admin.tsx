@@ -130,10 +130,11 @@ export function PostTaskAdmin() {
   const [checkingDensity, setCheckingDensity] = useState(false);
 
   // Load posts
-  async function loadPosts(page = 1) {
+  async function loadPosts(page = 1, status?: string) {
     setLoadingPosts(true);
     try {
-      const response = await fetch(`/api/posts?page=${page}&limit=20`, { cache: "no-store" });
+      const s = status ?? statusFilter;
+      const response = await fetch(`/api/posts?page=${page}&limit=20&status=${s}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Không thể tải danh sách bài viết.");
       const data = await response.json();
       setPosts(data.posts ?? []);
@@ -164,9 +165,16 @@ export function PostTaskAdmin() {
   }
 
   useEffect(() => {
-    loadPosts(1);
+    loadPosts(1, statusFilter);
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Re-fetch when status filter changes
+  useEffect(() => {
+    loadPosts(1, statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter]);
 
   // Run density check whenever selected date in form changes
   useEffect(() => {

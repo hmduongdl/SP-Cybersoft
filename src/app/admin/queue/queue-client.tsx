@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import {
   Check,
@@ -106,6 +106,12 @@ export default function QueueClient({
   const searchParams = useSearchParams();
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
+  // Sync server-rendered initialCheckins into local state when tab/search/dept/page changes
+  useEffect(() => {
+    setCheckins(initialCheckins);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams?.toString()]);
+
   const navigateWithParams = useCallback((params: Record<string, string>) => {
     const sp = new URLSearchParams(searchParams.toString());
     Object.entries(params).forEach(([key, value]) => {
@@ -122,7 +128,9 @@ export default function QueueClient({
   const handleTabChangeInternal = (tab: string) => {
     setSelectedIds(new Set());
     setAiScanResults({});
+    setCheckins([]);
     navigateWithParams({ tab, page: "1", search: "", dept: "" });
+    router.refresh();
   };
 
   const handleSearchChange = (value: string) => {

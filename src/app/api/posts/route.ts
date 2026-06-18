@@ -14,6 +14,7 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const page = Math.max(1, Number(url.searchParams.get('page')) || 1);
     const limit = Math.min(100, Math.max(1, Number(url.searchParams.get('limit')) || 50));
+    const status = url.searchParams.get('status') || 'ACTIVE';
     const skip = (page - 1) * limit;
 
     const [allPosts, totalEmployees] = await Promise.all([
@@ -21,8 +22,15 @@ export async function GET(request: Request) {
         getCachedTotalEmployees(),
     ]);
 
-    const paginatedPosts = allPosts.slice(skip, skip + limit);
-    const totalPosts = allPosts.length;
+    // Filter by status: ACTIVE = not archived, ARCHIVED = archived, ALL = everything
+    const filteredPosts = status === 'ALL'
+        ? allPosts
+        : allPosts.filter((post: any) =>
+            status === 'ARCHIVED' ? post.is_archived : !post.is_archived
+        );
+
+    const paginatedPosts = filteredPosts.slice(skip, skip + limit);
+    const totalPosts = filteredPosts.length;
     const totalPages = Math.ceil(totalPosts / limit);
 
     return NextResponse.json({
