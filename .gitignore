@@ -34,3 +34,6 @@ coverage/
 
 # Admin credentials (NEVER commit to git)
 ADMIN_CREDENTIALS.md
+
+# External projects
+myTaskManager-main/

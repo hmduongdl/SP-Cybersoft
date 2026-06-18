@@ -27,7 +27,8 @@ export const authConfig = {
       // Protected routes — yêu cầu đăng nhập
       const isProtectedRoute =
         pathname.startsWith("/dashboard") ||
-        pathname.startsWith("/like-share");
+        pathname.startsWith("/like-share") ||
+        pathname.startsWith("/tasks");
 
       if (isProtectedRoute) {
         return true;

@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 model User {
@@ -31,6 +33,8 @@ model User {
   trust_score          Int       @default(50)
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
   checkins             Checkin[] @relation("UserCheckins")
+  workspaces           Workspace[] @relation("UserWorkspaces")
+  created_tasks        Task[]      @relation("UserCreatedTasks")
 
   @@index([email])
 }
@@ -103,4 +107,72 @@ enum CheckinStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+model Workspace {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  icon        String?
+  color       String?
+  owner_id    String
+  createdAt   DateTime @default(now())
+
+  owner       User     @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
+  tags        Tag[]    @relation("WorkspaceTags")
+  tasks       Task[]   @relation("WorkspaceTasks")
+}
+
+model Tag {
+  id           String    @id @default(uuid())
+  name         String
+  color        String?
+  workspace_id String
+
+  workspace    Workspace @relation("WorkspaceTags", fields: [workspace_id], references: [id], onDelete: Cascade)
+  tasks        Task[]    @relation("TaskTags")
+
+  @@unique([name, workspace_id])
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  due_date     DateTime?
+  workspace_id String
+  creator_id   String
+  is_archived  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  workspace    Workspace  @relation("WorkspaceTasks", fields: [workspace_id], references: [id], onDelete: Cascade)
+  creator      User       @relation("UserCreatedTasks", fields: [creator_id], references: [id], onDelete: Cascade)
+  tags         Tag[]      @relation("TaskTags")
+  note         TaskNote?
+}
+
+model TaskNote {
+  id        String   @id @default(uuid())
+  task_id   String   @unique
+  content   Json?
+  updatedAt DateTime @updatedAt
+
+  task      Task     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  embedding NoteEmbedding?
+}
+
+model NoteEmbedding {
+  id        String   @id @default(uuid())
+  note_id   String   @unique
+  embedding Unsupported("vector(768)")?
+
+  note      TaskNote @relation(fields: [note_id], references: [id], onDelete: Cascade)
 }

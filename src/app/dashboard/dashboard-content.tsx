@@ -22,6 +22,11 @@ export default async function DashboardContent() {
   const trustScore = user?.trust_score ?? 50;
   const userName = session?.user?.name || "Thành viên";
 
+  // Ensure completedCount never exceeds totalPostsCount
+  const totalPostsCount = monthlyStats.totalPostsThisMonth;
+  const completedCount = Math.min(monthlyStats.completedThisMonth, totalPostsCount);
+  const pendingCount = Math.max(0, totalPostsCount - completedCount);
+
   const activityFeed = recentCheckins.map(sub => ({
     id: sub.id,
     userName: sub.user?.name || "Thành viên ẩn danh",
@@ -31,16 +36,16 @@ export default async function DashboardContent() {
     status: sub.status,
   }));
 
-  const monthlyProgress = monthlyStats.totalPostsThisMonth > 0
-    ? Math.round((monthlyStats.completedThisMonth / monthlyStats.totalPostsThisMonth) * 100)
+  const monthlyProgress = totalPostsCount > 0
+    ? Math.round((completedCount / totalPostsCount) * 100)
     : 0;
 
   return (
     <DashboardOverview
       userName={userName}
-      pendingCount={monthlyStats.pendingThisMonth}
-      completedCount={monthlyStats.completedThisMonth}
-      totalPostsCount={monthlyStats.totalPostsThisMonth}
+      pendingCount={pendingCount}
+      completedCount={completedCount}
+      totalPostsCount={totalPostsCount}
       trustScore={trustScore}
       activityFeed={activityFeed}
       dashboardPosts={dashboardPosts}

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useState, useEffect } from "react";
+import { CheckSquare } from "lucide-react";
 
 import { UserAvatar } from "./user-avatar";
 
@@ -44,7 +45,7 @@ export function Sidebar() {
     items: Array<{
       label: string;
       href: string;
-      icon: string;
+      icon: string | React.ReactNode;
       adminOnly: boolean;
       devOnly?: boolean;
     }>;
@@ -55,7 +56,7 @@ export function Sidebar() {
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
         { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
-        { label: "Task Manager", href: "/task-manager", icon: "checklist", adminOnly: false, devOnly: true },
+        { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
       ]
     },
@@ -161,12 +162,21 @@ export function Sidebar() {
                         )}
                         title={collapsed ? label : undefined}
                       >
-                        <span className={clsx(
-                          "material-symbols-outlined text-[22px]",
-                          isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
-                        )}>
-                          {icon}
-                        </span>
+                        {typeof icon === 'string' ? (
+                          <span className={clsx(
+                            "material-symbols-outlined text-[22px]",
+                            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                          )}>
+                            {icon}
+                          </span>
+                        ) : (
+                          <div className={clsx(
+                            "flex items-center justify-center shrink-0",
+                            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                          )}>
+                            {icon}
+                          </div>
+                        )}
                         {!collapsed && <span className="text-sm font-medium font-inter">{label}</span>}
                       </button>
                     );

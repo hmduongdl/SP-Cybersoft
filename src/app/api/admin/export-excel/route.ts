@@ -5,6 +5,23 @@ import ExcelJS from 'exceljs';
 
 export const dynamic = 'force-dynamic';
 
+const getExcelColumnLetter = (colNum: number): string => {
+  let temp = colNum;
+  let letter = "";
+  while (temp > 0) {
+    let tempCol = (temp - 1) % 26;
+    letter = String.fromCharCode(65 + tempCol) + letter;
+    temp = Math.floor((temp - tempCol) / 26);
+  }
+  return letter;
+};
+
+const generateScoreFormula = (rowNum: number, startColNum: number, endColNum: number): string => {
+  const startLetter = getExcelColumnLetter(startColNum);
+  const endLetter = getExcelColumnLetter(endColNum);
+  return `=COUNTIF(${startLetter}${rowNum}:${endLetter}${rowNum}, "X") + COUNTIF(${startLetter}${rowNum}:${endLetter}${rowNum}, "1/2")*0.5`;
+};
+
 function getShortName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/);
   if (parts.length <= 2) return fullName;
@@ -126,28 +143,28 @@ export async function GET(request: Request) {
             const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
             const submitted = new Date(checkin!.submitted_at);
             if (submitted <= deadline) {
-              cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+              cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
             } else {
-              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // LATE
+              cells.push({ value: 'O', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // LATE
             }
           } else if (checkin && checkin.status === 'REJECTED') {
-            cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // REJECTED -> Pink
+            cells.push({ value: 'O', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // REJECTED -> Pink
           } else if (checkin) {
             // PENDING or other. Check if late
             const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
             const submitted = new Date(checkin.submitted_at);
             if (submitted > deadline) {
-              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // LATE
+              cells.push({ value: 'O', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // LATE
             } else {
-              cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' }); // Pending but not late yet
+              cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' }); // Pending but not late yet
             }
           } else {
-            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' }); // Not submitted
+            cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' }); // Not submitted
           }
         } else {
           // 2+ posts in a day
           if (approvedCheckins.length === 2) {
-            cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
           } else if (approvedCheckins.length === 1) {
             cells.push({ value: '1/2', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
           } else {
@@ -160,9 +177,9 @@ export async function GET(request: Request) {
               return false;
             });
             if (hasLateOrRejected) {
-              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
+              cells.push({ value: 'O', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
             } else {
-              cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+              cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
             }
           }
         }
@@ -280,13 +297,8 @@ export async function GET(request: Request) {
       }
 
       // Score cell
-      const startColLetter = 'B';
-      
-      // Calculate end column letter (handles up to AZ, but standard month is max 31 days so AE)
-      const endColLetter = String.fromCharCode(65 + numDays);
-      
       const scoreCell = ws.getCell(rowNum, maxCol);
-      scoreCell.value = { formula: `=COUNTIF(${startColLetter}${rowNum}:${endColLetter}${rowNum}, "O") + COUNTIF(${startColLetter}${rowNum}:${endColLetter}${rowNum}, "1/2")*0.5` };
+      scoreCell.value = { formula: generateScoreFormula(rowNum, 2, lastDataCol) };
       scoreCell.font = { bold: true, size: 10 };
       scoreCell.alignment = { vertical: 'middle', horizontal: 'center' };
       scoreCell.numFmt = '0.0';

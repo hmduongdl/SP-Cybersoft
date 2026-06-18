@@ -73,22 +73,40 @@ export async function getCachedMonthlyStats(userId: string) {
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const [completedThisMonth, totalPostsThisMonth] = await Promise.all([
-    db.checkin.count({
-      where: {
-        user_id: userId,
-        status: { in: ["APPROVED", "AUTO_APPROVED"] },
-        submitted_at: { gte: startOfMonth, lt: endOfMonth },
-      },
-    }),
-    db.post.count({
-      where: {
-        start_at: { gte: startOfMonth, lt: endOfMonth },
-        is_archived: false,
-      },
-    }),
-  ]);
+  // Get check-ins this month with associated post info
+  const checkinsThisMonth = await db.checkin.findMany({
+    where: {
+      user_id: userId,
+      submitted_at: { gte: startOfMonth, lt: endOfMonth },
+    },
+    select: {
+      post_id: true,
+      status: true,
+    },
+  });
 
+  // Get all posts (including those outside current month that might have checkins)
+  const allPosts = await db.post.findMany({
+    where: { is_archived: false },
+    select: { id: true, start_at: true },
+  });
+
+  // Build a set of post IDs with this month's checkins
+  const postsWithCheckinsThisMonth = new Set(checkinsThisMonth.map(c => c.post_id));
+
+  // Count completed checkins this month
+  const completedThisMonth = checkinsThisMonth.filter(c =>
+    c.status === "APPROVED" || c.status === "AUTO_APPROVED"
+  ).length;
+
+  // Total posts = posts in this month OR posts that have checkins this month
+  const totalPostsThisMonth = allPosts.filter(post => {
+    const isInMonth = post.start_at >= startOfMonth && post.start_at < endOfMonth;
+    const hasCheckinsThisMonth = postsWithCheckinsThisMonth.has(post.id);
+    return isInMonth || hasCheckinsThisMonth;
+  }).length;
+
+  // Pending = max(0, total - completed) to avoid negative values
   const pendingThisMonth = Math.max(0, totalPostsThisMonth - completedThisMonth);
 
   return { completedThisMonth, totalPostsThisMonth, pendingThisMonth };
