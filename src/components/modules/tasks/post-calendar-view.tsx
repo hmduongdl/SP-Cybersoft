@@ -363,7 +363,7 @@ function CalendarPostCard({
           rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "text-[11px] font-bold line-clamp-2 leading-snug break-words mt-1 hover:text-primary hover:underline transition-colors block",
+            "text-[11px] font-bold line-clamp-2 leading-snug break-words mt-1 hover:text-primary hover:underline transition-colors",
             isSubmitted
               ? "text-emerald-800"
               : isRejected

@@ -64,16 +64,21 @@ export interface DateRange {
   to: Date;
 }
 
-/** Danh sách các tháng có thể chọn (tháng hiện tại + 11 tháng trước) */
+/** Danh sách các tháng có thể chọn (từ tháng 6-2026 trở đi) */
 export function buildMonthOptions(): { value: string; label: string }[] {
   const now = new Date();
   const options: { value: string; label: string }[] = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+  const minDate = new Date(2026, 5, 1); // Tháng 6 năm 2026 (0-indexed month)
+  
+  let d = new Date(now.getFullYear(), now.getMonth(), 1);
+  
+  while (d >= minDate) {
     const key = toMonthKey(d);
     const label = d.toLocaleString("vi-VN", { month: "long", year: "numeric" });
     options.push({ value: key, label });
+    d = new Date(d.getFullYear(), d.getMonth() - 1, 1);
   }
+  
   return options;
 }
 

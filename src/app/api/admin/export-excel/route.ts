@@ -37,13 +37,19 @@ export async function GET(request: Request) {
       select: { id: true, start_at: true },
     });
 
+    // Helper: UTC+7
+    const getVietnamDay = (date: Date) => {
+      const d = new Date(date.getTime() + 7 * 60 * 60 * 1000);
+      return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+    };
+
     // Step 2: Extract unique days and group posts by day
     const dayMap = new Map<string, { date: Date; posts: { id: string; start_at: Date }[] }>();
     for (const post of posts) {
-      const d = new Date(post.start_at);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      const key = getVietnamDay(post.start_at);
       if (!dayMap.has(key)) {
-        dayMap.set(key, { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), posts: [] });
+        const d = new Date(post.start_at.getTime() + 7 * 60 * 60 * 1000);
+        dayMap.set(key, { date: new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()), posts: [] });
       }
       dayMap.get(key)!.posts.push(post);
     }
@@ -66,7 +72,6 @@ export async function GET(request: Request) {
     const checkins = await db.checkin.findMany({
       where: {
         post_id: { in: postIds },
-        status: { in: ['APPROVED', 'AUTO_APPROVED'] },
       },
       select: {
         id: true,
@@ -105,58 +110,65 @@ export async function GET(request: Request) {
       for (const day of days) {
         const dayPosts = day.posts;
         const postCount = dayPosts.length;
+        
+        // Find approved checkins for this day's posts
+        const approvedCheckins = Array.from(userCheckins.values()).filter(c => 
+          dayPosts.some(p => p.id === c.post_id) && 
+          (c.status === "APPROVED" || c.status === "AUTO_APPROVED" || c.status === "AUTO_VERIFIED")
+        );
 
         if (postCount === 1) {
           const post = dayPosts[0];
           const checkin = userCheckins.get(post.id);
 
-          if (checkin) {
+          if (approvedCheckins.length === 1) {
+            // It's approved. Let's check if it was late
             const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
-            const submitted = new Date(checkin.submitted_at);
+            const submitted = new Date(checkin!.submitted_at);
             if (submitted <= deadline) {
               cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
-              oCount++;
             } else {
-              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
+              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // LATE
+            }
+          } else if (checkin && checkin.status === 'REJECTED') {
+            cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // REJECTED -> Pink
+          } else if (checkin) {
+            // PENDING or other. Check if late
+            const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
+            const submitted = new Date(checkin.submitted_at);
+            if (submitted > deadline) {
+              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' }); // LATE
+            } else {
+              cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' }); // Pending but not late yet
             }
           } else {
-            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' }); // Not submitted
           }
         } else {
           // 2+ posts in a day
-          let onTime = 0;
-          let late = 0;
-
-          for (const post of dayPosts) {
-            const checkin = userCheckins.get(post.id);
-            if (checkin) {
-              const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
-              const submitted = new Date(checkin.submitted_at);
-              if (submitted <= deadline) {
-                onTime++;
-              } else {
-                late++;
-              }
-            }
-          }
-
-          const submitted = onTime + late;
-          if (submitted === postCount && late === 0) {
+          if (approvedCheckins.length === 2) {
             cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
-            oCount++;
-          } else if (onTime >= 1 && late === 0) {
-            cells.push({ value: `${onTime}/${postCount}`, bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
-            halfCount++;
-          } else if (submitted === 0) {
-            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+          } else if (approvedCheckins.length === 1) {
+            cells.push({ value: '1/2', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
           } else {
-            cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
+            // Check if any checkin is rejected or late
+            const hasLateOrRejected = Array.from(userCheckins.values()).some(c => {
+              if (!dayPosts.some(p => p.id === c.post_id)) return false;
+              if (c.status === 'REJECTED') return true;
+              const p = dayPosts.find(p => p.id === c.post_id);
+              if (p && new Date(c.submitted_at).getTime() > p.start_at.getTime() + 24 * 60 * 60 * 1000) return true;
+              return false;
+            });
+            if (hasLateOrRejected) {
+              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
+            } else {
+              cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+            }
           }
         }
       }
 
-      const score = oCount * 1 + halfCount * 0.5;
-      matrix.push({ user, cells, score });
+      matrix.push({ user, cells, score: 0 }); // Score is calculated via formula
     }
 
     // ---- Build Excel workbook ----
@@ -268,8 +280,13 @@ export async function GET(request: Request) {
       }
 
       // Score cell
+      const startColLetter = 'B';
+      
+      // Calculate end column letter (handles up to AZ, but standard month is max 31 days so AE)
+      const endColLetter = String.fromCharCode(65 + numDays);
+      
       const scoreCell = ws.getCell(rowNum, maxCol);
-      scoreCell.value = rowData.score;
+      scoreCell.value = { formula: `=COUNTIF(${startColLetter}${rowNum}:${endColLetter}${rowNum}, "O") + COUNTIF(${startColLetter}${rowNum}:${endColLetter}${rowNum}, "1/2")*0.5` };
       scoreCell.font = { bold: true, size: 10 };
       scoreCell.alignment = { vertical: 'middle', horizontal: 'center' };
       scoreCell.numFmt = '0.0';
