@@ -155,9 +155,9 @@ export async function PUT(request: Request) {
       updateData.password = await bcrypt.hash(newPassword, 10);
     }
 
-    // Tự động đánh dấu is_first_login = false khi user cập nhật hồ sơ lần đầu
-    if (Object.keys(updateData).length > 0) {
-      updateData.is_first_login = false;
+    // Tự động đánh dấu is_verified = true khi user cập nhật hồ sơ
+    if (facebook_link || department) {
+      updateData.is_verified = true;
     }
 
     const [user] = await db.$transaction([

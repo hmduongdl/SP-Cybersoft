@@ -8,7 +8,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   callbacks: {
     async jwt({ token, user, trigger, session }) {
-      // On session update (after profile save), query DB for fresh data
+      // On session update, query DB for fresh data
       if (trigger === "update") {
         try {
           const dbUser = await db.user.findUnique({
@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               role: true,
               department: true,
               facebook_profile_url: true,
-              is_first_login: true,
+              is_verified: true,
             },
           });
           if (dbUser) {
@@ -32,13 +32,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.username = dbUser.username ?? null;
             token.phone = null;
             token.facebook_link = dbUser.facebook_profile_url ?? null;
-            token.is_onboarded = !dbUser.is_first_login;
+            token.is_verified = dbUser.is_verified;
           }
         } catch {
           console.warn("jwt update: không thể query DB, giữ nguyên token.");
         }
-        if (session?.is_onboarded !== undefined) {
-          token.is_onboarded = session.is_onboarded;
+        if (session?.is_verified !== undefined) {
+          token.is_verified = session.is_verified;
         }
         return token;
       }
@@ -47,7 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user && user.id) {
         token.id = user.id;
         token.role = user.role ? user.role : "USER";
-        token.is_onboarded = user.is_onboarded ?? false;
+        token.is_verified = user.is_verified ?? false;
         token.hasFacebook = false;
         token.picture = user.image;
         token.name = user.name;
@@ -68,7 +68,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as "ADMIN" | "USER";
-        session.user.is_onboarded = token.is_onboarded as boolean;
+        session.user.is_verified = token.is_verified as boolean;
         session.user.hasFacebook = false;
         session.user.department = token.department as string;
         session.user.avatar_url = token.avatar_url as string | null;
@@ -114,7 +114,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: true,
             password: true,
             role: true,
-            is_first_login: true,
+            is_verified: true,
             is_active: true,
             department: true,
             avatar_url: true,
@@ -123,10 +123,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (user && user.password) {
-          if (!user.is_active) {
-            throw new Error("ACCOUNT_LOCKED");
-          }
-
           const isValidPassword = await bcrypt.compare(password, user.password);
 
           if (!isValidPassword) {
@@ -139,7 +135,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: user.email,
             image: user.avatar_url,
             role: user.role,
-            is_onboarded: !user.is_first_login,
+            is_verified: user.is_verified,
             department: user.department,
             avatar_url: user.avatar_url,
             username: user.username,
@@ -168,7 +164,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               password: passwordHash,
               role: "ADMIN",
               department: "SALES",
-              is_first_login: false,
+              is_verified: true,
             },
             select: {
               id: true,
@@ -176,7 +172,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: true,
               email: true,
               role: true,
-              is_first_login: true,
+              is_verified: true,
               department: true,
               avatar_url: true,
               facebook_profile_url: true,
@@ -189,7 +185,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             email: adminUser.email,
             image: adminUser.avatar_url,
             role: adminUser.role,
-            is_onboarded: !adminUser.is_first_login,
+            is_verified: adminUser.is_verified,
             department: adminUser.department,
             avatar_url: adminUser.avatar_url,
             username: adminUser.username,

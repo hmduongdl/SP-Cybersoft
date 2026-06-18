@@ -7,7 +7,8 @@ declare module "next-auth" {
       id: string;
       role: UserRole;
       hasFacebook: boolean;
-      is_onboarded: boolean;
+      /** true nếu user đã điền đầy đủ thông tin hồ sơ */
+      is_verified: boolean;
       department?: string | null;
       avatar_url?: string | null;
       facebook_link?: string | null;
@@ -18,7 +19,8 @@ declare module "next-auth" {
 
   interface User {
     role?: UserRole;
-    is_onboarded?: boolean;
+    /** true nếu user đã điền đầy đủ thông tin hồ sơ */
+    is_verified?: boolean;
     full_name?: string | null;
     email?: string | null;
     avatar_url?: string | null;
@@ -34,7 +36,8 @@ declare module "next-auth/jwt" {
     id: string;
     role: UserRole;
     hasFacebook?: boolean;
-    is_onboarded?: boolean;
+    /** true nếu user đã điền đầy đủ thông tin hồ sơ */
+    is_verified?: boolean;
     department?: string | null;
     avatar_url?: string | null;
     facebook_link?: string | null;

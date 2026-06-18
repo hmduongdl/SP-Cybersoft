@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from "react";
 import { Toaster } from "sonner";
 import { clsx } from "clsx";
+import { MonthWeekFilter } from "@/components/shared/month-week-filter";
+import { useMonthWeekFilter, isInRange } from "@/hooks/use-month-week-filter";
 
 type CheckinItem = {
   id: string;
@@ -25,25 +27,21 @@ export default function ReportsClient({ checkins }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Calculate statistics for KPI cards
-  const stats = useMemo(() => {
-    const total = checkins.length;
-    const approved = checkins.filter(
-      (c) => c.status === "APPROVED" || c.status === "AUTO_APPROVED"
-    ).length;
-    const pending = checkins.filter((c) => c.status === "PENDING").length;
-    const rejected = checkins.filter((c) => c.status === "REJECTED").length;
+  // Bộ lọc tháng / khoảng ngày
+  const filter = useMonthWeekFilter();
 
-    return { total, approved, pending, rejected };
-  }, [checkins]);
-
-  // Filter check-ins based on status and search query
+  // Lọc theo range thời gian + status + search
   const filteredCheckins = useMemo(() => {
     return checkins.filter((c) => {
+      // Lọc theo khoảng ngày
+      if (!isInRange(c.submittedAt, filter.effectiveRange)) return false;
+
+      // Lọc theo tên bài viết
       const matchesSearch = c.postTitle
         .toLowerCase()
         .includes(searchTerm.toLowerCase());
-      
+
+      // Lọc theo trạng thái
       let matchesStatus = true;
       if (statusFilter === "APPROVED") {
         matchesStatus = c.status === "APPROVED" || c.status === "AUTO_APPROVED";
@@ -55,9 +53,20 @@ export default function ReportsClient({ checkins }: Props) {
 
       return matchesSearch && matchesStatus;
     });
-  }, [checkins, searchTerm, statusFilter]);
+  }, [checkins, searchTerm, statusFilter, filter.effectiveRange]);
 
-  // Pagination calculations
+  // Tính thống kê theo range hiện tại
+  const stats = useMemo(() => {
+    const total = filteredCheckins.length;
+    const approved = filteredCheckins.filter(
+      (c) => c.status === "APPROVED" || c.status === "AUTO_APPROVED"
+    ).length;
+    const pending = filteredCheckins.filter((c) => c.status === "PENDING").length;
+    const rejected = filteredCheckins.filter((c) => c.status === "REJECTED").length;
+    return { total, approved, pending, rejected };
+  }, [filteredCheckins]);
+
+  // Pagination
   const totalPages = Math.ceil(filteredCheckins.length / itemsPerPage) || 1;
   const paginatedCheckins = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -96,18 +105,27 @@ export default function ReportsClient({ checkins }: Props) {
           <span>/</span>
           <span className="text-primary font-semibold">Báo cáo cá nhân</span>
         </nav>
-        <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Báo cáo cá nhân</h1>
-        <p className="mt-1 text-sm text-on-surface-variant font-inter">Xem lại toàn bộ lịch sử share bài và trạng thái duyệt check-in.</p>
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Báo cáo cá nhân</h1>
+            <p className="mt-1 text-sm text-on-surface-variant font-inter">Xem lại toàn bộ lịch sử share bài và trạng thái duyệt check-in.</p>
+          </div>
+          {/* Bộ lọc tháng / khoảng ngày */}
+          <MonthWeekFilter
+            filter={filter}
+            className="sm:shrink-0"
+          />
+        </div>
       </div>
 
-      {/* Stats KPI Cards */}
+      {/* Stats KPI Cards — dựa trên range hiện tại */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
         {/* Card 1: Total */}
         <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Tổng bài đã nộp</p>
             <h3 className="text-[28px] font-bold text-on-surface font-manrope leading-tight">{stats.total}</h3>
-            <p className="text-[11px] text-outline mt-1.5 truncate">Toàn bộ lịch sử check-in</p>
+            <p className="text-[11px] text-outline mt-1.5 truncate">{filter.rangeLabel}</p>
           </div>
           <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0 ml-3">
             <span className="material-symbols-outlined text-2xl">history</span>
@@ -280,7 +298,6 @@ export default function ReportsClient({ checkins }: Props) {
                             {isRejected && "Từ chối"}
                           </span>
                           
-                          {/* Reject Reason text if any */}
                           {isRejected && item.rejectReason && (
                             <p className="text-[11px] text-rose-600 font-medium max-w-[200px] leading-tight">
                               Lý do: {item.rejectReason}
@@ -309,7 +326,8 @@ export default function ReportsClient({ checkins }: Props) {
                       <span className="material-symbols-outlined text-4xl text-outline">
                         database_off
                       </span>
-                      <p className="text-sm">Không tìm thấy báo cáo check-in nào.</p>
+                      <p className="text-sm">Không có dữ liệu trong khoảng thời gian đã chọn.</p>
+                      <p className="text-xs text-outline/70">{filter.rangeLabel}</p>
                     </div>
                   </td>
                 </tr>
@@ -336,7 +354,7 @@ export default function ReportsClient({ checkins }: Props) {
               >
                 Trước
               </button>
-              {[...Array(totalPages)].map((_, i) => (
+              {[...Array(Math.min(totalPages, 7))].map((_, i) => (
                 <button
                   key={i}
                   onClick={() => handlePageChange(i + 1)}
@@ -372,7 +390,6 @@ export default function ReportsClient({ checkins }: Props) {
             className="relative max-w-3xl max-h-[85vh] bg-surface-container-lowest rounded-2xl overflow-hidden shadow-[0_32px_64px_rgba(19,27,46,0.12)] p-2 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Close Button */}
             <button
               onClick={() => setSelectedImage(null)}
               className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-inverse-surface/60 hover:bg-inverse-surface text-white rounded-full transition-all duration-150 cursor-pointer shadow-ambient"

@@ -34,6 +34,7 @@ type Post = {
   start_at: string;
   scheduledAt?: string;
   team?: "ALL" | "TECH" | "SALES";
+  author?: string | null;
   status: "PENDING" | "COMPLETED" | "EXPIRED";
   checkinStatus?: "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED" | null;
   allow_late_submit?: boolean;
@@ -304,17 +305,29 @@ function CalendarPostCard({
 }) {
   const checkinState = post.checkinStatus || (post.status === "COMPLETED" ? "APPROVED" : null);
   const thumbnailUrl = post.thumbnail_url || post.thumbnailUrl;
+  const postUrl = post.url || post.originalUrl || "#";
 
   const isSubmitted =
     checkinState === "APPROVED" || checkinState === "AUTO_APPROVED";
   const isRejected = checkinState === "REJECTED";
   const isPending = checkinState === "PENDING";
 
+  const AUTHOR_LABELS: Record<string, string> = {
+    songphuong_tech: "Song Phương Tech",
+    songphuong: "Song Phương",
+  };
+
+  function displayAuthor(author: string | null | undefined): string {
+    if (!author) return "";
+    return AUTHOR_LABELS[author] || author;
+  }
+
+  const authorName = displayAuthor(post.author);
+
   return (
     <div
-      onClick={() => onClick(post)}
       className={cn(
-        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 cursor-pointer border bg-surface-container-lowest hover:shadow-ambient",
+        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 border bg-surface-container-lowest hover:shadow-ambient",
         isSubmitted
           ? "border-emerald-200 hover:border-emerald-300"
           : isRejected
@@ -341,23 +354,50 @@ function CalendarPostCard({
         )}
       </div>
 
-      {/* Title */}
-      <p
-        className={cn(
-          "text-[10px] leading-tight line-clamp-2 flex-1 font-medium",
-          isSubmitted
-            ? "text-emerald-800"
-            : isRejected
-            ? "text-rose-700"
-            : "text-on-surface-variant"
+      {/* Title + Author */}
+      <div className="flex-1 min-w-0">
+        <a
+          href={postUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className={cn(
+            "text-[10px] leading-tight line-clamp-1 font-medium hover:text-primary hover:underline transition-colors block",
+            isSubmitted
+              ? "text-emerald-800"
+              : isRejected
+              ? "text-rose-700"
+              : "text-on-surface-variant"
+          )}
+        >
+          {post.title}
+        </a>
+        {authorName && (
+          <span className="text-[8px] text-primary font-semibold leading-tight block truncate">
+            {authorName}
+          </span>
         )}
-      >
-        {post.title}
-      </p>
+      </div>
 
-      {/* Status icon */}
-      {isSubmitted && (
+      {/* Action area */}
+      {isSubmitted ? (
         <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+      ) : isRejected ? (
+        <button
+          onClick={(e) => { e.stopPropagation(); onClick(post); }}
+          className="text-[8px] font-bold text-primary hover:underline flex-shrink-0 px-1"
+        >
+          Nộp lại
+        </button>
+      ) : post.is_archived ? (
+        <span className="text-[8px] text-on-surface-variant/40 flex-shrink-0">Khoá</span>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); onClick(post); }}
+          className="text-[8px] font-bold text-primary hover:underline flex-shrink-0 px-1"
+        >
+          Check-in
+        </button>
       )}
     </div>
   );

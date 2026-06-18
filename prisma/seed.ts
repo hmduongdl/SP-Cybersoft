@@ -26,7 +26,7 @@ async function main() {
       password: adminPassword,
       role: "ADMIN",
       department: "SALES",
-      is_first_login: false,
+      is_verified: true,
       facebook_profile_url: "https://www.facebook.com/HoangMinhDuong.kinetic",
     },
   });
@@ -41,7 +41,7 @@ async function main() {
       password,
       role: "USER",
       department: "TECH",
-      is_first_login: true,
+      is_verified: false,
       facebook_profile_url: "https://www.facebook.com/nguyen.phuoc.loc.tech",
     },
   });
@@ -116,8 +116,8 @@ async function main() {
   // ── 6. Tổng kết ────────────────────────────────────────────────────────────
   console.log("\n=== Seed hoàn tất ===");
   console.log("\nDanh sách tài khoản:");
-  console.log("  Admin: HMD27425 / Ho@ngLong27425  (SALES, đã onboard)");
-  console.log("  User : loc_kỹ_thuật / 12345678 (TECH, chưa onboard)\n");
+  console.log("  Admin: HMD27425 / Ho@ngLong27425  (SALES, đã xác minh)");
+  console.log("  User : loc_kỹ_thuật / 12345678 (TECH, chưa xác minh)\n");
 }
 
 main()

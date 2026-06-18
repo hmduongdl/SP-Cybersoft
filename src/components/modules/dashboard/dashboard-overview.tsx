@@ -459,7 +459,7 @@ export function DashboardOverview({
                   AI tự động kiểm tra ảnh check-in, xác minh nội dung và giúp tiết kiệm thời gian xét duyệt.
                 </p>
                 <Link
-                  href="/admin/ai-scan"
+                  href="/admin/queue"
                   className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold rounded-xl transition-colors"
                 >
                   <span>Tìm hiểu ngay</span>

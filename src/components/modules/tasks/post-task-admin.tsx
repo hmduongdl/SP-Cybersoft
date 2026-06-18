@@ -24,6 +24,8 @@ import { formatDateTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { toast, Toaster } from "sonner";
+import { MonthWeekFilter } from "@/components/shared/month-week-filter";
+import { useMonthWeekFilter, isInRange } from "@/hooks/use-month-week-filter";
 
 interface ManagedPost {
   id: string;
@@ -98,12 +100,15 @@ export function PostTaskAdmin() {
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("ACTIVE"); // "ACTIVE", "ARCHIVED", "ALL"
+  const [statusFilter, setStatusFilter] = useState("ALL"); // "ACTIVE", "ARCHIVED", "ALL"
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
+
+  // Bộ lọc tháng / khoảng ngày
+  const monthFilter = useMonthWeekFilter();
 
   // Bulk Operations State
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -384,14 +389,16 @@ export function PostTaskAdmin() {
     );
   };
 
-  // Filter posts based on UI filters
+  // Lọc bài viết theo status và khoảng ngày
   const filteredPosts = posts.filter(post => {
     const matchesStatus =
       statusFilter === "ALL" ||
       (statusFilter === "ACTIVE" && !post.is_archived) ||
       (statusFilter === "ARCHIVED" && post.is_archived);
 
-    return matchesStatus;
+    const matchesDateRange = isInRange(post.start_at, monthFilter.effectiveRange);
+
+    return matchesStatus && matchesDateRange;
   });
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -438,27 +445,36 @@ export function PostTaskAdmin() {
       <Card className="bg-surface-container-lowest border-none rounded-2xl shadow-ambient p-4">
         <div className="flex flex-col gap-4">
           {/* Filter bar */}
-          <div className="flex items-center gap-4">
-            {/* Status Filter */}
-            <div className="flex gap-2 items-center flex-1">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full max-w-xs px-3 py-2.5 bg-surface-container-low border-none rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-              >
-                <option value="ALL">Tất cả bài viết</option>
-                <option value="ACTIVE">Đang kích hoạt (Chưa khóa)</option>
-                <option value="ARCHIVED">Đã khóa</option>
-              </select>
+          <div className="flex flex-col gap-3">
+            {/* Bộ lọc tháng / khoảng ngày */}
+            <MonthWeekFilter filter={monthFilter} />
 
-              <button
-                onClick={() => loadPosts()}
-                disabled={loadingPosts}
-                title="Tải lại danh sách"
-                className="p-2.5 flex items-center justify-center rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant transition-all duration-150"
-              >
-                <RefreshCw className={cn("h-4.5 w-4.5", loadingPosts && "animate-spin")} />
-              </button>
+            <div className="flex items-center gap-4">
+              {/* Status Filter */}
+              <div className="flex gap-2 items-center flex-1">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full max-w-xs px-3 py-2.5 bg-surface-container-low border-none rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                >
+                  <option value="ALL">Tất cả bài viết</option>
+                  <option value="ACTIVE">Đang kích hoạt (Chưa khóa)</option>
+                  <option value="ARCHIVED">Đã khóa</option>
+                </select>
+
+                <button
+                  onClick={() => loadPosts()}
+                  disabled={loadingPosts}
+                  title="Tải lại danh sách"
+                  className="p-2.5 flex items-center justify-center rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant transition-all duration-150"
+                >
+                  <RefreshCw className={cn("h-4.5 w-4.5", loadingPosts && "animate-spin")} />
+                </button>
+
+                <span className="text-xs text-on-surface-variant font-inter">
+                  <strong className="text-on-surface">{filteredPosts.length}</strong> bài viết
+                </span>
+              </div>
             </div>
           </div>
 

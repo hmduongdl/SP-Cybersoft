@@ -28,7 +28,7 @@ interface AccountModalProps {
 }
 
 export function AccountModal({ isOpen, onClose }: AccountModalProps) {
-  const { status, update } = useSession();
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -278,8 +278,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
   if (!isOpen) return null;
 
-  // Trạng thái verified: có đủ name + email + facebook_link
-  const isVerified = !!name.trim() && !!email.trim() && !!facebookLink.trim();
+  // is_verified lấy từ session (dữ liệu thực tế từ DB)
+  const isVerified = session?.user?.is_verified === true;
+  // Gợi ý live các trường còn thiếu trong form
   const missingFields: string[] = [];
   if (!name.trim()) missingFields.push("Họ tên");
   if (!email.trim()) missingFields.push("Email");

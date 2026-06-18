@@ -30,7 +30,7 @@ async function main() {
   const newAdmin = await prisma.user.create({
     data: {
       username: oldAdmin.username,
-      is_first_login: oldAdmin.is_first_login,
+      is_verified: oldAdmin.is_verified,
       name: oldAdmin.name,
       full_name: oldAdmin.full_name,
       email: oldAdmin.email,

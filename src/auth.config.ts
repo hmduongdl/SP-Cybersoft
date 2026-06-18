@@ -13,7 +13,7 @@ export const authConfig = {
 
       const pathname = nextUrl.pathname;
 
-      // Chuyển hướng route /onboarding về dashboard (Onboarding là popup modal)
+      // Chuyển hướng route /onboarding về dashboard (không còn dùng)
       if (pathname.startsWith("/onboarding")) {
         return Response.redirect(new URL("/dashboard", nextUrl));
       }
@@ -39,7 +39,7 @@ export const authConfig = {
       if (user && user.id) {
         token.id = user.id;
         token.role = user.role ? user.role : "USER";
-        token.is_onboarded = user.is_onboarded ?? false;
+        token.is_verified = user.is_verified ?? false;
         token.hasFacebook = false;
         token.picture = user.image;
         token.name = user.name;
@@ -60,7 +60,7 @@ export const authConfig = {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.role = token.role as any;
-        session.user.is_onboarded = token.is_onboarded as boolean;
+        session.user.is_verified = token.is_verified as boolean;
         session.user.hasFacebook = false;
         session.user.department = token.department as string;
         session.user.avatar_url = token.avatar_url as string | null;

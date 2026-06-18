@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 
+/**
+ * POST /api/user/onboarding
+ * Cho phép user cập nhật thông tin hồ sơ và set is_verified = true.
+ * Không còn blocking — user có thể gọi bất cứ lúc nào.
+ */
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -12,9 +17,9 @@ export async function POST(request: Request) {
     const userId = session.user.id;
     const formData = await request.formData();
 
-    const fullName = (formData.get("full_name") as string)?.trim();
-    const username = (formData.get("username") as string)?.trim();
-    const email = (formData.get("email") as string)?.trim();
+    const fullName     = (formData.get("full_name") as string)?.trim();
+    const username     = (formData.get("username") as string)?.trim();
+    const email        = (formData.get("email") as string)?.trim();
     const facebookLink = (formData.get("facebook_link") as string)?.trim() || null;
 
     // Validate required fields
@@ -68,7 +73,7 @@ export async function POST(request: Request) {
           username,
           email,
           facebook_profile_url: facebookLink,
-          is_first_login: false,
+          is_verified: true,   // Đánh dấu hồ sơ đã xác minh
         },
         select: {
           id: true,
@@ -77,13 +82,14 @@ export async function POST(request: Request) {
           email: true,
           facebook_profile_url: true,
           department: true,
+          is_verified: true,
         },
       });
     });
 
     return NextResponse.json({
       success: true,
-      message: "Hoàn tất đăng ký thành công.",
+      message: "Cập nhật hồ sơ thành công.",
       user: updatedUser,
     });
   } catch (error: any) {
@@ -112,9 +118,9 @@ export async function POST(request: Request) {
       }
     }
 
-    console.error("Onboarding error:", error);
+    console.error("Profile update error:", error);
     return NextResponse.json(
-      { error: "Đã xảy ra lỗi khi hoàn tất đăng ký." },
+      { error: "Đã xảy ra lỗi khi cập nhật hồ sơ." },
       { status: 500 }
     );
   }

@@ -214,33 +214,6 @@ export async function GET(request: Request) {
     scoreCell.numFmt = '0.0';
     scoreCell.border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
 
-    // ---- Legend ----
-    const legendStartRow = 6;
-
-    ws.getCell(legendStartRow, 1).value = 'Note:';
-    ws.getCell(legendStartRow, 1).font = { bold: true, size: 10 };
-
-    const lr1 = legendStartRow + 1;
-    ws.getCell(lr1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
-    ws.getCell(lr1, 1).border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-    ws.getCell(lr1, 2).value = '> Cả 2 Page Đăng bài';
-    ws.getCell(lr1, 2).font = { size: 10 };
-    ws.mergeCells(lr1, 2, lr1, 4);
-
-    const lr2 = lr1 + 1;
-    ws.getCell(lr2, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
-    ws.getCell(lr2, 1).border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-    ws.getCell(lr2, 2).value = '> Song Phương Tech';
-    ws.getCell(lr2, 2).font = { size: 10 };
-    ws.mergeCells(lr2, 2, lr2, 4);
-
-    const lr3 = lr2 + 1;
-    ws.getCell(lr3, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
-    ws.getCell(lr3, 1).border = { top: { style: 'thin' }, bottom: { style: 'thin' }, left: { style: 'thin' }, right: { style: 'thin' } };
-    ws.getCell(lr3, 2).value = '> Share muộn hơn 24h kể từ lúc đăng bài';
-    ws.getCell(lr3, 2).font = { size: 10 };
-    ws.mergeCells(lr3, 2, lr3, 6);
-
     // ---- Output ----
     const buffer = await workbook.xlsx.writeBuffer();
 

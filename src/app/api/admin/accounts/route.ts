@@ -17,7 +17,7 @@ const USER_SELECT = {
   avatar_url:    true,
   hope_stars:    true,
   used_stars_this_month: true,
-  is_first_login: true,
+  is_verified:   true,
   is_active:     true,
   facebook_profile_url: true,
 } as const;
@@ -25,7 +25,6 @@ const USER_SELECT = {
 function toUserResponse(u: Record<string, any>) {
   return {
     ...u,
-    is_onboarded: !u.is_first_login,
     facebook_link: u.facebook_profile_url ?? null,
   };
 }
@@ -104,15 +103,15 @@ export async function POST(request: Request) {
 
     const newUser = await db.user.create({
       data: {
-        username:      trimmedUsername,
-        name:          name || trimmedUsername,
-        email:         trimmedEmail,
-        password:      hashedPassword,
-        role:          role === "ADMIN" ? "ADMIN" : "USER",
-        department:    department || "Other",
-        avatar_url:    avatar_url || null,
-        is_first_login: true,
-        is_active:     is_active !== undefined ? is_active : true,
+        username:    trimmedUsername,
+        name:        name || trimmedUsername,
+        email:       trimmedEmail,
+        password:    hashedPassword,
+        role:        role === "ADMIN" ? "ADMIN" : "USER",
+        department:  department || "Other",
+        avatar_url:  avatar_url || null,
+        is_verified: false,   // Tài khoản mới tạo chưa xác minh hồ sơ
+        is_active:   is_active !== undefined ? is_active : true,
       },
       select: USER_SELECT,
     });
