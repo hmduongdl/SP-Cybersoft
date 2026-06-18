@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { deleteImage } from "@/lib/upload";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
+import { recalculateTrustScoresForUsers } from "@/lib/trust-score";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,8 @@ export async function POST(request: Request) {
         },
         data: {
           status: "APPROVED",
-          reject_reason: null, // Clear any previous rejection
+          reject_reason: null,
+          reviewed_by: session.user.id,
         },
       });
     } else {
@@ -57,7 +59,6 @@ export async function POST(request: Request) {
         select: { id: true, image_url: true },
       });
 
-      // Xoá ảnh trên Vercel Blob (fire-and-forget an toàn)
       for (const c of checkins) {
         await deleteImage(c.image_url);
       }
@@ -69,9 +70,20 @@ export async function POST(request: Request) {
         data: {
           status: "REJECTED",
           reject_reason: rejectReason,
+          reviewed_by: session.user.id,
         },
       });
     }
+
+    // Fetch unique user_ids from affected checkins to recalculate trust scores
+    const affectedCheckins = await db.checkin.findMany({
+      where: { id: { in: checkinIds } },
+      select: { user_id: true },
+      distinct: ["user_id"],
+    });
+    const affectedUserIds = affectedCheckins.map(c => c.user_id);
+
+    await recalculateTrustScoresForUsers(affectedUserIds);
 
     // Revalidate cache after admin approves/rejects checkins
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");

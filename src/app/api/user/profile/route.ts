@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { uploadImage } from "@/lib/upload";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -61,19 +62,23 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userId = session.user.id;
     const body = await request.json();
     const email = typeof body.email === "string" ? body.email.trim() : undefined;
     const facebook_link = typeof body.facebook_link === "string" ? body.facebook_link.trim() : undefined;
     const name = typeof body.name === "string" ? body.name.trim() : undefined;
     const department = typeof body.department === "string" ? body.department.trim() : undefined;
     const username = typeof body.username === "string" ? body.username.trim() : undefined;
+    const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : undefined;
+    const newPassword = typeof body.newPassword === "string" ? body.newPassword : undefined;
 
-    console.log("📥 PUT — Dữ liệu nhận từ client:", {
+    console.log("PUT — Dữ liệu nhận từ client:", {
       email,
       facebook_link,
       name,
       department,
       username,
+      hasPasswordChange: !!newPassword,
     });
 
     const updateData: Record<string, unknown> = {};
@@ -104,8 +109,8 @@ export async function PUT(request: Request) {
     if (username !== undefined) {
       if (!username) return NextResponse.json({ error: "Username không được để trống." }, { status: 400 });
       if (username.includes(" ")) return NextResponse.json({ error: "Username không được chứa khoảng trắng." }, { status: 400 });
-      
-      const currentUser = await db.user.findUnique({ where: { id: session.user.id }, select: { username: true, username_changed: true } });
+
+      const currentUser = await db.user.findUnique({ where: { id: userId }, select: { username: true, username_changed: true } });
       if (currentUser?.username !== username) {
         if (currentUser?.username_changed) {
           return NextResponse.json({ error: "Bạn chỉ được đổi username 1 lần duy nhất." }, { status: 400 });
@@ -115,9 +120,44 @@ export async function PUT(request: Request) {
       }
     }
 
+    // Password change logic
+    if (newPassword) {
+      if (!currentPassword) {
+        return NextResponse.json(
+          { error: "Vui lòng nhập mật khẩu hiện tại để đổi mật khẩu." },
+          { status: 400 }
+        );
+      }
+
+      // Lấy mật khẩu hiện tại từ DB
+      const userWithPassword = await db.user.findUnique({
+        where: { id: userId },
+        select: { password: true },
+      });
+
+      if (!userWithPassword?.password) {
+        return NextResponse.json(
+          { error: "Không tìm thấy thông tin mật khẩu." },
+          { status: 400 }
+        );
+      }
+
+      // Kiểm tra mật khẩu hiện tại có khớp không
+      const isMatch = await bcrypt.compare(currentPassword, userWithPassword.password);
+      if (!isMatch) {
+        return NextResponse.json(
+          { error: "Mật khẩu hiện tại không chính xác!" },
+          { status: 400 }
+        );
+      }
+
+      // Hash mật khẩu mới
+      updateData.password = await bcrypt.hash(newPassword, 10);
+    }
+
     const [user] = await db.$transaction([
       db.user.update({
-        where: { id: session.user.id },
+        where: { id: userId },
         data: updateData,
         select: {
           id: true,

@@ -27,7 +27,7 @@ export const authConfig = {
       // Protected routes — yêu cầu đăng nhập
       const isProtectedRoute =
         pathname.startsWith("/dashboard") ||
-        pathname.startsWith("/tasks");
+        pathname.startsWith("/like-share");
 
       if (isProtectedRoute) {
         // User chưa onboard → giữ ở dashboard để hiển thị popup Onboarding

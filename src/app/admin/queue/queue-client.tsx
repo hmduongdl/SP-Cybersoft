@@ -39,6 +39,9 @@ interface Checkin {
   reject_reason: string | null;
   is_ai_flagged: boolean;
   ai_confidence: number | null;
+  ai_extracted_username?: string | null;
+  ai_extracted_title?: string | null;
+  ai_analysis_reason?: string | null;
   submitted_at: string | Date;
   note?: string | null;
   user: {
@@ -48,6 +51,7 @@ interface Checkin {
     avatar_url: string | null;
     department: string | null;
     facebook_profile_url?: string | null;
+    trust_score?: number | null;
   };
   post: {
     id: string;
@@ -101,7 +105,7 @@ export default function QueueClient({
 
   // AI Scan state
   const [scanningId, setScanningId] = useState<string | null>(null);
-  const [aiScanResults, setAiScanResults] = useState<Record<string, { isValid: boolean; confidence: number; analysisReason: string }>>({});
+  const [aiScanResults, setAiScanResults] = useState<Record<string, { isValid: boolean; confidence: number; analysisReason: string; extractedUsername?: string | null; extractedTitle?: string | null }>>({});
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -248,9 +252,9 @@ export default function QueueClient({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Quét AI thất bại.");
 
-      setAiScanResults(prev => ({ ...prev, [id]: { isValid: data.isValid, confidence: data.confidence, analysisReason: data.analysisReason } }));
+      setAiScanResults(prev => ({ ...prev, [id]: { isValid: data.isValid, confidence: data.confidence, analysisReason: data.analysisReason, extractedUsername: data.extractedUsername, extractedTitle: data.extractedTitle } }));
       setCheckins(prev => prev.map(c =>
-        c.id === id ? { ...c, is_ai_flagged: !data.isValid, ai_confidence: data.confidence, note: `[AI Scan] ${data.analysisReason}` } : c
+        c.id === id ? { ...c, is_ai_flagged: !data.isValid, ai_confidence: data.confidence, ai_extracted_username: data.extractedUsername, ai_extracted_title: data.extractedTitle, ai_analysis_reason: data.analysisReason, note: `[AI Scan] ${data.analysisReason}` } : c
       ));
       toast.success(data.isValid ? "AI đánh giá: Bài nộp HỢP LỆ!" : "AI đánh giá: Phát hiện NGHI VẤN!");
     } catch (e: any) {
@@ -258,6 +262,26 @@ export default function QueueClient({
       toast.error(e.message || "Lỗi quét AI.");
     } finally {
       setScanningId(null);
+    }
+  };
+
+  const handleTrustScoreAdjust = async (userId: string, delta: number) => {
+    try {
+      const res = await fetch("/api/admin/users/trust-score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, delta }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Điều chỉnh thất bại.");
+
+      setCheckins(prev => prev.map(c =>
+        c.user.id === userId ? { ...c, user: { ...c.user, trust_score: data.trust_score } } : c
+      ));
+      toast.success(`Độ tin cậy đã cập nhật: ${data.trust_score}/100`);
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "Lỗi điều chỉnh độ tin cậy.");
     }
   };
 
@@ -437,7 +461,9 @@ export default function QueueClient({
               const scanResult = aiScanResults[item.id] || (item.ai_confidence !== null ? {
                 isValid: !item.is_ai_flagged,
                 confidence: item.ai_confidence,
-                analysisReason: item.note?.startsWith("[AI Scan] ") ? item.note.replace("[AI Scan] ", "") : (item.note || "")
+                analysisReason: item.ai_analysis_reason || (item.note?.startsWith("[AI Scan] ") ? item.note.replace("[AI Scan] ", "") : (item.note || "")),
+                extractedUsername: item.ai_extracted_username,
+                extractedTitle: item.ai_extracted_title,
               } : null);
 
               const statusMeta = item.status === "PENDING" ? { label: "Chờ duyệt", bg: "bg-amber-50 text-amber-700 border border-amber-100" }
@@ -485,15 +511,14 @@ export default function QueueClient({
 
                   {/* Card body */}
                   <div className="p-4 space-y-3 flex-1 flex flex-col bg-surface-container-lowest">
-                    {/* User info row: avatar + name + dept */}
+                    {/* User info row: avatar + name + dept + trust score */}
                     <div className="flex items-center gap-2.5">
-                      {/* Avatar: 32px with gap ring */}
                       <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center shrink-0 p-[2px] bg-surface-container-low ring-2 ring-primary ring-offset-2 ring-offset-surface-container-low bg-clip-content">
-                        <UserAvatar 
-                          name={item.user.name} 
-                          src={item.user.avatar_url} 
-                          size="sm" 
-                          className="border-none shadow-none w-full h-full object-cover" 
+                        <UserAvatar
+                          name={item.user.name}
+                          src={item.user.avatar_url}
+                          size="sm"
+                          className="border-none shadow-none w-full h-full object-cover"
                         />
                       </div>
                       <div className="min-w-0 flex-1">
@@ -509,6 +534,30 @@ export default function QueueClient({
                       )}>
                         {item.user.department || "N/A"}
                       </span>
+                      {/* Trust score badge with adjust buttons */}
+                      <div className="flex items-center gap-0.5">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleTrustScoreAdjust(item.user.id, -5); }}
+                          className="w-4 h-4 rounded-full bg-surface-container hover:bg-error-container text-on-surface-variant hover:text-on-error-container flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer border-none leading-none"
+                          title="Giảm 5 điểm độ tin cậy"
+                        >−</button>
+                        <span
+                          className={cn(
+                            "px-1.5 py-0.5 rounded-full text-[9px] font-bold font-inter border-none min-w-[28px] text-center cursor-default",
+                            (item.user.trust_score ?? 50) >= 70 ? "bg-emerald-500/10 text-emerald-700" :
+                            (item.user.trust_score ?? 50) >= 40 ? "bg-amber-500/10 text-amber-700" :
+                            "bg-rose-500/10 text-rose-700"
+                          )}
+                          title="Độ tin cậy (thang điểm 100)"
+                        >
+                          {item.user.trust_score ?? 50}
+                        </span>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleTrustScoreAdjust(item.user.id, 5); }}
+                          className="w-4 h-4 rounded-full bg-surface-container hover:bg-emerald-100 text-on-surface-variant hover:text-emerald-700 flex items-center justify-center text-[10px] font-bold transition-all cursor-pointer border-none leading-none"
+                          title="Tăng 5 điểm độ tin cậy"
+                        >+</button>
+                      </div>
                     </div>
 
                     {/* Timestamp */}
@@ -532,9 +581,9 @@ export default function QueueClient({
                       )}
                     </div>
 
-                    {/* AI Confidence meter: thin 4px, gradient primary */}
+                    {/* AI Confidence meter + Extracted data */}
                     {scanResult && (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5 p-2.5 rounded-lg bg-surface-container-low/50 border border-outline-variant/30">
                         <div className="flex items-center justify-between font-inter">
                           <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1">
                             <Sparkles className="w-3 h-3 text-primary" />
@@ -553,7 +602,30 @@ export default function QueueClient({
                               width: `${Math.round(scanResult.confidence * 100)}%`
                             }} />
                         </div>
-                        <p className="text-[10px] text-on-surface-variant leading-relaxed mt-1 font-inter">
+                        {/* AI-extracted info */}
+                        {(scanResult.extractedUsername || scanResult.extractedTitle) && (
+                          <div className="mt-1.5 space-y-1 text-[10px] font-inter">
+                            {scanResult.extractedUsername && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="text-on-surface-variant/50 shrink-0 mt-0.5">👤</span>
+                                <div>
+                                  <span className="text-on-surface-variant/50">AI đọc tên: </span>
+                                  <span className="font-semibold text-on-surface-variant">{scanResult.extractedUsername}</span>
+                                </div>
+                              </div>
+                            )}
+                            {scanResult.extractedTitle && (
+                              <div className="flex items-start gap-1.5">
+                                <span className="text-on-surface-variant/50 shrink-0 mt-0.5">📝</span>
+                                <div>
+                                  <span className="text-on-surface-variant/50">AI đọc bài: </span>
+                                  <span className="font-semibold text-on-surface-variant line-clamp-2">{scanResult.extractedTitle}</span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-on-surface-variant/70 leading-relaxed mt-0.5 font-inter">
                           {scanResult.analysisReason || "Đã quét bằng AI."}
                         </p>
                       </div>

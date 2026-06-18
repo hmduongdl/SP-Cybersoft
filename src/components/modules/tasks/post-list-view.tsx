@@ -346,7 +346,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
       params.set("page", String(page));
     }
     const qs = params.toString();
-    router.push(qs ? `/tasks?${qs}` : "/tasks");
+    router.push(qs ? `/like-share?${qs}` : "/like-share");
   };
 
   return (

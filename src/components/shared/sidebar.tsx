@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useLayout } from "./layout-context";
 import { useSession, signOut } from "next-auth/react";
+import { toast } from "sonner";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useState, useEffect } from "react";
@@ -37,13 +38,25 @@ export function Sidebar() {
     return () => window.removeEventListener("profile-updated", fetchProfile);
   }, []);
 
-  const sectionedItems = [
+  const sectionedItems: Array<{
+    title: string;
+    adminOnly?: boolean;
+    items: Array<{
+      label: string;
+      href: string;
+      icon: string;
+      adminOnly: boolean;
+      devOnly?: boolean;
+    }>;
+  }> = [
     {
       title: "Chung",
       items: [
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
-        { label: "Nhiệm vụ", href: "/tasks", icon: "task_alt", adminOnly: false },
+        { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
+        { label: "Task Manager", href: "/task-manager", icon: "checklist", adminOnly: false, devOnly: true },
+        { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
       ]
     },
     {
@@ -124,12 +137,16 @@ export function Sidebar() {
                   </p>
                 )}
                 <div className="space-y-1">
-                  {section.items.map(({ label, href, icon }) => {
+                  {section.items.map(({ label, href, icon, devOnly }) => {
                     const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
                     return (
                       <button
                         key={label}
                         onClick={() => {
+                          if (devOnly && role !== "ADMIN") {
+                            toast.info("Chức năng đang phát triển");
+                            return;
+                          }
                           if (isMobile) setSidebarOpen(false);
                           router.push(href);
                         }}

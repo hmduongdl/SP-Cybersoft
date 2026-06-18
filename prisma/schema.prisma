@@ -28,6 +28,7 @@ model User {
   hope_stars           Int       @default(0)
   used_stars_this_month Int      @default(0)
   last_star_reset_at   DateTime  @default(now())
+  trust_score          Int       @default(50)
   reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
   checkins             Checkin[] @relation("UserCheckins")
 
@@ -60,6 +61,9 @@ model Checkin {
   reject_reason String?
   is_ai_flagged Boolean       @default(false)
   ai_confidence Float?
+  ai_extracted_username String?
+  ai_extracted_title   String?
+  ai_analysis_reason   String?
   reviewed_by   String?
   post          Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
   reviewer      User?         @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])

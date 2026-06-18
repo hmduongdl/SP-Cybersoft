@@ -30,10 +30,70 @@ export async function getCachedRecentCheckins() {
     select: {
       id: true,
       submitted_at: true,
+      status: true,
       user: { select: { name: true, avatar_url: true } },
       post: { select: { title: true } },
     },
   });
+}
+
+export async function getCachedDashboardPosts(userId: string) {
+  const posts = await db.post.findMany({
+    where: {
+      is_archived: false,
+      checkins: { none: { user_id: userId } },
+    },
+    orderBy: { start_at: "desc" },
+    take: 4,
+    select: {
+      id: true,
+      title: true,
+      thumbnail_url: true,
+      start_at: true,
+      url: true,
+    },
+  });
+
+  const now = Date.now();
+  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
+
+  return posts
+    .filter(post => now - (post.start_at as unknown as Date).getTime() <= THIRTY_HOURS)
+    .map(post => ({
+      id: post.id,
+      title: post.title,
+      thumbnail_url: post.thumbnail_url,
+      start_at: (post.start_at as unknown as Date).toISOString(),
+      url: post.url,
+    }));
+}
+
+export async function getCachedWeeklyStats(userId: string) {
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+  const [completedThisWeek, totalPostsThisWeek] = await Promise.all([
+    db.checkin.count({
+      where: {
+        user_id: userId,
+        status: { in: ["APPROVED", "AUTO_APPROVED"] },
+        submitted_at: { gte: startOfWeek, lt: endOfWeek },
+      },
+    }),
+    db.post.count({
+      where: {
+        start_at: { gte: startOfWeek, lt: endOfWeek },
+        is_archived: false,
+      },
+    }),
+  ]);
+
+  return { completedThisWeek, totalPostsThisWeek };
 }
 
 // ─── Posts page ──────────────────────────────────────────
@@ -107,6 +167,7 @@ export async function getCachedAllCheckins() {
           avatar_url: true,
           department: true,
           facebook_profile_url: true,
+          trust_score: true,
         },
       },
       post: {

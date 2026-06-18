@@ -2,237 +2,340 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import ExcelJS from 'exceljs';
-import { format } from 'date-fns';
 
 export const dynamic = 'force-dynamic';
 
+function getShortName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 2) return fullName;
+  return parts.slice(-2).join(' ');
+}
+
 export async function GET(request: Request) {
   try {
-    // 1. Auth check
     const session = await auth();
     if (!session?.user || session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const startDateStr = searchParams.get('startDate') || searchParams.get('start_date');
     const endDateStr = searchParams.get('endDate') || searchParams.get('end_date');
 
-    let postWhereClause: any = {};
+    // Build date filter for posts
+    let postWhere: any = {};
     if (startDateStr || endDateStr) {
-      postWhereClause.start_at = {};
-      if (startDateStr) {
-        postWhereClause.start_at.gte = new Date(`${startDateStr}T00:00:00`);
-      }
-      if (endDateStr) {
-        postWhereClause.start_at.lte = new Date(`${endDateStr}T23:59:59`);
-      }
+      postWhere.start_at = {};
+      if (startDateStr) postWhere.start_at.gte = new Date(`${startDateStr}T00:00:00`);
+      if (endDateStr) postWhere.start_at.lte = new Date(`${endDateStr}T23:59:59`);
     }
 
-    // Fetch all users with checkins in range
+    // Step 1: Fetch posts in date range, sorted by start_at
+    const posts = await db.post.findMany({
+      where: postWhere,
+      orderBy: { start_at: 'asc' },
+      select: { id: true, start_at: true },
+    });
+
+    // Step 2: Extract unique days and group posts by day
+    const dayMap = new Map<string, { date: Date; posts: { id: string; start_at: Date }[] }>();
+    for (const post of posts) {
+      const d = new Date(post.start_at);
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!dayMap.has(key)) {
+        dayMap.set(key, { date: new Date(d.getFullYear(), d.getMonth(), d.getDate()), posts: [] });
+      }
+      dayMap.get(key)!.posts.push(post);
+    }
+
+    // Sorted unique days
+    const days = Array.from(dayMap.values()).sort((a, b) => a.date.getTime() - b.date.getTime());
+    const totalPosts = posts.length;
+
+    // Build set of all post IDs for querying checkins
+    const postIds = posts.map((p) => p.id);
+
+    // Step 3: Fetch all users
     const users = await db.user.findMany({
       where: { role: 'USER' },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, department: true },
+    });
+
+    // Step 4: Fetch checkins for all these posts
+    const checkins = await db.checkin.findMany({
+      where: {
+        post_id: { in: postIds },
+        status: { in: ['APPROVED', 'AUTO_APPROVED'] },
+      },
       select: {
         id: true,
-        email: true,
-        name: true,
-        department: true,
-        avatar_url: true,
-        checkins: {
-          where: {
-            post: Object.keys(postWhereClause).length ? postWhereClause : undefined,
-          },
-          select: {
-            id: true,
-            status: true,
-            post: {
-              select: { id: true, start_at: true },
-            },
-          },
-        },
+        user_id: true,
+        post_id: true,
+        submitted_at: true,
+        status: true,
       },
     });
 
-    // Fetch posts within date range to compute total expected posts
-    const posts = await db.post.findMany({
-      where: postWhereClause,
-      select: { id: true, start_at: true },
-    });
-    const totalExpectedPosts = posts.length;
+    // Build lookup: userId -> Map<postId, checkin>
+    const checkinByUser = new Map<string, Map<string, typeof checkins[0]>>();
+    for (const c of checkins) {
+      if (!checkinByUser.has(c.user_id)) {
+        checkinByUser.set(c.user_id, new Map());
+      }
+      checkinByUser.get(c.user_id)!.set(c.post_id, c);
+    }
 
-    // Build data rows
-    const exportData = users.map((u, index) => {
-      // Completed are those APPROVED or AUTO_APPROVED
-      const approvedCheckins = u.checkins.filter(c => c.status === 'APPROVED' || c.status === 'AUTO_APPROVED');
-      const completed = approvedCheckins.length;
-      const rate = totalExpectedPosts === 0 ? 0 : (completed / totalExpectedPosts);
-
-      let autoCount = 0;
-      let manualCount = 0;
-      let rejectedCount = 0;
-
-      u.checkins.forEach(c => {
-        if (c.status === 'AUTO_APPROVED') autoCount++;
-        else if (c.status === 'APPROVED') manualCount++;
-        else if (c.status === 'REJECTED') rejectedCount++;
-      });
-
-      return {
-        stt: index + 1,
-        email: u.email,
-        name: u.name || 'Unknown',
-        department: u.department || 'N/A',
-        expected: totalExpectedPosts,
-        completed,
-        rate,
-        autoCount,
-        manualCount,
-        rejectedCount
-      };
-    });
-
-    // Build Excel Workbook
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet('Báo Cáo Like Share');
-
-    // Row 1: Large Main Title
-    const titleRow = worksheet.addRow(["BÁO CÁO CÔNG VIỆC THỰC HIỆN LIKE & SHARE BÀI VIẾT TEAMWORK"]);
-    worksheet.mergeCells('A1:J1');
-    titleRow.height = 40;
-    
-    titleRow.getCell(1).font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
-    titleRow.getCell(1).alignment = { vertical: 'middle', horizontal: 'center' };
-    titleRow.getCell(1).fill = { 
-      type: 'pattern', 
-      pattern: 'solid', 
-      fgColor: { argb: 'FF1E3A8A' } // Navy Blue
+    // Step 5: Build matrix data
+    // For each user, for each day, compute display value and style
+    type CellData = {
+      value: string;
+      bgColor: string;   // ARGB
+      fontColor: string; // ARGB
     };
 
-    // Row 2: Subtitle with Date Range & Export Meta
-    const now = new Date();
-    const dateRangeStr = (startDateStr || endDateStr) 
-      ? `Khoảng thời gian: ${startDateStr || 'Tất cả'} - ${endDateStr || 'Tất cả'}` 
-      : 'Khoảng thời gian: Toàn bộ thời gian';
-    const exportTimeStr = `Ngày xuất: ${format(now, 'dd/MM/yyyy HH:mm:ss')}`;
-    
-    const subtitleRow = worksheet.addRow([dateRangeStr, "", "", "", "", "", "", "", exportTimeStr, ""]);
-    worksheet.mergeCells('A2:H2');
-    worksheet.mergeCells('I2:J2');
-    subtitleRow.getCell(1).font = { italic: true, size: 9, color: { argb: 'FF475569' } };
-    subtitleRow.getCell(9).font = { italic: true, size: 9, color: { argb: 'FF475569' } };
-    subtitleRow.getCell(9).alignment = { horizontal: 'right' };
+    const matrix: { user: typeof users[0]; cells: CellData[]; score: number }[] = [];
 
-    // Row 3: Space Row
-    worksheet.addRow([]);
+    for (const user of users) {
+      const userCheckins = checkinByUser.get(user.id) || new Map();
+      const cells: CellData[] = [];
+      let oCount = 0;
+      let halfCount = 0;
 
-    // Row 4: Table Headers
-    const headers = [
-      "STT", 
-      "Mã Nhân Viên / Email", 
-      "Họ và Tên Nhân Viên", 
-      "Phòng Ban", 
-      "Tổng Số Bài Đăng Yêu Cầu", 
-      "Số Bài Đã Share Hoàn Thành", 
-      "Tỷ Lệ Hoàn Thành (%)", 
-      "Số Lần Duyệt Tự Động (Auto Approved)", 
-      "Số Lần Duyệt Thủ Công (Approved)", 
-      "Số Bài Bị Từ Chối (Rejected)"
-    ];
-    const headerRow = worksheet.addRow(headers);
-    headerRow.height = 28;
-    
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, size: 9, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { 
-        type: 'pattern', 
-        pattern: 'solid', 
-        fgColor: { argb: 'FF1E3A8A' } // Navy Blue background
-      };
-      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      cell.border = {
-        top: { style: 'thin', color: { argb: 'FF94A3B8' } },
-        bottom: { style: 'medium', color: { argb: 'FF1E293B' } },
-        left: { style: 'thin', color: { argb: 'FF94A3B8' } },
-        right: { style: 'thin', color: { argb: 'FF94A3B8' } }
-      };
-    });
+      for (const day of days) {
+        const dayPosts = day.posts;
+        const postCount = dayPosts.length;
 
-    // Row 5+: Data Rows
-    exportData.forEach((row, idx) => {
-      const dataRow = worksheet.addRow([
-        row.stt,
-        row.email,
-        row.name,
-        row.department,
-        row.expected,
-        row.completed,
-        row.rate,
-        row.autoCount,
-        row.manualCount,
-        row.rejectedCount
-      ]);
-      dataRow.height = 22;
+        if (postCount === 1) {
+          const post = dayPosts[0];
+          const checkin = userCheckins.get(post.id);
 
-      // Formatting
-      dataRow.getCell(7).numFmt = '0.0%';
-
-      // Zebra striping
-      const isOdd = idx % 2 !== 0;
-      dataRow.eachCell((cell, colNum) => {
-        cell.font = { size: 9, color: { argb: 'FF1E293B' } };
-        cell.border = {
-          top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
-          right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
-        };
-        
-        if (isOdd) {
-          cell.fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF8FAFC' } // Light slate blue zebra tint
-          };
-        }
-
-        // Alignments
-        if ([1, 5, 6, 7, 8, 9, 10].includes(colNum)) {
-          cell.alignment = { vertical: 'middle', horizontal: 'center' };
-        } else {
-          cell.alignment = { vertical: 'middle', horizontal: 'left' };
-        }
-      });
-    });
-
-    // Auto-fit column widths
-    worksheet.columns.forEach((column) => {
-      let maxLength = 0;
-      if (column.eachCell) {
-        column.eachCell({ includeEmpty: true }, (cell) => {
-          const val = cell.value ? cell.value.toString() : "";
-          if (val.length > maxLength) {
-            maxLength = val.length;
+          if (checkin) {
+            const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
+            const submitted = new Date(checkin.submitted_at);
+            if (submitted <= deadline) {
+              cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+              oCount++;
+            } else {
+              cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
+            }
+          } else {
+            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
           }
-        });
-      }
-      column.width = Math.min(Math.max(maxLength + 3, 12), 40);
-    });
+        } else {
+          // 2+ posts in a day
+          let onTime = 0;
+          let late = 0;
 
-    // Generate output buffer
+          for (const post of dayPosts) {
+            const checkin = userCheckins.get(post.id);
+            if (checkin) {
+              const deadline = new Date(post.start_at.getTime() + 24 * 60 * 60 * 1000);
+              const submitted = new Date(checkin.submitted_at);
+              if (submitted <= deadline) {
+                onTime++;
+              } else {
+                late++;
+              }
+            }
+          }
+
+          const submitted = onTime + late;
+          if (submitted === postCount && late === 0) {
+            cells.push({ value: 'O', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+            oCount++;
+          } else if (onTime >= 1 && late === 0) {
+            cells.push({ value: `${onTime}/${postCount}`, bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+            halfCount++;
+          } else if (submitted === 0) {
+            cells.push({ value: 'X', bgColor: 'FFFFFFFF', fontColor: 'FF000000' });
+          } else {
+            cells.push({ value: 'X', bgColor: 'FFFFC7CE', fontColor: 'FF9C0006' });
+          }
+        }
+      }
+
+      const score = oCount * 1 + halfCount * 0.5;
+      matrix.push({ user, cells, score });
+    }
+
+    // ---- Build Excel workbook ----
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet('Thống Kê Like Share');
+
+    const numDays = days.length;
+    const lastDataCol = numDays + 1;
+    const dataStartRow = 3;
+    const dataEndRow = dataStartRow + matrix.length - 1;
+
+    // Column widths
+    ws.getColumn(1).width = 22; // Name column
+    for (let i = 0; i < numDays; i++) {
+      ws.getColumn(i + 2).width = 7;
+    }
+    ws.getColumn(lastDataCol + 1).width = 14; // Score column
+
+    // ---- Row 1: Title ----
+    const titleRow = ws.addRow([]);
+    ws.mergeCells(1, 1, 1, lastDataCol + 1);
+    const titleCell = ws.getCell(1, 1);
+    titleCell.value = 'THỐNG KÊ LIKE SHARE BÀI';
+    titleCell.font = { bold: true, size: 14 };
+    titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    titleRow.height = 32;
+
+    // ---- Row 2: Header ----
+    const headerRow = ws.addRow([]);
+    headerRow.height = 28;
+
+    // A2: Month label
+    const monthLabel = startDateStr
+      ? `Tháng ${new Date(startDateStr).getMonth() + 1}`
+      : 'Tháng';
+    const a2 = ws.getCell(2, 1);
+    a2.value = monthLabel;
+    a2.font = { bold: true, size: 11 };
+    a2.alignment = { vertical: 'middle', horizontal: 'center' };
+    a2.border = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' },
+    };
+
+    // Day header cells (B2, C2, ...)
+    for (let i = 0; i < numDays; i++) {
+      const col = i + 2;
+      const cell = ws.getCell(2, col);
+      const dayNum = days[i].date.getDate();
+      const postCount = days[i].posts.length;
+
+      cell.value = `${dayNum}`;
+      cell.font = { bold: true, size: 11 };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      };
+
+      if (postCount >= 2) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+      }
+    }
+
+    // Last header: MAX
+    const maxCol = lastDataCol + 1;
+    const maxCell = ws.getCell(2, maxCol);
+    maxCell.value = `MAX. ${totalPosts}`;
+    maxCell.font = { bold: true, size: 11 };
+    maxCell.alignment = { vertical: 'middle', horizontal: 'center' };
+    maxCell.border = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' },
+    };
+
+    // ---- Data rows ----
+    for (let r = 0; r < matrix.length; r++) {
+      const rowData = matrix[r];
+      const rowNum = dataStartRow + r;
+      const row = ws.addRow([]);
+      row.height = 22;
+
+      // Name cell
+      const nameCell = ws.getCell(rowNum, 1);
+      nameCell.value = getShortName(rowData.user.name || 'Unknown');
+      nameCell.font = { size: 10 };
+      nameCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      nameCell.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      };
+
+      // Day cells
+      for (let d = 0; d < numDays; d++) {
+        const col = d + 2;
+        const cell = ws.getCell(rowNum, col);
+        const cd = rowData.cells[d];
+
+        cell.value = cd.value;
+        cell.font = { size: 10, bold: cd.value === 'O', color: { argb: cd.fontColor } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: cd.bgColor } };
+        cell.border = {
+          top: { style: 'thin' }, bottom: { style: 'thin' },
+          left: { style: 'thin' }, right: { style: 'thin' },
+        };
+      }
+
+      // Score cell
+      const scoreCell = ws.getCell(rowNum, maxCol);
+      scoreCell.value = rowData.score;
+      scoreCell.font = { bold: true, size: 10 };
+      scoreCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      scoreCell.numFmt = '0.0';
+      scoreCell.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      };
+    }
+
+    // ---- Legend section ----
+    const legendStartRow = dataEndRow + 3;
+
+    // "Note:" label
+    const noteLabelCell = ws.getCell(legendStartRow, 1);
+    noteLabelCell.value = 'Note:';
+    noteLabelCell.font = { bold: true, size: 10 };
+
+    // Legend row 1: Orange → both pages
+    const lr1 = legendStartRow + 1;
+    ws.getCell(lr1, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC000' } };
+    ws.getCell(lr1, 1).border = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' },
+    };
+    ws.getCell(lr1, 2).value = '> Cả 2 Page Đăng bài';
+    ws.getCell(lr1, 2).font = { size: 10 };
+    ws.mergeCells(lr1, 2, lr1, 4);
+
+    // Legend row 2: Yellow → Song Phuong Tech
+    const lr2 = lr1 + 1;
+    ws.getCell(lr2, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } };
+    ws.getCell(lr2, 1).border = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' },
+    };
+    ws.getCell(lr2, 2).value = '> Song Phương Tech';
+    ws.getCell(lr2, 2).font = { size: 10 };
+    ws.mergeCells(lr2, 2, lr2, 4);
+
+    // Legend row 3: Red → late >24h
+    const lr3 = lr2 + 1;
+    ws.getCell(lr3, 1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+    ws.getCell(lr3, 1).border = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' },
+    };
+    ws.getCell(lr3, 2).value = '> Share muộn hơn 24h kể từ lúc đăng bài';
+    ws.getCell(lr3, 2).font = { size: 10 };
+    ws.mergeCells(lr3, 2, lr3, 6);
+
+    // ---- Generate and return ----
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // Filename formatting: [MM].[DD].[YYYY] - Bao Cao Cong Viec Like Share.xlsx
-    const fileName = `${format(now, 'MM.dd.yyyy')} - Bao Cao Cong Viec Like Share.xlsx`;
+    const monthPart = startDateStr
+      ? `Thang ${new Date(startDateStr).getMonth() + 1}-${new Date(startDateStr).getFullYear()}`
+      : 'All';
+    const fileName = `${monthPart} - Thong Ke Like Share.xlsx`;
 
     return new NextResponse(buffer, {
       headers: {
         'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      }
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
     });
-
   } catch (error: any) {
-    console.error("Export Excel Error:", error);
-    return NextResponse.json({ error: error.message || "Lỗi xuất file Excel." }, { status: 500 });
+    console.error('Export Excel Error:', error);
+    return NextResponse.json({ error: error.message || 'Lỗi xuất file Excel.' }, { status: 500 });
   }
 }

@@ -84,8 +84,10 @@ export async function POST(request: Request) {
 
     // 5. Workflow Tự động duyệt: Gemini trích xuất -> Model Khác quyết định
     let isValid = true;
-    let confidence = 95; // From 0 to 100 as requested
+    let confidence = 95;
     let reason = "Minh chứng hợp lệ.";
+    let extractedUsername: string | null = null;
+    let extractedTitle: string | null = null;
 
     if (base64Image) {
       try {
@@ -117,7 +119,10 @@ Trả về JSON định dạng: { "extracted_username": "tên người chia sẻ
 
         const extractedText = geminiResponse.choices[0]?.message?.content || "{}";
         const extractedData = JSON.parse(extractedText);
-        
+
+        extractedUsername = extractedData.extracted_username || null;
+        extractedTitle = extractedData.extracted_title || null;
+
         console.log("AI Scan - Extracted Data from Gemini:", extractedData);
 
         // BƯỚC 2: Model khác đánh giá dữ liệu trích xuất
@@ -181,6 +186,9 @@ Trả về JSON định dạng: { "isValid": boolean, "confidence": number (0-10
       data: {
         is_ai_flagged: !isValid,
         ai_confidence: storedConfidence,
+        ai_extracted_username: extractedUsername,
+        ai_extracted_title: extractedTitle,
+        ai_analysis_reason: reason,
         reject_reason: !isValid ? `[AI Scan] ${reason}` : null
       },
     });
@@ -190,6 +198,8 @@ Trả về JSON định dạng: { "isValid": boolean, "confidence": number (0-10
       isValid,
       confidence: confidence > 1 ? confidence / 100 : confidence,
       analysisReason: reason,
+      extractedUsername,
+      extractedTitle,
     });
 
   } catch (error: any) {

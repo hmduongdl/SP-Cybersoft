@@ -101,13 +101,21 @@ export function SiteHeader() {
 
     const labelMap: Record<string, string> = {
       dashboard: "Tổng quan",
-      posts: "Bài Share",
+      "like-share": "Like - Share",
+      reports: "Báo cáo cá nhân",
+      "task-manager": "Task Manager",
+      "seo-tools": "SEO Tools",
       admin: "Quản trị",
       queue: "Duyệt Bài",
-      analytics: "Báo Cáo Chi Tiết",
+      analytics: "Reports",
+      posts: "Quản lý Post",
+      accounts: "Quản lý Account",
+      account: "Quản lý Account",
+      settings: "Cấu hình Hệ thống",
       login: "Đăng nhập",
-      settings: "Cấu hình",
-      accounts: "Quản lý Tài khoản",
+      create: "Tạo mới",
+      edit: "Chỉnh sửa",
+      detail: "Chi tiết",
     };
 
     for (const segment of segments) {
@@ -208,7 +216,7 @@ export function SiteHeader() {
                     recentPosts.map((post) => (
                       <Link
                         key={post.id}
-                        href={role === "ADMIN" ? "/admin/posts" : "/tasks"}
+                        href={role === "ADMIN" ? "/admin/posts" : "/like-share"}
                         onClick={() => setNotifOpen(false)}
                         className="flex items-start gap-3 px-4 py-3 hover:bg-surface-container-low rounded-xl transition-all duration-150 group"
                       >
@@ -239,7 +247,7 @@ export function SiteHeader() {
                   )}
                 </div>
                 <Link
-                  href={role === "ADMIN" ? "/admin/posts" : "/tasks"}
+                  href={role === "ADMIN" ? "/admin/posts" : "/like-share"}
                   onClick={() => setNotifOpen(false)}
                   className="block mt-1 py-2.5 text-center text-xs font-semibold text-primary hover:bg-surface-container rounded-xl transition-all duration-150 border-none font-inter"
                 >
