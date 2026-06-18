@@ -679,7 +679,7 @@ export default function QueueClient({
       {zoomImageUrl && (
         <div onClick={() => setZoomImageUrl(null)}
           className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300">
-          <div className="relative max-w-3xl max-h-[85vh] overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
+          <div className="relative max-w-3xl max-h-[85vh] w-[90vw] h-[85vh] overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
             style={{ boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
             <Image src={zoomImageUrl} alt="Zoomed preview" fill className="object-contain" sizes="90vw" />
             <button onClick={() => setZoomImageUrl(null)}
