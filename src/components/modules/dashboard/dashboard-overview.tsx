@@ -115,12 +115,13 @@ export function DashboardOverview({
   dashboardPosts,
   monthlyProgress,
 }: DashboardOverviewProps) {
-  const dashOffset = DONUT_CIRCUMFERENCE * (1 - monthlyProgress / 100);
+  const progress = Math.min(Math.max(monthlyProgress, 0), 100);
+  const dashOffset = DONUT_CIRCUMFERENCE * (1 - progress / 100);
 
   const trustColor =
     trustScore >= 70 ? "emerald" :
-    trustScore >= 40 ? "amber" :
-    "rose";
+      trustScore >= 40 ? "amber" :
+        "rose";
 
   const remainingPosts = Math.max(0, totalPostsCount - completedCount);
 
@@ -420,7 +421,7 @@ export function DashboardOverview({
                 {/* Center percentage text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-manrope text-[36px] font-extrabold text-slate-900 leading-none">
-                    {monthlyProgress}%
+                    {progress}%
                   </span>
                   <span className="text-[11px] text-on-surface-variant font-inter mt-1">
                     Hoàn thành

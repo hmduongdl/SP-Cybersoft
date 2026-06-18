@@ -327,8 +327,9 @@ function CalendarPostCard({
   return (
     <div
       title={post.title}
+      onClick={() => onClick(post)}
       className={cn(
-        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 border bg-surface-container-lowest hover:shadow-ambient max-h-[70px] overflow-hidden",
+        "group flex items-center gap-1.5 p-1.5 rounded-lg transition-all duration-200 border bg-surface-container-lowest hover:shadow-ambient max-h-[70px] overflow-hidden cursor-pointer",
         isSubmitted
           ? "border-emerald-200 hover:border-emerald-300"
           : isRejected
