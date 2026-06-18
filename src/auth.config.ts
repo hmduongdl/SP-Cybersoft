@@ -18,8 +18,8 @@ export const authConfig = {
         return Response.redirect(new URL("/dashboard", nextUrl));
       }
 
-      // Admin routes — yêu cầu role ADMIN
-      if (pathname.startsWith("/admin")) {
+      // Admin routes & Early Access features — yêu cầu role ADMIN
+      if (pathname.startsWith("/admin") || pathname.startsWith("/tasks")) {
         if (auth.user?.role === "ADMIN") return true;
         return Response.redirect(new URL("/dashboard", nextUrl));
       }
@@ -27,8 +27,7 @@ export const authConfig = {
       // Protected routes — yêu cầu đăng nhập
       const isProtectedRoute =
         pathname.startsWith("/dashboard") ||
-        pathname.startsWith("/like-share") ||
-        pathname.startsWith("/tasks");
+        pathname.startsWith("/like-share");
 
       if (isProtectedRoute) {
         return true;
