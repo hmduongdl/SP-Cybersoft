@@ -68,32 +68,30 @@ export async function getCachedDashboardPosts(userId: string) {
     }));
 }
 
-export async function getCachedWeeklyStats(userId: string) {
+export async function getCachedMonthlyStats(userId: string) {
   const now = new Date();
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(now.getDate() - ((now.getDay() + 6) % 7));
-  startOfWeek.setHours(0, 0, 0, 0);
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(endOfWeek.getDate() + 7);
-
-  const [completedThisWeek, totalPostsThisWeek] = await Promise.all([
+  const [completedThisMonth, totalPostsThisMonth] = await Promise.all([
     db.checkin.count({
       where: {
         user_id: userId,
         status: { in: ["APPROVED", "AUTO_APPROVED"] },
-        submitted_at: { gte: startOfWeek, lt: endOfWeek },
+        submitted_at: { gte: startOfMonth, lt: endOfMonth },
       },
     }),
     db.post.count({
       where: {
-        start_at: { gte: startOfWeek, lt: endOfWeek },
+        start_at: { gte: startOfMonth, lt: endOfMonth },
         is_archived: false,
       },
     }),
   ]);
 
-  return { completedThisWeek, totalPostsThisWeek };
+  const pendingThisMonth = Math.max(0, totalPostsThisMonth - completedThisMonth);
+
+  return { completedThisMonth, totalPostsThisMonth, pendingThisMonth };
 }
 
 // ─── Posts page ──────────────────────────────────────────
@@ -154,6 +152,40 @@ export async function getCachedUserStarData(userId: string) {
   });
 }
 
+export type PostParticipant = {
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  submittedAt: Date;
+};
+
+export async function getCachedPostParticipants(): Promise<Record<string, PostParticipant[]>> {
+  const checkins = await db.checkin.findMany({
+    where: {
+      status: { in: ["APPROVED", "AUTO_APPROVED"] },
+      user: { is_active: true, role: { in: ["USER", "ADMIN"] } },
+    },
+    orderBy: { submitted_at: "asc" },
+    select: {
+      post_id: true,
+      submitted_at: true,
+      user: { select: { id: true, name: true, avatar_url: true } },
+    },
+  });
+
+  const map: Record<string, PostParticipant[]> = {};
+  for (const c of checkins) {
+    if (!map[c.post_id]) map[c.post_id] = [];
+    map[c.post_id].push({
+      userId: c.user.id,
+      userName: c.user.name || "Unknown",
+      userAvatar: c.user.avatar_url,
+      submittedAt: c.submitted_at,
+    });
+  }
+  return map;
+}
+
 // ─── Admin Queue ─────────────────────────────────────────
 
 export async function getCachedAllCheckins() {
@@ -188,7 +220,7 @@ export async function getCachedAnalyticsPostsThisMonth(monthStart: Date, monthEn
 
 export async function getCachedAnalyticsUsers() {
   return db.user.findMany({
-    where: { role: "USER" },
+    where: { role: { in: ["USER", "ADMIN"] }, is_active: true },
     select: { id: true, name: true, avatar_url: true, email: true, department: true },
   });
 }
@@ -238,6 +270,6 @@ export async function getCachedPostsApi() {
 
 export async function getCachedTotalEmployees() {
   return db.user.count({
-    where: { role: "USER" },
+    where: { role: { in: ["USER", "ADMIN"] }, is_active: true },
   });
 }

@@ -36,7 +36,12 @@ export async function authenticate(
       throw error;
     }
 
-     if (error instanceof AuthError) {
+     // Check for locked account first
+    if (error.message === "ACCOUNT_LOCKED") {
+      return { error: "Tài khoản của bạn đã bị khoá. Vui lòng liên hệ quản trị viên để được hỗ trợ." };
+    }
+
+    if (error instanceof AuthError) {
       switch (error.type) {
         case "CredentialsSignin":
           return { error: "Tên đăng nhập hoặc mật khẩu không chính xác!" };

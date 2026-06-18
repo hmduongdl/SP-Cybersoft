@@ -16,6 +16,8 @@ import {
   Eye,
   EyeOff,
   Loader2,
+  ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import { UserAvatar } from "./shared/user-avatar";
 import { cn } from "@/lib/utils";
@@ -276,6 +278,13 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
   if (!isOpen) return null;
 
+  // Trạng thái verified: có đủ name + email + facebook_link
+  const isVerified = !!name.trim() && !!email.trim() && !!facebookLink.trim();
+  const missingFields: string[] = [];
+  if (!name.trim()) missingFields.push("Họ tên");
+  if (!email.trim()) missingFields.push("Email");
+  if (!facebookLink.trim()) missingFields.push("Link Facebook");
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
       <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
@@ -286,9 +295,19 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               <User className="w-5 h-5 text-indigo-600" />
               Tài khoản cá nhân
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Quản lý thông tin cá nhân và mật khẩu của bạn.
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {isVerified ? (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                  <ShieldCheck className="w-3 h-3" />
+                  Hồ sơ đã xác minh
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                  <ShieldAlert className="w-3 h-3" />
+                  Hồ sơ chưa đầy đủ — thiếu: {missingFields.join(", ")}
+                </span>
+              )}
+            </div>
           </div>
           <button
             type="button"

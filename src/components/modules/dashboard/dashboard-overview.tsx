@@ -4,14 +4,15 @@ import Link from "next/link";
 import {
   CheckCircle,
   Clock,
-  Award,
   ChevronRight,
   Info,
   Sparkles,
   ArrowRight,
   FileText,
+  ShieldCheck,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { cn } from "@/lib/utils";
 
 interface ActivityFeedItem {
   id: string;
@@ -34,13 +35,11 @@ interface DashboardOverviewProps {
   userName: string;
   pendingCount: number;
   completedCount: number;
-  totalPoints: number;
+  totalPostsCount: number;
+  trustScore: number;
   activityFeed: ActivityFeedItem[];
   dashboardPosts: DashboardPost[];
-  weeklyProgress: number;
-  completedThisWeek: number;
-  totalPostsThisWeek: number;
-  remainingPosts: number;
+  monthlyProgress: number;
 }
 
 function timeAgo(dateString: string) {
@@ -110,16 +109,20 @@ export function DashboardOverview({
   userName,
   pendingCount,
   completedCount,
-  totalPoints,
+  totalPostsCount,
+  trustScore,
   activityFeed,
   dashboardPosts,
-  weeklyProgress,
-  completedThisWeek,
-  totalPostsThisWeek,
-  remainingPosts,
+  monthlyProgress,
 }: DashboardOverviewProps) {
-  const dashOffset = DONUT_CIRCUMFERENCE * (1 - weeklyProgress / 100);
-  const maxPoints = 2000;
+  const dashOffset = DONUT_CIRCUMFERENCE * (1 - monthlyProgress / 100);
+
+  const trustColor =
+    trustScore >= 70 ? "emerald" :
+    trustScore >= 40 ? "amber" :
+    "rose";
+
+  const remainingPosts = Math.max(0, totalPostsCount - completedCount);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -136,8 +139,8 @@ export function DashboardOverview({
         </h1>
         <p className="mt-1 text-sm text-on-surface-variant font-inter">
           {pendingCount > 0
-            ? `Bạn có ${pendingCount} bài viết cần check-in trong tuần này.`
-            : "Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả check-in tuần này."}
+            ? `Bạn có ${pendingCount} bài viết cần check-in trong tháng này.`
+            : "Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả check-in tháng này."}
         </p>
       </div>
 
@@ -146,20 +149,35 @@ export function DashboardOverview({
         {/* Card 1: Bài chưa check-in */}
         <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-indigo-600" />
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center",
+              pendingCount > 0 ? "bg-red-50" : "bg-emerald-50"
+            )}>
+              {pendingCount > 0 ? (
+                <Clock className="w-5 h-5 text-red-600" />
+              ) : (
+                <CheckCircle className="w-5 h-5 text-emerald-600" />
+              )}
             </div>
-            <span className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-600 text-[12px] font-bold rounded-full uppercase tracking-wider">
-              +{pendingCount} mới
+            <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold rounded-full uppercase tracking-wider bg-primary-container text-primary">
+              {completedCount}/{totalPostsCount}
             </span>
           </div>
           <div className="mt-6">
             <p className="font-inter text-[12px] font-semibold tracking-widest uppercase text-on-surface-variant/70">
               Bài Chưa Check-in
             </p>
-            <p className="font-manrope text-[40px] font-bold text-slate-900 leading-tight">
+            <p className={cn(
+              "font-manrope text-[40px] font-bold leading-tight",
+              pendingCount > 0 ? "text-red-600" : "text-emerald-600"
+            )}>
               {String(pendingCount).padStart(2, "0")}
             </p>
+            {pendingCount === 0 && (
+              <p className="text-[11px] text-emerald-600/80 font-medium mt-1 font-inter">
+                Bạn không còn bài nào cần check
+              </p>
+            )}
           </div>
         </div>
 
@@ -170,7 +188,7 @@ export function DashboardOverview({
               <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <span className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-600 text-[12px] font-bold rounded-full uppercase tracking-wider">
-              +{completedThisWeek} tuần này
+              Tháng này
             </span>
           </div>
           <div className="mt-6">
@@ -183,32 +201,47 @@ export function DashboardOverview({
           </div>
         </div>
 
-        {/* Card 3: Điểm tích lũy */}
+        {/* Card 3: Độ tin cậy */}
         <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center">
-              <Award className="w-5 h-5 text-amber-600" />
+            <div className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center",
+              trustColor === "emerald" ? "bg-emerald-50" : trustColor === "amber" ? "bg-amber-50" : "bg-rose-50"
+            )}>
+              <ShieldCheck className={cn(
+                "w-5 h-5",
+                trustColor === "emerald" ? "text-emerald-600" : trustColor === "amber" ? "text-amber-600" : "text-rose-600"
+              )} />
             </div>
-            <span className="inline-flex items-center px-3 py-1 bg-amber-50 text-amber-600 text-[12px] font-bold rounded-full uppercase tracking-wider">
-              Tích lũy
+            <span className={cn(
+              "inline-flex items-center px-3 py-1 text-[12px] font-bold rounded-full uppercase tracking-wider",
+              trustColor === "emerald" ? "bg-emerald-50 text-emerald-600" : trustColor === "amber" ? "bg-amber-50 text-amber-600" : "bg-rose-50 text-rose-600"
+            )}>
+              {trustScore >= 70 ? "Cao" : trustScore >= 40 ? "Vừa" : "Thấp"}
             </span>
           </div>
           <div className="mt-6">
             <p className="font-inter text-[12px] font-semibold tracking-widest uppercase text-on-surface-variant/70">
-              Điểm Tích Lũy
+              Độ Tin Cậy
             </p>
-            <p className="font-manrope text-[40px] font-bold text-slate-900 leading-tight">
-              {totalPoints.toLocaleString()}
+            <p className={cn(
+              "font-manrope text-[40px] font-bold leading-tight",
+              trustColor === "emerald" ? "text-emerald-600" : trustColor === "amber" ? "text-amber-600" : "text-rose-600"
+            )}>
+              {trustScore}
             </p>
             <div className="mt-3 space-y-1.5">
               <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-amber-500 rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min(100, (totalPoints / maxPoints) * 100)}%` }}
+                  className={cn(
+                    "h-full rounded-full transition-all duration-700",
+                    trustColor === "emerald" ? "bg-emerald-500" : trustColor === "amber" ? "bg-amber-500" : "bg-rose-500"
+                  )}
+                  style={{ width: `${trustScore}%` }}
                 />
               </div>
               <p className="text-[11px] text-on-surface-variant/60 font-inter">
-                {totalPoints.toLocaleString()} / {maxPoints.toLocaleString()} Points
+                {trustScore} / 100 điểm — dựa trên lịch sử duyệt bài
               </p>
             </div>
           </div>
@@ -340,10 +373,10 @@ export function DashboardOverview({
         {/* RIGHT COLUMN: col-span-4 */}
         <div className="lg:col-span-4 space-y-6">
 
-          {/* Tiến độ hoàn thành tuần */}
+          {/* Tiến độ hoàn thành tháng */}
           <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-ambient">
             <h2 className="font-manrope text-headline-md font-bold text-on-surface mb-6">
-              Tiến độ hoàn thành tuần
+              Tiến độ hoàn thành tháng
             </h2>
 
             <div className="flex flex-col items-center">
@@ -387,7 +420,7 @@ export function DashboardOverview({
                 {/* Center percentage text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="font-manrope text-[36px] font-extrabold text-slate-900 leading-none">
-                    {weeklyProgress}%
+                    {monthlyProgress}%
                   </span>
                   <span className="text-[11px] text-on-surface-variant font-inter mt-1">
                     Hoàn thành
@@ -397,16 +430,16 @@ export function DashboardOverview({
 
               <p className="text-center text-sm text-on-surface-variant mt-4 font-inter">
                 {remainingPosts > 0
-                  ? `Chỉ còn ${remainingPosts} bài viết nữa là đạt 100% chỉ tiêu tuần`
-                  : "Bạn đã đạt 100% chỉ tiêu tuần này!"}
+                  ? `Chỉ còn ${remainingPosts} bài viết nữa là đạt 100% chỉ tiêu tháng`
+                  : "Bạn đã đạt 100% chỉ tiêu tháng này!"}
               </p>
 
               <div className="w-full mt-4 pt-4 border-t border-slate-100 flex justify-between text-sm">
                 <span className="text-on-surface-variant font-inter">
-                  Đã nộp: <span className="font-bold text-on-surface">{completedThisWeek}</span>
+                  Đã duyệt: <span className="font-bold text-on-surface">{completedCount}</span>
                 </span>
                 <span className="text-on-surface-variant font-inter">
-                  Tổng: <span className="font-bold text-on-surface">{totalPostsThisWeek}</span>
+                  Tổng: <span className="font-bold text-on-surface">{totalPostsCount}</span>
                 </span>
               </div>
             </div>

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { UseHopeStarResult } from "@/app/actions/hope-star-actions";
 import { vi } from "date-fns/locale";
+import type { PostParticipant } from "@/lib/cache";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 type Post = {
   id: string;
@@ -117,6 +119,34 @@ function SafeThumbnail({ src, alt }: { src: string | null | undefined; alt: stri
       sizes="48px"
       onError={() => setFailed(true)}
     />
+  );
+}
+
+function ParticipantsCell({ participants }: { participants: PostParticipant[] }) {
+  const MAX_VISIBLE = 3;
+  const visible = participants.slice(0, MAX_VISIBLE);
+  const overflow = participants.length - MAX_VISIBLE;
+
+  if (participants.length === 0) {
+    return <span className="text-xs text-on-surface-variant/50 font-inter italic">Chưa có</span>;
+  }
+
+  return (
+    <div className="flex items-center gap-0.5">
+      {visible.map((p) => (
+        <div
+          key={p.userId}
+          className="w-6 h-6 rounded-full overflow-hidden ring-2 ring-surface-container-lowest shrink-0"
+        >
+          <UserAvatar name={p.userName} src={p.userAvatar} size="sm" className="w-full h-full" />
+        </div>
+      ))}
+      {overflow > 0 && (
+        <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container-low rounded-full px-1.5 py-0.5 ml-0.5 font-inter">
+          +{overflow}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -301,7 +331,7 @@ function ActionCell({
   }
 }
 
-export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar, currentPage = 1, totalPages = 1 }: {
+export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar, currentPage = 1, totalPages = 1, participantsMap = {} }: {
   posts: Post[];
   onCheckIn?: (post: Post) => void;
   userHopeStars?: number;
@@ -309,6 +339,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
   onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
   currentPage?: number;
   totalPages?: number;
+  participantsMap?: Record<string, PostParticipant[]>;
 }) {
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "COMPLETED" | "EXPIRED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -417,10 +448,11 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
         <>
           <section className="bg-surface-container-lowest rounded-[16px] overflow-hidden shadow-[0_20px_40px_rgba(19,27,46,0.06)] border-none">
             {/* Table Header */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] bg-surface-container-low px-8 py-3.5 text-on-surface-variant tracking-[0.05em] font-semibold font-inter uppercase text-[11px] leading-none">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] bg-surface-container-low px-8 py-3.5 text-on-surface-variant tracking-[0.05em] font-semibold font-inter uppercase text-[11px] leading-none">
               <div>BÀI VIẾT</div>
               <div>TRẠNG THÁI</div>
               <div>DEADLINE</div>
+              <div>THÀNH VIÊN</div>
               <div className="text-right">HÀNH ĐỘNG</div>
             </div>
 
@@ -435,7 +467,7 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                 return (
                   <div
                     key={post.id}
-                    className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center px-8 py-4 group hover:bg-surface-container transition-all duration-150 border-none"
+                    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center px-8 py-4 group hover:bg-surface-container transition-all duration-150 border-none"
                   >
                     {/* Thumbnail + Title + Author */}
                     <div className="flex items-center space-x-4 min-w-0 pr-3">
@@ -483,6 +515,11 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                       ) : (
                         <DeadlineCell startAtDate={startAtDate} allowLateSubmit={post.allow_late_submit} />
                       )}
+                    </div>
+
+                    {/* Participants */}
+                    <div>
+                      <ParticipantsCell participants={participantsMap[post.id] || []} />
                     </div>
 
                     {/* Action */}

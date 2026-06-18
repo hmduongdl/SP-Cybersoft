@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu, User, LogOut, ChevronDown, Bell, FileText } from "lucide-react";
+import { Menu, User, LogOut, Bell, FileText, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
 import { AccountModal } from "../AccountModal";
 import { UserAvatar } from "./user-avatar";
+import { VerificationBanner } from "./verification-banner";
 
 interface RecentPost {
   id: string;
@@ -139,8 +140,18 @@ export function SiteHeader() {
     : rawDepartment === "SALES" ? "Kinh Doanh"
     : rawDepartment;
 
+  // Verified = có đủ name + email + facebook_link
+  const sessionUser = session?.user as any;
+  const isVerified =
+    !!(profile?.name || sessionUser?.name) &&
+    !!(profile?.email || sessionUser?.email) &&
+    !!(profile?.facebook_link || profile?.facebook_profile_url || sessionUser?.facebook_link);
+
   return (
     <>
+      {/* Non-blocking verification banner */}
+      <VerificationBanner onOpenProfile={() => setProfileModalOpen(true)} />
+
       <header className="bg-white border-b border-slate-100 sticky top-0 z-40 h-16 w-full px-6 flex items-center justify-between transition-all duration-200">
         {/* Left side: Hamburger (mobile) + Breadcrumbs */}
         <div className="flex items-center gap-4">
@@ -291,7 +302,14 @@ export function SiteHeader() {
                     />
                   </div>
                   <div className="overflow-hidden text-left flex-1">
-                    <h4 className="text-sm font-semibold text-on-surface truncate font-inter">{userDisplayName}</h4>
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-sm font-semibold text-on-surface truncate font-inter">{userDisplayName}</h4>
+                      {isVerified ? (
+                        <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" title="Hồ sơ đã xác minh" />
+                      ) : (
+                        <ShieldAlert className="h-3.5 w-3.5 text-amber-400 shrink-0" title="Hồ sơ chưa đầy đủ" />
+                      )}
+                    </div>
                     <p className="text-xs text-on-surface-variant truncate font-inter">{userEmail || "Chưa cập nhật email"}</p>
                   </div>
                 </div>

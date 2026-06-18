@@ -1,28 +1,25 @@
 import { auth } from "@/auth";
+import { db } from "@/lib/db";
 import { DashboardOverview } from "@/components/modules/dashboard/dashboard-overview";
 import {
-  getCachedTotalPostsCount,
-  getCachedUserCompletedCount,
   getCachedRecentCheckins,
   getCachedDashboardPosts,
-  getCachedWeeklyStats,
+  getCachedMonthlyStats,
 } from "@/lib/cache";
 
 export default async function DashboardContent() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  const [totalPostsCount, completedCount, recentCheckins, dashboardPosts, weeklyStats] =
+  const [recentCheckins, dashboardPosts, monthlyStats, user] =
     await Promise.all([
-      getCachedTotalPostsCount(),
-      userId ? getCachedUserCompletedCount(userId) : Promise.resolve(0),
       getCachedRecentCheckins(),
       userId ? getCachedDashboardPosts(userId) : Promise.resolve([]),
-      userId ? getCachedWeeklyStats(userId) : Promise.resolve({ completedThisWeek: 0, totalPostsThisWeek: 0 }),
+      userId ? getCachedMonthlyStats(userId) : Promise.resolve({ completedThisMonth: 0, totalPostsThisMonth: 0, pendingThisMonth: 0 }),
+      userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true } }) : Promise.resolve(null),
     ]);
 
-  const pendingCount = Math.max(0, totalPostsCount - completedCount);
-  const totalPoints = completedCount * 100;
+  const trustScore = user?.trust_score ?? 50;
   const userName = session?.user?.name || "Thành viên";
 
   const activityFeed = recentCheckins.map(sub => ({
@@ -34,23 +31,20 @@ export default async function DashboardContent() {
     status: sub.status,
   }));
 
-  const weeklyProgress = weeklyStats.totalPostsThisWeek > 0
-    ? Math.round((weeklyStats.completedThisWeek / weeklyStats.totalPostsThisWeek) * 100)
+  const monthlyProgress = monthlyStats.totalPostsThisMonth > 0
+    ? Math.round((monthlyStats.completedThisMonth / monthlyStats.totalPostsThisMonth) * 100)
     : 0;
-  const remainingPosts = Math.max(0, weeklyStats.totalPostsThisWeek - weeklyStats.completedThisWeek);
 
   return (
     <DashboardOverview
       userName={userName}
-      pendingCount={pendingCount}
-      completedCount={completedCount}
-      totalPoints={totalPoints}
+      pendingCount={monthlyStats.pendingThisMonth}
+      completedCount={monthlyStats.completedThisMonth}
+      totalPostsCount={monthlyStats.totalPostsThisMonth}
+      trustScore={trustScore}
       activityFeed={activityFeed}
       dashboardPosts={dashboardPosts}
-      weeklyProgress={weeklyProgress}
-      completedThisWeek={weeklyStats.completedThisWeek}
-      totalPostsThisWeek={weeklyStats.totalPostsThisWeek}
-      remainingPosts={remainingPosts}
+      monthlyProgress={monthlyProgress}
     />
   );
 }

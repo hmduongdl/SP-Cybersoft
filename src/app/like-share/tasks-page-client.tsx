@@ -8,12 +8,14 @@ import { Toaster } from "sonner";
 import { useHopeStar } from "@/app/actions/hope-star-actions";
 import { cn } from "@/lib/utils";
 import { List, Calendar } from "lucide-react";
+import type { PostParticipant } from "@/lib/cache";
 
 type ViewMode = "list" | "calendar";
 
 export default function TasksPageClient({
   posts,
   allPosts = [],
+  participantsMap = {},
   userHopeStars = 0,
   userUsedStarsThisMonth = 0,
   currentPage = 1,
@@ -21,6 +23,7 @@ export default function TasksPageClient({
 }: {
   posts: any[],
   allPosts?: any[],
+  participantsMap?: Record<string, PostParticipant[]>,
   userHopeStars?: number,
   userUsedStarsThisMonth?: number,
   currentPage?: number,
@@ -110,6 +113,7 @@ export default function TasksPageClient({
           userUsedStarsThisMonth={userUsedStarsThisMonth}
           currentPage={currentPage}
           totalPages={totalPages}
+          participantsMap={participantsMap}
         />
       ) : (
         <PostCalendarView

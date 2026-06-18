@@ -3,7 +3,9 @@ import TasksPageClient from "./tasks-page-client";
 import {
   getCachedPosts,
   getCachedUserStarData,
+  getCachedPostParticipants,
 } from "@/lib/cache";
+import type { PostParticipant } from "@/lib/cache";
 
 const POSTS_PER_PAGE = 12;
 
@@ -17,9 +19,10 @@ export default async function TaskListContainer(props: {
   const page = Math.max(1, Number(searchParams?.page) || 1);
   const skip = (page - 1) * POSTS_PER_PAGE;
 
-  const [rawPosts, currentUser] = await Promise.all([
+  const [rawPosts, currentUser, participantsMap] = await Promise.all([
     getCachedPosts(userId ?? undefined),
     userId ? getCachedUserStarData(userId) : Promise.resolve(null),
+    getCachedPostParticipants(),
   ]);
 
   const paginatedRaw = rawPosts.slice(skip, skip + POSTS_PER_PAGE);
@@ -57,6 +60,7 @@ export default async function TaskListContainer(props: {
     <TasksPageClient
       posts={posts}
       allPosts={allPosts}
+      participantsMap={participantsMap}
       userHopeStars={currentUser?.hope_stars ?? 0}
       userUsedStarsThisMonth={currentUser?.used_stars_this_month ?? 0}
       currentPage={page}

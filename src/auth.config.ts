@@ -30,10 +30,6 @@ export const authConfig = {
         pathname.startsWith("/like-share");
 
       if (isProtectedRoute) {
-        // User chưa onboard → giữ ở dashboard để hiển thị popup Onboarding
-        if (!auth.user?.is_onboarded && !pathname.startsWith("/dashboard")) {
-          return Response.redirect(new URL("/dashboard", nextUrl));
-        }
         return true;
       }
 

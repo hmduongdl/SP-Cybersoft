@@ -123,6 +123,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         });
 
         if (user && user.password) {
+          if (!user.is_active) {
+            throw new Error("ACCOUNT_LOCKED");
+          }
+
           const isValidPassword = await bcrypt.compare(password, user.password);
 
           if (!isValidPassword) {

@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
     // Step 3: Fetch all users
     const users = await db.user.findMany({
-      where: { role: 'USER' },
+      where: { role: { in: ['USER', 'ADMIN'] }, is_active: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, department: true },
     });
