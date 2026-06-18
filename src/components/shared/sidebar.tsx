@@ -169,9 +169,9 @@ export function Sidebar() {
                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-inter">Role Sim:</span>
                 <span className={clsx(
                   "inline-flex items-center rounded-full px-2 py-0.5 text-[9px] font-semibold font-inter",
-                  role === "ADMIN" 
-                    ? "bg-indigo-650/30 text-indigo-400" 
-                    : "bg-slate-800 text-slate-350"
+                  role === "ADMIN"
+                    ? "bg-indigo-500/20 text-indigo-300"
+                    : "bg-slate-800/80 text-slate-300 border border-slate-700/50"
                 )}>
                   {role}
                 </span>
@@ -181,7 +181,7 @@ export function Sidebar() {
                   setRole(role === "ADMIN" ? "USER" : "ADMIN");
                   window.location.href = "/dashboard";
                 }}
-                className="w-full rounded-lg bg-slate-800 hover:bg-slate-755 text-slate-200 border border-slate-700/60 shadow-sm text-[11px] py-1.5 px-2 font-semibold font-inter transition-all"
+                className="w-full rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700/60 shadow-sm text-[11px] py-1.5 px-2 font-semibold font-inter transition-all"
               >
                 Switch to {role === "ADMIN" ? "User" : "Admin"}
               </button>
@@ -216,9 +216,9 @@ export function Sidebar() {
                 </div>
                 {!collapsed && (
                   <div className="overflow-hidden">
-                    <p className="text-sm font-semibold text-slate-250 truncate font-inter">{userDisplayName}</p>
+                    <p className="text-sm font-semibold text-slate-100 truncate font-inter">{userDisplayName}</p>
                     {rawDepartment && (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-semibold bg-slate-800 text-slate-350 mt-0.5 font-inter">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-800/80 text-slate-300 border border-slate-700/50 mt-0.5 font-inter">
                         {departmentLabel}
                       </span>
                     )}
@@ -230,7 +230,7 @@ export function Sidebar() {
                 <button
                   onClick={() => signOut({ callbackUrl: "/login" })}
                   title="Đăng xuất"
-                  className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-450 hover:text-rose-450 transition-all shrink-0"
+                  className="p-1.5 rounded-xl hover:bg-slate-700 text-slate-400 hover:text-rose-400 transition-all shrink-0"
                 >
                   <span className="material-symbols-outlined text-[20px]">logout</span>
                 </button>
