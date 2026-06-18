@@ -155,8 +155,8 @@ export async function PUT(request: Request) {
       updateData.password = await bcrypt.hash(newPassword, 10);
     }
 
-    // Tự động đánh dấu is_verified = true khi user cập nhật hồ sơ
-    if (facebook_link || department) {
+    // Tự động đánh dấu is_verified = true khi user cập nhật đủ hồ sơ
+    if (facebook_link && department) {
       updateData.is_verified = true;
     }
 

@@ -238,7 +238,8 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
         email: email.trim(),
         facebook_link: facebookLink.trim() || null,
         username: username.trim(),
-       };
+        department,
+      };
 
       if (newPassword) {
         payload.currentPassword = currentPassword;
@@ -256,7 +257,10 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
         throw new Error(data.error ?? "Cập nhật thất bại.");
       }
 
-      if (update) await update();
+      if (update) {
+        const isNowVerified = !!(facebookLink.trim() && department);
+        await update({ is_verified: isNowVerified });
+      }
       window.dispatchEvent(new CustomEvent("profile-updated"));
       toast.success("Cập nhật thông tin cá nhân thành công!");
       router.refresh();
@@ -305,7 +309,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                   <ShieldAlert className="w-3 h-3" />
-                  Hồ sơ chưa đầy đủ — thiếu: {missingFields.join(", ")}
+                  {missingFields.length > 0 
+                    ? `Hồ sơ chưa đầy đủ — thiếu: ${missingFields.join(", ")}`
+                    : "Đang chờ cập nhật phiên đăng nhập..."}
                 </span>
               )}
             </div>
