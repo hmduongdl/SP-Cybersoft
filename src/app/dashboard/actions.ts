@@ -25,3 +25,5 @@ export async function fetchMonthlyStats(monthKey: string) {
     } catch (error) {
         console.error("Failed to fetch monthly stats:", error);
         return { completedThisMonth: 0, totalPostsThisMonth: 0, pendingThisMonth: 0, dashboardPosts: [] };
+    }
+}

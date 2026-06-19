@@ -55,9 +55,9 @@ export function MainContent() {
               key={v.key} 
               onClick={() => setView(v.key as any)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all cursor-pointer",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-150 cursor-pointer",
                 activeView === v.key 
-                  ? "bg-white text-primary shadow-sm" 
+                  ? "bg-white text-primary shadow-card" 
                   : "text-on-muted hover:text-on-surface"
               )}
             >
@@ -79,7 +79,7 @@ export function MainContent() {
             key={f.key} 
             onClick={() => setFilterStatus(f.key as FilterStatus)}
             className={cn(
-              "px-4 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer",
+              "px-4 py-1.5 rounded-full text-[12px] font-medium transition-colors duration-150 cursor-pointer",
               filterStatus === f.key
                 ? "bg-primary text-white"
                 : "bg-surface-mid text-on-muted hover:bg-surface-high"

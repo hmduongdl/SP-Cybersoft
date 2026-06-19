@@ -5,18 +5,20 @@ import {
   getCachedRecentCheckins,
   getCachedDashboardPosts,
   getCachedMonthlyStats,
+  getCachedTotalPostsCount,
 } from "@/lib/cache";
 
 export default async function DashboardContent() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  const [recentCheckins, dashboardPosts, monthlyStats, user] =
+  const [recentCheckins, dashboardPosts, monthlyStats, user, allPostsCount] =
     await Promise.all([
       getCachedRecentCheckins(),
       userId ? getCachedDashboardPosts(userId) : Promise.resolve([]),
       userId ? getCachedMonthlyStats(userId) : Promise.resolve({ completedThisMonth: 0, totalPostsThisMonth: 0, pendingThisMonth: 0 }),
       userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true } }) : Promise.resolve(null),
+      getCachedTotalPostsCount(),
     ]);
 
   const trustScore = user?.trust_score ?? 50;
@@ -46,6 +48,7 @@ export default async function DashboardContent() {
       pendingCount={pendingCount}
       completedCount={completedCount}
       totalPostsCount={totalPostsCount}
+      allPostsCount={allPostsCount}
       trustScore={trustScore}
       activityFeed={activityFeed}
       dashboardPosts={dashboardPosts}

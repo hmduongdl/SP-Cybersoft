@@ -108,16 +108,16 @@ export function AIChatSidebar() {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed top-16 right-0 w-[360px] h-[calc(100vh-64px)] bg-white shadow-[-10px_0_30px_rgba(0,0,0,0.05)] border-l border-outline-variant flex flex-col z-30"
+          className="fixed top-16 right-0 w-[360px] h-[calc(100vh-64px)] bg-white shadow-float flex flex-col z-30"
         >
           {/* Header */}
-          <div className="h-16 px-5 border-b border-outline-variant/30 flex items-center justify-between bg-white shrink-0">
+          <div className="h-16 px-5 flex items-center justify-between bg-white shrink-0">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-gradient-primary flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div>
-                <h3 className="font-bold text-on-surface text-sm">AI Assistant</h3>
+                <h3 className="font-manrope font-bold text-on-surface text-sm">AI Assistant</h3>
                 <p className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Online
                 </p>
@@ -125,7 +125,7 @@ export function AIChatSidebar() {
             </div>
             <button
               onClick={() => setAIChatOpen(false)}
-              className="p-2 hover:bg-surface-low rounded-xl transition-colors text-on-muted hover:text-on-surface"
+              className="p-2 hover:bg-surface-low rounded-xl transition-colors duration-150 text-on-muted hover:text-on-surface"
             >
               <X className="w-5 h-5" />
             </button>
@@ -149,8 +149,8 @@ export function AIChatSidebar() {
                     className={clsx(
                       "p-3 rounded-2xl text-[13px] leading-relaxed",
                       isUser
-                        ? "bg-primary text-white rounded-tr-sm shadow-sm"
-                        : "bg-white border border-outline-variant text-on-surface rounded-tl-sm shadow-sm"
+                        ? "bg-primary text-white rounded-tr-sm shadow-card"
+                        : "bg-white text-on-surface rounded-tl-sm shadow-card"
                     )}
                   >
                     {isUser ? (
@@ -166,7 +166,7 @@ export function AIChatSidebar() {
                                 return (
                                   <span
                                     onClick={() => setSelectedTaskId(taskId)}
-                                    className="inline-flex items-center gap-1 bg-primary-container/20 text-primary px-1.5 py-0.5 rounded-md font-semibold cursor-pointer hover:bg-primary-container/40 transition-colors border border-primary/20 mx-1"
+                                    className="inline-flex items-center gap-1 bg-primary-container/20 text-primary px-1.5 py-0.5 rounded-md font-semibold cursor-pointer hover:bg-primary-container/40 transition-colors duration-150 mx-1"
                                     title={`Click để mở chi tiết task: ${taskId}`}
                                   >
                                     <Sparkles className="w-3 h-3" />
@@ -190,20 +190,20 @@ export function AIChatSidebar() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 bg-white border-t border-outline-variant/30 shrink-0">
+          <div className="p-4 bg-white shrink-0">
             <div className="relative flex items-center">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Hỏi AI về công việc..."
-                className="w-full bg-surface-low border border-outline-variant rounded-2xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none max-h-32 min-h-[44px]"
+                className="w-full bg-surface-low border-0 rounded-2xl pl-4 pr-12 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all duration-150 resize-none max-h-32 min-h-[44px]"
                 rows={1}
               />
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 bottom-1.5 w-8 h-8 flex items-center justify-center bg-primary text-white rounded-xl hover:bg-primary-end disabled:opacity-50 disabled:hover:bg-primary transition-all cursor-pointer"
+                className="absolute right-2 bottom-1.5 w-8 h-8 flex items-center justify-center bg-primary text-white rounded-xl hover:bg-primary-end disabled:opacity-50 disabled:hover:bg-primary transition-all duration-150 cursor-pointer"
               >
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </button>

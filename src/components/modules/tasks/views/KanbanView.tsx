@@ -3,37 +3,16 @@
 import React from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { Calendar, CalendarDays, MoreHorizontal } from "lucide-react";
-import { clsx } from "clsx";
+import { Calendar, MoreHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import { isPast, parseISO, format } from "date-fns";
 
-const COLUMNS: { id: TaskStatus; title: string; dotColor: string }[] = [
-  { id: "TODO", title: "Cần làm", dotColor: "bg-gray-400" },
-  { id: "IN_PROGRESS", title: "Đang làm", dotColor: "bg-amber-500" },
-  { id: "DONE", title: "Hoàn thành", dotColor: "bg-green-500" },
+const COLS = [
+  { key: 'TODO',        label: 'Cần làm',  dot: '#44495a' },
+  { key: 'IN_PROGRESS', label: 'Đang làm', dot: '#b45309' },
+  { key: 'DONE',        label: 'Xong',     dot: '#0d5c34' },
 ];
-
-const getTagStyles = (tagName: string) => {
-  switch (tagName.toLowerCase()) {
-    case 'frontend': return 'bg-[#d8e2ff] text-[#0050cb]';
-    case 'backend': return 'bg-[#ede0ff] text-[#6200ea]';
-    case 'ui/ux': return 'bg-[#d5f8e8] text-[#0d5c34]';
-    case 'ai': return 'bg-[#fff3cd] text-[#b45309]';
-    default: return 'bg-slate-100 text-slate-600';
-  }
-};
-
-const getPriorityDot = (priority: string | undefined) => {
-  switch (priority?.toLowerCase()) {
-    case 'high': return 'bg-[#e24b4a]';
-    case 'low': return 'bg-[#1d9e75]';
-    default: return 'bg-[#ef9f27]'; // mid
-  }
-};
-
-const getInitials = (name: string) => {
-  if (!name) return "";
-  return name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
-};
 
 export function KanbanView() {
   const { 
@@ -75,37 +54,44 @@ export function KanbanView() {
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="flex h-full gap-4 pb-4 items-start font-inter">
-        {COLUMNS.map((col) => {
-          const columnTasks = tasks.filter((t) => t.status === col.id);
+      <div className="grid grid-cols-3 gap-4 pb-4 items-start font-inter">
+        {COLS.map((col) => {
+          const columnTasks = tasks.filter((t) => t.status === col.key);
           return (
-            <div key={col.id} className="flex flex-col w-[300px] shrink-0 bg-surface-low rounded-2xl p-3.5">
-              <div className="flex items-center justify-between mb-3 px-1">
+            <div key={col.key} className="bg-surface-low rounded-2xl p-3.5 flex flex-col gap-2">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${col.dotColor}`} />
-                  <span className="text-[13px] font-semibold text-on-surface">{col.title}</span>
-                  <span className="text-[10px] font-medium text-on-muted bg-white px-2 py-0.5 rounded-full shadow-sm">
+                  <div className="w-2 h-2 rounded-full" style={{ background: col.dot }} />
+                  <span className="text-[13px] font-semibold text-on-surface">{col.label}</span>
+                  <span className="text-[10px] bg-white text-on-muted px-2 py-0.5 rounded-full shadow-card">
                     {columnTasks.length}
                   </span>
                 </div>
-                <button className="text-on-muted hover:text-on-surface transition-colors">
-                  <MoreHorizontal size={16} />
+                <button className="text-on-muted hover:text-on-surface transition-colors duration-150 cursor-pointer">
+                  <MoreHorizontal size={15} />
                 </button>
               </div>
 
-              <Droppable droppableId={col.id}>
+              {/* Task cards wrapper with Droppable area */}
+              <Droppable droppableId={col.key}>
                 {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={clsx(
-                      "flex-1 flex flex-col gap-2 min-h-[150px] rounded-xl transition-colors",
-                      snapshot.isDraggingOver ? "bg-surface-high/50" : ""
+                    className={cn(
+                      "flex-grow flex flex-col gap-2 min-h-[250px] rounded-xl transition-colors duration-150",
+                      snapshot.isDraggingOver ? "bg-surface-high/30" : ""
                     )}
                   >
                     {columnTasks.map((task, index) => {
                       const isDone = task.status === 'DONE';
-                      const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !isDone;
+                      const hasDueDate = !!task.due_date;
+                      const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
+                      
+                      // Support both tag object format and tags array format
+                      const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
 
                       return (
                         <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -114,80 +100,81 @@ export function KanbanView() {
                               ref={provided.innerRef}
                               {...provided.draggableProps}
                               {...provided.dragHandleProps}
-                              onClick={() => setSelectedTaskId(task.id)}
-                              className={clsx(
-                                "bg-white rounded-xl p-3 cursor-grab transition-all duration-200",
-                                snapshot.isDragging ? "rotate-2 scale-105" : "hover:-translate-y-[1px]",
-                                isDone ? "opacity-[0.65]" : ""
-                              )}
                               style={{
                                 ...provided.draggableProps.style,
-                                boxShadow: snapshot.isDragging ? '0 12px 32px rgba(19,27,46,.12)' : '0 4px 12px rgba(19,27,46,.04)',
-                              }}
-                              onMouseEnter={(e) => {
-                                if (!snapshot.isDragging) e.currentTarget.style.boxShadow = '0 8px 24px rgba(19,27,46,.08)';
-                              }}
-                              onMouseLeave={(e) => {
-                                if (!snapshot.isDragging) e.currentTarget.style.boxShadow = '0 4px 12px rgba(19,27,46,.04)';
                               }}
                             >
-                              <div className="flex flex-wrap gap-1.5 mb-2">
-                                {task.tags?.map((tag) => (
-                                  <span
-                                    key={tag.id}
-                                    className={clsx(
-                                      "px-2 py-0.5 rounded-full text-[9px] font-semibold",
-                                      getTagStyles(tag.name)
-                                    )}
+                              <motion.div
+                                layout
+                                initial={{ opacity: 0, y: 8 }} 
+                                animate={{ opacity: 1, y: 0 }}
+                                onClick={() => setSelectedTaskId(task.id)}
+                                className={cn(
+                                  "bg-white rounded-xl p-3 cursor-grab transition-all duration-150 select-none",
+                                  snapshot.isDragging ? "rotate-2 scale-105 shadow-float" : "hover:shadow-card hover:-translate-y-px",
+                                  isDone && "opacity-60"
+                               )}
+                              >
+                                {/* Tag pill */}
+                                {displayTag && (
+                                  <span 
+                                    className="inline-block text-[9px] font-semibold px-2 py-0.5 rounded-full mb-2"
+                                    style={{ 
+                                      background: `${displayTag.color}25` || "#6b728025", 
+                                      color: displayTag.color || "#6b7280" 
+                                    }}
                                   >
-                                    {tag.name}
+                                    {displayTag.name}
                                   </span>
-                                ))}
-                              </div>
-                              <p className={clsx(
-                                "text-sm leading-[1.45] font-medium",
-                                isDone ? "text-on-muted line-through" : "text-on-surface"
-                              )}>
-                                {task.title}
-                              </p>
-                              
-                              <div className="flex items-center justify-between mt-3">
-                                <span className={clsx(
-                                  "flex items-center gap-1 text-[10px]",
-                                  isOverdue ? "text-error-text" : "text-on-muted"
+                                )}
+
+                                {/* Title */}
+                                <p className={cn(
+                                  "text-[13px] text-on-surface leading-[1.45]",
+                                  isDone && "line-through text-on-muted"
                                 )}>
-                                  <Calendar size={10} />
-                                  {task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'Chưa đặt'}
-                                </span>
-                                <div className="flex items-center gap-1.5">
-                                  <div className={clsx("w-[6px] h-[6px] rounded-full", getPriorityDot(task.priority))} />
-                                  {task.assignee && (
-                                    <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[8px] font-bold text-primary">
-                                      {getInitials(task.assignee.name)}
-                                    </div>
+                                  {task.title}
+                                </p>
+
+                                {/* Footer */}
+                                <div className="flex items-center justify-between mt-3">
+                                  {hasDueDate ? (
+                                    <span className={cn(
+                                      "flex items-center gap-1 text-[10px]",
+                                      isOverdue ? "text-error-text" : "text-on-muted"
+                                    )}>
+                                      <Calendar size={10} />
+                                      {format(parseISO(task.due_date!), 'dd/MM/yyyy')}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-on-muted">Chưa đặt</span>
                                   )}
+                                  
+                                  {/* Status indicator dot */}
+                                  <div 
+                                    className="w-[6px] h-[6px] rounded-full flex-shrink-0"
+                                    style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} 
+                                  />
                                 </div>
-                              </div>
+                              </motion.div>
                             </div>
                           )}
                         </Draggable>
                       );
                     })}
                     {provided.placeholder}
-                    
-                    {/* Add task ghost card */}
-                    <button 
-                      onClick={() => {
-                        // Optional: we can set default status if needed, but for now just open modal
-                        setAddTaskModalOpen(true);
-                      }}
-                      className="w-full mt-2 border-[1.5px] border-dashed border-outline-variant rounded-xl py-2.5 text-[11px] text-on-muted hover:bg-white transition-colors"
-                    >
-                      + Thêm công việc
-                    </button>
                   </div>
                 )}
               </Droppable>
+
+              {/* Add task ghost */}
+              <button 
+                onClick={() => setAddTaskModalOpen(true)}
+                className="border-[1.5px] border-dashed border-outline rounded-xl py-2.5 text-[11px] text-on-muted hover:bg-white transition-colors duration-150 mt-1 cursor-pointer"
+              >
+                + Thêm công việc
+              </button>
+
             </div>
           );
         })}

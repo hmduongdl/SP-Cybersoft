@@ -2,34 +2,27 @@
 
 import React from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { CalendarDays, Edit2, Check } from "lucide-react";
-import { clsx } from "clsx";
+import { Check, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { isPast, parseISO, format } from "date-fns";
 
-const getTagStyles = (tagName: string) => {
-  switch (tagName.toLowerCase()) {
-    case 'frontend': return 'bg-[#d8e2ff] text-[#0050cb]';
-    case 'backend': return 'bg-[#ede0ff] text-[#6200ea]';
-    case 'ui/ux': return 'bg-[#d5f8e8] text-[#0d5c34]';
-    case 'ai': return 'bg-[#fff3cd] text-[#b45309]';
-    default: return 'bg-slate-100 text-slate-600';
-  }
+const STATUS_MAP = {
+  TODO:        { label: 'Cần làm',  bg: '#f2f3ff', color: '#44495a' },
+  IN_PROGRESS: { label: 'Đang làm', bg: '#fff3cd', color: '#b45309' },
+  DONE:        { label: 'Xong',     bg: '#d5f8e8', color: '#0d5c34' },
 };
 
-const getPriorityDot = (priority: string | undefined) => {
-  switch (priority?.toLowerCase()) {
-    case 'high': return 'bg-[#e24b4a]';
-    case 'low': return 'bg-[#1d9e75]';
-    default: return 'bg-[#ef9f27]';
-  }
-};
-
-const getPriorityLabel = (priority: string | undefined) => {
-  switch (priority?.toLowerCase()) {
-    case 'high': return 'Cao';
-    case 'low': return 'Thấp';
-    default: return 'TB';
-  }
-};
+function StatusBadge({ status }: { status: TaskStatus }) {
+  const s = STATUS_MAP[status] || STATUS_MAP.TODO;
+  return (
+    <span 
+      className="text-[9px] font-semibold px-2.5 py-1 rounded-full inline-block text-center w-[80px]"
+      style={{ background: s.bg, color: s.color }}
+    >
+      {s.label}
+    </span>
+  );
+}
 
 export function ListView() {
   const { 
@@ -60,101 +53,109 @@ export function ListView() {
     return true;
   });
 
-  const toggleStatus = (id: string, currentStatus: TaskStatus) => {
-    updateTask(id, { status: currentStatus === "DONE" ? "TODO" : "DONE" });
+  const cycleStatus = (task: any) => {
+    let nextStatus: TaskStatus = "TODO";
+    if (task.status === "TODO") nextStatus = "IN_PROGRESS";
+    else if (task.status === "IN_PROGRESS") nextStatus = "DONE";
+    else nextStatus = "TODO";
+    updateTask(task.id, { status: nextStatus });
+  };
+
+  const openEdit = (task: any) => {
+    setSelectedTaskId(task.id);
   };
 
   return (
-    <div className="overflow-hidden font-inter shadow-card">
-      <table className="w-full text-left border-none bg-white rounded-2xl">
-        <thead className="bg-surface-low">
-          <tr className="text-on-muted font-bold text-[9px] uppercase tracking-[0.1em]">
-            <th className="py-4 px-6 w-12 text-center"></th>
-            <th className="py-4 px-4 w-[35%]">Tên công việc</th>
-            <th className="py-4 px-4 w-[25%]">Thẻ tag</th>
-            <th className="py-4 px-4 w-1/6">Hạn chót</th>
-            <th className="py-4 px-4 w-24">Ưu tiên</th>
-            <th className="py-4 px-6 w-12 text-center">Sửa</th>
-          </tr>
-        </thead>
-        <tbody className="divide-none">
-          {tasks.map((task) => {
-            const isDone = task.status === "DONE";
-            const isOverdue = task.due_date && new Date(task.due_date) < new Date() && !isDone;
+    <div className="bg-white rounded-2xl overflow-hidden shadow-ambient font-inter">
+      
+      {/* Table header */}
+      <div className="grid grid-cols-[2fr_1fr_1fr_1fr_40px] px-5 py-3 bg-surface-low select-none items-center">
+        {['TIÊU ĐỀ', 'THẺ TAG', 'HẠN CHÓT', 'TRẠNG THÁI', ''].map(h => (
+          <span 
+            key={h} 
+            className="text-[9px] font-semibold tracking-[.08em] uppercase text-on-muted"
+          >
+            {h}
+          </span>
+        ))}
+      </div>
 
-            return (
-              <tr 
-                key={task.id} 
-                onClick={() => setSelectedTaskId(task.id)} 
-                className={clsx(
-                  "hover:bg-surface-low transition-colors group cursor-pointer",
-                  isDone ? "opacity-60" : ""
-                )}
-              >
-                <td className="py-4 px-6 text-center align-middle">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleStatus(task.id, task.status);
-                    }}
-                    className={clsx(
-                      "w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-colors",
-                      isDone 
-                        ? "bg-success-text border-success-text text-white" 
-                        : "border-[#c4c8da] bg-transparent hover:border-primary"
-                    )}
+      {/* Rows — NO dividers, spacing only */}
+      <div className="flex flex-col">
+        {tasks.map(task => {
+          const isDone = task.status === 'DONE';
+          const hasDueDate = !!task.due_date;
+          const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
+          
+          // Support both tag object format and tags array format
+          const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
+
+          return (
+            <div 
+              key={task.id}
+              onClick={() => setSelectedTaskId(task.id)}
+              className="grid grid-cols-[2fr_1fr_1fr_1fr_40px] px-5 py-4 hover:bg-surface-low transition-colors duration-150 cursor-pointer items-center group"
+            >
+              
+              {/* Title */}
+              <div className="flex items-center gap-3 min-w-0">
+                {/* Status toggle circle */}
+                <button 
+                  onClick={e => { e.stopPropagation(); cycleStatus(task); }}
+                  className={cn(
+                    "w-5 h-5 rounded-full border-[1.5px] flex-shrink-0 flex items-center justify-center transition-colors cursor-pointer",
+                    isDone
+                      ? "bg-success-bg border-success-text"
+                      : "border-outline hover:border-primary"
+                  )}
+                >
+                  {isDone && <Check size={11} className="text-success-text stroke-[3]" />}
+                </button>
+                <span className={cn(
+                  "text-[13px] text-on-surface truncate",
+                  isDone && "line-through text-on-muted"
+                )}>
+                  {task.title}
+                </span>
+              </div>
+
+              {/* Tag */}
+              <div>
+                {displayTag && (
+                  <span 
+                    className="text-[9px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: `${displayTag.color}22` || "#6b728022", color: displayTag.color || "#6b7280" }}
                   >
-                    {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                  </button>
-                </td>
-                <td className="py-4 px-4 align-middle">
-                  <p className={clsx(
-                    "font-medium text-[13px]",
-                    isDone ? "text-on-muted line-through" : "text-on-surface"
-                  )}>
-                    {task.title}
-                  </p>
-                </td>
-                <td className="py-4 px-4 align-middle">
-                  <div className="flex flex-wrap gap-1.5">
-                    {task.tags?.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className={clsx(
-                          "px-2 py-0.5 rounded-full text-[9px] font-semibold whitespace-nowrap",
-                          getTagStyles(tag.name)
-                        )}
-                      >
-                        {tag.name}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="py-4 px-4 align-middle">
-                  <div className={clsx(
-                    "flex items-center gap-1.5 text-xs font-medium",
-                    isOverdue ? "text-error-text" : "text-on-muted"
-                  )}>
-                    <CalendarDays className="w-3.5 h-3.5" />
-                    <span>{task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : '—'}</span>
-                  </div>
-                </td>
-                <td className="py-4 px-4 align-middle">
-                  <div className="flex items-center gap-1.5">
-                    <div className={clsx("w-2 h-2 rounded-full", getPriorityDot(task.priority))} />
-                    <span className="text-xs text-on-muted font-medium">{getPriorityLabel(task.priority)}</span>
-                  </div>
-                </td>
-                <td className="py-4 px-6 text-center align-middle">
-                  <button className="text-[#c4c8da] hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                    {displayTag.name}
+                  </span>
+                )}
+              </div>
+
+              {/* Due date */}
+              <span className={cn(
+                "text-[12px]",
+                hasDueDate && isOverdue ? "text-error-text" : "text-on-muted"
+              )}>
+                {task.due_date ? format(parseISO(task.due_date), 'dd/MM/yyyy') : '—'}
+              </span>
+
+              {/* Status badge */}
+              <div>
+                <StatusBadge status={task.status} />
+              </div>
+
+              {/* Edit */}
+              <button 
+                onClick={e => { e.stopPropagation(); openEdit(task); }}
+                className="text-on-muted hover:text-on-surface opacity-0 group-hover:opacity-100 transition-all duration-150 cursor-pointer p-1 rounded-xl hover:bg-surface-high"
+              >
+                <Pencil size={13} />
+              </button>
+
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

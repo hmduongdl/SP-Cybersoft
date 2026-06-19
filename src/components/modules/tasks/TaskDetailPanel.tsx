@@ -1,23 +1,61 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { useTaskStore } from "@/store/useTaskStore";
-import { X, Calendar as CalendarIcon, Tag as TagIcon, LayoutGrid } from "lucide-react";
-import { clsx } from "clsx";
+import React, { useEffect, useMemo } from "react";
+import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
+import { X, Calendar, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
+import { isPast, parseISO, format } from "date-fns";
 import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 
+const STATUS_MAP = {
+  TODO:        { label: 'Cần làm',  bg: '#f2f3ff', color: '#44495a' },
+  IN_PROGRESS: { label: 'Đang làm', bg: '#fff3cd', color: '#b45309' },
+  DONE:        { label: 'Xong',     bg: '#d5f8e8', color: '#0d5c34' },
+};
+
+function StatusBadge({ status }: { status: TaskStatus }) {
+  const s = STATUS_MAP[status] || STATUS_MAP.TODO;
+  return (
+    <span 
+      className="text-[9px] font-semibold px-2.5 py-1 rounded-full inline-block"
+      style={{ background: s.bg, color: s.color }}
+    >
+      {s.label}
+    </span>
+  );
+}
+
 export function TaskDetailPanel() {
-  const { selectedTaskId, setSelectedTaskId, tasks, updateTask, updateTaskNote } = useTaskStore();
+  const { 
+    selectedTaskId, 
+    setSelectedTaskId, 
+    tasks, 
+    updateTask, 
+    updateTaskNote 
+  } = useTaskStore();
 
   const task = useMemo(() => tasks.find((t) => t.id === selectedTaskId), [tasks, selectedTaskId]);
 
   const editor = useCreateBlockNote({
     initialContent: task?.note?.content ? task.note.content : undefined,
   });
+
+  // Keep editor content in sync when selected task changes
+  useEffect(() => {
+    if (editor && task) {
+      // Re-initialize editor content if it changes
+      const currentContent = task.note?.content;
+      if (currentContent) {
+        editor.replaceBlocks(editor.document, currentContent);
+      } else {
+        editor.replaceBlocks(editor.document, [{ type: "paragraph", content: [] }]);
+      }
+    }
+  }, [selectedTaskId, editor]);
 
   const handleClose = () => {
     setSelectedTaskId(null);
@@ -27,11 +65,49 @@ export function TaskDetailPanel() {
     if (editor && selectedTaskId) {
       const content = editor.document;
       await updateTaskNote(selectedTaskId, content);
-      // Giả lập kích hoạt trigger RAG Vector
     }
   };
 
+  const cycleStatus = (t: any) => {
+    let nextStatus: TaskStatus = "TODO";
+    if (t.status === "TODO") nextStatus = "IN_PROGRESS";
+    else if (t.status === "IN_PROGRESS") nextStatus = "DONE";
+    else nextStatus = "TODO";
+    updateTask(t.id, { status: nextStatus });
+  };
+
+  const updateTaskTitle = (newTitle: string) => {
+    if (task) {
+      updateTask(task.id, { title: newTitle });
+    }
+  };
+
+  const saveTask = () => {
+    // Changes are saved optimistically via updateTask, can be a no-op
+  };
+
+  const loadTask = (id: string) => {
+    setSelectedTaskId(id);
+  };
+
+  // Clickable citation pill rendering helper
+  const renderCitation = (id: string) => (
+    <button 
+      onClick={() => loadTask(id)}
+      className="inline-flex items-center gap-1 text-[10px] font-semibold bg-primary-container text-primary px-1.5 py-0.5 rounded-md mx-0.5 cursor-pointer hover:bg-primary-container/80 transition-colors duration-150"
+    >
+      <FileText size={10} /> task:{id}
+    </button>
+  );
+
   if (!selectedTaskId || !task) return null;
+
+  const isDone = task.status === 'DONE';
+  const hasDueDate = !!task.due_date;
+  const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
+  
+  // Support both tag object format and tags array format
+  const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
 
   return (
     <AnimatePresence>
@@ -39,125 +115,89 @@ export function TaskDetailPanel() {
         <>
           {/* Backdrop */}
           <motion.div
-            key="task-detail-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
             className="fixed inset-0 bg-on-surface/20 backdrop-blur-[2px] z-40"
             onClick={handleClose}
           />
 
-          {/* Bottom Drawer Panel */}
+          {/* Panel - slides up from bottom, offset by 220px to leave the left sidebar visible */}
           <motion.div
-            key="task-detail-panel"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed bottom-0 left-0 right-0 h-[50vh] bg-white rounded-t-2xl z-50 flex flex-col shadow-float"
+            initial={{ y: '100%' }} 
+            animate={{ y: 0 }} 
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            className="fixed bottom-0 left-[220px] right-0 h-[55vh] z-50 bg-white rounded-t-2xl shadow-float flex flex-col font-inter"
           >
-            {/* Handle bar */}
-            <div className="flex justify-center pt-3 pb-1 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-outline" />
+            {/* Drag handle */}
+            <div className="flex justify-center pt-3 pb-2 shrink-0">
+              <div className="w-10 h-1 rounded-full bg-outline-variant" />
             </div>
 
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-3 shrink-0">
-              <div className="flex items-center gap-3">
-                <select
-                  value={task.status}
-                  onChange={(e) => updateTask(task.id, { status: e.target.value as any })}
-                  className={clsx(
-                    "text-xs font-bold px-3 py-1.5 rounded-lg border-0 outline-none cursor-pointer focus:ring-2 focus:ring-primary/30",
-                    task.status === "TODO" ? "bg-surface-low text-on-muted" :
-                    task.status === "IN_PROGRESS" ? "bg-warn-bg text-warn-text" :
-                    "bg-success-bg text-success-text"
-                  )}
-                >
-                  <option value="TODO">Cần làm</option>
-                  <option value="IN_PROGRESS">Đang làm</option>
-                  <option value="DONE">Hoàn thành</option>
-                </select>
-                <span className="text-outline">|</span>
-                <span className="text-xs text-on-muted font-medium">Task ID: {task.id.slice(0, 8)}</span>
-              </div>
+            {/* Header row */}
+            <div className="px-6 pb-4 flex items-start gap-4 border-b-0 shrink-0">
+              {/* Status cycle button */}
               <button 
-                onClick={handleClose}
-                className="p-2 rounded-xl text-on-muted hover:text-on-surface hover:bg-surface-low transition-colors"
+                onClick={() => cycleStatus(task)}
+                className="mt-1 flex-shrink-0 cursor-pointer"
               >
-                <X className="w-5 h-5" />
+                <StatusBadge status={task.status} />
               </button>
-            </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6">
-              {/* Title */}
-              <input 
-                type="text"
+              {/* Title (editable) */}
+              <input
                 value={task.title}
-                onChange={(e) => updateTask(task.id, { title: e.target.value })}
-                className="w-full text-2xl font-bold text-on-surface placeholder:text-outline outline-none border-none bg-transparent font-manrope"
-                placeholder="Nhập tiêu đề công việc..."
+                onChange={e => updateTaskTitle(e.target.value)}
+                onBlur={saveTask}
+                className="flex-1 font-inter font-bold text-[22px] text-on-surface bg-transparent outline-none tracking-[-0.02em] placeholder:text-on-muted"
+                placeholder="Tiêu đề công việc"
               />
 
-              {/* Properties */}
-              <div className="space-y-4 rounded-xl p-4 bg-surface-low/50">
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="w-32 flex items-center gap-2 text-on-muted">
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>Ngày hết hạn</span>
-                  </div>
-                  <input 
-                    type="date" 
-                    value={task.due_date ? task.due_date.split('T')[0] : ''}
-                    onChange={(e) => updateTask(task.id, { due_date: e.target.value })}
-                    className="flex-1 bg-transparent border-0 outline-none text-on-surface focus:ring-0 p-0"
-                  />
-                </div>
-                
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="w-32 flex items-center gap-2 text-on-muted">
-                    <LayoutGrid className="w-4 h-4" />
-                    <span>Workspace</span>
-                  </div>
-                  <span className="flex-1 font-medium text-on-surface">Workspace Hiện Tại</span>
-                </div>
-
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="w-32 flex items-center gap-2 text-on-muted">
-                    <TagIcon className="w-4 h-4" />
-                    <span>Tags</span>
-                  </div>
-                  <div className="flex-1 flex flex-wrap gap-2">
-                    {task.tags?.map(tag => (
-                      <span key={tag.id} className="px-2.5 py-1 rounded-md text-[11px] font-semibold" style={{ backgroundColor: tag.color ? `${tag.color}20` : '#e2e8f0', color: tag.color || '#475569' }}>
-                        {tag.name}
-                      </span>
-                    ))}
-                    <button className="px-2.5 py-1 rounded-md text-[11px] font-medium text-on-muted hover:bg-surface-mid transition-colors bg-surface-low">
-                      + Thêm tag
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* BlockNote Editor */}
-              <div className="pt-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-on-surface">Ghi chú & Nội dung</h3>
-                  <button 
-                    onClick={handleSaveNote}
-                    className="text-xs font-semibold px-3 py-1.5 bg-primary-container text-primary rounded-lg hover:bg-primary-container/80 transition-colors"
+              {/* Meta: tag + due_date + close */}
+              <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+                {displayTag && (
+                  <span 
+                    className="text-[10px] font-semibold px-2.5 py-1 rounded-full animate-in fade-in"
+                    style={{ background: `${displayTag.color}22` || "#6b728022", color: displayTag.color || "#6b7280" }}
                   >
-                    Lưu & Đồng bộ AI
-                  </button>
-                </div>
-                <div className="-mx-12">
-                  <BlockNoteView editor={editor} theme="light" />
-                </div>
+                    {displayTag.name}
+                  </span>
+                )}
+                {hasDueDate && (
+                  <span className={cn(
+                    "flex items-center gap-1 text-[11px] bg-surface-low px-2.5 py-1 rounded-full",
+                    isOverdue ? "text-error-text" : "text-on-muted"
+                  )}>
+                    <Calendar size={11} />
+                    {format(parseISO(task.due_date!), 'dd/MM/yyyy')}
+                  </span>
+                )}
+                <button 
+                  onClick={handleClose}
+                  className="w-7 h-7 rounded-xl bg-surface-mid flex items-center justify-center text-on-muted hover:text-on-surface cursor-pointer transition-colors duration-150"
+                >
+                  <X size={14} />
+                </button>
               </div>
             </div>
+
+            {/* BlockNote editor — fills remaining height */}
+            <div className="flex-1 overflow-y-auto px-6 pt-4">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-manrope text-sm font-bold text-on-surface">Ghi chú & Nội dung</h3>
+                <button 
+                  onClick={handleSaveNote}
+                  className="text-xs font-semibold px-3 py-1.5 bg-primary-container text-primary rounded-xl hover:bg-primary-container/80 transition-colors duration-150 cursor-pointer"
+                >
+                  Lưu & Đồng bộ AI
+                </button>
+              </div>
+              <div className="-mx-12">
+                <BlockNoteView editor={editor} theme="light" />
+              </div>
+            </div>
+
           </motion.div>
         </>
       )}

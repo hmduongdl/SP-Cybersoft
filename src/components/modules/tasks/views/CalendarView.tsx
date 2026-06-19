@@ -57,13 +57,13 @@ export function CalendarView() {
           {monthYearStr}
         </h2>
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-surface-low transition-colors text-on-muted">
+          <button onClick={prevMonth} className="p-2 rounded-xl hover:bg-surface-low transition-colors duration-150 text-on-muted cursor-pointer">
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <button onClick={goToToday} className="px-4 py-1.5 text-xs font-semibold rounded-full bg-surface-low text-primary hover:bg-surface-mid transition-colors">
+          <button onClick={goToToday} className="px-4 py-1.5 text-xs font-semibold rounded-full bg-surface-low text-primary hover:bg-surface-mid transition-colors duration-150 cursor-pointer">
             Hôm nay
           </button>
-          <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-surface-low transition-colors text-on-muted">
+          <button onClick={nextMonth} className="p-2 rounded-xl hover:bg-surface-low transition-colors duration-150 text-on-muted cursor-pointer">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -78,25 +78,20 @@ export function CalendarView() {
         ))}
       </div>
 
-      {/* Grid Body */}
-      <div className="grid grid-cols-7 flex-1 border-t border-surface-mid">
+      {/* Grid Body using gap-[1px] bg-surface-mid for borderless grid effect */}
+      <div className="grid grid-cols-7 flex-1 bg-surface-mid gap-[1px] overflow-hidden rounded-2xl">
         {blanks.map((blank) => (
-          <div key={`blank-${blank}`} className="min-h-[110px] border-b border-r border-surface-mid bg-[#fafafa]/50" />
+          <div key={`blank-${blank}`} className="min-h-[110px] bg-surface-low/40" />
         ))}
         {days.map((day, index) => {
           const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
           const dayTasks = tasks.filter(t => t.due_date?.startsWith(dateStr));
           const isToday = new Date().toISOString().split('T')[0] === dateStr;
-          const isLastInRow = (blanks.length + index + 1) % 7 === 0;
 
           return (
             <div 
               key={day} 
-              className={clsx(
-                "min-h-[110px] p-2 flex flex-col gap-1 transition-colors hover:bg-surface-low/50",
-                "border-b border-surface-mid",
-                !isLastInRow && "border-r border-surface-mid"
-              )}
+              className="min-h-[110px] p-2 flex flex-col gap-1 transition-colors duration-150 hover:bg-surface-low/50 bg-white"
             >
               <div className="flex items-center justify-end mb-1">
                 <span className={clsx(
@@ -112,7 +107,7 @@ export function CalendarView() {
                     key={task.id} 
                     onClick={(e) => { e.stopPropagation(); setSelectedTaskId(task.id); }}
                     className={clsx(
-                      "text-[10px] px-2 py-1 rounded-lg truncate font-medium cursor-pointer transition-opacity hover:opacity-80", 
+                      "text-[10px] px-2 py-1 rounded-lg truncate font-medium cursor-pointer transition-opacity duration-150 hover:opacity-80", 
                       task.status === 'DONE' 
                         ? "bg-surface-low text-on-muted line-through opacity-60" 
                         : "bg-primary-container text-primary"

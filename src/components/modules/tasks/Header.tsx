@@ -57,7 +57,7 @@ export function Header() {
         <button 
           onClick={toggleAIChat}
           className={cn(
-            "w-8 h-8 rounded-xl flex items-center justify-center transition-colors cursor-pointer",
+            "w-8 h-8 rounded-xl flex items-center justify-center transition-colors duration-150 cursor-pointer",
             isAIChatOpen 
               ? "bg-primary-container text-primary" 
               : "bg-surface-mid text-on-muted hover:bg-surface-high"
@@ -69,7 +69,7 @@ export function Header() {
         {/* Quick Add */}
         <button 
           onClick={() => setAddTaskModalOpen(true)}
-          className="flex items-center gap-1.5 bg-gradient-to-r from-primary to-primary-end text-white text-[12px] font-semibold rounded-xl px-3 h-8 cursor-pointer transition-opacity hover:opacity-90"
+          className="flex items-center gap-1.5 bg-gradient-to-r from-primary to-primary-end text-white text-[12px] font-semibold rounded-xl px-3 h-8 cursor-pointer transition-opacity duration-150 hover:opacity-90"
         >
           <Plus size={14} /> Thêm task
         </button>

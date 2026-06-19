@@ -52,7 +52,7 @@ export function Sidebar() {
       <div className="px-3 py-4 border-b-0 relative">
         <button 
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-surface-mid transition-colors cursor-pointer"
+          className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-surface-mid transition-colors duration-150 cursor-pointer"
         >
           {/* Workspace icon/color badge */}
           <div 
@@ -75,24 +75,24 @@ export function Sidebar() {
 
         {/* Dropdown Menu */}
         {isDropdownOpen && (
-          <div className="absolute left-3 right-3 top-[72px] mt-1 bg-white border border-outline-variant/30 rounded-2xl shadow-float z-50 p-1.5 space-y-1">
+          <div className="absolute left-3 right-3 top-[72px] mt-1 bg-white rounded-2xl shadow-float z-50 p-1.5 space-y-1">
             <p className="text-[9px] font-semibold tracking-wider text-on-muted px-2 py-1 uppercase">
               Chuyển Workspace
             </p>
             <div className="max-h-[200px] overflow-y-auto">
               {displayWorkspaces.map((ws) => (
                 <button
-                  key={ws.id}
-                  onClick={() => {
-                    setCurrentWorkspace(ws);
-                    setIsDropdownOpen(false);
-                  }}
-                  className={cn(
-                    "w-full flex items-center gap-2 p-2 rounded-xl text-xs transition-colors cursor-pointer text-left",
-                    ws.id === activeWorkspace.id
-                      ? "bg-surface-low text-primary font-medium"
-                      : "text-on-muted hover:bg-surface-low"
-                  )}
+                   key={ws.id}
+                   onClick={() => {
+                     setCurrentWorkspace(ws);
+                     setIsDropdownOpen(false);
+                   }}
+                   className={cn(
+                     "w-full flex items-center gap-2 p-2 rounded-xl text-xs transition-colors duration-150 cursor-pointer text-left",
+                     ws.id === activeWorkspace.id
+                       ? "bg-surface-low text-primary font-medium"
+                       : "text-on-muted hover:bg-surface-low"
+                   )}
                 >
                   <span className="text-sm mr-1.5">{ws.icon || "📁"}</span>
                   <span className="truncate flex-1">{ws.name}</span>
@@ -143,7 +143,7 @@ export function Sidebar() {
             {tags.map((tag) => (
               <button
                 key={tag.id}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-on-muted hover:bg-surface-mid transition-colors cursor-pointer text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-on-muted hover:bg-surface-mid transition-colors duration-150 cursor-pointer text-left"
               >
                 {/* Color dot — use tag.color */}
                 <div 
@@ -155,7 +155,7 @@ export function Sidebar() {
             ))}
 
             {/* Tạo tag button */}
-            <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-primary/80 hover:text-primary hover:bg-surface-mid transition-colors cursor-pointer text-left mt-2">
+            <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-primary/80 hover:text-primary hover:bg-surface-mid transition-colors duration-150 cursor-pointer text-left mt-2">
               <Plus size={14} />
               <span>Tạo thẻ mới</span>
             </button>
@@ -177,7 +177,7 @@ export function Sidebar() {
           <button 
             onClick={logout} 
             title="Đăng xuất"
-            className="text-on-muted hover:text-error-text transition-colors cursor-pointer flex-shrink-0"
+            className="text-on-muted hover:text-error-text transition-colors duration-150 cursor-pointer flex-shrink-0"
           >
             <LogOut size={14} />
           </button>

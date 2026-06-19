@@ -39,6 +39,7 @@ interface DashboardOverviewProps {
   pendingCount: number;
   completedCount: number;
   totalPostsCount: number;
+  allPostsCount: number;
   trustScore: number;
   activityFeed: ActivityFeedItem[];
   dashboardPosts: DashboardPost[];
@@ -128,6 +129,7 @@ export function DashboardOverview({
   pendingCount: initialPendingCount,
   completedCount: initialCompletedCount,
   totalPostsCount: initialTotalPostsCount,
+  allPostsCount,
   trustScore,
   activityFeed,
   dashboardPosts,
@@ -273,7 +275,7 @@ export function DashboardOverview({
               "font-manrope text-[40px] font-bold leading-tight",
               pendingCount > 0 ? "text-red-600" : "text-emerald-600"
             )}>
-              {String(pendingCount).padStart(2, "0")}
+              {pendingCount}
             </p>
             {pendingCount === 0 && (
               <p className="text-[11px] text-emerald-600/80 font-medium mt-1 font-inter">
@@ -298,7 +300,7 @@ export function DashboardOverview({
               Đã Hoàn Thành
             </p>
             <p className="font-manrope text-[40px] font-bold text-emerald-600 leading-tight">
-              {String(completedCount).padStart(2, "0")}
+              {completedCount}
             </p>
           </div>
         </div>
@@ -541,7 +543,7 @@ export function DashboardOverview({
                   Đã duyệt: <span className="font-bold text-on-surface">{completedCount}</span>
                 </span>
                 <span className="text-on-surface-variant font-inter">
-                  Tổng: <span className="font-bold text-on-surface">{totalPostsCount}</span>
+                  Tổng: <span className="font-bold text-on-surface">{allPostsCount}</span>
                 </span>
               </div>
             </div>
