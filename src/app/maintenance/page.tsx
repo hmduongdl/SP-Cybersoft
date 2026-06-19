@@ -15,24 +15,24 @@ export default function MaintenancePage() {
         </div>
 
         <h1 className="text-3xl md:text-4xl font-extrabold text-indigo-900 mb-4 tracking-tight">
-          HỆ THỐNG ĐANG BẢO TRÌ
+          HỆ THỐNG BẢO TRÌ
         </h1>
 
         <p className="text-slate-600 text-lg leading-relaxed mb-8">
-          Để nâng cấp hiệu năng và mang lại trải nghiệm tốt nhất cho bạn, chúng tôi đang tiến hành cập nhật định kỳ hệ thống SPS AI. Quá trình này sẽ hoàn tất trong ít phút. Rất xin lỗi vì sự bất tiện này!
+          Để nâng cấp hiệu năng và mang lại trải nghiệm tốt nhất cho bạn, chúng tôi đang tiến hành cập nhật định kỳ hệ thống SPS AI. Quá trình này có thể kéo dài đến vài giờ.
         </p>
 
         <div className="bg-slate-50 p-4 rounded-xl mb-8 w-full border border-slate-100">
           <p className="text-sm text-slate-500 font-medium">
-            Nếu cần hỗ trợ gấp, vui lòng liên hệ Bộ phận Nhân sự (HR) hoặc IT Admin.
+            Rất xin lỗi vì sự bất tiện này! :)
           </p>
         </div>
 
-        <button 
+        <button
           onClick={() => window.location.reload()}
           className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
         >
-          Kiểm tra lại
+          Back to Home
         </button>
       </div>
     </div>
