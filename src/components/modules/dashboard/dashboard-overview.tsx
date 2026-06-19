@@ -12,6 +12,8 @@ import {
   FileText,
   ShieldCheck,
   ChevronDown,
+  LayoutDashboard,
+  TrendingUp,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
@@ -39,11 +41,9 @@ interface DashboardOverviewProps {
   pendingCount: number;
   completedCount: number;
   totalPostsCount: number;
-  allPostsCount: number;
   trustScore: number;
   activityFeed: ActivityFeedItem[];
   dashboardPosts: DashboardPost[];
-  monthlyProgress: number;
 }
 
 function timeAgo(dateString: string) {
@@ -129,11 +129,9 @@ export function DashboardOverview({
   pendingCount: initialPendingCount,
   completedCount: initialCompletedCount,
   totalPostsCount: initialTotalPostsCount,
-  allPostsCount,
   trustScore,
   activityFeed,
   dashboardPosts,
-  monthlyProgress: initialMonthlyProgress,
 }: DashboardOverviewProps) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -251,7 +249,7 @@ export function DashboardOverview({
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Card 1: Bài chưa check-in */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-6 flex flex-col justify-between shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800">
           <div className="flex justify-between items-start">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
@@ -286,7 +284,7 @@ export function DashboardOverview({
         </div>
 
         {/* Card 2: Đã hoàn thành */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-6 flex flex-col justify-between shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center">
               <CheckCircle className="w-5 h-5 text-emerald-600" />
@@ -306,7 +304,7 @@ export function DashboardOverview({
         </div>
 
         {/* Card 3: Độ tin cậy */}
-        <div className="bg-surface-container-lowest rounded-2xl p-6 flex flex-col justify-between shadow-ambient">
+        <div className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-6 flex flex-col justify-between shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800">
           <div className="flex justify-between items-start">
             <div className={cn(
               "w-10 h-10 rounded-full flex items-center justify-center",
@@ -378,7 +376,7 @@ export function DashboardOverview({
                   <Link
                     key={post.id}
                     href={`/like-share?postId=${post.id}`}
-                    className="bg-surface-container-lowest rounded-2xl p-4 flex items-center gap-4 shadow-ambient hover:-translate-y-0.5 transition-all cursor-pointer group"
+                    className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-4 flex items-center gap-4 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all cursor-pointer group"
                   >
                     <div className="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden shrink-0">
                       {post.thumbnail_url ? (
@@ -394,7 +392,7 @@ export function DashboardOverview({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-inter text-[15px] font-bold text-on-surface truncate group-hover:text-primary transition-colors">
+                      <p className="font-inter text-[15px] font-bold text-on-surface dark:text-slate-100 truncate group-hover:text-primary transition-colors">
                         {post.title}
                       </p>
                       <p className="text-[13px] text-on-surface-variant mt-0.5">
@@ -432,7 +430,7 @@ export function DashboardOverview({
               {activityFeed.length > 0 ? (
                 activityFeed.map((feed) => (
                   <div
-                    className="bg-surface-container-lowest rounded-2xl p-4 flex items-center gap-4 shadow-ambient hover:-translate-y-0.5 transition-all"
+                    className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-4 flex items-center gap-4 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all"
                     key={feed.id}
                   >
                     <UserAvatar
@@ -442,7 +440,7 @@ export function DashboardOverview({
                       className="w-10 h-10"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-inter text-[14px] font-semibold text-on-surface truncate">
+                      <p className="font-inter text-[14px] font-semibold text-on-surface dark:text-slate-100 truncate">
                         {feed.postTitle}
                       </p>
                       <p className="text-[12px] text-on-surface-variant">
@@ -478,8 +476,8 @@ export function DashboardOverview({
         <div className="lg:col-span-4 space-y-6">
 
           {/* Tiến độ hoàn thành tháng */}
-          <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-ambient">
-            <h2 className="font-manrope text-headline-md font-bold text-on-surface mb-6">
+          <div className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-6 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800">
+            <h2 className="font-manrope text-headline-md font-bold text-on-surface dark:text-slate-100 mb-6">
               Tiến độ hoàn thành {selectedMonthLabel.toLowerCase()}
             </h2>
 
@@ -523,7 +521,7 @@ export function DashboardOverview({
                 </svg>
                 {/* Center percentage text */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="font-manrope text-[36px] font-extrabold text-slate-900 leading-none">
+                  <span className="font-manrope text-[36px] font-extrabold text-slate-900 dark:text-slate-100 leading-none">
                     {progress}%
                   </span>
                   <span className="text-[11px] text-on-surface-variant font-inter mt-1">
@@ -540,27 +538,24 @@ export function DashboardOverview({
 
               <div className="w-full mt-4 pt-4 border-t border-slate-100 flex justify-between text-sm">
                 <span className="text-on-surface-variant font-inter">
-                  Đã duyệt: <span className="font-bold text-on-surface">{completedCount}</span>
-                </span>
-                <span className="text-on-surface-variant font-inter">
-                  Tổng: <span className="font-bold text-on-surface">{allPostsCount}</span>
+                  Đã hoàn thành: <span className="font-bold text-on-surface">{completedCount}</span>
                 </span>
               </div>
             </div>
           </div>
 
           {/* AI Scan Assistant */}
-          <div className="bg-[#FAFAFA] border border-slate-150 rounded-2xl p-6 shadow-ambient">
+          <div className="bg-[#FAFAFA] dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-6 shadow-ambient dark:shadow-none">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
                 <Sparkles className="w-6 h-6 text-indigo-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-manrope text-[16px] font-bold text-on-surface">
-                  AI Scan Assistant
+                  AI Pop-up Chat Đang Bảo Trì
                 </h3>
                 <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
-                  AI tự động kiểm tra ảnh check-in, xác minh nội dung và giúp tiết kiệm thời gian xét duyệt.
+                  Tính năng này sẽ trở lại sau một thời gian ngắn.
                 </p>
                 <Link
                   href="/admin/queue"
@@ -569,6 +564,54 @@ export function DashboardOverview({
                   <span>Tìm hiểu ngay</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Truy cập nhanh */}
+          <div className="space-y-3">
+            <h2 className="font-manrope text-headline-md font-bold text-on-surface">
+              Truy cập nhanh
+            </h2>
+
+            {/* Task Manager Card */}
+            <Link
+              href="/tasks"
+              className="block bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-5 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                  <LayoutDashboard className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-inter text-[14px] font-bold text-on-surface dark:text-slate-100 group-hover:text-emerald-600 transition-colors">
+                    Task Manager
+                  </p>
+                  <p className="text-[12px] text-on-surface-variant font-inter">
+                    Quản lý công việc, nhiệm vụ và lọc theo thẻ
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0" />
+              </div>
+            </Link>
+
+            {/* SEO Tools Card */}
+            <div className="block bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-5 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 opacity-70">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-inter text-[14px] font-bold text-on-surface dark:text-slate-100">
+                    SEO Tools
+                  </p>
+                  <p className="text-[12px] text-on-surface-variant font-inter">
+                    Chức năng đang phát triển
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2 py-1 rounded-full shrink-0">
+                  Sớm ra mắt
+                </span>
               </div>
             </div>
           </div>

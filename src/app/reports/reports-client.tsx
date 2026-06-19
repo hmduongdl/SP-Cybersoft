@@ -138,9 +138,6 @@ export default function ReportsClient({ checkins }: Props) {
           <div className="min-w-0">
             <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Đã phê duyệt</p>
             <h3 className="text-[28px] font-bold text-emerald-600 font-manrope leading-tight">{stats.approved}</h3>
-            <p className="text-[11px] text-emerald-600/80 mt-1.5 truncate font-medium">
-              +{stats.approved * 100} Star Points tích lũy
-            </p>
           </div>
           <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 ml-3">
             <span className="material-symbols-outlined text-2xl">verified</span>
@@ -385,7 +382,7 @@ export default function ReportsClient({ checkins }: Props) {
       {/* Image Modal Lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedImage(null)}
         >
           <div

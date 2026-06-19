@@ -6,7 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import { Menu, User, LogOut, Bell, FileText, ShieldCheck, ShieldAlert } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
-import { AccountModal } from "../AccountModal";
+import { PersonalSettingsModal } from "./PersonalSettingsModal";
 import { UserAvatar } from "./user-avatar";
 import { VerificationBanner } from "./verification-banner";
 
@@ -20,10 +20,10 @@ interface RecentPost {
 
 export function SiteHeader() {
   const pathname = usePathname();
-  const { setSidebarOpen, role } = useLayout();
+  const { setSidebarOpen, isOpenPersonalSettings, setOpenPersonalSettings } = useLayout();
   const { data: session, status } = useSession();
+  const role = session?.user?.role;
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<any>(null);
   const [notifOpen, setNotifOpen] = useState(false);
@@ -146,7 +146,7 @@ export function SiteHeader() {
   return (
     <>
       {/* Non-blocking verification banner */}
-      <VerificationBanner onOpenProfile={() => setProfileModalOpen(true)} />
+      <VerificationBanner onOpenProfile={() => setOpenPersonalSettings(true)} />
 
       <header className="bg-white border-b border-slate-100 sticky top-0 z-40 h-16 w-full px-6 flex items-center justify-between transition-all duration-200">
         {/* Left side: Hamburger (mobile) + Breadcrumbs */}
@@ -330,7 +330,7 @@ export function SiteHeader() {
                   <button
                     onClick={() => {
                       setDropdownOpen(false);
-                      setProfileModalOpen(true);
+                      setOpenPersonalSettings(true);
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-on-surface-variant hover:bg-surface-container hover:text-primary rounded-xl transition-all duration-150 text-left font-inter"
                   >
@@ -354,7 +354,7 @@ export function SiteHeader() {
         </div>
       </header>
 
-      <AccountModal isOpen={profileModalOpen} onClose={() => setProfileModalOpen(false)} />
+      <PersonalSettingsModal isOpen={isOpenPersonalSettings} onClose={() => setOpenPersonalSettings(false)} />
     </>
   );
 }

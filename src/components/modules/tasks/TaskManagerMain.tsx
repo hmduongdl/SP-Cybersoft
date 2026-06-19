@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useTaskStore } from "@/store/useTaskStore";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { AIChatSidebar } from "./AIChatSidebar";
@@ -13,17 +13,29 @@ export default function TaskManagerMain() {
   const {
     isAIChatOpen,
     selectedTaskId,
+    fetchWorkspaces,
+    fetchTags,
+    fetchTasks,
+    currentWorkspaceId
   } = useTaskStore();
+
+  useEffect(() => {
+    fetchWorkspaces();
+  }, [fetchWorkspaces]);
+
+  useEffect(() => {
+    if (currentWorkspaceId) {
+      fetchTags(currentWorkspaceId);
+      fetchTasks(currentWorkspaceId);
+    }
+  }, [currentWorkspaceId, fetchTags, fetchTasks]);
 
   return (
     <>
       {/* ── 3-Column Shell ── */}
-      <div className="flex h-full overflow-hidden bg-surface">
+      <div className="flex h-full w-full overflow-hidden bg-surface">
 
-        {/* Column 1: Task Filter Sidebar — 220px fixed */}
-        <Sidebar />
-
-        {/* Column 2: Main content — flex-1 */}
+        {/* Main content — flex-1 */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
           <Header />
           <MainContent />

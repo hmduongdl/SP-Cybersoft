@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { X, Calendar, FileText } from "lucide-react";
+import { X, Calendar, FileText, CheckCircle, Tag, User, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { isPast, parseISO, format } from "date-fns";
@@ -21,7 +21,7 @@ function StatusBadge({ status }: { status: TaskStatus }) {
   const s = STATUS_MAP[status] || STATUS_MAP.TODO;
   return (
     <span 
-      className="text-[9px] font-semibold px-2.5 py-1 rounded-full inline-block"
+      className="text-[10px] font-semibold px-2.5 py-1 rounded-md inline-block cursor-pointer hover:opacity-80 transition-opacity"
       style={{ background: s.bg, color: s.color }}
     >
       {s.label}
@@ -35,7 +35,12 @@ export function TaskDetailPanel() {
     setSelectedTaskId, 
     tasks, 
     updateTask, 
-    updateTaskNote 
+    updateTaskNote,
+    deleteTask,
+    currentWorkspace,
+    users,
+    fetchUsers,
+    workspaces
   } = useTaskStore();
 
   const task = useMemo(() => tasks.find((t) => t.id === selectedTaskId), [tasks, selectedTaskId]);
@@ -44,10 +49,12 @@ export function TaskDetailPanel() {
     initialContent: task?.note?.content ? task.note.content : undefined,
   });
 
-  // Keep editor content in sync when selected task changes
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
   useEffect(() => {
     if (editor && task) {
-      // Re-initialize editor content if it changes
       const currentContent = task.note?.content;
       if (currentContent) {
         editor.replaceBlocks(editor.document, currentContent);
@@ -65,6 +72,19 @@ export function TaskDetailPanel() {
     if (editor && selectedTaskId) {
       const content = editor.document;
       await updateTaskNote(selectedTaskId, content);
+      alert("Lưu thành công!");
+      handleClose();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (confirm("Bạn có chắc chắn muốn xóa công việc này không?")) {
+      try {
+        await deleteTask(selectedTaskId!);
+        handleClose();
+      } catch (err: any) {
+        alert(err.message || "Không thể xóa công việc.");
+      }
     }
   };
 
@@ -82,32 +102,29 @@ export function TaskDetailPanel() {
     }
   };
 
-  const saveTask = () => {
-    // Changes are saved optimistically via updateTask, can be a no-op
+  const updateTaskDescription = (newDesc: string) => {
+    if (task) {
+      updateTask(task.id, { description: newDesc });
+    }
   };
 
-  const loadTask = (id: string) => {
-    setSelectedTaskId(id);
+  const updateTaskWorkspace = (newWsId: string) => {
+    if (task) updateTask(task.id, { workspace_id: newWsId });
   };
 
-  // Clickable citation pill rendering helper
-  const renderCitation = (id: string) => (
-    <button 
-      onClick={() => loadTask(id)}
-      className="inline-flex items-center gap-1 text-[10px] font-semibold bg-primary-container text-primary px-1.5 py-0.5 rounded-md mx-0.5 cursor-pointer hover:bg-primary-container/80 transition-colors duration-150"
-    >
-      <FileText size={10} /> task:{id}
-    </button>
-  );
+  const updateTaskAssignee = (newUserId: string) => {
+    if (task) updateTask(task.id, { creator_id: newUserId });
+  };
+
+  const saveTask = () => {};
 
   if (!selectedTaskId || !task) return null;
 
   const isDone = task.status === 'DONE';
   const hasDueDate = !!task.due_date;
   const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
-  
-  // Support both tag object format and tags array format
   const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
+  const taskWorkspaceName = useTaskStore.getState().workspaces.find(w => w.id === task.workspace_id)?.name || "Dự án chung";
 
   return (
     <AnimatePresence>
@@ -118,89 +135,168 @@ export function TaskDetailPanel() {
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-on-surface/20 backdrop-blur-[2px] z-40"
+            className="fixed inset-0 z-40 bg-slate-950/40"
             onClick={handleClose}
           />
 
-          {/* Panel - slides up from bottom, offset by 220px to leave the left sidebar visible */}
+          {/* Slide-over Panel from right */}
           <motion.div
-            initial={{ y: '100%' }} 
-            animate={{ y: 0 }} 
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="fixed bottom-0 left-[220px] right-0 h-[55vh] z-50 bg-white rounded-t-2xl shadow-float flex flex-col font-inter"
+            initial={{ x: '100%' }} 
+            animate={{ x: 0 }} 
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed top-0 right-0 h-screen w-full sm:w-[600px] md:w-[650px] bg-white border-l border-slate-100 shadow-2xl z-50 flex flex-col font-inter"
           >
-            {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-2 shrink-0">
-              <div className="w-10 h-1 rounded-full bg-outline-variant" />
-            </div>
+            <div className="flex-1 overflow-y-auto pt-6 pb-24 px-6 md:px-10">
+              
+              {/* Header Navigation */}
+              <div className="flex items-center justify-between mb-6 text-sm text-slate-500">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🚀</span> 
+                  <select
+                    value={task.workspace_id}
+                    onChange={e => updateTaskWorkspace(e.target.value)}
+                    className="font-semibold text-slate-700 bg-transparent outline-none cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded-md transition-colors"
+                  >
+                    {workspaces.map(ws => (
+                      <option key={ws.id} value={ws.id}>{ws.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button 
+                  onClick={handleClose}
+                  className="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-            {/* Header row */}
-            <div className="px-6 pb-4 flex items-start gap-4 border-b-0 shrink-0">
-              {/* Status cycle button */}
-              <button 
-                onClick={() => cycleStatus(task)}
-                className="mt-1 flex-shrink-0 cursor-pointer"
-              >
-                <StatusBadge status={task.status} />
-              </button>
-
-              {/* Title (editable) */}
+              {/* Title Input */}
               <input
                 value={task.title}
                 onChange={e => updateTaskTitle(e.target.value)}
                 onBlur={saveTask}
-                className="flex-1 font-inter font-bold text-[22px] text-on-surface bg-transparent outline-none tracking-[-0.02em] placeholder:text-on-muted"
-                placeholder="Tiêu đề công việc"
+                className="w-full text-2xl font-bold text-slate-900 border-none outline-none focus:ring-0 p-0 mb-2 bg-transparent placeholder:text-slate-300"
+                placeholder="Nhập tiêu đề công việc..."
               />
 
-              {/* Meta: tag + due_date + close */}
-              <div className="flex items-center gap-2 flex-shrink-0 mt-1">
-                {displayTag && (
-                  <span 
-                    className="text-[10px] font-semibold px-2.5 py-1 rounded-full animate-in fade-in"
-                    style={{ background: `${displayTag.color}22` || "#6b728022", color: displayTag.color || "#6b7280" }}
-                  >
-                    {displayTag.name}
-                  </span>
-                )}
-                {hasDueDate && (
-                  <span className={cn(
-                    "flex items-center gap-1 text-[11px] bg-surface-low px-2.5 py-1 rounded-full",
-                    isOverdue ? "text-error-text" : "text-on-muted"
-                  )}>
-                    <Calendar size={11} />
-                    {format(parseISO(task.due_date!), 'dd/MM/yyyy')}
-                  </span>
-                )}
+              {/* Description Input */}
+              <textarea
+                value={task.description || ""}
+                onChange={e => updateTaskDescription(e.target.value)}
+                onBlur={saveTask}
+                className="w-full text-sm text-slate-600 border-none outline-none focus:ring-0 p-0 mb-4 bg-transparent placeholder:text-slate-400 resize-none min-h-[40px]"
+                placeholder="Thêm mô tả công việc (tùy chọn)..."
+                rows={2}
+              />
+
+              {/* Properties Grid */}
+              <div className="border-y border-slate-100 py-3 my-4 space-y-1">
+                {/* Status */}
+                <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <CheckCircle size={14} /> Trạng thái
+                  </div>
+                  <div onClick={() => cycleStatus(task)}>
+                    <StatusBadge status={task.status} />
+                  </div>
+                </div>
+
+                {/* Due Date */}
+                <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Calendar size={14} /> Ngày hết hạn
+                  </div>
+                  <div className={cn("text-slate-700 flex items-center gap-2 hover:bg-slate-50 px-2 py-1 rounded-md w-fit cursor-pointer", isOverdue && "text-red-600 font-semibold")}>
+                    {hasDueDate ? format(parseISO(task.due_date!), 'dd/MM/yyyy') : 'Trống'}
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Tag size={14} /> Nhãn Tags
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {displayTag ? (
+                      <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md" style={{ background: `${displayTag.color}22` || "#f1f5f9", color: displayTag.color || "#475569" }}>
+                        {displayTag.name}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 hover:bg-slate-50 px-2 py-1 rounded-md cursor-pointer">Trống</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Assignee */}
+                <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <User size={14} /> Người làm
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {task.creator?.avatar_url ? (
+                      <img src={task.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[9px] font-semibold text-[#0050cb]">
+                        {task.creator?.name ? task.creator.name.substring(0, 2).toUpperCase() : 'US'}
+                      </div>
+                    )}
+                    <select
+                      value={task.creator_id}
+                      onChange={e => updateTaskAssignee(e.target.value)}
+                      className="text-slate-700 bg-transparent outline-none cursor-pointer hover:bg-slate-50 px-1 py-1 rounded-md transition-colors w-fit"
+                    >
+                      {users.length > 0 ? users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      )) : (
+                        <option value={task.creator_id}>{task.creator?.name || 'Người dùng'}</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* BlockNote Editor Area */}
+              <div className="mt-8">
+                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  📝 Ghi chú & Nội dung
+                </h3>
+                <div className="flex-1 min-h-[300px] text-sm text-slate-800 focus:outline-none -mx-10 mt-2">
+                  <BlockNoteView editor={editor} theme="light" />
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Sticky Action Bar */}
+            <div className="border-t border-slate-100 p-4 bg-slate-50/80 backdrop-blur-sm shrink-0 flex items-center justify-between gap-3">
+              <button 
+                onClick={handleDelete}
+                className="px-4 py-2 flex items-center gap-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 bg-transparent rounded-lg transition-colors"
+                title="Xóa công việc này"
+              >
+                <Trash2 size={16} />
+                <span className="hidden sm:inline">Xóa</span>
+              </button>
+              <div className="flex items-center gap-3">
                 <button 
                   onClick={handleClose}
-                  className="w-7 h-7 rounded-xl bg-surface-mid flex items-center justify-center text-on-muted hover:text-on-surface cursor-pointer transition-colors duration-150"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
                 >
-                  <X size={14} />
+                  Hủy
                 </button>
-              </div>
-            </div>
-
-            {/* BlockNote editor — fills remaining height */}
-            <div className="flex-1 overflow-y-auto px-6 pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-manrope text-sm font-bold text-on-surface">Ghi chú & Nội dung</h3>
                 <button 
                   onClick={handleSaveNote}
-                  className="text-xs font-semibold px-3 py-1.5 bg-primary-container text-primary rounded-xl hover:bg-primary-container/80 transition-colors duration-150 cursor-pointer"
+                  className="px-5 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 hover:shadow transition-all"
                 >
-                  Lưu & Đồng bộ AI
+                  Lưu & Đóng
                 </button>
               </div>
-              <div className="-mx-12">
-                <BlockNoteView editor={editor} theme="light" />
-              </div>
             </div>
-
           </motion.div>
         </>
       )}
     </AnimatePresence>
   );
 }
+

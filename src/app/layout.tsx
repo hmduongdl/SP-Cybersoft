@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Manrope, Inter } from "next/font/google";
+import { Manrope, Inter, Geist } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
 import { LayoutProvider } from "@/components/shared/layout-context";
+import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import ClientLayoutWrapper from "./client-layout-wrapper";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 const manrope = Manrope({
   subsets: ["vietnamese", "latin"],
@@ -31,7 +35,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="vi" className="h-full">
+    <html lang="vi" className={cn("h-full", "font-sans", geist.variable)} suppressHydrationWarning>
       <head>
         {/* Nhúng Material Icons & Symbols CDN */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -40,13 +44,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
       </head>
       <body className={`${inter.variable} ${manrope.variable} h-full antialiased overflow-hidden`}>
-        <SessionProviderWrapper>
-          <LayoutProvider>
-            <ClientLayoutWrapper>
-              {children}
-            </ClientLayoutWrapper>
-          </LayoutProvider>
-        </SessionProviderWrapper>
+        <ThemeProvider>
+          <SessionProviderWrapper>
+            <LayoutProvider>
+              <ClientLayoutWrapper>
+                {children}
+              </ClientLayoutWrapper>
+            </LayoutProvider>
+          </SessionProviderWrapper>
+        </ThemeProvider>
       </body>
     </html>
   );

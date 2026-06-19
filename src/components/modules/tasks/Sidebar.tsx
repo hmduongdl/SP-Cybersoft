@@ -46,7 +46,7 @@ export function Sidebar() {
   ];
 
   return (
-    <aside className="w-[220px] shrink-0 bg-surface-low flex flex-col py-0 overflow-y-auto h-full relative z-20">
+    <aside className="w-64 border-r border-slate-100 bg-slate-50/40 flex flex-col justify-between shrink-0 h-full pt-4 relative z-20">
       
       {/* Workspace Selector (Top) */}
       <div className="px-3 py-4 border-b-0 relative">
@@ -108,10 +108,10 @@ export function Sidebar() {
         
         {/* CHUNG Section */}
         <div>
-          <p className="text-[10px] font-semibold tracking-[.08em] uppercase text-on-muted px-3 mb-1 mt-5 first:mt-0">
+          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-[#44495a] px-2 pt-2 pb-1">
             CHUNG
           </p>
-          <div className="space-y-0.5">
+          <div className="space-y-0.5 px-2">
             {filterItems.map((item) => {
               const active = filterStatus === item.id;
               const Icon = item.icon;
@@ -120,10 +120,8 @@ export function Sidebar() {
                   key={item.id}
                   onClick={() => setFilter(item.id as FilterStatus)}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] transition-colors duration-150 cursor-pointer",
-                    active
-                      ? "bg-surface-high text-primary font-semibold"
-                      : "text-on-muted hover:bg-surface-mid"
+                    "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-[#44495a] hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer [&.active]:bg-[#e0e4ff] [&.active]:text-[#0050cb] [&.active]:font-semibold",
+                    active && "active"
                   )}
                 >
                   <Icon size={15} />
@@ -136,26 +134,23 @@ export function Sidebar() {
 
         {/* THẺ TAG Section */}
         <div>
-          <p className="text-[10px] font-semibold tracking-[.08em] uppercase text-on-muted px-3 mb-1 mt-5 first:mt-0">
+          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-[#44495a] px-2 pt-2 pb-1">
             THẺ TAG
           </p>
-          <div className="space-y-0.5">
+          <div className="flex flex-wrap gap-1.5 px-2">
             {tags.map((tag) => (
               <button
                 key={tag.id}
-                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-on-muted hover:bg-surface-mid transition-colors duration-150 cursor-pointer text-left"
+                className="text-[10px] font-semibold px-2.5 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
+                style={{ background: `${tag.color}25` || "#6b728025", color: tag.color || "#6b7280" }}
               >
-                {/* Color dot — use tag.color */}
-                <div 
-                  className="w-2 h-2 rounded-full flex-shrink-0"
-                  style={{ background: tag.color || "#6b7280" }} 
-                />
-                <span className="truncate">{tag.name}</span>
+                {tag.name}
               </button>
             ))}
-
+          </div>
+          <div className="px-2 mt-2">
             {/* Tạo tag button */}
-            <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-primary/80 hover:text-primary hover:bg-surface-mid transition-colors duration-150 cursor-pointer text-left mt-2">
+            <button className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-[#0050cb] hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer text-left">
               <Plus size={14} />
               <span>Tạo thẻ mới</span>
             </button>

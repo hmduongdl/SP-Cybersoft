@@ -187,7 +187,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/40 backdrop-blur-sm px-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 px-4">
       <div className="bg-surface-container-lowest rounded-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-6 py-4 border-none bg-surface-container-low/50">
           <div>
