@@ -42,6 +42,13 @@ export interface Task {
 
 export type FilterStatus = 'all' | 'todo' | 'in_progress' | 'done' | 'today' | 'upcoming';
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar_url: string | null;
+}
+
 interface TaskStoreState {
   // State
   workspaces: Workspace[];
@@ -196,7 +203,12 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         body: JSON.stringify(taskData),
       });
       
-      if (!res.ok) {
+      if (res.ok) {
+        const updatedServerTask = await res.json();
+        set((state) => ({
+          tasks: state.tasks.map((t) => (t.id === taskId ? updatedServerTask : t)),
+        }));
+      } else {
         // Rollback strategy could be implemented here
         console.error('Failed to update task on server');
       }

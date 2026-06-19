@@ -4,6 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
+import SystemAnnouncementModal from "@/components/shared/SystemAnnouncementModal";
 
 import { useLayout } from "@/components/shared/layout-context";
 
@@ -38,6 +39,9 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
             </main>
           )}
         </div>
+
+        {/* System-wide announcement popup — shown once per session */}
+        <SystemAnnouncementModal />
       </div>
     </div>
   );

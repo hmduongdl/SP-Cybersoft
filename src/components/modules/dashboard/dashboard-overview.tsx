@@ -552,10 +552,10 @@ export function DashboardOverview({
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-manrope text-[16px] font-bold text-on-surface">
-                  AI Scan Assistant
+                  AI Pop-up Chat Đang Bảo Trì
                 </h3>
                 <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
-                  AI tự động kiểm tra ảnh check-in, xác minh nội dung và giúp tiết kiệm thời gian xét duyệt.
+                  Tính năng này sẽ trở lại sau một thời gian ngắn.
                 </p>
                 <Link
                   href="/admin/queue"

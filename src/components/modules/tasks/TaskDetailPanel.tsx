@@ -37,7 +37,10 @@ export function TaskDetailPanel() {
     updateTask, 
     updateTaskNote,
     deleteTask,
-    currentWorkspace
+    currentWorkspace,
+    users,
+    fetchUsers,
+    workspaces
   } = useTaskStore();
 
   const task = useMemo(() => tasks.find((t) => t.id === selectedTaskId), [tasks, selectedTaskId]);
@@ -45,6 +48,10 @@ export function TaskDetailPanel() {
   const editor = useCreateBlockNote({
     initialContent: task?.note?.content ? task.note.content : undefined,
   });
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   useEffect(() => {
     if (editor && task) {
@@ -101,6 +108,14 @@ export function TaskDetailPanel() {
     }
   };
 
+  const updateTaskWorkspace = (newWsId: string) => {
+    if (task) updateTask(task.id, { workspace_id: newWsId });
+  };
+
+  const updateTaskAssignee = (newUserId: string) => {
+    if (task) updateTask(task.id, { creator_id: newUserId });
+  };
+
   const saveTask = () => {};
 
   if (!selectedTaskId || !task) return null;
@@ -138,9 +153,15 @@ export function TaskDetailPanel() {
               <div className="flex items-center justify-between mb-6 text-sm text-slate-500">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🚀</span> 
-                  <span className="font-semibold text-slate-700">
-                    {taskWorkspaceName}
-                  </span>
+                  <select
+                    value={task.workspace_id}
+                    onChange={e => updateTaskWorkspace(e.target.value)}
+                    className="font-semibold text-slate-700 bg-transparent outline-none cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded-md transition-colors"
+                  >
+                    {workspaces.map(ws => (
+                      <option key={ws.id} value={ws.id}>{ws.name}</option>
+                    ))}
+                  </select>
                 </div>
                 <button 
                   onClick={handleClose}
@@ -212,7 +233,7 @@ export function TaskDetailPanel() {
                   <div className="flex items-center gap-2 text-slate-500">
                     <User size={14} /> Người làm
                   </div>
-                  <div className="flex items-center gap-2 text-slate-700 hover:bg-slate-50 px-2 py-1 rounded-md w-fit cursor-pointer">
+                  <div className="flex items-center gap-2">
                     {task.creator?.avatar_url ? (
                       <img src={task.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
                     ) : (
@@ -220,7 +241,17 @@ export function TaskDetailPanel() {
                         {task.creator?.name ? task.creator.name.substring(0, 2).toUpperCase() : 'US'}
                       </div>
                     )}
-                    <span>{task.creator?.name || 'Người dùng'}</span>
+                    <select
+                      value={task.creator_id}
+                      onChange={e => updateTaskAssignee(e.target.value)}
+                      className="text-slate-700 bg-transparent outline-none cursor-pointer hover:bg-slate-50 px-1 py-1 rounded-md transition-colors w-fit"
+                    >
+                      {users.length > 0 ? users.map(u => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      )) : (
+                        <option value={task.creator_id}>{task.creator?.name || 'Người dùng'}</option>
+                      )}
+                    </select>
                   </div>
                 </div>
               </div>
