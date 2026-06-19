@@ -19,21 +19,15 @@ export default function MaintenancePage() {
         </h1>
 
         <p className="text-slate-600 text-lg leading-relaxed mb-8">
-          Để nâng cấp hiệu năng và mang lại trải nghiệm tốt nhất cho bạn, chúng tôi đang tiến hành cập nhật định kỳ hệ thống SPS AI. Quá trình này có thể kéo dài đến vài giờ.
+          Để nâng cấp hiệu năng và mang lại trải nghiệm tốt nhất cho bạn, chúng tôi đang tiến hành cập nhật định kỳ hệ thống. Quá trình này có thể kéo dài đến vài giờ.
+          Rất xin lỗi vì sự bất tiện này!
         </p>
 
         <div className="bg-slate-50 p-4 rounded-xl mb-8 w-full border border-slate-100">
           <p className="text-sm text-slate-500 font-medium">
-            Rất xin lỗi vì sự bất tiện này! :)
+            Chúng tôi đang nỗ lực hoàn thành công việc nhanh nhất có thể để hệ thống hoạt động trở lại bình thường. Chúng tôi hiểu rằng chờ dợi là hạnh phúc của bạn, và chúng tôi đánh giá cao sự kiên nhẫn của bạn trong thời gian này. Hãy yên tâm rằng chúng tôi đang làm việc chăm chỉ để đảm bảo mọi thứ sẽ sẵn sàng cho bạn sớm nhất có thể!
           </p>
         </div>
-
-        <button
-          onClick={() => window.location.reload()}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-8 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-        >
-          Back to Home
-        </button>
       </div>
     </div>
   );
