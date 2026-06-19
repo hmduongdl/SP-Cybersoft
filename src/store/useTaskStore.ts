@@ -25,6 +25,8 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   due_date?: string | null;
+  priority?: 'high' | 'mid' | 'low';
+  assignee?: { name: string; avatar_url?: string };
   workspace_id: string;
   creator_id: string;
   is_archived: boolean;
@@ -44,6 +46,7 @@ interface TaskStoreState {
   currentView: 'list' | 'kanban' | 'calendar';
   isAIChatOpen: boolean;
   selectedTaskId: string | null;
+  isAddTaskModalOpen: boolean;
 
   // UI Actions
   setCurrentWorkspaceId: (id: string | null) => void;
@@ -51,6 +54,7 @@ interface TaskStoreState {
   toggleAIChat: () => void;
   setAIChatOpen: (isOpen: boolean) => void;
   setSelectedTaskId: (id: string | null) => void;
+  setAddTaskModalOpen: (isOpen: boolean) => void;
 
   // Data Fetching Actions (Mocked API calls for now)
   fetchWorkspaces: () => Promise<void>;
@@ -102,12 +106,14 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   currentView: 'kanban',
   isAIChatOpen: false,
   selectedTaskId: null,
+  isAddTaskModalOpen: false,
 
   setCurrentWorkspaceId: (id) => set({ currentWorkspaceId: id }),
   setCurrentView: (view) => set({ currentView: view }),
   toggleAIChat: () => set((state) => ({ isAIChatOpen: !state.isAIChatOpen })),
   setAIChatOpen: (isOpen) => set({ isAIChatOpen: isOpen }),
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),
+  setAddTaskModalOpen: (isOpen) => set({ isAddTaskModalOpen: isOpen }),
 
   fetchWorkspaces: async () => {
     try {

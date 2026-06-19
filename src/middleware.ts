@@ -11,8 +11,8 @@ export const middleware = auth((request) => {
 
   if (isMaintenance) {
     // Các đường dẫn ngoại lệ bắt buộc phải bỏ qua để hiển thị trang bảo trì
-    const isAsset = 
-      pathname.startsWith("/_next") || 
+    const isAsset =
+      pathname.startsWith("/_next") ||
       pathname.startsWith("/api/auth") || // Giữ auth nếu cần kiểm tra admin
       pathname.includes(".") || // các file tĩnh như .png, .css
       pathname === "/maintenance";
@@ -22,9 +22,20 @@ export const middleware = auth((request) => {
       url.pathname = "/maintenance";
       return NextResponse.rewrite(url); // Dùng rewrite để giữ nguyên URL thanh địa chỉ nhưng hiện trang bảo trì
     }
+
+    // During maintenance mode, skip the auth check below
+    return NextResponse.next();
   }
 
-  // Logic NextAuth được tự động chạy khi dùng auth wrapper
+  // Extra layer: redirect to /login if still not authenticated.
+  // Middleware from NextAuth's authorized callback should have caught this,
+  // but sometimes it doesn't due to race conditions or beta version quirks.
+  const isLoggedIn = !!request.auth?.user;
+  if (!isLoggedIn && pathname !== "/login" && pathname !== "/login/" && pathname !== "/maintenance") {
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
+  }
+
   return NextResponse.next();
 });
 
