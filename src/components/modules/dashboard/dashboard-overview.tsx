@@ -112,14 +112,14 @@ const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_R;
 function generateMonthOptions() {
   const options: { value: string; label: string }[] = [];
   const now = new Date();
-  
+
   for (let i = 0; i < 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const label = d.toLocaleString("vi-VN", { month: "long", year: "numeric" });
     options.push({ value, label });
   }
-  
+
   return options;
 }
 
@@ -145,6 +145,7 @@ export function DashboardOverview({
     completed: initialCompletedCount,
     total: initialTotalPostsCount,
   });
+  const [monthlyDashboardPosts, setMonthlyDashboardPosts] = useState(dashboardPosts);
   const [showMonthDropdown, setShowMonthDropdown] = useState(false);
 
   // Fetch stats when month changes
@@ -158,6 +159,7 @@ export function DashboardOverview({
           completed: result.completedThisMonth,
           total: result.totalPostsThisMonth,
         });
+        setMonthlyDashboardPosts(result.dashboardPosts);
       } catch (error) {
         console.error("Failed to load stats:", error);
       } finally {
@@ -358,7 +360,7 @@ export function DashboardOverview({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-manrope text-headline-md font-bold text-on-surface">
-                Nhiệm vụ trọng tâm hôm nay
+                {selectedMonth === currentMonthKey ? "Nhiệm vụ trọng tâm hôm nay" : `Bài viết trong ${selectedMonthLabel.toLowerCase()}`}
               </h2>
               <Link
                 href="/like-share"
@@ -368,9 +370,9 @@ export function DashboardOverview({
               </Link>
             </div>
 
-            {dashboardPosts.length > 0 ? (
+            {monthlyDashboardPosts.length > 0 ? (
               <div className="space-y-3">
-                {dashboardPosts.map((post) => (
+                {monthlyDashboardPosts.map((post) => (
                   <Link
                     key={post.id}
                     href={`/like-share?postId=${post.id}`}

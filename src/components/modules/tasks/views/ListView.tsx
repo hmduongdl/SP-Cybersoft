@@ -32,17 +32,43 @@ const getPriorityLabel = (priority: string | undefined) => {
 };
 
 export function ListView() {
-  const { tasks, updateTask, setSelectedTaskId } = useTaskStore();
+  const { 
+    tasks: allTasks, 
+    currentWorkspaceId,
+    filterStatus,
+    updateTask, 
+    setSelectedTaskId 
+  } = useTaskStore();
+
+  // Filter tasks based on current workspace and selected filter
+  const tasks = allTasks.filter(t => {
+    if (t.workspace_id !== currentWorkspaceId) return false;
+    
+    if (filterStatus === 'today') {
+      if (!t.due_date) return false;
+      const todayStr = new Date().toISOString().split('T')[0];
+      return t.due_date.startsWith(todayStr);
+    }
+    
+    if (filterStatus === 'upcoming') {
+      if (!t.due_date) return true;
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      return new Date(t.due_date) >= todayStart;
+    }
+    
+    return true;
+  });
 
   const toggleStatus = (id: string, currentStatus: TaskStatus) => {
     updateTask(id, { status: currentStatus === "DONE" ? "TODO" : "DONE" });
   };
 
   return (
-    <div className="overflow-hidden font-inter" style={{ boxShadow: '0 8px 24px rgba(19,27,46,.05)' }}>
+    <div className="overflow-hidden font-inter shadow-card">
       <table className="w-full text-left border-none bg-white rounded-2xl">
-        <thead className="bg-[#f2f3ff]">
-          <tr className="text-[#44495a] font-bold text-[9px] uppercase tracking-[0.1em]">
+        <thead className="bg-surface-low">
+          <tr className="text-on-muted font-bold text-[9px] uppercase tracking-[0.1em]">
             <th className="py-4 px-6 w-12 text-center"></th>
             <th className="py-4 px-4 w-[35%]">Tên công việc</th>
             <th className="py-4 px-4 w-[25%]">Thẻ tag</th>
@@ -61,7 +87,7 @@ export function ListView() {
                 key={task.id} 
                 onClick={() => setSelectedTaskId(task.id)} 
                 className={clsx(
-                  "hover:bg-[#f2f3ff] transition-colors group cursor-pointer",
+                  "hover:bg-surface-low transition-colors group cursor-pointer",
                   isDone ? "opacity-60" : ""
                 )}
               >
@@ -74,8 +100,8 @@ export function ListView() {
                     className={clsx(
                       "w-5 h-5 rounded-full border-[1.5px] flex items-center justify-center transition-colors",
                       isDone 
-                        ? "bg-[#0d5c34] border-[#0d5c34] text-white" 
-                        : "border-[#c4c8da] bg-transparent hover:border-[#0050cb]"
+                        ? "bg-success-text border-success-text text-white" 
+                        : "border-[#c4c8da] bg-transparent hover:border-primary"
                     )}
                   >
                     {isDone && <Check className="w-3.5 h-3.5 stroke-[3]" />}
@@ -84,7 +110,7 @@ export function ListView() {
                 <td className="py-4 px-4 align-middle">
                   <p className={clsx(
                     "font-medium text-[13px]",
-                    isDone ? "text-[#44495a] line-through" : "text-[#131b2e]"
+                    isDone ? "text-on-muted line-through" : "text-on-surface"
                   )}>
                     {task.title}
                   </p>
@@ -107,7 +133,7 @@ export function ListView() {
                 <td className="py-4 px-4 align-middle">
                   <div className={clsx(
                     "flex items-center gap-1.5 text-xs font-medium",
-                    isOverdue ? "text-[#ba1a1a]" : "text-[#44495a]"
+                    isOverdue ? "text-error-text" : "text-on-muted"
                   )}>
                     <CalendarDays className="w-3.5 h-3.5" />
                     <span>{task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : '—'}</span>
@@ -116,11 +142,11 @@ export function ListView() {
                 <td className="py-4 px-4 align-middle">
                   <div className="flex items-center gap-1.5">
                     <div className={clsx("w-2 h-2 rounded-full", getPriorityDot(task.priority))} />
-                    <span className="text-xs text-[#44495a] font-medium">{getPriorityLabel(task.priority)}</span>
+                    <span className="text-xs text-on-muted font-medium">{getPriorityLabel(task.priority)}</span>
                   </div>
                 </td>
                 <td className="py-4 px-6 text-center align-middle">
-                  <button className="text-[#c4c8da] hover:text-[#0050cb] opacity-0 group-hover:opacity-100 transition-all">
+                  <button className="text-[#c4c8da] hover:text-primary opacity-0 group-hover:opacity-100 transition-all">
                     <Edit2 className="w-4 h-4" />
                   </button>
                 </td>

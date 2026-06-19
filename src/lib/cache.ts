@@ -37,14 +37,25 @@ export async function getCachedRecentCheckins() {
   });
 }
 
-export async function getCachedDashboardPosts(userId: string) {
+export async function getCachedDashboardPosts(userId: string, monthKey?: string) {
+  let dateFilter: { gte?: Date; lt?: Date } = {};
+
+  // If monthKey provided, filter by that month; otherwise filter by 30-hour window (today's tasks)
+  if (monthKey) {
+    const [y, m] = monthKey.split("-").map(Number);
+    const startOfMonth = new Date(y, m - 1, 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(y, m, 1, 0, 0, 0, 0);
+    dateFilter = { gte: startOfMonth, lt: endOfMonth };
+  }
+
   const posts = await db.post.findMany({
     where: {
       is_archived: false,
       checkins: { none: { user_id: userId } },
+      ...(monthKey && { start_at: dateFilter }),
     },
     orderBy: { start_at: "desc" },
-    take: 4,
+    take: monthKey ? 50 : 4, // Get more posts if filtering by month
     select: {
       id: true,
       title: true,
@@ -54,18 +65,28 @@ export async function getCachedDashboardPosts(userId: string) {
     },
   });
 
-  const now = Date.now();
-  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
+  // Only apply 30-hour filter if not filtering by month
+  if (!monthKey) {
+    const now = Date.now();
+    const THIRTY_HOURS = 30 * 60 * 60 * 1000;
+    return posts
+      .filter(post => now - (post.start_at as unknown as Date).getTime() <= THIRTY_HOURS)
+      .map(post => ({
+        id: post.id,
+        title: post.title,
+        thumbnail_url: post.thumbnail_url,
+        start_at: (post.start_at as unknown as Date).toISOString(),
+        url: post.url,
+      }));
+  }
 
-  return posts
-    .filter(post => now - (post.start_at as unknown as Date).getTime() <= THIRTY_HOURS)
-    .map(post => ({
-      id: post.id,
-      title: post.title,
-      thumbnail_url: post.thumbnail_url,
-      start_at: (post.start_at as unknown as Date).toISOString(),
-      url: post.url,
-    }));
+  return posts.map(post => ({
+    id: post.id,
+    title: post.title,
+    thumbnail_url: post.thumbnail_url,
+    start_at: (post.start_at as unknown as Date).toISOString(),
+    url: post.url,
+  }));
 }
 
 export async function getCachedMonthlyStats(userId: string, monthKey?: string) {

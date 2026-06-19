@@ -8,8 +8,13 @@ module.exports = {
       colors: {
         // Requested colors
         primary: '#0050cb',
+        'primary-end': '#0066ff',
         'primary-gradient-end': '#0066ff',
         surface: '#faf8ff',
+        'surface-low': '#f2f3ff',
+        'surface-mid': '#eaedff',
+        'surface-high': '#e0e4ff',
+        'surface-highest': '#dae2fd',
         'surface-bright': '#ffffff',
         'surface-container-lowest': '#ffffff',
         'surface-container-low': '#f2f3ff',
@@ -17,19 +22,26 @@ module.exports = {
         'surface-container-high': '#e0e4ff',
         'surface-container-highest': '#dae2fd',
         'on-surface': '#131b2e',
+        'on-muted': '#44495a',
         'on-surface-variant': '#44495a',
         'outline-variant': '#c4c8da',
         'primary-container': '#d8e2ff',
         'on-primary': '#ffffff',
         'secondary-container': '#dde1f9',
         'on-secondary-container': '#191c2c',
+        'success-bg': '#d5f8e8',
+        'success-text': '#0d5c34',
+        'warn-bg': '#fff3cd',
+        'warn-text': '#b45309',
+        'error-bg': '#ffdad6',
+        'error-text': '#a10000',
         'tertiary-fixed': '#d5f8e8',
         'on-tertiary-fixed-variant': '#0d5c34',
         'error-container': '#ffdad6',
         'on-error-container': '#410002',
         
         // Other support colors
-        outline: '#737685',
+        outline: '#c4c8da',
         error: '#ba1a1a',
         background: '#faf8ff',
         'on-background': '#191b23',
@@ -55,6 +67,7 @@ module.exports = {
       fontFamily: {
         manrope: ['var(--font-manrope)', 'sans-serif'],
         inter: ['var(--font-inter)', 'sans-serif'],
+        mono: ['Space Mono', 'monospace'],
       },
       borderRadius: {
         // Enforcing softer, rounder corners globally for a friendlier interface
@@ -75,8 +88,8 @@ module.exports = {
       },
       boxShadow: {
         ambient: '0 20px 40px rgba(19, 27, 46, 0.06)',
-        soft: '0 12px 30px rgba(15, 23, 42, 0.08)',
-        card: '0 2px 8px rgba(19, 27, 46, 0.04)',
+        float: '0 32px 64px rgba(19, 27, 46, 0.12)',
+        card: '0 8px 24px rgba(19, 27, 46, 0.05)',
       },
     },
   },

@@ -37,24 +37,30 @@ export interface Task {
   };
 }
 
+export type FilterStatus = 'all' | 'todo' | 'in_progress' | 'done' | 'today' | 'upcoming';
+
 interface TaskStoreState {
   // State
   workspaces: Workspace[];
   currentWorkspaceId: string | null;
+  currentWorkspace: Workspace | null;
   tasks: Task[];
   tags: Tag[];
   currentView: 'list' | 'kanban' | 'calendar';
   isAIChatOpen: boolean;
   selectedTaskId: string | null;
   isAddTaskModalOpen: boolean;
+  filterStatus: FilterStatus;
 
   // UI Actions
   setCurrentWorkspaceId: (id: string | null) => void;
+  setCurrentWorkspace: (workspace: Workspace | null) => void;
   setCurrentView: (view: 'list' | 'kanban' | 'calendar') => void;
   toggleAIChat: () => void;
   setAIChatOpen: (isOpen: boolean) => void;
   setSelectedTaskId: (id: string | null) => void;
   setAddTaskModalOpen: (isOpen: boolean) => void;
+  setFilter: (filter: FilterStatus) => void;
 
   // Data Fetching Actions (Mocked API calls for now)
   fetchWorkspaces: () => Promise<void>;
@@ -69,8 +75,13 @@ interface TaskStoreState {
 }
 
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
-  workspaces: [],
-  currentWorkspaceId: null,
+  workspaces: [
+    { id: "ws-1", name: "Dự án SPS", icon: "🚀", color: "#0050cb", owner_id: "user-1" },
+    { id: "ws-2", name: "Marketing Space", icon: "📢", color: "#ef4444", owner_id: "user-1" },
+    { id: "ws-3", name: "Thiết kế UI/UX", icon: "🎨", color: "#10b981", owner_id: "user-1" }
+  ],
+  currentWorkspaceId: "ws-1",
+  currentWorkspace: { id: "ws-1", name: "Dự án SPS", icon: "🚀", color: "#0050cb", owner_id: "user-1" },
   tasks: [
     {
       id: "task-1",
@@ -102,18 +113,32 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       tags: [{ id: "tag-3", name: "Backend", color: "#ef4444", workspace_id: "ws-1" }, { id: "tag-4", name: "AI", color: "#10b981", workspace_id: "ws-1" }]
     }
   ],
-  tags: [],
+  tags: [
+    { id: "tag-1", name: "Frontend", color: "#3b82f6", workspace_id: "ws-1" },
+    { id: "tag-2", name: "Backend", color: "#8b5cf6", workspace_id: "ws-1" },
+    { id: "tag-3", name: "UI/UX", color: "#10b981", workspace_id: "ws-1" },
+    { id: "tag-4", name: "AI/RAG", color: "#f59e0b", workspace_id: "ws-1" }
+  ],
   currentView: 'kanban',
   isAIChatOpen: false,
   selectedTaskId: null,
   isAddTaskModalOpen: false,
+  filterStatus: 'all',
 
-  setCurrentWorkspaceId: (id) => set({ currentWorkspaceId: id }),
+  setCurrentWorkspaceId: (id) => set((state) => ({ 
+    currentWorkspaceId: id,
+    currentWorkspace: state.workspaces.find(w => w.id === id) || null
+  })),
+  setCurrentWorkspace: (workspace) => set({ 
+    currentWorkspace: workspace,
+    currentWorkspaceId: workspace ? workspace.id : null 
+  }),
   setCurrentView: (view) => set({ currentView: view }),
   toggleAIChat: () => set((state) => ({ isAIChatOpen: !state.isAIChatOpen })),
   setAIChatOpen: (isOpen) => set({ isAIChatOpen: isOpen }),
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),
   setAddTaskModalOpen: (isOpen) => set({ isAddTaskModalOpen: isOpen }),
+  setFilter: (filter) => set({ filterStatus: filter }),
 
   fetchWorkspaces: async () => {
     try {

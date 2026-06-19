@@ -36,7 +36,34 @@ const getInitials = (name: string) => {
 };
 
 export function KanbanView() {
-  const { tasks, updateTask, setSelectedTaskId, setAddTaskModalOpen } = useTaskStore();
+  const { 
+    tasks: allTasks, 
+    currentWorkspaceId,
+    filterStatus,
+    updateTask, 
+    setSelectedTaskId, 
+    setAddTaskModalOpen 
+  } = useTaskStore();
+
+  // Filter tasks based on current workspace and selected filter
+  const tasks = allTasks.filter(t => {
+    if (t.workspace_id !== currentWorkspaceId) return false;
+    
+    if (filterStatus === 'today') {
+      if (!t.due_date) return false;
+      const todayStr = new Date().toISOString().split('T')[0];
+      return t.due_date.startsWith(todayStr);
+    }
+    
+    if (filterStatus === 'upcoming') {
+      if (!t.due_date) return true;
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      return new Date(t.due_date) >= todayStart;
+    }
+    
+    return true;
+  });
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -52,16 +79,16 @@ export function KanbanView() {
         {COLUMNS.map((col) => {
           const columnTasks = tasks.filter((t) => t.status === col.id);
           return (
-            <div key={col.id} className="flex flex-col w-[300px] shrink-0 bg-[#f2f3ff] rounded-2xl p-3.5">
+            <div key={col.id} className="flex flex-col w-[300px] shrink-0 bg-surface-low rounded-2xl p-3.5">
               <div className="flex items-center justify-between mb-3 px-1">
                 <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${col.dotColor}`} />
-                  <span className="text-[13px] font-semibold text-[#131b2e]">{col.title}</span>
-                  <span className="text-[10px] font-medium text-[#44495a] bg-white px-2 py-0.5 rounded-full shadow-sm">
+                  <span className="text-[13px] font-semibold text-on-surface">{col.title}</span>
+                  <span className="text-[10px] font-medium text-on-muted bg-white px-2 py-0.5 rounded-full shadow-sm">
                     {columnTasks.length}
                   </span>
                 </div>
-                <button className="text-[#44495a] hover:text-[#131b2e] transition-colors">
+                <button className="text-on-muted hover:text-on-surface transition-colors">
                   <MoreHorizontal size={16} />
                 </button>
               </div>
@@ -73,7 +100,7 @@ export function KanbanView() {
                     {...provided.droppableProps}
                     className={clsx(
                       "flex-1 flex flex-col gap-2 min-h-[150px] rounded-xl transition-colors",
-                      snapshot.isDraggingOver ? "bg-[#e0e4ff]/50" : ""
+                      snapshot.isDraggingOver ? "bg-surface-high/50" : ""
                     )}
                   >
                     {columnTasks.map((task, index) => {
@@ -119,7 +146,7 @@ export function KanbanView() {
                               </div>
                               <p className={clsx(
                                 "text-sm leading-[1.45] font-medium",
-                                isDone ? "text-[#44495a] line-through" : "text-[#131b2e]"
+                                isDone ? "text-on-muted line-through" : "text-on-surface"
                               )}>
                                 {task.title}
                               </p>
@@ -127,7 +154,7 @@ export function KanbanView() {
                               <div className="flex items-center justify-between mt-3">
                                 <span className={clsx(
                                   "flex items-center gap-1 text-[10px]",
-                                  isOverdue ? "text-[#ba1a1a]" : "text-[#44495a]"
+                                  isOverdue ? "text-error-text" : "text-on-muted"
                                 )}>
                                   <Calendar size={10} />
                                   {task.due_date ? new Date(task.due_date).toLocaleDateString('vi-VN') : 'Chưa đặt'}
@@ -135,7 +162,7 @@ export function KanbanView() {
                                 <div className="flex items-center gap-1.5">
                                   <div className={clsx("w-[6px] h-[6px] rounded-full", getPriorityDot(task.priority))} />
                                   {task.assignee && (
-                                    <div className="w-5 h-5 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[8px] font-bold text-[#0050cb]">
+                                    <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[8px] font-bold text-primary">
                                       {getInitials(task.assignee.name)}
                                     </div>
                                   )}
@@ -154,7 +181,7 @@ export function KanbanView() {
                         // Optional: we can set default status if needed, but for now just open modal
                         setAddTaskModalOpen(true);
                       }}
-                      className="w-full mt-2 border-[1.5px] border-dashed border-[#c4c8da] rounded-xl py-2.5 text-[11px] text-[#44495a] hover:bg-white transition-colors"
+                      className="w-full mt-2 border-[1.5px] border-dashed border-outline-variant rounded-xl py-2.5 text-[11px] text-on-muted hover:bg-white transition-colors"
                     >
                       + Thêm công việc
                     </button>
