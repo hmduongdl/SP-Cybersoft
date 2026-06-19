@@ -206,7 +206,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-on-background/60 backdrop-blur-sm transition-opacity duration-300 animate-in fade-in">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-md bg-slate-950/70 transition-opacity duration-300 animate-in fade-in">
       {/* Modal Container */}
       <div className="bg-surface-container-lowest w-full max-w-4xl rounded-2xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] overflow-hidden flex flex-col md:flex-row relative border-none animate-in zoom-in-95 duration-200">
         

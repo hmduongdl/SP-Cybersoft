@@ -750,12 +750,12 @@ export default function QueueClient({
       {/* Image Zoom Modal */}
       {zoomImageUrl && (
         <div onClick={() => setZoomImageUrl(null)}
-          className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300">
+          className="fixed inset-0 z-[100] bg-slate-950/70 flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300">
           <div className="relative max-w-3xl max-h-[85vh] w-[90vw] h-[85vh] overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
             style={{ boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
             <Image src={zoomImageUrl} alt="Zoomed preview" fill className="object-contain" sizes="90vw" />
             <button onClick={() => setZoomImageUrl(null)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-all duration-150 backdrop-blur-sm">
+              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-950/70 text-white flex items-center justify-center hover:bg-black/60 transition-all duration-150">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -765,7 +765,7 @@ export default function QueueClient({
       {/* Batch Rejection Modal - Glass modal shell */}
       {isBatchRejecting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div onClick={() => setIsBatchRejecting(false)} className="absolute inset-0 bg-[#131b2e]/40 backdrop-blur-[4px]" />
+          <div onClick={() => setIsBatchRejecting(false)} className="absolute inset-0 bg-slate-950/70" />
           <div className="relative w-full max-w-md rounded-[16px] overflow-hidden animate-in zoom-in-95 duration-200 border-none"
             style={{ background: "rgba(255, 255, 255, 0.92)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: "0 40px 80px rgba(19, 27, 46, 0.12)" }}>
             <div className="p-6 space-y-4">

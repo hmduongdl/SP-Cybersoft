@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Plus, Trash2, Save, Key, Cpu, Building2, Server } from "lucide-react";
+import { Plus, Trash2, Save, Key, Cpu, Building2, Server, FolderKanban } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 interface Department {
@@ -13,6 +13,9 @@ export default function AdminSettingsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [newDeptName, setNewDeptName] = useState("");
   
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
+  const [newWsName, setNewWsName] = useState("");
+
   const [settings, setSettings] = useState({
     ai_model: "gpt-4o",
     ai_api_key: "",
@@ -45,8 +48,18 @@ export default function AdminSettingsPage() {
     }
   };
 
+  const fetchAdminWorkspaces = async () => {
+    try {
+      const res = await fetch("/api/admin/workspaces");
+      const data = await res.json();
+      if (res.ok) setWorkspaces(data.workspaces || []);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([fetchDepartments(), fetchSettings()]).finally(() => setIsLoading(false));
+    Promise.all([fetchDepartments(), fetchSettings(), fetchAdminWorkspaces()]).finally(() => setIsLoading(false));
   }, []);
 
   const handleAddDept = async (e: React.FormEvent) => {
@@ -80,6 +93,51 @@ export default function AdminSettingsPage() {
         fetchDepartments();
       } else {
         toast.error("Không thể xoá phòng ban.");
+      }
+    } catch (error) {
+      toast.error("Đã xảy ra lỗi.");
+    }
+  };
+
+  const handleAddWorkspace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newWsName.trim()) return;
+    
+    try {
+      // Get current user id via profile endpoint
+      const profRes = await fetch("/api/user/profile");
+      const profData = await profRes.json();
+      if (!profData.user?.id) {
+        toast.error("Không tìm thấy thông tin Admin.");
+        return;
+      }
+
+      const res = await fetch("/api/admin/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newWsName, owner_id: profData.user.id }),
+      });
+      if (res.ok) {
+        toast.success("Thêm Workspace thành công!");
+        setNewWsName("");
+        fetchAdminWorkspaces();
+      } else {
+        toast.error("Lỗi khi thêm Workspace.");
+      }
+    } catch (error) {
+      toast.error("Đã xảy ra lỗi.");
+    }
+  };
+
+  const handleDeleteWorkspace = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xoá Workspace này (Bao gồm toàn bộ Task bên trong)?")) return;
+    try {
+      const res = await fetch(`/api/admin/workspaces?id=${id}`, { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Đã xoá Workspace.");
+        fetchAdminWorkspaces();
+      } else {
+        toast.error("Không thể xoá Workspace.");
       }
     } catch (error) {
       toast.error("Đã xảy ra lỗi.");
@@ -144,7 +202,7 @@ export default function AdminSettingsPage() {
               </button>
             </form>
 
-            <ul className="space-y-2">
+            <ul className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
               {departments.map((dept) => (
                 <li key={dept.id} className="flex items-center justify-between p-3 rounded-lg border-none bg-surface-container-low">
                   <span className="text-sm font-medium text-on-surface-variant">{dept.name}</span>
@@ -163,47 +221,102 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        {/* AI & System Settings */}
+        {/* Workspace Management */}
         <div className="bg-surface-container-lowest rounded-2xl shadow-ambient border-none overflow-hidden">
+          <div className="p-6 border-none flex items-center gap-2">
+            <FolderKanban className="text-indigo-600 w-5 h-5" />
+            <h2 className="text-lg font-bold text-on-surface font-manrope">Quản lý Workspace</h2>
+          </div>
+          
+          <div className="p-6">
+            <form onSubmit={handleAddWorkspace} className="flex gap-2 mb-6">
+              <input 
+                type="text" 
+                value={newWsName}
+                onChange={(e) => setNewWsName(e.target.value)}
+                placeholder="Tên Workspace mới..."
+                className="flex-1 px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button 
+                type="submit"
+                className="px-4 py-2 bg-indigo-600 text-white font-medium text-sm rounded-xl hover:bg-indigo-700 transition-all duration-150 flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> Thêm
+              </button>
+            </form>
+
+            <ul className="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+              {workspaces.map((ws) => (
+                <li key={ws.id} className="flex items-center justify-between p-3 rounded-lg border-none bg-surface-container-low group">
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-semibold text-on-surface truncate flex items-center gap-2">
+                      {ws.icon} {ws.name}
+                      {ws.is_default && <span className="text-[10px] bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Mặc định</span>}
+                    </span>
+                    {ws.owner && <span className="text-[10px] text-on-muted truncate">Owner: {ws.owner.name} ({ws.type})</span>}
+                  </div>
+                  {ws.is_default ? (
+                    <span className="text-[10px] text-slate-400 italic shrink-0">Không gian mặc định</span>
+                  ) : (
+                    <button 
+                      onClick={() => handleDeleteWorkspace(ws.id)}
+                      className="p-1.5 text-outline hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all duration-150 shrink-0"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </li>
+              ))}
+              {workspaces.length === 0 && (
+                <li className="text-sm text-on-surface-variant italic text-center py-4">Chưa có Workspace nào.</li>
+              )}
+            </ul>
+          </div>
+        </div>
+
+        {/* AI & System Settings */}
+        <div className="bg-surface-container-lowest rounded-2xl shadow-ambient border-none overflow-hidden lg:col-span-2">
           <div className="p-6 border-none flex items-center gap-2">
             <Server className="text-indigo-600 w-5 h-5" />
             <h2 className="text-lg font-bold text-on-surface font-manrope">Cấu hình AI & API</h2>
           </div>
           
           <div className="p-6 space-y-6">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
-                <Cpu className="w-4 h-4 text-outline" /> Model AI
-              </label>
-              <select 
-                value={settings.ai_model}
-                onChange={(e) => setSettings({ ...settings, ai_model: e.target.value })}
-                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="gpt-4o">GPT-4o (OpenAI)</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="claude-3-opus">Claude 3 Opus (Anthropic)</option>
-                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
-              </select>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
+                  <Cpu className="w-4 h-4 text-outline" /> Model AI
+                </label>
+                <select 
+                  value={settings.ai_model}
+                  onChange={(e) => setSettings({ ...settings, ai_model: e.target.value })}
+                  className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="gpt-4o">GPT-4o (OpenAI)</option>
+                  <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                  <option value="claude-3-opus">Claude 3 Opus (Anthropic)</option>
+                  <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro (Google)</option>
+                </select>
+              </div>
 
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
-                <Key className="w-4 h-4 text-outline" /> API Key
-              </label>
-              <input 
-                type="password"
-                value={settings.ai_api_key}
-                onChange={(e) => setSettings({ ...settings, ai_api_key: e.target.value })}
-                placeholder="Nhập API Key..."
-                className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-              />
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-on-surface-variant flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-outline" /> API Key
+                </label>
+                <input 
+                  type="password"
+                  value={settings.ai_api_key}
+                  onChange={(e) => setSettings({ ...settings, ai_api_key: e.target.value })}
+                  placeholder="Nhập API Key..."
+                  className="w-full px-3 py-2 bg-surface-container-low border-none rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+              </div>
             </div>
             
             <button 
               onClick={handleSaveSettings}
-              className="w-full py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-xl hover:bg-indigo-700 transition-all duration-150 flex items-center justify-center gap-2"
+              className="w-full md:w-auto md:px-8 py-2.5 bg-indigo-600 text-white font-semibold text-sm rounded-xl hover:bg-indigo-700 transition-all duration-150 flex items-center justify-center gap-2 ml-auto"
             >
               <Save className="w-4 h-4" /> Lưu cấu hình AI
             </button>

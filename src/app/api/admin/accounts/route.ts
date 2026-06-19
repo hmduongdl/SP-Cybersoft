@@ -112,6 +112,13 @@ export async function POST(request: Request) {
         avatar_url:  avatar_url || null,
         is_verified: false,   // Tài khoản mới tạo chưa xác minh hồ sơ
         is_active:   is_active !== undefined ? is_active : true,
+        workspaces: {
+          create: [
+            { name: "Personal", type: "PERSONAL", is_default: true, is_public: false, icon: "🔒" },
+            { name: "Website", type: "WEBSITE", is_default: true, is_public: true, icon: "🌐" },
+            { name: "Tech", type: "TECH", is_default: true, is_public: true, icon: "💻" }
+          ]
+        }
       },
       select: USER_SELECT,
     });

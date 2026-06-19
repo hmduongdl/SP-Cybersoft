@@ -14,7 +14,7 @@ export const CACHE_TAGS = {
 // ─── Dashboard ───────────────────────────────────────────
 
 export async function getCachedTotalPostsCount() {
-  return db.post.count();
+  return db.post.count({ where: { is_archived: false } });
 }
 
 export async function getCachedUserCompletedCount(userId: string) {
@@ -23,7 +23,7 @@ export async function getCachedUserCompletedCount(userId: string) {
   });
 }
 
-export async function getCachedRecentCheckins() {
+export async function getCachedRecentCheckins(userId: string) {
   return db.checkin.findMany({
     take: 5,
     orderBy: { submitted_at: "desc" },

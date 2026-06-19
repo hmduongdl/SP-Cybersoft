@@ -385,7 +385,7 @@ export default function ReportsClient({ checkins }: Props) {
       {/* Image Modal Lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-inverse-surface/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedImage(null)}
         >
           <div

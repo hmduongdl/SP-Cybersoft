@@ -30,12 +30,13 @@ export function ListView() {
     currentWorkspaceId,
     filterStatus,
     updateTask, 
-    setSelectedTaskId 
+    setSelectedTaskId,
+    selectedTagId
   } = useTaskStore();
 
   // Filter tasks based on current workspace and selected filter
   const tasks = allTasks.filter(t => {
-    if (t.workspace_id !== currentWorkspaceId) return false;
+    if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
     
     if (filterStatus === 'today') {
       if (!t.due_date) return false;
@@ -47,7 +48,12 @@ export function ListView() {
       if (!t.due_date) return true;
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      return new Date(t.due_date) >= todayStart;
+      if (new Date(t.due_date) < todayStart) return false;
+    }
+    
+    if (selectedTagId) {
+      const hasTag = t.tags?.some(tag => tag.id === selectedTagId) || (t as any).tag?.id === selectedTagId;
+      if (!hasTag) return false;
     }
     
     return true;

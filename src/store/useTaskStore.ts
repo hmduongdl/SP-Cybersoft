@@ -51,6 +51,7 @@ interface TaskStoreState {
   selectedTaskId: string | null;
   isAddTaskModalOpen: boolean;
   filterStatus: FilterStatus;
+  selectedTagId: string | null;
 
   // UI Actions
   setCurrentWorkspaceId: (id: string | null) => void;
@@ -61,6 +62,7 @@ interface TaskStoreState {
   setSelectedTaskId: (id: string | null) => void;
   setAddTaskModalOpen: (isOpen: boolean) => void;
   setFilter: (filter: FilterStatus) => void;
+  setSelectedTagId: (tagId: string | null) => void;
 
   // Data Fetching Actions (Mocked API calls for now)
   fetchWorkspaces: () => Promise<void>;
@@ -75,55 +77,17 @@ interface TaskStoreState {
 }
 
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
-  workspaces: [
-    { id: "ws-1", name: "Dự án SPS", icon: "🚀", color: "#0050cb", owner_id: "user-1" },
-    { id: "ws-2", name: "Marketing Space", icon: "📢", color: "#ef4444", owner_id: "user-1" },
-    { id: "ws-3", name: "Thiết kế UI/UX", icon: "🎨", color: "#10b981", owner_id: "user-1" }
-  ],
-  currentWorkspaceId: "ws-1",
-  currentWorkspace: { id: "ws-1", name: "Dự án SPS", icon: "🚀", color: "#0050cb", owner_id: "user-1" },
-  tasks: [
-    {
-      id: "task-1",
-      title: "Thiết kế giao diện Topbar",
-      status: "DONE",
-      workspace_id: "ws-1",
-      creator_id: "user-1",
-      is_archived: false,
-      due_date: new Date().toISOString(),
-      tags: [{ id: "tag-1", name: "UI/UX", color: "#3b82f6", workspace_id: "ws-1" }]
-    },
-    {
-      id: "task-2",
-      title: "Tích hợp BlockNote Editor vào Detail Panel",
-      status: "IN_PROGRESS",
-      workspace_id: "ws-1",
-      creator_id: "user-1",
-      is_archived: false,
-      due_date: new Date(Date.now() + 86400000).toISOString(),
-      tags: [{ id: "tag-2", name: "Frontend", color: "#8b5cf6", workspace_id: "ws-1" }]
-    },
-    {
-      id: "task-3",
-      title: "Viết logic RAG AI tạo Embeddings",
-      status: "TODO",
-      workspace_id: "ws-1",
-      creator_id: "user-1",
-      is_archived: false,
-      tags: [{ id: "tag-3", name: "Backend", color: "#ef4444", workspace_id: "ws-1" }, { id: "tag-4", name: "AI", color: "#10b981", workspace_id: "ws-1" }]
-    }
-  ],
-  tags: [
-    { id: "tag-1", name: "Frontend", color: "#3b82f6", workspace_id: "ws-1" },
-    { id: "tag-2", name: "Backend", color: "#8b5cf6", workspace_id: "ws-1" },
-    { id: "tag-3", name: "UI/UX", color: "#10b981", workspace_id: "ws-1" },
-    { id: "tag-4", name: "AI/RAG", color: "#f59e0b", workspace_id: "ws-1" }
-  ],
-  currentView: 'kanban',
+  workspaces: [],
+  currentWorkspaceId: "ALL",
+  currentWorkspace: null,
+  tasks: [],
+  tags: [],
+  currentView: 'list',
   isAIChatOpen: false,
   selectedTaskId: null,
   isAddTaskModalOpen: false,
   filterStatus: 'all',
+  selectedTagId: null,
 
   setCurrentWorkspaceId: (id) => set((state) => ({ 
     currentWorkspaceId: id,
@@ -139,6 +103,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),
   setAddTaskModalOpen: (isOpen) => set({ isAddTaskModalOpen: isOpen }),
   setFilter: (filter) => set({ filterStatus: filter }),
+  setSelectedTagId: (tagId) => set({ selectedTagId: tagId }),
 
   fetchWorkspaces: async () => {
     try {

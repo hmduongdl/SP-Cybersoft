@@ -519,7 +519,7 @@ export default function AdminAccountsPage() {
           {/* Backdrop */}
           <div
             onClick={() => !isSubmitting && setShowFormModal(false)}
-            className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/70"
           />
 
           {/* Form Card */}
@@ -686,7 +686,7 @@ export default function AdminAccountsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             onClick={() => !isSubmitting && setDeletingUser(null)}
-            className="absolute inset-0 bg-inverse-surface/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-slate-950/70"
           />
 
           <Card className="w-full max-w-md bg-surface-bright shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">

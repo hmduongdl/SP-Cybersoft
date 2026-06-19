@@ -13,6 +13,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const { sidebarCollapsed } = useLayout();
   const isLoginPage = pathname === "/login" || pathname === "/login/";
   const isMaintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
+  const isTasksPage = pathname === "/tasks" || pathname?.startsWith("/tasks/");
 
   if (isLoginPage || isMaintenanceMode || pathname === "/maintenance") {
     return <div className="h-screen w-screen overflow-y-auto bg-surface">{children}</div>;
@@ -29,10 +30,14 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
         <SiteHeader />
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto w-full bg-[#F8FAFC]">
-          <main className="p-4 md:p-6 lg:p-8 pt-6 lg:pt-8 max-w-7xl mx-auto w-full">
-            {children}
-          </main>
+        <div className={`flex-1 w-full bg-[#F8FAFC] ${isTasksPage ? "overflow-hidden h-full" : "overflow-y-auto"}`}>
+          {isTasksPage ? (
+            children
+          ) : (
+            <main className="p-4 md:p-6 lg:p-8 pt-6 lg:pt-8 max-w-7xl mx-auto w-full">
+              {children}
+            </main>
+          )}
         </div>
       </div>
 

@@ -23,20 +23,20 @@ export default function MaintenancePage() {
 
   // Spawn floating sad emojis
   useEffect(() => {
-    const emojis = ['😢','😭','😔','🥺','😞','💔','🫠','😿','🙁','😪'];
+    const emojis = ['😢', '😭', '😔', '🥺', '😞', '💔', '🫠', '😿', '🙁', '😪'];
     const spawn = () => {
       if (!floatRef.current) return;
       const el = document.createElement('div');
       el.style.cssText = `
         position:absolute;
-        left:${Math.random()*90}%;
+        left:${Math.random() * 90}%;
         bottom:-40px;
-        font-size:${14+Math.random()*16}px;
-        animation: floatUp ${6+Math.random()*8}s linear forwards;
+        font-size:${14 + Math.random() * 16}px;
+        animation: floatUp ${6 + Math.random() * 8}s linear forwards;
         opacity:0;
         pointer-events:none;
       `;
-      el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
       floatRef.current.appendChild(el);
       setTimeout(() => el.remove(), 14000);
     };
@@ -143,11 +143,11 @@ export default function MaintenancePage() {
         }} />
 
         {/* Floating emojis container */}
-        <div ref={floatRef} style={{position:'absolute',inset:0,pointerEvents:'none',overflow:'hidden'}} />
+        <div ref={floatRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }} />
 
         {/* Corner decorations */}
-        <div style={{position:'absolute',top:20,left:20,fontSize:48,opacity:.06,animation:'robot-float 5s ease-in-out infinite'}}>😢</div>
-        <div style={{position:'absolute',bottom:20,right:20,fontSize:48,opacity:.06,animation:'robot-float 5s ease-in-out infinite 2s'}}>🔧</div>
+        <div style={{ position: 'absolute', top: 20, left: 20, fontSize: 48, opacity: .06, animation: 'robot-float 5s ease-in-out infinite' }}>😢</div>
+        <div style={{ position: 'absolute', bottom: 20, right: 20, fontSize: 48, opacity: .06, animation: 'robot-float 5s ease-in-out infinite 2s' }}>🔧</div>
 
         {/* Main card */}
         <div style={{
@@ -160,82 +160,82 @@ export default function MaintenancePage() {
           backdropFilter: 'blur(12px)',
         }}>
           {/* Robot */}
-          <div style={{fontSize:72,animation:'robot-float 3s ease-in-out infinite',filter:'drop-shadow(0 0 20px rgba(100,100,255,.4))'}}>
+          <div style={{ fontSize: 72, animation: 'robot-float 3s ease-in-out infinite', filter: 'drop-shadow(0 0 20px rgba(100,100,255,.4))' }}>
             🤖
           </div>
           {/* Tears */}
-          <div style={{fontSize:22,letterSpacing:6,marginBottom:24,animation:'tears .8s ease-in-out infinite alternate'}}>
+          <div style={{ fontSize: 22, letterSpacing: 6, marginBottom: 24, animation: 'tears .8s ease-in-out infinite alternate' }}>
             💧 💧 💧
           </div>
 
           {/* Status indicator */}
-          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:16}}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
             <div style={{
-              width:8,height:8,borderRadius:'50%',
-              background:'#ff4466',boxShadow:'0 0 8px #ff4466',
-              animation:'pulse-dot 1.2s ease-in-out infinite',
+              width: 8, height: 8, borderRadius: '50%',
+              background: '#ff4466', boxShadow: '0 0 8px #ff4466',
+              animation: 'pulse-dot 1.2s ease-in-out infinite',
             }} />
-            <span style={{fontFamily:"'Space Mono',monospace",fontSize:11,color:'#ff4466',letterSpacing:'.1em'}}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#ff4466', letterSpacing: '.1em' }}>
               SYSTEM OFFLINE
             </span>
           </div>
 
           {/* Glitch title */}
-          <h1 className="glitch" data-text="HỆ THỐNG BẢO TRÌ" style={{marginBottom:16}}>
+          <h1 className="glitch" data-text="HỆ THỐNG BẢO TRÌ" style={{ marginBottom: 16 }}>
             HỆ THỐNG BẢO TRÌ
           </h1>
 
-          <p style={{color:'rgba(255,255,255,.55)',fontSize:14,lineHeight:1.7,marginBottom:24}}>
-            Chúng tôi đang nâng cấp để mang lại trải nghiệm tốt hơn.<br/>
-            Quá trình có thể kéo dài đến vài giờ. Rất xin lỗi! 😔
+          <p style={{ color: 'rgba(255,255,255,.55)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+            Chúng tôi đang nâng cấp để mang lại trải nghiệm tốt hơn.
+            Quá trình có thể kéo dài đến vài giờ.
           </p>
 
           {/* Terminal box */}
           <div style={{
-            background:'rgba(0,0,0,.4)',
-            border:'1px solid rgba(255,255,255,.08)',
-            borderRadius:12, padding:16, marginBottom:24,
-            textAlign:'left',
-            fontFamily:"'Space Mono',monospace", fontSize:11,
+            background: 'rgba(0,0,0,.4)',
+            border: '1px solid rgba(255,255,255,.08)',
+            borderRadius: 12, padding: 16, marginBottom: 24,
+            textAlign: 'left',
+            fontFamily: "'Space Mono',monospace", fontSize: 11,
           }}>
-            <div style={{display:'flex',gap:6,marginBottom:12,paddingBottom:8,borderBottom:'1px solid rgba(255,255,255,.06)'}}>
-              {['#ff5f57','#febc2e','#28c840'].map(c => (
-                <div key={c} style={{width:10,height:10,borderRadius:'50%',background:c}} />
+            <div style={{ display: 'flex', gap: 6, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+              {['#ff5f57', '#febc2e', '#28c840'].map(c => (
+                <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
               ))}
-              <span style={{color:'rgba(255,255,255,.2)',fontSize:10,marginLeft:4}}>sps-system — bash</span>
+              <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 10, marginLeft: 4 }}>sps-system — bash</span>
             </div>
-            <div style={{color:'rgba(255,255,255,.35)',marginBottom:5}}>$ <span style={{color:'#44ffdd'}}>sudo systemctl status sps-ai</span></div>
-            <div style={{color:'rgba(255,255,255,.35)',marginBottom:5}}>● <span style={{color:'#ff4466'}}>sps-ai.service — FAILED (crashed)</span></div>
-            <div style={{color:'rgba(255,255,255,.35)',marginBottom:5}}>⚠ <span style={{color:'#ffcc44'}}>Rebuilding modules... please wait</span></div>
-            <div style={{color:'rgba(255,255,255,.35)'}}>$ <span style={{color:'#44ffdd'}}>npm run build</span>
-              <span style={{display:'inline-block',width:8,height:13,background:'#44ffdd',marginLeft:2,verticalAlign:'middle',animation:'cursor-blink .8s step-end infinite'}} />
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>$ <span style={{ color: '#44ffdd' }}>sudo systemctl status sps-ai</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>● <span style={{ color: '#ff4466' }}>sps-ai.service — FAILED (crashed)</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>⚠ <span style={{ color: '#ffcc44' }}>Rebuilding modules... please wait</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)' }}>$ <span style={{ color: '#44ffdd' }}>npm run build</span>
+              <span style={{ display: 'inline-block', width: 8, height: 13, background: '#44ffdd', marginLeft: 2, verticalAlign: 'middle', animation: 'cursor-blink .8s step-end infinite' }} />
             </div>
           </div>
 
           {/* Progress bar */}
-          <div style={{marginBottom:28}}>
-            <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'rgba(255,255,255,.35)',fontFamily:"'Space Mono',monospace",marginBottom:8}}>
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'rgba(255,255,255,.35)', fontFamily: "'Space Mono',monospace", marginBottom: 8 }}>
               <span>Tiến trình cập nhật</span>
               <span>{Math.round(progress)}%</span>
             </div>
-            <div style={{height:4,background:'rgba(255,255,255,.08)',borderRadius:999,overflow:'hidden'}}>
+            <div style={{ height: 4, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
               <div style={{
-                height:'100%',
+                height: '100%',
                 width: `${progress}%`,
-                background:'linear-gradient(90deg,#5050ff,#44ffdd)',
-                borderRadius:999,
-                transition:'width .2s ease',
+                background: 'linear-gradient(90deg,#5050ff,#44ffdd)',
+                borderRadius: 999,
+                transition: 'width .2s ease',
               }} />
             </div>
           </div>
 
           <Link href="/" style={{
-            display:'inline-flex',alignItems:'center',gap:8,
-            background:'linear-gradient(135deg,#5050ff,#7744ff)',
-            color:'white',borderRadius:12,
-            padding:'12px 28px',fontSize:14,fontWeight:600,
-            textDecoration:'none',
-            boxShadow:'0 4px 24px rgba(80,80,255,.35)',
+            display: 'inline-flex', alignItems: 'center', gap: 8,
+            background: 'linear-gradient(135deg,#5050ff,#7744ff)',
+            color: 'white', borderRadius: 12,
+            padding: '12px 28px', fontSize: 14, fontWeight: 600,
+            textDecoration: 'none',
+            boxShadow: '0 4px 24px rgba(80,80,255,.35)',
           }}>
             <Home size={16} /> Quay lại trang chủ
           </Link>

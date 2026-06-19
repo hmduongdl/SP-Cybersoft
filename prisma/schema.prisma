@@ -35,6 +35,7 @@ model User {
   checkins             Checkin[] @relation("UserCheckins")
   workspaces           Workspace[] @relation("UserWorkspaces")
   created_tasks        Task[]      @relation("UserCreatedTasks")
+  quick_note           String?
 
   @@index([email])
 }
@@ -122,6 +123,9 @@ model Workspace {
   icon        String?
   color       String?
   owner_id    String
+  is_default  Boolean  @default(false)
+  type        String   @default("CUSTOM")
+  is_public   Boolean  @default(true)
   createdAt   DateTime @default(now())
 
   owner       User     @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)

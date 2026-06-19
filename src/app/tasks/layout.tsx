@@ -13,7 +13,7 @@ export default async function TasksLayout({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-128px)] lg:h-[calc(100vh-140px)] w-full">
+    <div className="flex flex-col h-full w-full overflow-hidden">
       <SessionProvider session={session}>
         {children}
       </SessionProvider>

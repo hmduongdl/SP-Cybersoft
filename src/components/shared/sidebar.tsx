@@ -8,17 +8,20 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useState, useEffect } from "react";
 import { CheckSquare } from "lucide-react";
+import { useTaskStore, FilterStatus } from "@/store/useTaskStore";
 
 import { UserAvatar } from "./user-avatar";
-
+import { CreateTagModal } from "@/components/modules/tasks/CreateTagModal";
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { sidebarOpen, setSidebarOpen, role, setRole, sidebarCollapsed, setSidebarCollapsed } = useLayout();
   const { data: session, status } = useSession();
+  const { filterStatus, setFilter, selectedTagId, setSelectedTagId, tags, currentWorkspaceId } = useTaskStore();
   
   // Local profile state to display up-to-date data
   const [profile, setProfile] = useState<any>(null);
+  const [isCreateTagModalOpen, setCreateTagModalOpen] = useState(false);
 
   const fetchProfile = () => {
     fetch("/api/user/profile", { cache: "no-store" })
@@ -56,7 +59,7 @@ export function Sidebar() {
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
         { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
-        { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false, devOnly: true },
+        { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
       ]
     },
@@ -140,45 +143,88 @@ export function Sidebar() {
                 <div className="space-y-1">
                   {section.items.map(({ label, href, icon, devOnly }) => {
                     const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+                    const isTasksActive = pathname.startsWith("/tasks");
                     return (
-                      <button
-                        key={label}
-                        onClick={() => {
-                          if (devOnly && role !== "ADMIN") {
-                            toast.info("Chức năng đang phát triển");
-                            return;
-                          }
-                          if (isMobile) setSidebarOpen(false);
-                          router.push(href);
-                        }}
-                        className={twMerge(
-                          clsx(
-                            "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
-                            collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
-                            isActive
-                              ? "bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-500/10"
-                              : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
-                          )
-                        )}
-                        title={collapsed ? label : undefined}
-                      >
-                        {typeof icon === 'string' ? (
-                          <span className={clsx(
-                            "material-symbols-outlined text-[22px]",
-                            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
-                          )}>
-                            {icon}
-                          </span>
-                        ) : (
-                          <div className={clsx(
-                            "flex items-center justify-center shrink-0",
-                            isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
-                          )}>
-                            {icon}
+                      <div key={label} className="w-full">
+                        <button
+                          onClick={() => {
+                            if (devOnly && role !== "ADMIN") {
+                              toast.info("Chức năng đang phát triển");
+                              return;
+                            }
+                            if (isMobile) setSidebarOpen(false);
+                            router.push(href);
+                          }}
+                          className={twMerge(
+                            clsx(
+                              "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
+                              collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
+                              isActive
+                                ? "bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-500/10"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                            )
+                          )}
+                          title={collapsed ? label : undefined}
+                        >
+                          {typeof icon === 'string' ? (
+                            <span className={clsx(
+                              "material-symbols-outlined text-[22px]",
+                              isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                            )}>
+                              {icon}
+                            </span>
+                          ) : (
+                            <div className={clsx(
+                              "flex items-center justify-center shrink-0",
+                              isActive ? "text-white" : "text-slate-400 group-hover:text-slate-200"
+                            )}>
+                              {icon}
+                            </div>
+                          )}
+                          {!collapsed && <span className="text-sm font-medium font-inter">{label}</span>}
+                        </button>
+                        
+                        {/* Task Manager Dynamic Submenu */}
+                        {isTasksActive && label === "Task Manager" && !collapsed && (
+                          <div className="pl-8 space-y-3 mt-2 font-inter">
+                            {/* NHÓM 1: LỌC CÔNG VIỆC */}
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Lọc công việc</p>
+                              <div className="flex flex-col gap-1.5">
+                                <button 
+                                  onClick={() => { setFilter('all'); setSelectedTagId(null); }}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'all' && !selectedTagId ? "bg-slate-800/60 text-white font-medium" : "text-slate-400 hover:text-slate-200")}
+                                >Tất cả</button>
+                                <button 
+                                  onClick={() => setFilter('today')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'today' ? "bg-slate-800/60 text-white font-medium" : "text-slate-400 hover:text-slate-200")}
+                                >Hôm nay</button>
+                                <button 
+                                  onClick={() => setFilter('upcoming')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'upcoming' ? "bg-slate-800/60 text-white font-medium" : "text-slate-400 hover:text-slate-200")}
+                                >Sắp tới</button>
+                              </div>
+                            </div>
+                            {/* NHÓM 2: THẺ TAGS */}
+                            <div className="space-y-1.5">
+                              <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Thẻ tags</p>
+                              <div className="flex flex-col gap-1.5">
+                                {tags.map(tag => (
+                                  <button
+                                    key={tag.id}
+                                    onClick={() => setSelectedTagId(selectedTagId === tag.id ? null : tag.id)}
+                                    className={clsx("flex items-center gap-2 text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", selectedTagId === tag.id ? "bg-slate-800/60 text-white font-medium" : "text-slate-400 hover:text-slate-200")}
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: tag.color || '#3b82f6' }}></span>
+                                    {tag.name}
+                                  </button>
+                                ))}
+                                <button onClick={() => setCreateTagModalOpen(true)} className="text-[12px] text-indigo-400 hover:text-indigo-300 text-left transition-colors mt-1 px-2 py-1">+ Tạo thẻ mới</button>
+                              </div>
+                            </div>
                           </div>
                         )}
-                        {!collapsed && <span className="text-sm font-medium font-inter">{label}</span>}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -301,7 +347,7 @@ export function Sidebar() {
       >
         {/* Backdrop overlay */}
         <div
-          className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+          className="absolute inset-0 z-50 bg-slate-950/70"
           onClick={() => setSidebarOpen(false)}
         />
         
@@ -317,6 +363,12 @@ export function Sidebar() {
           {renderSidebarContent(false, true)}
         </aside>
       </div>
+
+      <CreateTagModal 
+        isOpen={isCreateTagModalOpen} 
+        onClose={() => setCreateTagModalOpen(false)} 
+        workspaceId={currentWorkspaceId || ""} 
+      />
     </>
   );
 }

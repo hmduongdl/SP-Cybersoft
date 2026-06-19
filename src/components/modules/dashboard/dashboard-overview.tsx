@@ -12,6 +12,8 @@ import {
   FileText,
   ShieldCheck,
   ChevronDown,
+  LayoutDashboard,
+  TrendingUp,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
@@ -39,11 +41,9 @@ interface DashboardOverviewProps {
   pendingCount: number;
   completedCount: number;
   totalPostsCount: number;
-  allPostsCount: number;
   trustScore: number;
   activityFeed: ActivityFeedItem[];
   dashboardPosts: DashboardPost[];
-  monthlyProgress: number;
 }
 
 function timeAgo(dateString: string) {
@@ -129,11 +129,9 @@ export function DashboardOverview({
   pendingCount: initialPendingCount,
   completedCount: initialCompletedCount,
   totalPostsCount: initialTotalPostsCount,
-  allPostsCount,
   trustScore,
   activityFeed,
   dashboardPosts,
-  monthlyProgress: initialMonthlyProgress,
 }: DashboardOverviewProps) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -540,10 +538,7 @@ export function DashboardOverview({
 
               <div className="w-full mt-4 pt-4 border-t border-slate-100 flex justify-between text-sm">
                 <span className="text-on-surface-variant font-inter">
-                  Đã duyệt: <span className="font-bold text-on-surface">{completedCount}</span>
-                </span>
-                <span className="text-on-surface-variant font-inter">
-                  Tổng: <span className="font-bold text-on-surface">{allPostsCount}</span>
+                  Đã hoàn thành: <span className="font-bold text-on-surface">{completedCount}</span>
                 </span>
               </div>
             </div>
@@ -569,6 +564,54 @@ export function DashboardOverview({
                   <span>Tìm hiểu ngay</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Truy cập nhanh */}
+          <div className="space-y-3">
+            <h2 className="font-manrope text-headline-md font-bold text-on-surface">
+              Truy cập nhanh
+            </h2>
+
+            {/* Task Manager Card */}
+            <Link
+              href="/tasks"
+              className="block bg-surface-container-lowest rounded-2xl p-5 shadow-ambient hover:-translate-y-0.5 transition-all group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
+                  <LayoutDashboard className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-inter text-[14px] font-bold text-on-surface group-hover:text-emerald-600 transition-colors">
+                    Task Manager
+                  </p>
+                  <p className="text-[12px] text-on-surface-variant font-inter">
+                    Quản lý công việc, nhiệm vụ và lọc theo thẻ
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0" />
+              </div>
+            </Link>
+
+            {/* SEO Tools Card */}
+            <div className="block bg-surface-container-lowest rounded-2xl p-5 shadow-ambient opacity-70">
+              <div className="flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                  <TrendingUp className="w-5 h-5 text-amber-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-inter text-[14px] font-bold text-on-surface">
+                    SEO Tools
+                  </p>
+                  <p className="text-[12px] text-on-surface-variant font-inter">
+                    Chức năng đang phát triển
+                  </p>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2 py-1 rounded-full shrink-0">
+                  Sớm ra mắt
+                </span>
               </div>
             </div>
           </div>

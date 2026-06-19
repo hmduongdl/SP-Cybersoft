@@ -123,7 +123,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         onClick={() => !saving && onClose()}
-        className="absolute inset-0 bg-on-surface/40 backdrop-blur-sm"
+        className="absolute inset-0 z-50 bg-slate-950/70"
       />
 
       <Card className="w-full max-w-2xl bg-surface-bright shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-10 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">

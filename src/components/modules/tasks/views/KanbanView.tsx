@@ -3,7 +3,7 @@
 import React from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { Calendar, MoreHorizontal } from "lucide-react";
+import { Calendar, MoreHorizontal, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { isPast, parseISO, format } from "date-fns";
@@ -21,12 +21,13 @@ export function KanbanView() {
     filterStatus,
     updateTask, 
     setSelectedTaskId, 
-    setAddTaskModalOpen 
+    setAddTaskModalOpen,
+    selectedTagId
   } = useTaskStore();
 
   // Filter tasks based on current workspace and selected filter
   const tasks = allTasks.filter(t => {
-    if (t.workspace_id !== currentWorkspaceId) return false;
+    if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
     
     if (filterStatus === 'today') {
       if (!t.due_date) return false;
@@ -38,7 +39,12 @@ export function KanbanView() {
       if (!t.due_date) return true;
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
-      return new Date(t.due_date) >= todayStart;
+      if (new Date(t.due_date) < todayStart) return false;
+    }
+    
+    if (selectedTagId) {
+      const hasTag = t.tags?.some(tag => tag.id === selectedTagId) || (t as any).tag?.id === selectedTagId;
+      if (!hasTag) return false;
     }
     
     return true;
@@ -54,17 +60,18 @@ export function KanbanView() {
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="grid grid-cols-3 gap-4 pb-4 items-start font-inter">
-        {COLS.map((col) => {
-          const columnTasks = tasks.filter((t) => t.status === col.key);
-          return (
-            <div key={col.key} className="bg-surface-low rounded-2xl p-3.5 flex flex-col gap-2">
+      <div className="w-full h-full flex-1 overflow-y-hidden overflow-x-auto min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch font-inter h-full min-w-[700px] min-h-0">
+          {COLS.map((col) => {
+            const columnTasks = tasks.filter((t) => t.status === col.key);
+            return (
+              <div key={col.key} className="col-span-1 bg-[#f2f3ff] rounded-2xl p-3 flex flex-col gap-2 min-h-0 h-full overflow-hidden">
               
               {/* Header */}
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ background: col.dot }} />
-                  <span className="text-[13px] font-semibold text-on-surface">{col.label}</span>
+                  <span className="text-[13px] font-semibold text-[#131b2e]">{col.label}</span>
                   <span className="text-[10px] bg-white text-on-muted px-2 py-0.5 rounded-full shadow-card">
                     {columnTasks.length}
                   </span>
@@ -81,7 +88,7 @@ export function KanbanView() {
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                     className={cn(
-                      "flex-grow flex flex-col gap-2 min-h-[250px] rounded-xl transition-colors duration-150",
+                      "flex-1 flex flex-col gap-2 min-h-[150px] rounded-xl transition-colors duration-150 overflow-y-auto no-scrollbar",
                       snapshot.isDraggingOver ? "bg-surface-high/30" : ""
                     )}
                   >
@@ -130,31 +137,23 @@ export function KanbanView() {
 
                                 {/* Title */}
                                 <p className={cn(
-                                  "text-[13px] text-on-surface leading-[1.45]",
+                                  "text-[12px] font-inter text-[#131b2e] leading-[1.4] mt-2",
                                   isDone && "line-through text-on-muted"
                                 )}>
                                   {task.title}
                                 </p>
 
                                 {/* Footer */}
-                                <div className="flex items-center justify-between mt-3">
-                                  {hasDueDate ? (
-                                    <span className={cn(
-                                      "flex items-center gap-1 text-[10px]",
-                                      isOverdue ? "text-error-text" : "text-on-muted"
-                                    )}>
-                                      <Calendar size={10} />
-                                      {format(parseISO(task.due_date!), 'dd/MM/yyyy')}
-                                    </span>
-                                  ) : (
-                                    <span className="text-[10px] text-on-muted">Chưa đặt</span>
-                                  )}
-                                  
-                                  {/* Status indicator dot */}
-                                  <div 
-                                    className="w-[6px] h-[6px] rounded-full flex-shrink-0"
-                                    style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} 
-                                  />
+                                <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                                  <span className="text-[10px] text-[#44495a] flex items-center gap-1">
+                                    <Clock size={10} /> {hasDueDate ? format(parseISO(task.due_date!), 'dd/MM/yyyy') : 'No date'}
+                                  </span>
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-[6px] h-[6px] rounded-full" style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} />
+                                    <div className="w-5 h-5 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[8px] font-semibold text-[#0050cb]">
+                                      US
+                                    </div>
+                                  </div>
                                 </div>
                               </motion.div>
                             </div>
@@ -170,14 +169,15 @@ export function KanbanView() {
               {/* Add task ghost */}
               <button 
                 onClick={() => setAddTaskModalOpen(true)}
-                className="border-[1.5px] border-dashed border-outline rounded-xl py-2.5 text-[11px] text-on-muted hover:bg-white transition-colors duration-150 mt-1 cursor-pointer"
+                className="border-[1.5px] border-dashed border-outline rounded-xl py-2.5 text-[11px] text-on-muted hover:bg-white transition-colors duration-150 mt-1 cursor-pointer flex-shrink-0"
               >
                 + Thêm công việc
               </button>
 
             </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </DragDropContext>
   );

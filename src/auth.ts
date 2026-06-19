@@ -94,18 +94,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Mật khẩu", type: "password" },
       },
       async authorize(credentials) {
-        const username = String(credentials?.username ?? "").trim();
+        const identifier = String(credentials?.username ?? "").trim().toLowerCase();
         const password = String(credentials?.password ?? "");
 
-        if (!username || !password) {
+        if (!identifier || !password) {
           return null;
         }
 
         const user = await db.user.findFirst({
           where: {
             OR: [
-              { username: username },
-              { email: username }
+              { username: identifier },
+              { email: identifier }
             ]
           },
           select: {
@@ -148,7 +148,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Fallback for admin using env vars
         const adminUsername = process.env.ADMIN_USERNAME || process.env.ADMIN_EMAIL || "admin";
         if (
-          adminUsername === username &&
+          adminUsername.toLowerCase() === identifier &&
           process.env.ADMIN_PASSWORD === password
         ) {
           const passwordHash = await bcrypt.hash(password, 10);
