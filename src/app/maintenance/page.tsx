@@ -25,9 +25,12 @@ export default function MaintenancePage() {
 
         <div className="bg-slate-50 p-4 rounded-xl mb-8 w-full border border-slate-100">
           <p className="text-sm text-slate-500 font-medium">
-            Chúng tôi đang nỗ lực hoàn thành công việc nhanh nhất có thể để hệ thống hoạt động trở lại bình thường. Chúng tôi hiểu rằng chờ dợi là hạnh phúc của bạn, và chúng tôi đánh giá cao sự kiên nhẫn của bạn trong thời gian này. Hãy yên tâm rằng chúng tôi đang làm việc chăm chỉ để đảm bảo mọi thứ sẽ sẵn sàng cho bạn sớm nhất có thể!
+            Chúng tôi hiểu rằng chờ đợi là hạnh phúc của bạn, và đánh giá cao sự kiên nhẫn của bạn trong thời gian này. Hãy yên tâm rằng chúng tôi đang làm việc chăm chỉ để đảm bảo mọi thứ sẽ sẵn sàng cho bạn sớm nhất có thể!
           </p>
         </div>
+        <a href="https://songphuong.vn" className="inline-flex items-center justify-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-300">
+          Quay lại trang chủ
+        </a>
       </div>
     </div>
   );
