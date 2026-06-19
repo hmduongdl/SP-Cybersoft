@@ -15,7 +15,7 @@ const getTagStyles = (tagName: string) => {
   }
 };
 
-const getPriorityDot = (priority: string) => {
+const getPriorityDot = (priority: string | undefined) => {
   switch (priority?.toLowerCase()) {
     case 'high': return 'bg-[#e24b4a]';
     case 'low': return 'bg-[#1d9e75]';
@@ -23,7 +23,7 @@ const getPriorityDot = (priority: string) => {
   }
 };
 
-const getPriorityLabel = (priority: string) => {
+const getPriorityLabel = (priority: string | undefined) => {
   switch (priority?.toLowerCase()) {
     case 'high': return 'Cao';
     case 'low': return 'Thấp';
