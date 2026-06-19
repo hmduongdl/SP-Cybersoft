@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
   CheckCircle,
   Clock,
@@ -10,9 +11,11 @@ import {
   ArrowRight,
   FileText,
   ShieldCheck,
+  ChevronDown,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
+import { fetchMonthlyStats } from "@/app/dashboard/actions";
 
 interface ActivityFeedItem {
   id: string;
@@ -105,17 +108,70 @@ function statusBadge(status: string) {
 const DONUT_R = 80;
 const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_R;
 
+// Generate list of available months (from 6 months ago to current month)
+function generateMonthOptions() {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = d.toLocaleString("vi-VN", { month: "long", year: "numeric" });
+    options.push({ value, label });
+  }
+  
+  return options;
+}
+
 export function DashboardOverview({
   userName,
-  pendingCount,
-  completedCount,
-  totalPostsCount,
+  pendingCount: initialPendingCount,
+  completedCount: initialCompletedCount,
+  totalPostsCount: initialTotalPostsCount,
   trustScore,
   activityFeed,
   dashboardPosts,
-  monthlyProgress,
+  monthlyProgress: initialMonthlyProgress,
 }: DashboardOverviewProps) {
-  const progress = Math.min(Math.max(monthlyProgress, 0), 100);
+  const now = new Date();
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthOptions = generateMonthOptions();
+
+  // State for month selection
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+  const [stats, setStats] = useState({
+    pending: initialPendingCount,
+    completed: initialCompletedCount,
+    total: initialTotalPostsCount,
+  });
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+
+  // Fetch stats when month changes
+  useEffect(() => {
+    const loadStats = async () => {
+      setIsLoadingStats(true);
+      try {
+        const result = await fetchMonthlyStats(selectedMonth);
+        setStats({
+          pending: result.pendingThisMonth,
+          completed: result.completedThisMonth,
+          total: result.totalPostsThisMonth,
+        });
+      } catch (error) {
+        console.error("Failed to load stats:", error);
+      } finally {
+        setIsLoadingStats(false);
+      }
+    };
+
+    loadStats();
+  }, [selectedMonth]);
+
+  const pendingCount = stats.pending;
+  const completedCount = stats.completed;
+  const totalPostsCount = stats.total;
+  const progress = Math.min(Math.max(totalPostsCount > 0 ? Math.round((completedCount / totalPostsCount) * 100) : 0, 0), 100);
   const dashOffset = DONUT_CIRCUMFERENCE * (1 - progress / 100);
 
   const trustColor =
@@ -125,24 +181,67 @@ export function DashboardOverview({
 
   const remainingPosts = Math.max(0, totalPostsCount - completedCount);
 
+  const selectedMonthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || "Tháng này";
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
 
-      {/* Welcome Header */}
-      <div>
-        <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
-          <span>Dashboard</span>
-          <span>/</span>
-          <span className="text-primary font-semibold">Tổng quan</span>
-        </nav>
-        <h1 className="font-manrope font-bold text-headline-lg text-on-surface">
-          Chào mừng quay lại, {userName}!
-        </h1>
-        <p className="mt-1 text-sm text-on-surface-variant font-inter">
-          {pendingCount > 0
-            ? `Bạn có ${pendingCount} bài viết cần check-in trong tháng này.`
-            : "Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả check-in tháng này."}
-        </p>
+      {/* Welcome Header with Month Selector */}
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+        <div className="flex-1">
+          <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
+            <span>Dashboard</span>
+            <span>/</span>
+            <span className="text-primary font-semibold">Tổng quan</span>
+          </nav>
+          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">
+            Chào mừng quay lại, {userName}!
+          </h1>
+          <p className="mt-1 text-sm text-on-surface-variant font-inter">
+            {pendingCount > 0
+              ? `Bạn có ${pendingCount} bài viết cần check-in trong ${selectedMonthLabel.toLowerCase()}.`
+              : `Tuyệt vời! Bạn đã hoàn thành xuất sắc tất cả check-in ${selectedMonthLabel.toLowerCase()}.`}
+          </p>
+        </div>
+
+        {/* Month Selector Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowMonthDropdown(!showMonthDropdown)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-surface-container-lowest rounded-xl border border-outline/20 hover:border-outline/40 transition-colors shadow-ambient"
+            disabled={isLoadingStats}
+          >
+            <span className="text-sm font-semibold text-on-surface">{selectedMonthLabel}</span>
+            <ChevronDown className={cn(
+              "w-4 h-4 text-on-surface-variant transition-transform",
+              showMonthDropdown && "rotate-180"
+            )} />
+          </button>
+
+          {/* Dropdown Menu */}
+          {showMonthDropdown && (
+            <div className="absolute top-full right-0 mt-2 w-56 bg-surface-container-lowest rounded-xl shadow-lg border border-outline/20 z-50 p-2">
+              {monthOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setSelectedMonth(option.value);
+                    setShowMonthDropdown(false);
+                  }}
+                  className={cn(
+                    "w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                    selectedMonth === option.value
+                      ? "bg-primary text-on-primary"
+                      : "text-on-surface hover:bg-surface-container"
+                  )}
+                  disabled={isLoadingStats}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI Cards Row */}
@@ -189,7 +288,7 @@ export function DashboardOverview({
               <CheckCircle className="w-5 h-5 text-emerald-600" />
             </div>
             <span className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-600 text-[12px] font-bold rounded-full uppercase tracking-wider">
-              Tháng này
+              {selectedMonthLabel}
             </span>
           </div>
           <div className="mt-6">
@@ -377,7 +476,7 @@ export function DashboardOverview({
           {/* Tiến độ hoàn thành tháng */}
           <div className="bg-surface-container-lowest rounded-2xl p-6 shadow-ambient">
             <h2 className="font-manrope text-headline-md font-bold text-on-surface mb-6">
-              Tiến độ hoàn thành tháng
+              Tiến độ hoàn thành {selectedMonthLabel.toLowerCase()}
             </h2>
 
             <div className="flex flex-col items-center">
@@ -431,8 +530,8 @@ export function DashboardOverview({
 
               <p className="text-center text-sm text-on-surface-variant mt-4 font-inter">
                 {remainingPosts > 0
-                  ? `Chỉ còn ${remainingPosts} bài viết nữa là đạt 100% chỉ tiêu tháng`
-                  : "Bạn đã đạt 100% chỉ tiêu tháng này!"}
+                  ? `Chỉ còn ${remainingPosts} bài viết nữa là đạt 100% chỉ tiêu ${selectedMonthLabel.toLowerCase()}`
+                  : `Bạn đã đạt 100% chỉ tiêu ${selectedMonthLabel.toLowerCase()}!`}
               </p>
 
               <div className="w-full mt-4 pt-4 border-t border-slate-100 flex justify-between text-sm">

@@ -68,12 +68,22 @@ export async function getCachedDashboardPosts(userId: string) {
     }));
 }
 
-export async function getCachedMonthlyStats(userId: string) {
+export async function getCachedMonthlyStats(userId: string, monthKey?: string) {
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  let year = now.getFullYear();
+  let month = now.getMonth();
 
-  // Get check-ins this month with associated post info
+  // Parse month key if provided (format: "YYYY-MM")
+  if (monthKey) {
+    const [y, m] = monthKey.split("-").map(Number);
+    year = y;
+    month = m - 1; // Convert to 0-indexed
+  }
+
+  const startOfMonth = new Date(year, month, 1);
+  const endOfMonth = new Date(year, month + 1, 1);
+
+  // Get check-ins for the specified month with associated post info
   const checkinsThisMonth = await db.checkin.findMany({
     where: {
       user_id: userId,
