@@ -176,3 +176,9 @@ model NoteEmbedding {
 
   note      TaskNote @relation(fields: [note_id], references: [id], onDelete: Cascade)
 }
+
+model SystemStatus {
+  id             String   @id @default(uuid())
+  is_maintenance Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+}

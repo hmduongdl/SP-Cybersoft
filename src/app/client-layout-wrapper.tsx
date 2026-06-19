@@ -12,8 +12,9 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const pathname = usePathname();
   const { sidebarCollapsed } = useLayout();
   const isLoginPage = pathname === "/login" || pathname === "/login/";
+  const isMaintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
 
-  if (isLoginPage) {
+  if (isLoginPage || isMaintenanceMode || pathname === "/maintenance") {
     return <div className="h-screen w-screen overflow-y-auto bg-surface">{children}</div>;
   }
 
