@@ -7,6 +7,9 @@ export const authConfig = {
   },
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
+      const isMaintenance = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
+      if (isMaintenance) return true; // Cho phép đi qua middleware để rewrite sang /maintenance
+
       const isLoggedIn = !!auth?.user;
 
       if (!isLoggedIn) return false;
