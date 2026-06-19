@@ -24,7 +24,7 @@ export function CalendarView() {
   const monthYearStr = `Tháng ${currentDate.getMonth() + 1} Năm ${currentDate.getFullYear()}`;
 
   return (
-    <div className="bg-white rounded-2xl p-6 flex flex-col h-full min-h-[600px] font-inter" style={{ boxShadow: '0 8px 24px rgba(19,27,46,.05)' }}>
+    <div className="flex flex-col h-full min-h-[600px] font-inter">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-[24px] font-semibold text-[#131b2e] font-manrope">

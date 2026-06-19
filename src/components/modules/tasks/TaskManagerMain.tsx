@@ -23,9 +23,9 @@ export default function TaskManagerMain() {
   const overdueCount = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== 'DONE').length;
 
   return (
-    <div className="flex h-full w-full bg-[#f5f5ff] text-[#131b2e] font-inter">
+    <div className="flex gap-0 min-h-full w-full font-inter">
       {/* LEFT SIDEBAR (180px) */}
-      <div className="w-[180px] shrink-0 bg-[#f2f3ff] flex flex-col p-4">
+      <aside className="w-[180px] shrink-0 bg-[#f2f3ff] flex flex-col p-4">
         <p className="text-[10px] font-semibold tracking-[.08em] uppercase text-[#44495a] px-2 mb-2 mt-4 first:mt-0">
           LỌC CÔNG VIỆC
         </p>
@@ -53,10 +53,10 @@ export default function TaskManagerMain() {
             </button>
           ))}
         </div>
-      </div>
+      </aside>
 
       {/* RIGHT MAIN AREA */}
-      <div className="flex-1 flex flex-col min-w-0 px-[24px] py-[20px] overflow-hidden">
+      <main className="flex-1 p-6 bg-[#f5f5ff] flex flex-col min-w-0 overflow-hidden">
         
         {/* PAGE HEADER */}
         {/* Tầng 1: breadcrumb riêng — trên cùng */}
@@ -190,7 +190,7 @@ export default function TaskManagerMain() {
             {currentView === 'calendar' && <CalendarView />}
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Slide-over Task Detail Panel */}
       <TaskDetailPanel />
