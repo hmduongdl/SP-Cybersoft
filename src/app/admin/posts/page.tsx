@@ -4,9 +4,11 @@ import { Card } from "@/components/ui/card";
 import { Lock } from "lucide-react";
 import { useLayout } from "@/components/shared/layout-context";
 import { PostTaskAdmin } from "@/components/modules/tasks/post-task-admin";
+import { useSession } from "next-auth/react";
 
 export default function AdminPostsPage() {
-  const { role } = useLayout();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
 
   if (role !== "ADMIN") {
     return (

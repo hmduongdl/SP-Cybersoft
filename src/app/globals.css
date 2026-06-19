@@ -128,10 +128,10 @@
     color: #131b2e;
 }
 
-/* Scrollbar */
+/* Modern Minimalist Scrollbar */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -139,13 +139,17 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c4c8da;
-  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.2);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #c4c8da transparent;
+  scrollbar-color: rgba(15, 23, 42, 0.1) transparent;
 }
 
 /* Framer Motion default */

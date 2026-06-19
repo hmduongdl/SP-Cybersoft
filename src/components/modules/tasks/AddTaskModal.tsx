@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 export function AddTaskModal() {
   const { 
@@ -12,8 +13,11 @@ export function AddTaskModal() {
     setAddTaskModalOpen, 
     addTask,
     tags,
-    currentWorkspaceId
+    currentWorkspaceId,
+    workspaces
   } = useTaskStore();
+  
+  const { data: session } = useSession();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -21,6 +25,14 @@ export function AddTaskModal() {
   const [tagId, setTagId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedWsId, setSelectedWsId] = useState("");
+
+  useEffect(() => {
+    if (isAddTaskModalOpen && currentWorkspaceId === "ALL") {
+      const personalWs = workspaces.find(w => w.name === "Personal");
+      setSelectedWsId(personalWs ? personalWs.id : (workspaces[0]?.id || ""));
+    }
+  }, [isAddTaskModalOpen, currentWorkspaceId, workspaces]);
 
   const handleClose = () => {
     if (loading) return;
@@ -31,6 +43,7 @@ export function AddTaskModal() {
     setStatus("TODO");
     setTagId("");
     setDueDate("");
+    setSelectedWsId("");
   };
 
   const handleSubmit = async () => {
@@ -40,14 +53,22 @@ export function AddTaskModal() {
     try {
       // Find selected tag from store to attach to task
       const selectedTag = tags.find(t => t.id === tagId);
+      const finalWorkspaceId = currentWorkspaceId === "ALL" ? selectedWsId : currentWorkspaceId;
+      const actualWsId = finalWorkspaceId || workspaces.find(w => w.name === "Personal")?.id || workspaces[0]?.id;
+      
+      if (!actualWsId) {
+        toast.error("Vui lòng chọn không gian làm việc hợp lệ!");
+        setLoading(false);
+        return;
+      }
 
       const newTask = {
         title,
         description,
         status,
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
-        workspace_id: currentWorkspaceId || "ws-1",
-        creator_id: "user-1",
+        workspace_id: actualWsId,
+        creator_id: session?.user?.id || "user-1",
         is_archived: false,
         tags: selectedTag ? [selectedTag] : [],
       };
@@ -93,6 +114,36 @@ export function AddTaskModal() {
 
             {/* Properties Grid */}
             <div className="flex flex-col gap-3">
+              {currentWorkspaceId === "ALL" && (
+                <div className="flex items-center">
+                  <span className="w-24 text-xs font-semibold text-slate-400 tracking-wide uppercase">Không gian</span>
+                  <select
+                    value={selectedWsId}
+                    onChange={e => setSelectedWsId(e.target.value)}
+                    className="text-[13px] text-slate-700 bg-transparent outline-none cursor-pointer hover:bg-slate-50 px-2 py-1 rounded-md transition-colors min-w-[120px]"
+                    disabled={loading}
+                  >
+                    {workspaces.map(ws => (
+                      <option key={ws.id} value={ws.id}>{ws.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center">
+                <span className="w-24 text-xs font-semibold text-slate-400 tracking-wide uppercase">Người làm</span>
+                <div className="flex items-center gap-2 text-[13px] text-slate-700 bg-transparent px-2 py-1">
+                  {session?.user?.image ? (
+                    <img src={session.user.image} alt="" className="w-5 h-5 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
+                      {session?.user?.name ? session.user.name.substring(0, 2).toUpperCase() : 'US'}
+                    </div>
+                  )}
+                  {session?.user?.name || "Người dùng"}
+                </div>
+              </div>
+
               {/* Status */}
               <div className="flex items-center">
                 <span className="w-24 text-xs font-semibold text-slate-400 tracking-wide uppercase">Trạng thái</span>

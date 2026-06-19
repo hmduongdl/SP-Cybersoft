@@ -42,8 +42,8 @@ interface UserAccount {
 }
 
 export default function AdminAccountsPage() {
-  const { role } = useLayout();
   const { data: session } = useSession();
+  const role = session?.user?.role;
 
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);

@@ -8,11 +8,21 @@ export async function GET() {
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const workspaces = await db.workspace.findMany({
-      where: { owner_id: session.user.id },
+      where: {
+        OR: [
+          { owner_id: session.user.id },
+          { collaborators: { some: { user_id: session.user.id } } }
+        ]
+      },
       orderBy: { createdAt: 'desc' }
     });
 
-    return NextResponse.json({ workspaces });
+    // Deduplicate by ID — a user may own a workspace matching both owner_id and name filters
+    const uniqueMap = new Map<string, typeof workspaces[number]>();
+    workspaces.forEach(ws => uniqueMap.set(ws.id, ws));
+    const uniqueWorkspaces = Array.from(uniqueMap.values());
+
+    return NextResponse.json({ workspaces: uniqueWorkspaces });
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

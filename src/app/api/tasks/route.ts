@@ -12,9 +12,24 @@ export async function GET(req: Request) {
 
     let whereClause: any = { is_archived: false };
     if (workspaceId && workspaceId !== "ALL") {
-      whereClause.workspace_id = workspaceId;
+      const reqWs = await db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true }});
+      if (reqWs && ["Tech", "Website", "Web"].includes(reqWs.name)) {
+        const allMatchingWs = await db.workspace.findMany({ where: { name: reqWs.name }, select: { id: true } });
+        whereClause.workspace_id = { in: allMatchingWs.map(w => w.id) };
+      } else {
+        whereClause.workspace_id = workspaceId;
+      }
     } else {
-      const userWorkspaces = await db.workspace.findMany({ where: { owner_id: session.user.id }, select: { id: true } });
+      const userWorkspaces = await db.workspace.findMany({ 
+        where: {
+          OR: [
+            { owner_id: session.user.id },
+            { name: { in: ["Tech", "Website", "Web"] } },
+            { collaborators: { some: { user_id: session.user.id } } }
+          ]
+        }, 
+        select: { id: true } 
+      });
       const userWsIds = userWorkspaces.map(w => w.id);
       whereClause.workspace_id = { in: userWsIds };
     }
@@ -58,6 +73,34 @@ export async function POST(req: Request) {
 
     if (!title || !workspace_id) return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
 
+    let finalTags = tags && tags.length > 0 ? tags.map((t: any) => ({ id: t.id })) : [];
+
+    // Auto-append default tags for Tech and Website workspaces
+    const ws = await db.workspace.findUnique({ where: { id: workspace_id } });
+    if (ws) {
+      if (ws.name === "Tech") {
+        let techTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Tech" } });
+        if (!techTag) {
+          techTag = await db.tag.create({
+            data: { name: "Tech", color: "#3b82f6", workspace_id: ws.id, user_id: session.user.id }
+          });
+        }
+        if (!finalTags.some((t: any) => t.id === techTag!.id)) {
+          finalTags.push({ id: techTag.id });
+        }
+      } else if (ws.name === "Website" || ws.name === "Web") {
+        let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Web" } });
+        if (!webTag) {
+          webTag = await db.tag.create({
+            data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
+          });
+        }
+        if (!finalTags.some((t: any) => t.id === webTag!.id)) {
+          finalTags.push({ id: webTag.id });
+        }
+      }
+    }
+
     const task = await db.task.create({
       data: {
         title,
@@ -66,8 +109,8 @@ export async function POST(req: Request) {
         due_date: due_date ? new Date(due_date) : null,
         workspace_id,
         creator_id: session.user.id,
-        tags: tags && tags.length > 0 ? {
-          connect: tags.map((t: any) => ({ id: t.id }))
+        tags: finalTags.length > 0 ? {
+          connect: finalTags
         } : undefined
       },
       include: {

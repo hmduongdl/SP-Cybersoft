@@ -10,6 +10,7 @@ export interface Workspace {
   icon?: string;
   color?: string;
   owner_id: string;
+  is_default?: boolean;
 }
 
 export interface Tag {
@@ -29,7 +30,9 @@ export interface Task {
   assignee?: { name: string; avatar_url?: string };
   workspace_id: string;
   creator_id: string;
+  creator?: { name: string; avatar_url: string | null };
   is_archived: boolean;
+  createdAt: string;
   tags?: Tag[];
   note?: {
     id: string;
@@ -46,6 +49,7 @@ interface TaskStoreState {
   currentWorkspace: Workspace | null;
   tasks: Task[];
   tags: Tag[];
+  users: User[];
   currentView: 'list' | 'kanban' | 'calendar';
   isAIChatOpen: boolean;
   selectedTaskId: string | null;
@@ -68,6 +72,7 @@ interface TaskStoreState {
   fetchWorkspaces: () => Promise<void>;
   fetchTasks: (workspaceId: string) => Promise<void>;
   fetchTags: (workspaceId: string) => Promise<void>;
+  fetchUsers: () => Promise<void>;
 
   // CRUD Actions
   addTask: (taskData: Partial<Task>) => Promise<void>;
@@ -82,6 +87,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   currentWorkspace: null,
   tasks: [],
   tags: [],
+  users: [],
   currentView: 'list',
   isAIChatOpen: false,
   selectedTaskId: null,
@@ -144,6 +150,18 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
   },
 
+  fetchUsers: async () => {
+    try {
+      const res = await fetch(`/api/user/list`);
+      if (res.ok) {
+        const users = await res.json();
+        set({ users });
+      }
+    } catch (error) {
+      console.error('Failed to fetch users', error);
+    }
+  },
+
   addTask: async (taskData) => {
     try {
       const res = await fetch('/api/tasks', {
@@ -153,10 +171,15 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       });
       if (res.ok) {
         const newTask = await res.json();
-        set((state) => ({ tasks: [...state.tasks, newTask] }));
+        set((state) => ({ tasks: [newTask, ...state.tasks] }));
+      } else {
+        const err = await res.text();
+        console.error('Failed to add task on server:', err);
+        throw new Error(err);
       }
     } catch (error) {
       console.error('Failed to add task', error);
+      throw error;
     }
   },
 
@@ -183,21 +206,40 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   },
 
   deleteTask: async (taskId) => {
+    // Keep a copy to revert if needed
+    let prevTask = null;
     try {
-      // Optimistic delete
-      set((state) => ({
-        tasks: state.tasks.filter((t) => t.id !== taskId),
-      }));
+      set((state) => {
+        prevTask = state.tasks.find(t => t.id === taskId);
+        return {
+          tasks: state.tasks.filter((t) => t.id !== taskId),
+        };
+      });
 
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'DELETE',
       });
       
       if (!res.ok) {
-        console.error('Failed to delete task on server');
+        const errorData = await res.json().catch(() => ({}));
+        // Revert
+        if (prevTask) {
+          set((state) => ({ tasks: [...state.tasks, prevTask!] }));
+        }
+        throw new Error(errorData.error || 'Failed to delete task on server');
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Revert if fetch failed entirely
+      if (prevTask) {
+        set((state) => {
+          if (!state.tasks.some(t => t.id === taskId)) {
+            return { tasks: [...state.tasks, prevTask!] };
+          }
+          return state;
+        });
+      }
       console.error('Failed to delete task', error);
+      throw error; // Let the UI handle the alert
     }
   },
 

@@ -36,6 +36,8 @@ model User {
   workspaces           Workspace[] @relation("UserWorkspaces")
   created_tasks        Task[]      @relation("UserCreatedTasks")
   quick_note           String?
+  tags                 Tag[]
+  collaborators        WorkspaceCollaborator[]
 
   @@index([email])
 }
@@ -128,9 +130,10 @@ model Workspace {
   is_public   Boolean  @default(true)
   createdAt   DateTime @default(now())
 
-  owner       User     @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
-  tags        Tag[]    @relation("WorkspaceTags")
-  tasks       Task[]   @relation("WorkspaceTasks")
+  owner       User                    @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
+  tags        Tag[]                   @relation("WorkspaceTags")
+  tasks       Task[]                  @relation("WorkspaceTasks")
+  collaborators WorkspaceCollaborator[]
 }
 
 model Tag {
@@ -138,11 +141,26 @@ model Tag {
   name         String
   color        String?
   workspace_id String
+  user_id      String
 
   workspace    Workspace @relation("WorkspaceTags", fields: [workspace_id], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   tasks        Task[]    @relation("TaskTags")
 
-  @@unique([name, workspace_id])
+  @@unique([name, workspace_id, user_id])
+}
+
+model WorkspaceCollaborator {
+  id           String    @id @default(uuid())
+  workspace_id String
+  user_id      String
+  role         String    @default("MEMBER")
+  invited_at   DateTime  @default(now())
+
+  workspace    Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([workspace_id, user_id])
 }
 
 model Task {
@@ -185,4 +203,15 @@ model SystemStatus {
   id             String   @id @default(uuid())
   is_maintenance Boolean  @default(false)
   updatedAt      DateTime @updatedAt
+}
+
+model SystemAnnouncement {
+  id             String   @id @default(uuid())
+  title          String
+  content        String   @db.Text
+  image_url      String?  @db.Text
+  file_url       String?  @db.Text
+  file_name      String?
+  is_active      Boolean  @default(false)
+  updated_at     DateTime @updatedAt
 }

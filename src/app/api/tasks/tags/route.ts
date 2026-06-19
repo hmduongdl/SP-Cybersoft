@@ -16,7 +16,16 @@ export async function GET(req: Request) {
     if (workspaceId !== "ALL") {
       whereClause.workspace_id = workspaceId;
     } else {
-      const userWorkspaces = await db.workspace.findMany({ where: { owner_id: session.user.id }, select: { id: true } });
+      const userWorkspaces = await db.workspace.findMany({ 
+        where: { 
+          OR: [
+            { owner_id: session.user.id },
+            { is_public: true },
+            { collaborators: { some: { user_id: session.user.id } } }
+          ]
+        }, 
+        select: { id: true } 
+      });
       const userWsIds = userWorkspaces.map(w => w.id);
       whereClause.workspace_id = { in: userWsIds };
     }

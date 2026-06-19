@@ -17,11 +17,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Thiếu dữ liệu bắt buộc" }, { status: 400 });
     }
 
+    // Prevent duplicates across users in the same workspace
+    const existingTag = await db.tag.findFirst({
+      where: {
+        name,
+        workspace_id,
+      }
+    });
+
+    if (existingTag) {
+      return NextResponse.json(existingTag);
+    }
+
     const tag = await db.tag.create({
       data: {
         name,
         color: color || "#3b82f6",
         workspace_id,
+        user_id: session.user.id,
       },
     });
 

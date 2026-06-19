@@ -50,7 +50,7 @@ export async function getCachedDashboardPosts(userId: string, monthKey?: string)
 
   const posts = await db.post.findMany({
     where: {
-      is_archived: false,
+      ...(!monthKey && { is_archived: false }),
       checkins: { none: { user_id: userId } },
       ...(monthKey && { start_at: dateFilter }),
     },
@@ -116,9 +116,11 @@ export async function getCachedMonthlyStats(userId: string, monthKey?: string) {
     },
   });
 
-  // Get all posts (including those outside current month that might have checkins)
+  // Get all posts in the month (regardless of archive status)
   const allPosts = await db.post.findMany({
-    where: { is_archived: false },
+    where: {
+      start_at: { gte: startOfMonth, lt: endOfMonth },
+    },
     select: { id: true, start_at: true },
   });
 

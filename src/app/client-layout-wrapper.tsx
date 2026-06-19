@@ -4,7 +4,6 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
-import { AIAssistant } from "@/components/AIAssistant";
 
 import { useLayout } from "@/components/shared/layout-context";
 
@@ -40,9 +39,6 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
           )}
         </div>
       </div>
-
-      {/* Floating AI Assistant */}
-      <AIAssistant />
     </div>
   );
 }

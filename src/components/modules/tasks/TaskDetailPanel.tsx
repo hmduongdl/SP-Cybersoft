@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { X, Calendar, FileText, CheckCircle, Tag, User } from "lucide-react";
+import { X, Calendar, FileText, CheckCircle, Tag, User, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { isPast, parseISO, format } from "date-fns";
@@ -36,6 +36,7 @@ export function TaskDetailPanel() {
     tasks, 
     updateTask, 
     updateTaskNote,
+    deleteTask,
     currentWorkspace
   } = useTaskStore();
 
@@ -69,6 +70,17 @@ export function TaskDetailPanel() {
     }
   };
 
+  const handleDelete = async () => {
+    if (confirm("Bạn có chắc chắn muốn xóa công việc này không?")) {
+      try {
+        await deleteTask(selectedTaskId!);
+        handleClose();
+      } catch (err: any) {
+        alert(err.message || "Không thể xóa công việc.");
+      }
+    }
+  };
+
   const cycleStatus = (t: any) => {
     let nextStatus: TaskStatus = "TODO";
     if (t.status === "TODO") nextStatus = "IN_PROGRESS";
@@ -83,6 +95,12 @@ export function TaskDetailPanel() {
     }
   };
 
+  const updateTaskDescription = (newDesc: string) => {
+    if (task) {
+      updateTask(task.id, { description: newDesc });
+    }
+  };
+
   const saveTask = () => {};
 
   if (!selectedTaskId || !task) return null;
@@ -91,6 +109,7 @@ export function TaskDetailPanel() {
   const hasDueDate = !!task.due_date;
   const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
   const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
+  const taskWorkspaceName = useTaskStore.getState().workspaces.find(w => w.id === task.workspace_id)?.name || "Dự án chung";
 
   return (
     <AnimatePresence>
@@ -120,7 +139,7 @@ export function TaskDetailPanel() {
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🚀</span> 
                   <span className="font-semibold text-slate-700">
-                    {currentWorkspace?.name || "Dự án chung"}
+                    {taskWorkspaceName}
                   </span>
                 </div>
                 <button 
@@ -136,8 +155,18 @@ export function TaskDetailPanel() {
                 value={task.title}
                 onChange={e => updateTaskTitle(e.target.value)}
                 onBlur={saveTask}
-                className="w-full text-2xl font-bold text-slate-900 border-none outline-none focus:ring-0 p-0 mb-4 bg-transparent placeholder:text-slate-300"
+                className="w-full text-2xl font-bold text-slate-900 border-none outline-none focus:ring-0 p-0 mb-2 bg-transparent placeholder:text-slate-300"
                 placeholder="Nhập tiêu đề công việc..."
+              />
+
+              {/* Description Input */}
+              <textarea
+                value={task.description || ""}
+                onChange={e => updateTaskDescription(e.target.value)}
+                onBlur={saveTask}
+                className="w-full text-sm text-slate-600 border-none outline-none focus:ring-0 p-0 mb-4 bg-transparent placeholder:text-slate-400 resize-none min-h-[40px]"
+                placeholder="Thêm mô tả công việc (tùy chọn)..."
+                rows={2}
               />
 
               {/* Properties Grid */}
@@ -184,10 +213,14 @@ export function TaskDetailPanel() {
                     <User size={14} /> Người làm
                   </div>
                   <div className="flex items-center gap-2 text-slate-700 hover:bg-slate-50 px-2 py-1 rounded-md w-fit cursor-pointer">
-                    <div className="w-5 h-5 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[9px] font-semibold text-[#0050cb]">
-                      US
-                    </div>
-                    <span>Bạn (Me)</span>
+                    {task.creator?.avatar_url ? (
+                      <img src={task.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-5 h-5 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[9px] font-semibold text-[#0050cb]">
+                        {task.creator?.name ? task.creator.name.substring(0, 2).toUpperCase() : 'US'}
+                      </div>
+                    )}
+                    <span>{task.creator?.name || 'Người dùng'}</span>
                   </div>
                 </div>
               </div>
@@ -205,19 +238,29 @@ export function TaskDetailPanel() {
             </div>
 
             {/* Bottom Sticky Action Bar */}
-            <div className="border-t border-slate-100 p-4 bg-slate-50/80 backdrop-blur-sm shrink-0 flex items-center justify-end gap-3">
+            <div className="border-t border-slate-100 p-4 bg-slate-50/80 backdrop-blur-sm shrink-0 flex items-center justify-between gap-3">
               <button 
-                onClick={handleClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+                onClick={handleDelete}
+                className="px-4 py-2 flex items-center gap-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 bg-transparent rounded-lg transition-colors"
+                title="Xóa công việc này"
               >
-                Hủy
+                <Trash2 size={16} />
+                <span className="hidden sm:inline">Xóa</span>
               </button>
-              <button 
-                onClick={handleSaveNote}
-                className="px-5 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 hover:shadow transition-all"
-              >
-                Lưu & Đóng
-              </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleClose}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+                >
+                  Hủy
+                </button>
+                <button 
+                  onClick={handleSaveNote}
+                  className="px-5 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 hover:shadow transition-all"
+                >
+                  Lưu & Đóng
+                </button>
+              </div>
             </div>
           </motion.div>
         </>
@@ -225,3 +268,4 @@ export function TaskDetailPanel() {
     </AnimatePresence>
   );
 }
+

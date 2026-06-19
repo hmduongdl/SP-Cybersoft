@@ -56,21 +56,21 @@ export function MainContent() {
   const inProgressCount = tasks.filter(t => t.status === "IN_PROGRESS").length;
   const doneCount = tasks.filter(t => t.status === "DONE").length;
   const overdueCount = tasks.filter(t => {
-     if (t.status === "DONE" || !t.due_date) return false;
-     const dueDate = new Date(t.due_date);
-     const today = new Date();
-     today.setHours(0, 0, 0, 0); // Compare without time
-     return dueDate < today;
+    if (t.status === "DONE" || !t.due_date) return false;
+    const dueDate = new Date(t.due_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Compare without time
+    return dueDate < today;
   }).length;
 
   const activeWorkspace = useTaskStore(state => state.currentWorkspaceId) === "ALL"
-    ? { id: "ALL", name: "Tất cả dự án (ALL)", icon: "🌐", color: "#0050cb" }
+    ? { id: "ALL", name: "Tất cả dự án", icon: "🌐", color: "#0050cb" }
     : currentWorkspace || workspaces[0] || {
-        id: "ALL",
-        name: "Tất cả dự án (ALL)",
-        icon: "🌐",
-        color: "#0050cb",
-      };
+      id: "ALL",
+      name: "Tất cả dự án",
+      icon: "🌐",
+      color: "#0050cb",
+    };
 
   const activeView = currentView;
   const setView = setCurrentView;
@@ -118,7 +118,7 @@ export function MainContent() {
 
       {/* Main Board & Note Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch w-full flex-1 min-h-0">
-        
+
         {/* Left: Kanban / List View */}
         <div className="col-span-1 lg:col-span-3 min-w-0 w-full h-full flex flex-col bg-transparent rounded-2xl min-h-0">
           <AnimatePresence mode="wait">

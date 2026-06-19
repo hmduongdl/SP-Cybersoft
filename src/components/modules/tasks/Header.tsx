@@ -30,7 +30,7 @@ export function Header() {
   }, []);
 
   const activeWorkspace = currentWorkspaceId === "ALL"
-    ? { id: "ALL", name: "Tất cả dự án (ALL)", icon: "🌐" }
+    ? { id: "ALL", name: "Tất cả dự án", icon: "🌐" }
     : currentWorkspace || workspaces[0] || { id: "ALL", name: "Tất cả dự án", icon: "🌐" };
 
   return (
@@ -56,7 +56,7 @@ export function Header() {
             >
               <div className="flex items-center gap-2 font-semibold text-[#0050cb] text-sm">
                 <span>🌐</span>
-                <span>Tất cả dự án (ALL)</span>
+                <span>Tất cả dự án</span>
               </div>
             </button>
             {workspaces.map(ws => (
