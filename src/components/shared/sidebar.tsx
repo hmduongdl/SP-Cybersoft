@@ -80,7 +80,7 @@ export function Sidebar() {
   const filteredSections = sectionedItems
     .map(section => ({
       ...section,
-      items: section.items.filter(item => !item.adminOnly || session?.user?.role === "ADMIN")
+      items: section.items.filter(item => !item.adminOnly || session?.user?.role === "ADMIN" || profile?.role === "ADMIN")
     }))
     .filter(section => section.items.length > 0);
 
@@ -220,7 +220,6 @@ export function Sidebar() {
                                     {tag.name}
                                   </button>
                                 ))}
-                                <button onClick={() => setCreateTagModalOpen(true)} className="text-[12px] text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 text-left transition-colors mt-1 px-2 py-1">+ Tạo thẻ mới</button>
                               </div>
                             </div>
                           </div>
@@ -262,7 +261,7 @@ export function Sidebar() {
               {!collapsed && <span className="text-sm font-medium font-inter">Cài đặt</span>}
             </button>
 
-            {session?.user?.role === "ADMIN" && (
+            {(session?.user?.role === "ADMIN" || profile?.role === "ADMIN") && (
               <Link
                 href="/admin/settings"
                 className={twMerge(

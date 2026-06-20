@@ -100,7 +100,7 @@ export function AddTaskModal() {
             exit={{ scale: .96, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             onClick={e => e.stopPropagation()}
-            className="bg-white rounded-2xl w-full max-w-lg shadow-xl border border-slate-100 p-6 flex flex-col gap-4 font-inter"
+            className="bg-surface-mid rounded-2xl w-full max-w-lg shadow-xl border border-slate-100 p-6 flex flex-col gap-4 font-inter"
           >
             {/* Title input */}
             <input

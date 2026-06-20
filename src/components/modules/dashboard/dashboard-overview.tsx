@@ -392,7 +392,7 @@ export function DashboardOverview({
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-inter text-[15px] font-bold text-on-surface dark:text-slate-100 truncate group-hover:text-primary transition-colors">
+                      <p className="font-inter text-[15px] font-bold text-on-surface dark:text-white truncate group-hover:text-primary transition-colors">
                         {post.title}
                       </p>
                       <p className="text-[13px] text-on-surface-variant mt-0.5">
@@ -440,7 +440,7 @@ export function DashboardOverview({
                       className="w-10 h-10"
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="font-inter text-[14px] font-semibold text-on-surface dark:text-slate-100 truncate">
+                      <p className="font-inter text-[14px] font-semibold text-on-surface dark:text-white truncate">
                         {feed.postTitle}
                       </p>
                       <p className="text-[12px] text-on-surface-variant">

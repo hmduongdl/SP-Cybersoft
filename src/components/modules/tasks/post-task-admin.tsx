@@ -587,7 +587,7 @@ export function PostTaskAdmin() {
                       {/* Title */}
                       <td className="px-5 py-4 max-w-sm">
                         <div className="group/tip relative">
-                          <span className="font-semibold text-on-surface group-hover:text-indigo-600 transition-all duration-150 block truncate cursor-default">
+                          <span className="font-semibold text-on-surface dark:text-white group-hover:text-indigo-600 transition-all duration-150 block truncate cursor-default">
                             {post.title}
                           </span>
                           {/* Tooltip on hover */}
@@ -703,7 +703,7 @@ export function PostTaskAdmin() {
           />
 
           {/* Form Card */}
-          <Card className="w-full max-w-2xl bg-white rounded-3xl border border-slate-100 shadow-2xl relative z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8 flex flex-col">
+          <Card className="w-full max-w-2xl bg-surface-mid rounded-3xl border border-slate-100 shadow-2xl relative z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8 flex flex-col">
             <div className="px-6 py-4 border-none flex items-center justify-between">
               <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <FileEdit className="h-5 w-5 text-indigo-600" />
@@ -830,7 +830,7 @@ export function PostTaskAdmin() {
                   {/* Right side config (Scheduling, Media) */}
                   <div className="md:col-span-5 space-y-4">
                     {/* Date/Time density checks */}
-                    <div className="bg-white border border-slate-100/80 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="bg-surface-mid border border-slate-100/80 rounded-2xl p-5 shadow-sm space-y-4">
                       <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs uppercase mb-2">
                         <CalendarIcon className="h-4 w-4 text-indigo-500" />
                         Thời gian lên lịch

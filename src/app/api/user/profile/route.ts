@@ -24,6 +24,7 @@ export async function GET() {
         department: true,
         avatar_url: true,
         facebook_profile_url: true,
+        role: true,
       },
     });
 
@@ -35,6 +36,7 @@ export async function GET() {
       department: user?.department,
       avatar_url: user?.avatar_url,
       facebook_profile_url: user?.facebook_profile_url,
+      role: user?.role,
     });
 
     let mappedUser = null;

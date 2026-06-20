@@ -81,16 +81,16 @@ export function MainContent() {
       {/* Breadcrumbs */}
       <div className="mb-6">
         <nav className="flex items-center gap-1.5 text-xs font-inter mb-3">
-          <span className="text-[#44495a] dark:text-slate-300">Dashboard</span>
+          <span className="text-on-muted dark:text-slate-300">Dashboard</span>
           <span className="text-[#c4c8da] dark:text-slate-600">/</span>
-          <span className="text-[#44495a] dark:text-slate-300">Trang chủ</span>
+          <span className="text-on-muted dark:text-slate-300">Trang chủ</span>
           <span className="text-[#c4c8da] dark:text-slate-600">/</span>
           <span className="text-[#0050cb] font-semibold">Task Manager</span>
         </nav>
         <p className="text-[9px] font-inter font-semibold tracking-[.1em] uppercase text-[#0050cb] mb-1">
           BẢNG CÔNG VIỆC
         </p>
-        <h1 className="font-manrope font-bold text-[28px] text-[#131b2e] dark:text-slate-100 tracking-[-0.02em]">
+        <h1 className="font-manrope font-bold text-[28px] text-on-surface dark:text-slate-100 tracking-[-0.02em]">
           Task Manager
         </h1>
       </div>
@@ -103,15 +103,15 @@ export function MainContent() {
           { label: 'Hoàn thành', bg: '#d5f8e8', color: '#0d5c34', value: doneCount },
           { label: 'Quá hạn', bg: '#ffdad6', color: '#a10000', value: overdueCount },
         ].map(s => (
-          <div key={s.label} className="col-span-1 bg-white dark:bg-[#131b2e] rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div key={s.label} className="col-span-1 bg-surface-mid dark:bg-[#131b2e] rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2" style={{ background: s.bg, color: s.color }}>
               {s.label === 'Cần làm' && <List size={16} />}
               {s.label === 'Đang làm' && <Columns size={16} />}
               {s.label === 'Hoàn thành' && <Calendar size={16} />}
               {s.label === 'Quá hạn' && <Calendar size={16} />}
             </div>
-            <p className="text-[9px] font-inter font-medium tracking-[.08em] uppercase text-[#44495a] dark:text-slate-400 mb-1">{s.label}</p>
-            <p className="text-[22px] font-manrope font-bold text-[#131b2e] dark:text-slate-100">{s.value}</p>
+            <p className="text-[9px] font-inter font-medium tracking-[.08em] uppercase text-on-muted dark:text-slate-400 mb-1">{s.label}</p>
+            <p className="text-[22px] font-manrope font-bold text-on-surface dark:text-slate-100">{s.value}</p>
           </div>
         ))}
       </div>
@@ -132,7 +132,7 @@ export function MainContent() {
         </div>
 
         {/* Right: NOTE PANEL */}
-        <div className="col-span-1 bg-amber-50/40 dark:bg-amber-950/10 border border-amber-200/50 dark:border-amber-900/20 rounded-2xl p-5 shadow-sm h-full flex flex-col min-h-0">
+        <div className="col-span-1 bg-amber-50/40 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-500/35 rounded-2xl p-5 shadow-sm h-full flex flex-col min-h-0">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base">📝</span>
             <h3 className="font-manrope font-bold text-sm text-slate-800 dark:text-slate-300 uppercase tracking-wider">

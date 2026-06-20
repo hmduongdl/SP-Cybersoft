@@ -47,9 +47,9 @@ export default function SystemAnnouncementModal() {
       />
 
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto animate-scale-in">
+      <div className="relative bg-surface-mid rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto animate-scale-in">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center gap-3 rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-surface-mid border-b border-slate-100 px-6 py-4 flex items-center gap-3 rounded-t-2xl z-10">
           <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center flex-shrink-0">
             <Megaphone size={20} className="text-indigo-600" />
           </div>
@@ -110,7 +110,7 @@ export default function SystemAnnouncementModal() {
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 rounded-b-2xl">
+        <div className="sticky bottom-0 bg-surface-mid border-t border-slate-100 px-6 py-4 rounded-b-2xl">
           <button
             onClick={handleClose}
             className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors cursor-pointer"

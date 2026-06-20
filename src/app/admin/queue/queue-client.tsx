@@ -722,7 +722,7 @@ export default function QueueClient({
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl animate-in slide-in-from-bottom-10 fade-in duration-300">
           <div className="flex items-center justify-between gap-4 px-5 py-3 rounded-[16px] shadow-[0_20px_40px_rgba(19,27,46,0.12)] border-none"
             style={{ background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#131b2e] font-inter">
+            <div className="flex items-center gap-2 text-sm font-semibold text-on-surface font-inter">
               <span>Đã chọn</span>
               <span className="text-primary font-bold text-base">{selectedIds.size}</span>
               <span>mục</span>

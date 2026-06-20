@@ -31,7 +31,7 @@ export default function TasksPageClient({
   currentPage?: number,
   totalPages?: number
 }) {
-  const [viewMode, setViewMode] = useState<ViewMode>("calendar");
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [localPosts, setLocalPosts] = useState(posts);
   const [selectedPost, setSelectedPost] = useState<any | null>(null);
 

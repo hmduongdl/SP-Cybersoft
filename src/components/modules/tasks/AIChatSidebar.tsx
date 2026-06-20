@@ -108,10 +108,10 @@ export function AIChatSidebar() {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: "100%", opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="fixed top-16 right-0 w-[360px] h-[calc(100vh-64px)] bg-white shadow-float flex flex-col z-30"
+          className="fixed top-16 right-0 w-[360px] h-[calc(100vh-64px)] bg-surface-mid shadow-float flex flex-col z-30"
         >
           {/* Header */}
-          <div className="h-16 px-5 flex items-center justify-between bg-white shrink-0">
+          <div className="h-16 px-5 flex items-center justify-between bg-surface-mid shrink-0">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-gradient-primary flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-white" />
@@ -150,7 +150,7 @@ export function AIChatSidebar() {
                       "p-3 rounded-2xl text-[13px] leading-relaxed",
                       isUser
                         ? "bg-primary text-white rounded-tr-sm shadow-card"
-                        : "bg-white text-on-surface rounded-tl-sm shadow-card"
+                        : "bg-surface-mid text-on-surface rounded-tl-sm shadow-card"
                     )}
                   >
                     {isUser ? (
@@ -190,7 +190,7 @@ export function AIChatSidebar() {
           </div>
 
           {/* Input Area */}
-          <div className="p-4 bg-white shrink-0">
+          <div className="p-4 bg-surface-mid shrink-0">
             <div className="relative flex items-center">
               <textarea
                 value={input}

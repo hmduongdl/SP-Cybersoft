@@ -34,12 +34,12 @@ export function Header() {
     : currentWorkspace || workspaces[0] || { id: "ALL", name: "Tất cả dự án", icon: "🌐" };
 
   return (
-    <header className="w-full h-16 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-[#131b2e] px-6 flex items-center justify-between gap-4 shrink-0 font-inter">
+    <header className="w-full h-16 border-b border-slate-100 dark:border-slate-800 bg-surface-mid dark:bg-[#131b2e] px-6 flex items-center justify-between gap-4 shrink-0 font-inter">
       {/* Left: Workspace Dropdown */}
       <div className="relative inline-block text-left z-45" ref={dropdownRef}>
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="flex items-center justify-between gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors w-48 shadow-sm"
+          className="flex items-center justify-between gap-2 px-3 py-2 bg-surface-mid dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors w-48 shadow-sm"
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <span>{activeWorkspace.icon || "🚀"}</span>
@@ -49,7 +49,7 @@ export function Header() {
         </button>
 
         {isDropdownOpen && (
-          <div className="absolute left-0 mt-2 w-56 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl py-1 z-50 origin-top-left focus:outline-none animate-slide-down">
+          <div className="absolute left-0 mt-2 w-56 bg-surface-mid dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl py-1 z-50 origin-top-left focus:outline-none animate-slide-down">
             <button
               onClick={() => { setCurrentWorkspaceId("ALL"); setIsDropdownOpen(false); }}
               className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700 mb-1"
@@ -90,7 +90,7 @@ export function Header() {
           <Search size={15} className="flex-shrink-0" />
           <input
             placeholder="Tìm kiếm..."
-            className="bg-transparent outline-none w-full text-[#131b2e] dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-500"
+            className="bg-transparent outline-none w-full text-on-surface dark:text-slate-100 placeholder:text-slate-500 dark:placeholder:text-slate-500"
           />
         </div>
 
@@ -106,7 +106,7 @@ export function Header() {
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-colors duration-150 cursor-pointer h-8",
                 currentView === v.key
-                  ? "bg-white dark:bg-slate-700 text-[#0050cb] dark:text-blue-400 shadow-sm"
+                  ? "bg-surface-mid dark:bg-slate-700 text-[#0050cb] dark:text-blue-400 shadow-sm"
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
               )}
             >

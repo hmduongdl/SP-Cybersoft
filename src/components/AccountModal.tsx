@@ -292,9 +292,9 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-surface-mid rounded-3xl border border-slate-100 shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-white z-10 rounded-t-3xl">
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between sticky top-0 bg-surface-mid z-10 rounded-t-3xl">
           <div>
             <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <User className="w-5 h-5 text-indigo-600" />
@@ -423,7 +423,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     }}
                     onClick={() => !uploading && fileInputRef.current?.click()}
                     className={cn(
-                      "border-2 border-dashed rounded-xl cursor-pointer p-4 transition-all bg-white",
+                      "border-2 border-dashed rounded-xl cursor-pointer p-4 transition-all bg-surface-mid",
                       isDragging
                         ? "border-indigo-400 bg-indigo-50/10"
                         : "border-slate-200 hover:border-indigo-400"
@@ -579,7 +579,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                 <div className="w-full border-t border-slate-200/60" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-3 font-bold text-indigo-600 tracking-widest flex items-center gap-1">
+                <span className="bg-surface-mid px-3 font-bold text-indigo-600 tracking-widest flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5" />
                   Thay đổi mật khẩu
                 </span>
@@ -683,7 +683,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
             </div>
 
             {/* Footer Actions */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 bg-white pb-1">
+            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 sticky bottom-0 bg-surface-mid pb-1">
               <button
                 type="button"
                 onClick={onClose}

@@ -10,73 +10,73 @@ datasource db {
 }
 
 model User {
-  id                   String    @id @default(uuid())
-  username             String    @unique
-  username_changed     Boolean   @default(false)
-  is_verified          Boolean   @default(false)
-  name                 String
-  full_name            String?
-  email                String    @unique
-  facebook_profile_url String?
-  password             String
-  role                 UserRole  @default(USER)
-  department           String
-  avatar_url           String?
-  facebook_verified    Boolean   @default(false)
-  is_active            Boolean   @default(true)
-  daily_token_limit    Int       @default(100000)
-  last_token_reset     DateTime  @default(now())
-  tokens_used_today    Int       @default(0)
-  hope_stars           Int       @default(0)
-  used_stars_this_month Int      @default(0)
-  last_star_reset_at   DateTime  @default(now())
-  trust_score          Int       @default(80)
-  total_auto_approved  Int       @default(0)
-  total_rejected       Int       @default(0)
-  reviewed_checkins    Checkin[] @relation("AdminReviewedCheckins")
-  checkins             Checkin[] @relation("UserCheckins")
-  workspaces           Workspace[] @relation("UserWorkspaces")
-  created_tasks        Task[]      @relation("UserCreatedTasks")
-  quick_note           String?
-  tags                 Tag[]
-  collaborators        WorkspaceCollaborator[]
+  id                    String                  @id @default(uuid())
+  username              String                  @unique
+  name                  String
+  full_name             String?
+  email                 String                  @unique
+  facebook_profile_url  String?
+  password              String
+  role                  UserRole                @default(USER)
+  department            String
+  avatar_url            String?
+  facebook_verified     Boolean                 @default(false)
+  is_active             Boolean                 @default(true)
+  daily_token_limit     Int                     @default(100000)
+  last_token_reset      DateTime                @default(now())
+  tokens_used_today     Int                     @default(0)
+  hope_stars            Int                     @default(0)
+  last_star_reset_at    DateTime                @default(now())
+  used_stars_this_month Int                     @default(0)
+  username_changed      Boolean                 @default(false)
+  trust_score           Int                     @default(80)
+  is_verified           Boolean                 @default(false)
+  quick_note            String?
+  total_auto_approved   Int                     @default(0)
+  total_rejected        Int                     @default(0)
+  reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")
+  checkins              Checkin[]               @relation("UserCheckins")
+  tags                  Tag[]
+  created_tasks         Task[]                  @relation("UserCreatedTasks")
+  workspaces            Workspace[]             @relation("UserWorkspaces")
+  collaborators         WorkspaceCollaborator[]
 
   @@index([email])
 }
 
 model Post {
-  id            String    @id @default(uuid())
-  title         String
-  url           String
-  thumbnail_url String?
-  description   String
-  author        String?
-  start_at      DateTime
-  team          Team      @default(ALL)
-  is_archived   Boolean   @default(false)
-  allow_late_submit Boolean @default(false)
-  created_at    DateTime  @default(now())
-  checkins      Checkin[]
+  id                String    @id @default(uuid())
+  title             String
+  url               String
+  thumbnail_url     String?
+  description       String
+  start_at          DateTime
+  team              Team      @default(ALL)
+  is_archived       Boolean   @default(false)
+  created_at        DateTime  @default(now())
+  allow_late_submit Boolean   @default(false)
+  author            String?
+  checkins          Checkin[]
 }
 
 model Checkin {
-  id            String        @id @default(uuid())
-  user_id       String
-  post_id       String
-  image_url     String
-  exif_time     DateTime?
-  submitted_at  DateTime      @default(now())
-  status        CheckinStatus @default(PENDING)
-  reject_reason String?
-  is_ai_flagged Boolean       @default(false)
-  ai_confidence Float?
+  id                    String        @id @default(uuid())
+  user_id               String
+  post_id               String
+  image_url             String
+  exif_time             DateTime?
+  submitted_at          DateTime      @default(now())
+  status                CheckinStatus @default(PENDING)
+  reject_reason         String?
+  is_ai_flagged         Boolean       @default(false)
+  ai_confidence         Float?
+  reviewed_by           String?
+  ai_analysis_reason    String?
+  ai_extracted_title    String?
   ai_extracted_username String?
-  ai_extracted_title   String?
-  ai_analysis_reason   String?
-  reviewed_by   String?
-  post          Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
-  reviewer      User?         @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])
-  user          User          @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)
+  post                  Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  reviewer              User?         @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])
+  user                  User          @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([post_id])
@@ -92,6 +92,98 @@ model SystemSetting {
 model Department {
   id   String @id @default(uuid())
   name String @unique
+}
+
+model Workspace {
+  id            String                  @id @default(uuid())
+  name          String
+  description   String?
+  icon          String?
+  color         String?
+  owner_id      String
+  createdAt     DateTime                @default(now())
+  is_default    Boolean                 @default(false)
+  is_public     Boolean                 @default(true)
+  type          String                  @default("CUSTOM")
+  tags          Tag[]                   @relation("WorkspaceTags")
+  tasks         Task[]                  @relation("WorkspaceTasks")
+  owner         User                    @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
+  collaborators WorkspaceCollaborator[]
+}
+
+model Tag {
+  id           String    @id @default(uuid())
+  name         String
+  color        String?
+  workspace_id String
+  user_id      String
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  workspace    Workspace @relation("WorkspaceTags", fields: [workspace_id], references: [id], onDelete: Cascade)
+  tasks        Task[]    @relation("TaskTags")
+
+  @@unique([name, workspace_id, user_id])
+}
+
+model WorkspaceCollaborator {
+  id           String    @id @default(uuid())
+  workspace_id String
+  user_id      String
+  role         String    @default("MEMBER")
+  invited_at   DateTime  @default(now())
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  workspace    Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  @@unique([workspace_id, user_id])
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  due_date     DateTime?
+  workspace_id String
+  creator_id   String
+  is_archived  Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  creator      User       @relation("UserCreatedTasks", fields: [creator_id], references: [id], onDelete: Cascade)
+  workspace    Workspace  @relation("WorkspaceTasks", fields: [workspace_id], references: [id], onDelete: Cascade)
+  note         TaskNote?
+  tags         Tag[]      @relation("TaskTags")
+}
+
+model TaskNote {
+  id        String         @id @default(uuid())
+  task_id   String         @unique
+  content   Json?
+  updatedAt DateTime       @updatedAt
+  embedding NoteEmbedding?
+  task      Task           @relation(fields: [task_id], references: [id], onDelete: Cascade)
+}
+
+model NoteEmbedding {
+  id        String                 @id @default(uuid())
+  note_id   String                 @unique
+  embedding Unsupported("vector")?
+  note      TaskNote               @relation(fields: [note_id], references: [id], onDelete: Cascade)
+}
+
+model SystemStatus {
+  id             String   @id @default(uuid())
+  is_maintenance Boolean  @default(false)
+  updatedAt      DateTime @updatedAt
+}
+
+model SystemAnnouncement {
+  id         String   @id @default(uuid())
+  title      String
+  content    String
+  image_url  String?
+  file_url   String?
+  file_name  String?
+  is_active  Boolean  @default(false)
+  updated_at DateTime @updatedAt
 }
 
 enum UserRole {
@@ -118,102 +210,4 @@ enum TaskStatus {
   TODO
   IN_PROGRESS
   DONE
-}
-
-model Workspace {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  icon        String?
-  color       String?
-  owner_id    String
-  is_default  Boolean  @default(false)
-  type        String   @default("CUSTOM")
-  is_public   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
-  owner       User                    @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
-  tags        Tag[]                   @relation("WorkspaceTags")
-  tasks       Task[]                  @relation("WorkspaceTasks")
-  collaborators WorkspaceCollaborator[]
-}
-
-model Tag {
-  id           String    @id @default(uuid())
-  name         String
-  color        String?
-  workspace_id String
-  user_id      String
-
-  workspace    Workspace @relation("WorkspaceTags", fields: [workspace_id], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  tasks        Task[]    @relation("TaskTags")
-
-  @@unique([name, workspace_id, user_id])
-}
-
-model WorkspaceCollaborator {
-  id           String    @id @default(uuid())
-  workspace_id String
-  user_id      String
-  role         String    @default("MEMBER")
-  invited_at   DateTime  @default(now())
-
-  workspace    Workspace @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
-  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@unique([workspace_id, user_id])
-}
-
-model Task {
-  id           String     @id @default(uuid())
-  title        String
-  description  String?
-  status       TaskStatus @default(TODO)
-  due_date     DateTime?
-  workspace_id String
-  creator_id   String
-  is_archived  Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  workspace    Workspace  @relation("WorkspaceTasks", fields: [workspace_id], references: [id], onDelete: Cascade)
-  creator      User       @relation("UserCreatedTasks", fields: [creator_id], references: [id], onDelete: Cascade)
-  tags         Tag[]      @relation("TaskTags")
-  note         TaskNote?
-}
-
-model TaskNote {
-  id        String   @id @default(uuid())
-  task_id   String   @unique
-  content   Json?
-  updatedAt DateTime @updatedAt
-
-  task      Task     @relation(fields: [task_id], references: [id], onDelete: Cascade)
-  embedding NoteEmbedding?
-}
-
-model NoteEmbedding {
-  id        String   @id @default(uuid())
-  note_id   String   @unique
-  embedding Unsupported("vector(768)")?
-
-  note      TaskNote @relation(fields: [note_id], references: [id], onDelete: Cascade)
-}
-
-model SystemStatus {
-  id             String   @id @default(uuid())
-  is_maintenance Boolean  @default(false)
-  updatedAt      DateTime @updatedAt
-}
-
-model SystemAnnouncement {
-  id             String   @id @default(uuid())
-  title          String
-  content        String   @db.Text
-  image_url      String?  @db.Text
-  file_url       String?  @db.Text
-  file_name      String?
-  is_active      Boolean  @default(false)
-  updated_at     DateTime @updatedAt
 }

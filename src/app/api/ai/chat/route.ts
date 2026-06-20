@@ -100,77 +100,44 @@ export async function POST(req: NextRequest) {
     const userId = session.user.id;
     const dbUser = await db.user.findUnique({
       where: { id: userId },
-      select: { name: true, department: true }
+      select: { name: true }
     });
-
     const userName = dbUser?.name || session.user.name || "Thành viên";
-    const userDept = dbUser?.department || "Other";
 
-    // 4.2. Truy vấn các bài đăng (Posts) đang hoạt động trong 2 tháng (tháng này và tháng trước)
-    const now = new Date();
-    // Đầu tháng trước
-    const twoMonthsAgoStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    
-    const activePosts = await db.post.findMany({
-      where: {
-        start_at: { gte: twoMonthsAgoStart },
-        is_archived: false,
-      },
-      select: {
-        id: true,
-        title: true,
-        url: true,
-        start_at: true,
-        checkins: {
-          where: { user_id: userId },
-          select: { status: true, reject_reason: true },
-        },
-      },
-      orderBy: { start_at: 'desc' }
+    // Lấy danh sách workspace
+    const userWorkspaces = await db.workspace.findMany({
+      where: { owner_id: userId },
+      select: { id: true, name: true, type: true }
     });
-
-    // 4.3. Phân loại tasks của User để làm Context cho AI
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const completedTasks = activePosts.filter(p => p.checkins.length > 0 && p.checkins[0].status !== "REJECTED");
-    const pendingTasks = activePosts.filter(p => p.checkins.length === 0 && p.start_at >= oneDayAgo);
-    const overdueTasks = activePosts.filter(p => p.checkins.length === 0 && p.start_at < oneDayAgo);
-    const rejectedTasks = activePosts.filter(p => p.checkins.length > 0 && p.checkins[0].status === "REJECTED");
+    const workspaces_list_with_types = userWorkspaces.map(w => `[ID: ${w.id}, Tên: ${w.name}, Loại: ${w.type}]`).join(", ");
 
     // 4.4. Xây dựng chuỗi Context thời gian thực
     const realTimeContext = `
-[THÔNG TIN THỜI GIAN THỰC TỪ HỆ THỐNG]
+[THÔNG TIN NGỮ CẢNH HIỆN TẠI (CONTEXT)]
 - Người dùng đang chat: ${userName}
-- Phòng ban: ${userDept}
-- Thời gian hệ thống hiện tại: ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
-- Tình hình thực hiện nhiệm vụ Like & Share của người dùng (trong tháng này và tháng trước):
-  * Tổng số nhiệm vụ (bài đăng): ${activePosts.length} bài.
-  * Số bài ĐÃ HOÀN THÀNH: ${completedTasks.length} bài. ${completedTasks.length > 0 ? completedTasks.map(t => `(Tiêu đề: "${t.title}", Trạng thái: ${t.checkins[0].status})`).join(", ") : ""}
-  * Số bài CHƯA HOÀN THÀNH (Còn hạn trong 24h, cần share ngay): ${pendingTasks.length} bài. ${pendingTasks.length > 0 ? pendingTasks.map(t => `(Tiêu đề: "${t.title}", Link gốc: ${t.url})`).join(", ") : ""}
-  * Số bài QUÁ HẠN (Quá 24h chưa share, không thể nộp nữa): ${overdueTasks.length} bài. ${overdueTasks.length > 0 ? overdueTasks.map(t => `(Tiêu đề: "${t.title}", Link gốc: ${t.url})`).join(", ") : ""}
-  * Số bài BỊ TỪ CHỐI (Cần nộp lại bằng chứng): ${rejectedTasks.length} bài. ${rejectedTasks.length > 0 ? rejectedTasks.map(t => `(Tiêu đề: "${t.title}", Lý do từ chối: ${t.checkins[0].reject_reason || "Không có lý do cụ thể"})`).join(", ") : ""}
+- Thời gian hiện tại: ${new Date().toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
+- Danh sách Workspace của người dùng: ${workspaces_list_with_types}
 `;
 
-    const systemPromptContent = `Bạn là "Trợ lý AI TeamSync" - một trợ lý ảo thông minh, thân thiện và tận tụy, chuyên hỗ trợ truyền thông nội bộ và giám sát công việc Like & Share bài viết cho doanh nghiệp Kinetic HR (hay còn gọi là TeamSync HR).
+    const systemPromptContent = `Bạn là "TaskMaster AI" - Trợ lý quản lý công việc và phân tích hiệu suất cá nhân tại hệ thống SPS AI.
+Nhiệm vụ của bạn là giúp người dùng quản lý thời gian, đánh giá năng suất và thực thi các lệnh thao tác công việc (đánh dấu hoàn thành, xóa task) thay cho người dùng.
 
-Nhiệm vụ của bạn:
-1. Giải đáp thắc mắc của nhân viên về các bài viết cần chia sẻ.
-2. Hướng dẫn nhân viên cách lấy link, cách chụp màn hình đúng chuẩn (chế độ công khai quả địa cầu, không mờ nhòe).
-3. Báo cáo nhanh cho nhân viên biết họ còn bao nhiêu bài chưa nộp bằng chứng check-in, bài nào sắp hết hạn 24h.
-4. Hướng dẫn Admin cách duyệt bài, cách xuất file Excel, cách sử dụng tính năng AI Scan kiểm chéo ảnh.
+LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
+1. QUYỀN HẠN THAO TÁC (WORKSPACE PERMISSIONS):
+   - Bạn CHỈ ĐƯỢC PHÉP thực thi lệnh "Xóa task" hoặc "Chỉnh sửa nội dung task" nếu task đó thuộc không gian cá nhân (Loại: PERSONAL) hoặc không gian tự tạo (Loại: CUSTOM).
+   - Tuyệt đối NGHIÊM CẤM thực thi lệnh "Xóa task" nếu task đó thuộc không gian của Công ty (Loại: WEBSITE hoặc TECH). Nếu người dùng ra lệnh xóa task ở các không gian này, bạn phải từ chối lịch sự: "Xin lỗi, đây là nhiệm vụ thuộc không gian công ty. Tôi chỉ có quyền thao tác trên không gian cá nhân của bạn để đảm bảo an toàn dữ liệu chung."
+   - Bạn được phép "Đánh dấu hoàn thành (DONE)" hoặc "Chuyển trạng thái (IN_PROGRESS)" cho TẤT CẢ các task ở mọi không gian, miễn là task đó do user đang phụ trách.
 
-Luật lệ nghiệp vụ tối cao của hệ thống (Bạn phải ghi nhớ để trả lời chính xác):
-- Thời hạn check-in: Đúng 24 tiếng kể từ khi Admin lên lịch bài viết (start_at). Quá 24h hệ thống sẽ khóa nộp bài tự động.
-- Cơ chế EXIF: Ảnh tải lên từ thiết bị di động có chứa thông tin ngày giờ chụp (DateTimeOriginal) khớp với cửa sổ 24h sẽ được tự động duyệt (AUTO_APPROVED).
-- Trạng thái PENDING: Nếu ảnh chụp bằng máy tính (không có EXIF) hoặc ảnh bị xóa metadata, bài nộp sẽ chuyển sang trạng thái PENDING chờ Admin duyệt thủ công. Admin sẽ soi ảnh hoặc click vào link profile Facebook cá nhân của nhân sự để kiểm tra chéo.
-- Tính năng AI Scan: Chỉ chạy khi Admin chủ động bấm nút "AI Kiểm tra" trên hàng đợi duyệt. AI Scan sử dụng mô hình Vision để đọc ảnh chụp màn hình, đối chiếu link bài gốc và chấm điểm tin cậy từ 0 đến 100%.
+2. ĐÁNH GIÁ HIỆU SUẤT (PERFORMANCE REVIEW):
+   - Khi người dùng yêu cầu đánh giá tháng: Hãy sử dụng công cụ \`evaluate_monthly_performance\` để lấy dữ liệu. Hãy nhận xét khách quan, khen ngợi nếu tỷ lệ hoàn thành cao (>80%), và nhắc nhở động viên nếu có nhiều task quá hạn.
+   - Khi người dùng hỏi hôm nay làm được gì: Hãy dùng công cụ \`get_daily_summary\` để liệt kê ngắn gọn các task đã chuyển sang trạng thái DONE trong ngày. Ghi nhận sự nỗ lực của họ.
 
-Giọng điệu và phong cách:
-- Chuyên nghiệp, lịch sự, sử dụng ngôn từ công sở thân thiện, ấm áp.
-- Bạn LUÔN PHẢI TRẢ LỜI CỰC KỲ NGẮN GỌN, ĐI THẲNG VÀO VẤN ĐỀ. Tối đa 2-3 câu.
-- Không mào đầu, không kết luận, không giải thích dài dòng trừ khi được yêu cầu cụ thể. Tiết kiệm tối đa token.
-- Trả lời ngắn gọn, scannable (dùng gạch đầu dòng, bôi đậm các mốc thời gian quan trọng).
-- Tuyệt đối không ảo tưởng số liệu. Nếu không được cung cấp dữ liệu động về tasks của user, hãy lịch sự báo: "Hiện tại tôi chưa nhận được dữ liệu tasks thời gian thực của bạn từ hệ thống, bạn vui lòng f5 hoặc liên hệ HR nhé!".
-- Nếu nhận được các câu hỏi ngoài lề (không liên quan đến truyền thông nội bộ, Like & Share bài viết, hoặc hệ thống Kinetic HR), hãy lịch sự từ chối và hướng người dùng quay lại chủ đề chính.`;
+3. LƯU TRỮ VÀ GHI NHỚ LỊCH SỬ:
+   - Các thao tác bạn thực hiện thay người dùng sẽ tự động được hệ thống lưu vết (Audit Log). Bạn hãy báo cáo rõ với người dùng sau khi thực hiện xong: "Tôi đã đánh dấu hoàn thành task [Tên Task]. Hệ thống đã ghi nhận lịch sử của bạn."
+
+PHONG CÁCH TRẢ LỜI:
+- Quyết đoán, ngắn gọn, dùng gạch đầu dòng rõ ràng.
+- Nếu không chắc chắn người dùng muốn xóa task nào, BẮT BUỘC phải hỏi lại để xác nhận tên task trước khi gọi hàm xóa.`;
 
     const systemPrompt = {
       role: "system",
@@ -214,25 +181,145 @@ Giọng điệu và phong cách:
 
     const maxTokens = usePro ? 3000 : 1500;
 
-    // 8. Gọi AI-Box với streaming (dùng payload thay vì messages gốc)
-    const response = await aibox.chat.completions.create({
+    const tools = [
+      {
+        type: "function",
+        function: {
+          name: "evaluate_monthly_performance",
+          description: "Lấy thống kê số lượng task hoàn thành, quá hạn và đang làm trong tháng hiện tại để đánh giá năng suất.",
+          parameters: { type: "object", properties: {}, required: [] }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_daily_summary",
+          description: "Lấy danh sách các task mà người dùng đã đánh dấu hoàn thành (DONE) hoặc tạo mới trong ngày hôm nay.",
+          parameters: { type: "object", properties: {}, required: [] }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "update_task_status",
+          description: "Đánh dấu trạng thái của một công việc (TODO, IN_PROGRESS, DONE).",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID của task cần cập nhật" },
+              status: { type: "string", enum: ["TODO", "IN_PROGRESS", "DONE"] }
+            },
+            required: ["task_id", "status"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "delete_task",
+          description: "Xóa vĩnh viễn một công việc. Chỉ áp dụng cho task thuộc PERSONAL hoặc CUSTOM workspace.",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID của task cần xóa" }
+            },
+            required: ["task_id"]
+          }
+        }
+      }
+    ];
+
+    // 8. Gọi AI-Box để kiểm tra Function Calling
+    let finalPayload = [...payload];
+    const initialResponse = await aibox.chat.completions.create({
       model,
-      messages: payload,
+      messages: finalPayload,
       max_tokens: maxTokens,
-      stream: true,
+      tools: tools as any,
+      stream: false, // Gọi không stream trước để lấy tool calls
     });
 
+    const choice = initialResponse.choices[0];
+    let streamResponse: AsyncIterable<any> | null = null;
+    let fallbackText = choice.message?.content || "";
+
+    if (choice.message?.tool_calls && choice.message.tool_calls.length > 0) {
+      finalPayload.push(choice.message);
+
+      for (const toolCall of choice.message.tool_calls) {
+        const tc = toolCall as any;
+        const fnName = tc.function?.name;
+        const fnArgs = JSON.parse(tc.function?.arguments || "{}");
+        let result = "";
+
+        try {
+          if (fnName === "evaluate_monthly_performance") {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const tasks = await db.task.findMany({ where: { creator_id: userId, createdAt: { gte: startOfMonth } } });
+            const completed = tasks.filter(t => t.status === "DONE").length;
+            const pending = tasks.filter(t => t.status !== "DONE").length;
+            const overdue = tasks.filter(t => t.due_date && t.due_date < now && t.status !== "DONE").length;
+            result = JSON.stringify({ completed, pending, overdue, total: tasks.length });
+          } else if (fnName === "get_daily_summary") {
+            const now = new Date();
+            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tasks = await db.task.findMany({ where: { creator_id: userId, updatedAt: { gte: startOfDay }, status: "DONE" } });
+            result = JSON.stringify({ done_tasks_today: tasks.map(t => ({ id: t.id, title: t.title })) });
+          } else if (fnName === "update_task_status") {
+            await db.task.update({ where: { id: fnArgs.task_id }, data: { status: fnArgs.status as any } });
+            result = JSON.stringify({ success: true, message: `Task ${fnArgs.task_id} updated to ${fnArgs.status}` });
+          } else if (fnName === "delete_task") {
+            const task = await db.task.findUnique({ where: { id: fnArgs.task_id }, include: { workspace: true } });
+            if (!task) {
+              result = JSON.stringify({ error: "Task not found" });
+            } else if (task.workspace.type === "WEBSITE" || task.workspace.type === "TECH") {
+              result = JSON.stringify({ error: "Permission denied. Cannot delete task in company workspace." });
+            } else {
+              await db.task.delete({ where: { id: fnArgs.task_id } });
+              result = JSON.stringify({ success: true, message: "Task deleted successfully" });
+            }
+          }
+        } catch (err: any) {
+          result = JSON.stringify({ error: err.message });
+        }
+
+        finalPayload.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          name: fnName,
+          content: result
+        });
+      }
+
+      // Gọi lại với luồng stream để trả kết quả cuối cùng
+      streamResponse = await aibox.chat.completions.create({
+        model,
+        messages: finalPayload,
+        max_tokens: maxTokens,
+        stream: true,
+      }) as any;
+    }
+
     const encoder = new TextEncoder();
-    let outputChars = 0;
+    let outputChars = fallbackText.length;
 
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of response) {
-            const content = chunk.choices[0]?.delta?.content || "";
-            if (content) {
-              outputChars += content.length;
-              controller.enqueue(encoder.encode(content));
+          if (streamResponse) {
+            outputChars = 0; // reset
+            for await (const chunk of streamResponse) {
+              const content = chunk.choices[0]?.delta?.content || "";
+              if (content) {
+                outputChars += content.length;
+                controller.enqueue(encoder.encode(content));
+              }
+            }
+          } else {
+            // Stream the text that was returned from the first synchronous call
+            if (fallbackText) {
+              controller.enqueue(encoder.encode(fallbackText));
             }
           }
           controller.close();

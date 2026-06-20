@@ -7,42 +7,51 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Requested colors — powered by CSS variables for automatic dark mode
-        primary: '#0050cb',
+        // Semantic surface tokens — map to CSS variables
+        surface:     'var(--color-surface)',
+        'surface-low':     'var(--color-surface-low)',
+        'surface-mid':     'var(--color-surface-mid)',
+        'surface-high':    'var(--color-surface-high)',
+        'surface-highest': 'var(--color-surface-highest)',
+        'surface-bright':  'var(--color-surface-bright)',
+
+        'on-surface': 'var(--color-on-surface)',
+        'on-muted':   'var(--color-on-muted)',
+        outline:      'var(--color-outline)',
+
+        // Primary
+        primary: {
+          DEFAULT:   'var(--color-primary, #0050cb)',
+          container: 'var(--color-primary-container)',
+          foreground:'var(--color-on-primary)',
+        },
+
+        // Status
+        'success-bg':   'var(--color-success-bg)',
+        'success-text': 'var(--color-success-text)',
+        'warn-bg':      'var(--color-warn-bg)',
+        'warn-text':    'var(--color-warn-text)',
+        'error-bg':     'var(--color-error-bg)',
+        'error-text':   'var(--color-error-text)',
+
+        // Preserve other support/original colors for compatibility
         'primary-end': '#0066ff',
         'primary-gradient-end': '#0066ff',
-        surface: 'var(--color-surface)',
-        'surface-low': 'var(--color-surface-low)',
-        'surface-mid': 'var(--color-surface-mid)',
-        'surface-high': 'var(--color-surface-high)',
-        'surface-highest': 'var(--color-surface-highest)',
-        'surface-bright': 'var(--color-surface-bright)',
         'surface-container-lowest': 'var(--color-surface-container-lowest)',
         'surface-container-low': 'var(--color-surface-container-low)',
         'surface-container': 'var(--color-surface-container)',
         'surface-container-high': 'var(--color-surface-container-high)',
         'surface-container-highest': 'var(--color-surface-container-highest)',
-        'on-surface': 'var(--color-on-surface)',
-        'on-muted': 'var(--color-on-muted)',
         'on-surface-variant': 'var(--color-on-surface-variant)',
         'outline-variant': 'var(--color-outline-variant)',
         'primary-container': 'var(--color-primary-container)',
         'on-primary': 'var(--color-on-primary)',
         'secondary-container': 'var(--color-secondary-container)',
         'on-secondary-container': 'var(--color-on-secondary-container)',
-        'success-bg': 'var(--color-success-bg)',
-        'success-text': 'var(--color-success-text)',
-        'warn-bg': 'var(--color-warn-bg)',
-        'warn-text': 'var(--color-warn-text)',
-        'error-bg': 'var(--color-error-bg)',
-        'error-text': 'var(--color-error-text)',
         'tertiary-fixed': 'var(--color-tertiary-fixed)',
         'on-tertiary-fixed-variant': 'var(--color-on-tertiary-fixed-variant)',
         'error-container': 'var(--color-error-container)',
         'on-error-container': 'var(--color-on-error-container)',
-        
-        // Other support colors
-        outline: '#c4c8da',
         error: '#ba1a1a',
         background: '#faf8ff',
         'on-background': '#191b23',

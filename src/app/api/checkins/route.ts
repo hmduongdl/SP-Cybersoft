@@ -429,7 +429,7 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
     if (finalStatus === "AUTO_APPROVED") {
-      await updateUserTrustScore(userId, "AUTO_APPROVED");
+      await updateUserTrustScore(userId, "AUTO_APPROVED", post.id);
     }
 
     // ── 9. Trả về kết quả ────────────────────────────────────────────────────

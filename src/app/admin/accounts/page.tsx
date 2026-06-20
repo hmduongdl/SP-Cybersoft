@@ -426,7 +426,7 @@ export default function AdminAccountsPage() {
                       {/* Name & Avatar */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <UserAvatar name={user.name || user.username || user.email} size="sm" />
+                          <UserAvatar name={user.name || user.username || user.email} src={user.avatar_url} size="sm" />
                           <div>
                             <span className="font-semibold text-on-surface flex items-center gap-1.5">
                               {user.name || "Chưa đặt tên"}

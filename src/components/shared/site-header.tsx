@@ -22,10 +22,11 @@ export function SiteHeader() {
   const pathname = usePathname();
   const { setSidebarOpen, isOpenPersonalSettings, setOpenPersonalSettings } = useLayout();
   const { data: session, status } = useSession();
-  const role = session?.user?.role;
+  const [profile, setProfile] = useState<any>(null);
+  const role = session?.user?.role || profile?.role;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [profile, setProfile] = useState<any>(null);
+
   const [notifOpen, setNotifOpen] = useState(false);
   const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -148,7 +149,7 @@ export function SiteHeader() {
       {/* Non-blocking verification banner */}
       <VerificationBanner onOpenProfile={() => setOpenPersonalSettings(true)} />
 
-      <header className="bg-white border-b border-slate-100 sticky top-0 z-40 h-16 w-full px-6 flex items-center justify-between transition-all duration-200">
+      <header className="bg-surface-mid border-b border-slate-100 sticky top-0 z-40 h-16 w-full px-6 flex items-center justify-between transition-all duration-200">
         {/* Left side: Hamburger (mobile) + Breadcrumbs */}
         <div className="flex items-center gap-4">
           <button

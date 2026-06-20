@@ -8,6 +8,7 @@ export async function GET() {
     if (!session || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const workspaces = await db.workspace.findMany({
+      where: { owner_id: session.user.id },
       include: { owner: { select: { name: true, email: true } } },
       orderBy: { createdAt: 'desc' }
     });
