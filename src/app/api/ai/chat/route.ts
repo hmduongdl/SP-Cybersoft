@@ -135,6 +135,38 @@ LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
 3. LƯU TRỮ VÀ GHI NHỚ LỊCH SỬ:
    - Các thao tác bạn thực hiện thay người dùng sẽ tự động được hệ thống lưu vết (Audit Log). Bạn hãy báo cáo rõ với người dùng sau khi thực hiện xong: "Tôi đã đánh dấu hoàn thành task [Tên Task]. Hệ thống đã ghi nhận lịch sử của bạn."
 
+4. THUẬT TOÁN ĐÁNH GIÁ ĐỘ KHẨN CẤP CỦA CÔNG VIỆC:
+   Khi người dùng yêu cầu tư vấn xem nên làm việc gì trước, hãy áp dụng "Ma trận Eisenhower" kết hợp quét Deadline, Từ khóa, và Thẻ Tags:
+   - Phân loại độ gấp theo Deadline (Hạn chót):
+     * Quá hạn (Overdue): ĐỎ (Tối khẩn cấp). Cần làm ngay lập tức.
+     * Trong vòng 24h tới: CAM (Khẩn cấp).
+     * Trong tuần này: VÀNG (Bình thường).
+     * Không có ngày hạn: XÁM (Không gấp).
+   - Quét Từ khóa (Keywords) trong Tiêu đề hoặc Ghi chú:
+     * Cộng thêm điểm ưu tiên/khẩn cấp nếu có các từ: "gấp", "ngay", "lỗi", "bug", "fix", "sếp giục", "ASAP", "client".
+   - Quét Thẻ Tags:
+     * Các task mang tag "Hotfix", "Server", "Hợp đồng" luôn có độ ưu tiên cao hơn, gấp hơn các tag khác.
+     * Các task mang tag "Ý tưởng" (Idea), "UI/UX", "Đọc tài liệu" có độ ưu tiên thấp hơn (ít gấp hơn).
+   - Phân loại Ma trận Eisenhower:
+     * Tối khẩn cấp (Làm ngay): Các task ĐÃ QUÁ HẠN hoặc hết hạn trong vòng 24 giờ tới, hoặc các task chứa từ khóa khẩn cấp hoặc mang tag ưu tiên cao (Hotfix, Server, Hợp đồng).
+     * Quan trọng nhưng chưa gấp (Lên lịch): Các task có deadline trong 3-7 ngày tới.
+     * Không gấp, không quan trọng (Làm cuối): Task không có deadline, hoặc tag thuộc loại "Ý tưởng", "UI/UX", "Tham khảo".
+     * Task nhẹ nhàng (Quick wins): Nếu user nói họ đang mệt hoặc chỉ có ít thời gian, hãy quét tìm các task có tiêu đề ngắn, các task mang tính chất thủ tục (Gửi email, check tin nhắn, gửi báo cáo) để đề xuất họ làm trước lấy động lực.
+
+5. SỰ THẤU CẢM VÀ QUẢN LÝ QUÁ TẢI (BURNOUT MANAGEMENT):
+   Nếu người dùng than phiền "mệt mỏi", "stress", "ngập đầu" hoặc quá tải trước bảng Kanban nhiều task:
+   - Hãy an ủi họ 1 câu ngắn gọn, thể hiện sự thấu cảm.
+   - Tuyệt đối không được liệt kê một danh sách dài dằng dặc (như 10 hay 20 task) bắt họ làm.
+   - CHỈ đề xuất duy nhất 1 công việc quan trọng nhất cần làm ngay lúc này để họ tập trung.
+   - Chủ động đề nghị hỗ trợ dời lịch: "Nếu anh/chị mệt, tôi có thể tự động dời các task không gấp sang tuần sau. Anh/chị có muốn tôi làm vậy không?"
+
+6. GIẢI THÍCH VÀ HIỂU HỆ THỐNG:
+   - Bạn hiểu biết sâu sắc và giải thích chi tiết toàn bộ về hệ thống SPS AI Check-in Tool cho người dùng:
+     * Workspace (Không gian làm việc): Có 4 loại: PERSONAL (Cá nhân), TECH (Kỹ thuật công ty), WEBSITE (Website công ty), CUSTOM (Tự tạo bởi user).
+     * Check-in bài viết: Nhân sự liên kết link bài viết Facebook cá nhân (auto-check) hoặc upload ảnh chụp màn hình check-in (manual-check) để xác minh công việc hoàn thành.
+     * Quản lý task: Kanban & List view, quản lý tags, chỉnh sửa, lưu trữ nháp ghi chú (Quick Note).
+     * Điểm uy tín (Trust Score) và Sao hy vọng (Hope Stars) nhận được từ các checkin chuẩn.
+
 PHONG CÁCH TRẢ LỜI:
 - Quyết đoán, ngắn gọn, dùng gạch đầu dòng rõ ràng.
 - Nếu không chắc chắn người dùng muốn xóa task nào, BẮT BUỘC phải hỏi lại để xác nhận tên task trước khi gọi hàm xóa.`;
@@ -226,6 +258,65 @@ PHONG CÁCH TRẢ LỜI:
             required: ["task_id"]
           }
         }
+      },
+      {
+        type: "function",
+        function: {
+          name: "get_tasks",
+          description: "Lấy danh sách các task công việc của người dùng theo bộ lọc (overdue: quá hạn, today: trong hôm nay, all: tất cả).",
+          parameters: {
+            type: "object",
+            properties: {
+              filter: { type: "string", enum: ["overdue", "today", "all"], description: "Bộ lọc cần lấy" }
+            },
+            required: ["filter"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "create_task",
+          description: "Tạo một task công việc mới cho người dùng.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Tiêu đề công việc" },
+              due_date: { type: "string", description: "Ngày hết hạn (định dạng YYYY-MM-DD)" },
+              workspace_id: { type: "string", description: "ID của Workspace. Nếu không truyền, hệ thống sẽ tự động tạo ở Workspace Cá nhân mặc định." }
+            },
+            required: ["title"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "reschedule_task",
+          description: "Đổi ngày hạn (deadline) của một công việc.",
+          parameters: {
+            type: "object",
+            properties: {
+              task_id: { type: "string", description: "ID của task cần dời lịch" },
+              new_date: { type: "string", description: "Ngày hết hạn mới (định dạng YYYY-MM-DD)" }
+            },
+            required: ["task_id", "new_date"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "summarize_completed_tasks",
+          description: "Lấy danh sách các task đã hoàn thành (DONE) trong khoảng thời gian để báo cáo hiệu suất (today: hôm nay, week: tuần này, month: tháng này).",
+          parameters: {
+            type: "object",
+            properties: {
+              date_range: { type: "string", enum: ["today", "week", "month"], description: "Khoảng thời gian muốn xem" }
+            },
+            required: ["date_range"]
+          }
+        }
       }
     ];
 
@@ -279,6 +370,199 @@ PHONG CÁCH TRẢ LỜI:
               await db.task.delete({ where: { id: fnArgs.task_id } });
               result = JSON.stringify({ success: true, message: "Task deleted successfully" });
             }
+          } else if (fnName === "get_tasks") {
+            const { filter } = fnArgs;
+            const userWorkspaces = await db.workspace.findMany({ 
+              where: {
+                OR: [
+                  { owner_id: userId },
+                  { name: { in: ["Tech", "Website", "Web"] } },
+                  { collaborators: { some: { user_id: userId } } }
+                ]
+              }, 
+              select: { id: true } 
+            });
+            const userWsIds = userWorkspaces.map(w => w.id);
+            let whereClause: any = {
+              is_archived: false,
+              workspace_id: { in: userWsIds }
+            };
+
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" });
+            const dateStr = formatter.format(now);
+            const startOfDay = new Date(`${dateStr}T00:00:00.000+07:00`);
+            const endOfDay = new Date(`${dateStr}T23:59:59.999+07:00`);
+
+            if (filter === "overdue") {
+              whereClause.due_date = { lt: now };
+              whereClause.status = { not: "DONE" };
+            } else if (filter === "today") {
+              whereClause.due_date = {
+                gte: startOfDay,
+                lte: endOfDay
+              };
+            }
+
+            const tasks = await db.task.findMany({
+              where: whereClause,
+              include: {
+                tags: true,
+                workspace: { select: { id: true, name: true, type: true } }
+              },
+              orderBy: { due_date: "asc" }
+            });
+
+            result = JSON.stringify({
+              tasks: tasks.map(t => ({
+                id: t.id,
+                title: t.title,
+                description: t.description,
+                status: t.status,
+                due_date: t.due_date,
+                workspace_id: t.workspace.id,
+                workspace_name: t.workspace.name,
+                workspace_type: t.workspace.type,
+                tags: t.tags.map(tag => ({ id: tag.id, name: tag.name }))
+              }))
+            });
+          } else if (fnName === "create_task") {
+            const { title, due_date, workspace_id } = fnArgs;
+            let targetWorkspaceId = workspace_id;
+            if (!targetWorkspaceId) {
+              const personalWs = await db.workspace.findFirst({
+                where: { owner_id: userId, type: "PERSONAL" }
+              });
+              if (!personalWs) {
+                result = JSON.stringify({ error: "Không tìm thấy không gian Cá nhân để tạo task." });
+              } else {
+                targetWorkspaceId = personalWs.id;
+              }
+            }
+
+            if (targetWorkspaceId) {
+              // Auto-append default tags for Tech and Website workspaces
+              const ws = await db.workspace.findUnique({ where: { id: targetWorkspaceId } });
+              let finalTags: any[] = [];
+              if (ws) {
+                if (ws.name === "Tech") {
+                  let techTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Tech" } });
+                  if (!techTag) {
+                    techTag = await db.tag.create({
+                      data: { name: "Tech", color: "#3b82f6", workspace_id: ws.id, user_id: userId }
+                    });
+                  }
+                  finalTags.push({ id: techTag.id });
+                } else if (ws.name === "Website" || ws.name === "Web") {
+                  let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Web" } });
+                  if (!webTag) {
+                    webTag = await db.tag.create({
+                      data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: userId }
+                    });
+                  }
+                  finalTags.push({ id: webTag.id });
+                }
+              }
+
+              const task = await db.task.create({
+                data: {
+                  title,
+                  status: "TODO",
+                  due_date: due_date ? new Date(due_date) : null,
+                  workspace_id: targetWorkspaceId,
+                  creator_id: userId,
+                  tags: finalTags.length > 0 ? {
+                    connect: finalTags
+                  } : undefined
+                },
+                include: {
+                  tags: true,
+                  workspace: true
+                }
+              });
+
+              result = JSON.stringify({
+                success: true,
+                message: `Tạo task "${task.title}" thành công trong không gian "${task.workspace.name}".`,
+                task: {
+                  id: task.id,
+                  title: task.title,
+                  due_date: task.due_date,
+                  status: task.status,
+                  workspace: task.workspace.name
+                }
+              });
+            }
+          } else if (fnName === "reschedule_task") {
+            const { task_id, new_date } = fnArgs;
+            const task = await db.task.findUnique({
+              where: { id: task_id },
+              include: { workspace: true }
+            });
+
+            if (!task) {
+              result = JSON.stringify({ error: "Không tìm thấy công việc này." });
+            } else {
+              const updated = await db.task.update({
+                where: { id: task_id },
+                data: { due_date: new_date ? new Date(new_date) : null },
+                include: { workspace: true }
+              });
+              result = JSON.stringify({
+                success: true,
+                message: `Đã dời deadline của task "${updated.title}" sang ngày ${new_date || "Không giới hạn"}.`,
+                task: {
+                  id: updated.id,
+                  title: updated.title,
+                  due_date: updated.due_date,
+                  workspace: updated.workspace.name
+                }
+              });
+            }
+          } else if (fnName === "summarize_completed_tasks") {
+            const { date_range } = fnArgs;
+            const now = new Date();
+            const formatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" });
+            const dateStr = formatter.format(now);
+            const todayStart = new Date(`${dateStr}T00:00:00.000+07:00`);
+
+            let startDate = todayStart;
+            if (date_range === "week") {
+              const vnTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+              const currentDay = vnTime.getDay(); // 0 is Sunday, 1 is Monday, ...
+              const diff = vnTime.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+              const startOfWeek = new Date(vnTime.setDate(diff));
+              const weekStartStr = formatter.format(startOfWeek);
+              startDate = new Date(`${weekStartStr}T00:00:00.000+07:00`);
+            } else if (date_range === "month") {
+              const vnTime = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+              const startOfMonth = new Date(vnTime.getFullYear(), vnTime.getMonth(), 1);
+              const monthStartStr = formatter.format(startOfMonth);
+              startDate = new Date(`${monthStartStr}T00:00:00.000+07:00`);
+            }
+
+            const tasks = await db.task.findMany({
+              where: {
+                creator_id: userId,
+                status: "DONE",
+                is_archived: false,
+                updatedAt: { gte: startDate }
+              },
+              include: {
+                workspace: { select: { name: true } }
+              },
+              orderBy: { updatedAt: "desc" }
+            });
+
+            result = JSON.stringify({
+              count: tasks.length,
+              tasks: tasks.map(t => ({
+                id: t.id,
+                title: t.title,
+                completed_at: t.updatedAt,
+                workspace: t.workspace.name
+              }))
+            });
           }
         } catch (err: any) {
           result = JSON.stringify({ error: err.message });
@@ -319,7 +603,11 @@ PHONG CÁCH TRẢ LỜI:
           } else {
             // Stream the text that was returned from the first synchronous call
             if (fallbackText) {
-              controller.enqueue(encoder.encode(fallbackText));
+              const words = fallbackText.split(" ");
+              for (let i = 0; i < words.length; i++) {
+                controller.enqueue(encoder.encode(words[i] + (i < words.length - 1 ? " " : "")));
+                await new Promise(resolve => setTimeout(resolve, 20));
+              }
             }
           }
           controller.close();

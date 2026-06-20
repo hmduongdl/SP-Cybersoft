@@ -366,7 +366,7 @@ export function PostCheckinModal({ post, isOpen, onClose, onSuccess }: ModalProp
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-2.5 overflow-hidden">
                   {colleagueAvatars.slice(0, 3).map((a, idx) => (
-                    <UserAvatar key={idx} name={a.name} size="sm" className="border-2 border-surface-container-low" />
+                    <UserAvatar key={idx} name={a.name} src={a.avatar_url} size="sm" className="border-2 border-surface-container-low" />
                   ))}
                   {colleagueAvatars.length > 3 && (
                     <div className="h-7 w-7 rounded-full bg-primary-fixed border-2 border-surface-container-low flex items-center justify-center font-bold text-[9px] text-primary">

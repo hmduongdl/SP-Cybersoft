@@ -32,6 +32,7 @@ model User {
   trust_score           Int                     @default(80)
   is_verified           Boolean                 @default(false)
   quick_note            String?
+  theme                 String?                 @default("system")
   total_auto_approved   Int                     @default(0)
   total_rejected        Int                     @default(0)
   reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")

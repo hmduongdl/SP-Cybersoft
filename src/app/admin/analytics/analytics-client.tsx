@@ -365,7 +365,7 @@ export default function AnalyticsClient({
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <UserAvatar name={user.name} size="md" />
+                        <UserAvatar name={user.name} src={user.avatar_url} size="md" />
                         <div>
                           <p className="font-inter text-sm font-semibold text-on-surface">{user.name}</p>
                           <p className="font-inter text-xs text-on-surface-variant">{user.email}</p>

@@ -13,6 +13,16 @@ interface Message {
   content: string;
 }
 
+function LoadingDots() {
+  return (
+    <div className="flex items-center gap-1 px-1 py-1.5">
+      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "0ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "150ms" }} />
+      <span className="h-1.5 w-1.5 rounded-full bg-on-surface-variant/50 animate-bounce" style={{ animationDelay: "300ms" }} />
+    </div>
+  );
+}
+
 export function AIChatSidebar() {
   const { isAIChatOpen, setAIChatOpen, setSelectedTaskId, currentWorkspaceId } = useTaskStore();
   const [messages, setMessages] = useState<Message[]>([
@@ -155,6 +165,8 @@ export function AIChatSidebar() {
                   >
                     {isUser ? (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                    ) : msg.content === "" && isLoading && idx === messages.length - 1 ? (
+                      <LoadingDots />
                     ) : (
                       <div className="prose prose-sm prose-slate max-w-none prose-p:my-1 prose-ul:my-1 prose-a:no-underline">
                         <ReactMarkdown
@@ -178,7 +190,7 @@ export function AIChatSidebar() {
                             },
                           }}
                         >
-                          {processedContent || (isLoading && idx === messages.length - 1 ? "..." : "")}
+                          {processedContent}
                         </ReactMarkdown>
                       </div>
                     )}

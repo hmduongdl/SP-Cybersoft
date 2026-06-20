@@ -25,6 +25,7 @@ export async function GET() {
         avatar_url: true,
         facebook_profile_url: true,
         role: true,
+        theme: true,
       },
     });
 
@@ -73,6 +74,7 @@ export async function PUT(request: Request) {
     const username = typeof body.username === "string" ? body.username.trim() : undefined;
     const currentPassword = typeof body.currentPassword === "string" ? body.currentPassword : undefined;
     const newPassword = typeof body.newPassword === "string" ? body.newPassword : undefined;
+    const theme = typeof body.theme === "string" ? body.theme : undefined;
 
     console.log("PUT — Dữ liệu nhận từ client:", {
       email,
@@ -80,6 +82,7 @@ export async function PUT(request: Request) {
       name,
       department,
       username,
+      theme,
       hasPasswordChange: !!newPassword,
     });
 
@@ -106,6 +109,10 @@ export async function PUT(request: Request) {
 
     if (facebook_link !== undefined) {
       updateData.facebook_profile_url = facebook_link || null;
+    }
+
+    if (theme !== undefined) {
+      updateData.theme = theme;
     }
 
     if (username !== undefined) {
@@ -175,6 +182,7 @@ export async function PUT(request: Request) {
           department: true,
           avatar_url: true,
           facebook_profile_url: true,
+          theme: true,
         },
       }),
     ]);

@@ -114,6 +114,7 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
     setSaving(true);
     try {
       const payload: Record<string, unknown> = {
+        name: name.trim(),
         email: email.trim(),
         facebook_link: facebookLink.trim() || null,
         username: username.trim(),
@@ -169,6 +170,11 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
 
       {/* Fields */}
       <div className="space-y-4">
+        <div className="space-y-1">
+          <label className={labelCls}><User className="w-3.5 h-3.5" /> Họ và tên</label>
+          <input type="text" value={name} onChange={e => setName(e.target.value)}
+            disabled={saving} required className={inputCls} />
+        </div>
         <div className="space-y-1">
           <label className={labelCls}><User className="w-3.5 h-3.5" /> Tên đăng nhập</label>
           <input type="text" value={username} onChange={e => setUsername(e.target.value.toLowerCase().replace(/\s/g, ""))}
@@ -481,7 +487,7 @@ function WorkspaceDetailView({ workspace, onBack, onWorkspaceUpdated }: { worksp
               <div key={c.id} className="flex items-center justify-between p-3 bg-surface-mid dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
                 <div className="flex items-center gap-2 overflow-hidden">
                   <div className="w-8 h-8 rounded-full overflow-hidden bg-slate-100 shrink-0">
-                    {c.user.avatar_url ? <img src={c.user.avatar_url} className="w-full h-full object-cover" /> : <UserAvatar name={c.user.name} size="sm" />}
+                    <UserAvatar name={c.user.name} src={c.user.avatar_url} size="sm" />
                   </div>
                   <div className="min-w-0">
                     <p className="text-xs font-semibold truncate dark:text-slate-200">{c.user.name}</p>
@@ -651,7 +657,18 @@ function AppearanceTab() {
         {themes.map(t => {
           const active = theme === t.id;
           return (
-            <button key={t.id} onClick={() => setTheme(t.id)}
+            <button key={t.id} onClick={async () => {
+               setTheme(t.id);
+               try {
+                 await fetch("/api/user/profile", {
+                   method: "PUT",
+                   headers: { "Content-Type": "application/json" },
+                   body: JSON.stringify({ theme: t.id }),
+                 });
+               } catch (e) {
+                 console.error("Lỗi khi lưu thiết lập theme:", e);
+               }
+             }}
               className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all ${
                 active
                   ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"

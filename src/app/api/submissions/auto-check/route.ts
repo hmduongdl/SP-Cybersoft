@@ -94,3 +94,56 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function GET(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const dateStr = searchParams.get("date"); // YYYY-MM-DD
+    if (!dateStr) {
+      return NextResponse.json({ error: "Missing date parameter" }, { status: 400 });
+    }
+
+    const targetDate = new Date(dateStr);
+    const startOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59, 999);
+
+    // Find checkins for posts scheduled on this day
+    const checkins = await db.checkin.findMany({
+      where: {
+        status: { in: ["APPROVED", "AUTO_APPROVED"] },
+        post: {
+          start_at: {
+            gte: startOfDay,
+            lte: endOfDay,
+          }
+        }
+      },
+      select: {
+        user: {
+          select: {
+            name: true,
+            avatar_url: true,
+          }
+        }
+      }
+    });
+
+    const colleagues = checkins.map(c => ({
+      name: c.user.name || "Unknown",
+      avatar_url: c.user.avatar_url,
+    }));
+
+    // Return unique list of colleagues
+    const uniqueColleagues = Array.from(new Map(colleagues.map(item => [item.name, item])).values());
+
+    return NextResponse.json({ colleagues: uniqueColleagues });
+  } catch (error: any) {
+    console.error("GET Auto-Check Submissions Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
