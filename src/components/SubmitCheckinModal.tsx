@@ -451,7 +451,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
       className="fixed inset-0 z-50 bg-slate-950/70 animate-in fade-in flex items-center justify-center p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-2xl p-6 md:p-8 max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
+      <div className="bg-surface-mid rounded-3xl border border-slate-100 shadow-2xl p-6 md:p-8 max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
 
         {/* ── Header ── */}
         <div className="flex items-start justify-between gap-4 flex-shrink-0 mb-6">
@@ -728,7 +728,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                       <button
                         type="button"
                         onClick={() => setImageUrl(null)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold transition-all duration-150"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-mid/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold transition-all duration-150"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
                         Đổi ảnh khác

@@ -77,14 +77,15 @@ export async function POST(request: Request) {
 
     const affectedCheckins = await db.checkin.findMany({
       where: { id: { in: checkinIds } },
-      select: { user_id: true },
+      select: { user_id: true, post_id: true },
     });
     
     // Process trust scores
     for (const checkin of affectedCheckins) {
       await updateUserTrustScore(
         checkin.user_id, 
-        action === "APPROVE" ? "APPROVED" : "REJECTED"
+        action === "APPROVE" ? "APPROVED" : "REJECTED",
+        checkin.post_id
       );
     }
 

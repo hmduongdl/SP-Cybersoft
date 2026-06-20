@@ -162,7 +162,7 @@ export default function AnalyticsClient({
       {/* Charts Section (Bento Style) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         {/* Department Completion Chart */}
-        <div className="bg-white dark:bg-[#131b2e] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
+        <div className="bg-surface-mid dark:bg-[#131b2e] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Hiệu suất phòng ban</h4>
@@ -216,7 +216,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Weekly Engagement Trends */}
-        <div className="bg-white dark:bg-[#131b2e] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="bg-surface-mid dark:bg-[#131b2e] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Xu hướng Check-in tuần</h4>
@@ -282,7 +282,7 @@ export default function AnalyticsClient({
       {/* Export Section */}
       <section className="bg-surface-container-highest/20 p-lg rounded-2xl border border-primary/10 flex flex-col lg:flex-row justify-between items-center gap-lg">
         <div className="flex gap-4 items-center">
-          <div className="w-12 h-12 bg-white rounded-xl border border-slate-100 shadow-ambient flex items-center justify-center text-secondary">
+          <div className="w-12 h-12 bg-surface-mid rounded-xl border border-slate-100 shadow-ambient flex items-center justify-center text-secondary">
             <span className="material-symbols-outlined text-3xl">description</span>
           </div>
           <div>
@@ -326,7 +326,7 @@ export default function AnalyticsClient({
       </section>
 
       {/* User Completion Table */}
-      <section className="bg-white dark:bg-[#131b2e] rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+      <section className="bg-surface-mid dark:bg-[#131b2e] rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="p-6 border-none flex justify-between items-center">
           <h4 className="font-manrope font-bold text-lg text-on-surface">Chi tiết hiệu suất nhân sự</h4>
         </div>
@@ -365,7 +365,7 @@ export default function AnalyticsClient({
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <UserAvatar name={user.name} size="md" />
+                        <UserAvatar name={user.name} src={user.avatar_url} size="md" />
                         <div>
                           <p className="font-inter text-sm font-semibold text-on-surface">{user.name}</p>
                           <p className="font-inter text-xs text-on-surface-variant">{user.email}</p>

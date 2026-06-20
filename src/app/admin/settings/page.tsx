@@ -455,7 +455,7 @@ export default function AdminSettingsPage() {
                 }`}
               >
                 <span
-                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-surface-mid shadow ring-0 transition duration-200 ease-in-out ${
                     announcement.is_active ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
@@ -523,7 +523,8 @@ export default function AdminSettingsPage() {
                   data-placeholder="Nhập nội dung thông báo... (hỗ trợ định dạng văn bản)"
                   dangerouslySetInnerHTML={{ __html: announcement.content }}
                   onInput={(e) => {
-                    setAnnouncement(prev => ({ ...prev, content: e.currentTarget.innerHTML }));
+                    const newContent = e.currentTarget.innerHTML;
+                    setAnnouncement(prev => ({ ...prev, content: newContent }));
                   }}
                 />
               </div>

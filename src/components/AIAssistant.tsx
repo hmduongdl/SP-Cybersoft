@@ -148,9 +148,7 @@ export function AIAssistant() {
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      fetchQuota();
-    }
+    // Tạm thời vô hiệu hóa kiểm tra quota theo yêu cầu
   }, [isOpen, fetchQuota]);
 
   useEffect(() => {
@@ -167,7 +165,7 @@ export function AIAssistant() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || quotaExceeded) return;
+    if (!input.trim() || isLoading) return;
 
     const userMessage: Message = { role: "user", content: input.trim(), timestamp: new Date() };
     setInput("");
@@ -298,15 +296,11 @@ export function AIAssistant() {
       {/* Chat Panel */}
       {isOpen && (
         <div
-          className="fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden"
+          className="fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden glass shadow-[0_32px_64px_rgba(19,27,46,0.14)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.4)]"
           style={{
             width: "360px",
             maxHeight: "520px",
             borderRadius: "20px",
-            background: "rgba(255, 255, 255, 0.9)",
-            backdropFilter: "blur(24px)",
-            WebkitBackdropFilter: "blur(24px)",
-            boxShadow: "0 32px 64px rgba(19, 27, 46, 0.14)",
           }}
         >
           {/* Header */}
@@ -402,18 +396,7 @@ export function AIAssistant() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quota Exceeded Banner */}
-          {quotaExceeded && (
-            <div className="mx-3 mb-1 px-3 py-2 bg-red-500/10 rounded-xl flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] font-semibold text-red-500 font-inter">Đã hết hạn mức sử dụng AI</p>
-                <p className="text-[10px] text-red-400/80 mt-0.5 font-inter">
-                  Bạn đã sử dụng hết {quotaStatus?.daily_token_limit?.toLocaleString() ?? "100,000"} tokens hôm nay. Vui lòng quay lại vào ngày mai!
-                </p>
-              </div>
-            </div>
-          )}
+
 
           {/* Input Area */}
           <div className="px-3 pb-3 pt-1 shrink-0">
@@ -425,44 +408,20 @@ export function AIAssistant() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading || quotaExceeded}
-                placeholder={quotaExceeded ? "Đã hết hạn mức AI hôm nay" : "Nhập tin nhắn..."}
+                disabled={isLoading}
+                placeholder="Nhập tin nhắn..."
                 className="flex-1 bg-transparent text-xs text-on-surface placeholder-on-surface-variant/60 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed font-inter"
               />
               <button
                 type="submit"
-                disabled={isLoading || !input.trim() || quotaExceeded}
+                disabled={isLoading || !input.trim()}
                 className="h-8 w-8 rounded-full gradient-primary text-on-primary flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
               >
                 <Send className="h-3.5 w-3.5" />
               </button>
             </form>
 
-            {/* Token Quota Progress Bar */}
-            {quotaStatus && (
-              <div className="mt-1.5 px-0.5">
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className={`text-[9px] font-inter font-medium ${quotaTextColor}`}>
-                    {quotaStatus.tokens_used_today.toLocaleString()} / {quotaStatus.daily_token_limit.toLocaleString()}
-                  </span>
-                  {quotaStatus.usage_percent >= 90 && (
-                    <span className="flex items-center gap-0.5 text-[9px] font-inter font-semibold text-red-500">
-                      <AlertTriangle className="h-2.5 w-2.5" />
-                      Sắp hết
-                    </span>
-                  )}
-                </div>
-                <div className="w-full h-1 bg-surface-container-high rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${Math.min(quotaStatus.usage_percent, 100)}%`,
-                      background: "linear-gradient(135deg, #0050cb, #0066ff)",
-                    }}
-                  />
-                </div>
-              </div>
-            )}
+
           </div>
         </div>
       )}

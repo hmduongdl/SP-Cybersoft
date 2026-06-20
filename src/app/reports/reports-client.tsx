@@ -245,7 +245,7 @@ export default function ReportsClient({ checkins }: Props) {
                             href={item.postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-bold text-slate-800 hover:text-indigo-600 hover:underline transition-all cursor-pointer flex items-center gap-1.5"
+                            className="text-sm font-bold text-slate-800 dark:text-white hover:text-indigo-600 hover:underline transition-all cursor-pointer flex items-center gap-1.5"
                             title={item.postTitle}
                           >
                             <span className="line-clamp-2">{item.postTitle}</span>

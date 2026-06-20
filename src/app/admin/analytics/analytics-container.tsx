@@ -27,6 +27,7 @@ export default async function AnalyticsContainer() {
     missed: number;
     name: string;
     department: string;
+    avatar_url: string | null;
   }> = {};
 
   users.forEach((u) => {
@@ -36,6 +37,7 @@ export default async function AnalyticsContainer() {
       missed: 0,
       name: u.name || "Unknown",
       department: u.department || "Other",
+      avatar_url: u.avatar_url || null,
     };
   });
 

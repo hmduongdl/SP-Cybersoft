@@ -75,7 +75,7 @@ export function Sidebar() {
 
         {/* Dropdown Menu */}
         {isDropdownOpen && (
-          <div className="absolute left-3 right-3 top-[72px] mt-1 bg-white rounded-2xl shadow-float z-50 p-1.5 space-y-1">
+          <div className="absolute left-3 right-3 top-[72px] mt-1 bg-surface-mid rounded-2xl shadow-float z-50 p-1.5 space-y-1">
             <p className="text-[9px] font-semibold tracking-wider text-on-muted px-2 py-1 uppercase">
               Chuyển Workspace
             </p>
@@ -108,7 +108,7 @@ export function Sidebar() {
         
         {/* CHUNG Section */}
         <div>
-          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-[#44495a] px-2 pt-2 pb-1">
+          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-on-muted px-2 pt-2 pb-1">
             CHUNG
           </p>
           <div className="space-y-0.5 px-2">
@@ -120,7 +120,7 @@ export function Sidebar() {
                   key={item.id}
                   onClick={() => setFilter(item.id as FilterStatus)}
                   className={cn(
-                    "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-[#44495a] hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer [&.active]:bg-[#e0e4ff] [&.active]:text-[#0050cb] [&.active]:font-semibold",
+                    "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-on-muted hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer [&.active]:bg-[#e0e4ff] [&.active]:text-[#0050cb] [&.active]:font-semibold",
                     active && "active"
                   )}
                 >
@@ -134,7 +134,7 @@ export function Sidebar() {
 
         {/* THẺ TAG Section */}
         <div>
-          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-[#44495a] px-2 pt-2 pb-1">
+          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-on-muted px-2 pt-2 pb-1">
             THẺ TAG
           </p>
           <div className="flex flex-wrap gap-1.5 px-2">

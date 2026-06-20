@@ -7,7 +7,7 @@ export const metadata = {
 
 export default function TasksPage() {
   return (
-    <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-white dark:bg-[#131b2e]">
+    <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-surface-mid dark:bg-[#131b2e]">
       <TaskManagerMain />
     </div>
   );

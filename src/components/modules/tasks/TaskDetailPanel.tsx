@@ -145,7 +145,7 @@ export function TaskDetailPanel() {
             animate={{ x: 0 }} 
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-screen w-full sm:w-[600px] md:w-[650px] bg-white border-l border-slate-100 shadow-2xl z-50 flex flex-col font-inter"
+            className="fixed top-0 right-0 h-screen w-full sm:w-[600px] md:w-[650px] bg-surface-mid border-l border-slate-100 shadow-2xl z-50 flex flex-col font-inter"
           >
             <div className="flex-1 overflow-y-auto pt-6 pb-24 px-6 md:px-10">
               
@@ -237,7 +237,7 @@ export function TaskDetailPanel() {
                     {task.creator?.avatar_url ? (
                       <img src={task.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
                     ) : (
-                      <div className="w-5 h-5 rounded-full bg-[#d8e2ff] flex items-center justify-center text-[9px] font-semibold text-[#0050cb]">
+                      <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-[#0050cb]">
                         {task.creator?.name ? task.creator.name.substring(0, 2).toUpperCase() : 'US'}
                       </div>
                     )}

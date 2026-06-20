@@ -59,9 +59,9 @@ export function CreateTagModal({ isOpen, onClose, workspaceId }: CreateTagModalP
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 z-50 bg-slate-950/70" onClick={() => !loading && onClose()} />
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-[60] overflow-hidden animate-in zoom-in-95 duration-200">
+      <div className="bg-surface-mid rounded-2xl w-full max-w-sm shadow-[0_32px_64px_rgba(19,27,46,0.12)] relative z-[60] overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-sm text-[#131b2e]">Tạo thẻ mới</h2>
+          <h2 className="font-semibold text-sm text-on-surface">Tạo thẻ mới</h2>
           <button onClick={() => !loading && onClose()} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
             <X size={16} />
           </button>
