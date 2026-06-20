@@ -1,57 +1,47 @@
-import { db } from "./db";
+import { db } from "@/lib/db";
 
-const BASE_SCORE = 50;
-const MAX_SCORE = 100;
-const MIN_SCORE = 0;
+export type TrustScoreAction = 'AUTO_APPROVED' | 'APPROVED' | 'REJECTED' | 'MISSED' | 'AI_FRAUD';
 
-const APPROVED_POINTS = 8;
-const REJECTED_POINTS = 12;
-const RECENT_BONUS_MULTIPLIER = 1.5;
-
-function isRecent(date: Date): boolean {
-  const daysSince = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
-  return daysSince <= 30;
-}
-
-export async function calculateTrustScore(userId: string): Promise<number> {
-  const checkins = await db.checkin.findMany({
-    where: { user_id: userId, status: { in: ["APPROVED", "AUTO_APPROVED", "REJECTED"] } },
-    select: { status: true, ai_confidence: true, submitted_at: true },
-    orderBy: { submitted_at: "desc" },
-  });
-
-  if (checkins.length === 0) return BASE_SCORE;
-
-  let score = BASE_SCORE;
-
-  for (const c of checkins) {
-    const recent = isRecent(c.submitted_at);
-    const multiplier = recent ? RECENT_BONUS_MULTIPLIER : 1;
-
-    if (c.status === "APPROVED" || c.status === "AUTO_APPROVED") {
-      const confidenceWeight = c.ai_confidence != null ? (0.5 + c.ai_confidence * 0.5) : 1;
-      score += APPROVED_POINTS * multiplier * confidenceWeight;
-    } else if (c.status === "REJECTED") {
-      score -= REJECTED_POINTS * multiplier;
-    }
-  }
-
-  return Math.round(Math.max(MIN_SCORE, Math.min(MAX_SCORE, score)));
-}
-
-export async function updateUserTrustScore(userId: string): Promise<number> {
-  const score = await calculateTrustScore(userId);
-
-  await db.user.update({
+export async function updateUserTrustScore(userId: string, action: TrustScoreAction) {
+  const user = await db.user.findUnique({
     where: { id: userId },
-    data: { trust_score: score },
+    select: { trust_score: true, total_auto_approved: true, total_rejected: true }
   });
 
-  return score;
-}
+  if (!user) return null;
 
-export async function recalculateTrustScoresForUsers(userIds: string[]): Promise<void> {
-  for (const userId of userIds) {
-    await updateUserTrustScore(userId);
+  let change = 0;
+  let autoApprovedIncrement = 0;
+  let rejectedIncrement = 0;
+
+  switch (action) {
+    case 'AUTO_APPROVED':
+      change = 2;
+      autoApprovedIncrement = 1;
+      break;
+    case 'APPROVED':
+      change = 1;
+      break;
+    case 'MISSED':
+      change = -5;
+      break;
+    case 'REJECTED':
+      change = -15;
+      rejectedIncrement = 1;
+      break;
+    case 'AI_FRAUD':
+      change = -25;
+      break;
   }
+
+  const newScore = Math.max(0, Math.min(100, user.trust_score + change));
+
+  return await db.user.update({
+    where: { id: userId },
+    data: {
+      trust_score: newScore,
+      total_auto_approved: user.total_auto_approved + autoApprovedIncrement,
+      total_rejected: user.total_rejected + rejectedIncrement,
+    }
+  });
 }

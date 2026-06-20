@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
   LineChart, Line
 } from "recharts";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { toast, Toaster } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -30,6 +31,8 @@ export default function AnalyticsClient({
   const itemsPerPage = 5;
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
 
   const handleSendReminder = (user: any) => {
     toast.success(`Đã gửi email nhắc nhở thành công tới ${user.name}!`);
@@ -159,7 +162,7 @@ export default function AnalyticsClient({
       {/* Charts Section (Bento Style) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-lg">
         {/* Department Completion Chart */}
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] border-none">
+        <div className="bg-white dark:bg-[#131b2e] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Hiệu suất phòng ban</h4>
@@ -178,13 +181,13 @@ export default function AnalyticsClient({
                     <stop offset="100%" stopColor="#0050cb" stopOpacity={1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="rgba(19, 27, 46, 0.03)" strokeDasharray="3 3" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} domain={[0, 100]} />
+                <CartesianGrid vertical={false} stroke={isDark ? "#334155" : "rgba(19, 27, 46, 0.03)"} strokeDasharray="3 3" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: isDark ? '#94a3b8' : '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: isDark ? '#94a3b8' : '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} domain={[0, 100]} />
                 <RechartsTooltip
                   cursor={{ fill: 'transparent' }}
                   contentStyle={{
-                    background: 'rgba(255, 255, 255, 0.85)',
+                    background: isDark ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.85)',
                     backdropFilter: 'blur(20px)',
                     borderRadius: '16px',
                     border: 'none',
@@ -192,13 +195,13 @@ export default function AnalyticsClient({
                     padding: '12px 16px',
                   }}
                   itemStyle={{
-                    color: '#131b2e',
+                    color: isDark ? '#e2e8f0' : '#131b2e',
                     fontFamily: 'var(--font-inter)',
                     fontSize: '13px',
                     fontWeight: 600,
                   }}
                   labelStyle={{
-                    color: '#44495a',
+                    color: isDark ? '#94a3b8' : '#44495a',
                     fontFamily: 'var(--font-inter)',
                     fontSize: '11px',
                     fontWeight: 500,
@@ -213,7 +216,7 @@ export default function AnalyticsClient({
         </div>
 
         {/* Weekly Engagement Trends */}
-        <div className="bg-white p-6 rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] border-none overflow-hidden">
+        <div className="bg-white dark:bg-[#131b2e] p-6 rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="flex justify-between items-center mb-xl">
             <div>
               <h4 className="font-title-lg text-title-lg text-on-surface font-bold">Xu hướng Check-in tuần</h4>
@@ -234,13 +237,13 @@ export default function AnalyticsClient({
                     <stop offset="100%" stopColor="#0066ff" stopOpacity={1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid vertical={false} stroke="rgba(19, 27, 46, 0.03)" strokeDasharray="3 3" />
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} dy={10} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} domain={[0, 100]} />
+                <CartesianGrid vertical={false} stroke={isDark ? "#334155" : "rgba(19, 27, 46, 0.03)"} strokeDasharray="3 3" />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: isDark ? '#94a3b8' : '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} dy={10} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: isDark ? '#94a3b8' : '#44495a', fontSize: 11, fontWeight: 500, fontFamily: 'var(--font-inter)' }} domain={[0, 100]} />
                 <RechartsTooltip
-                  cursor={{ fill: 'transparent', stroke: 'rgba(19, 27, 46, 0.03)', strokeWidth: 2 }}
+                  cursor={{ fill: 'transparent', stroke: isDark ? '#334155' : 'rgba(19, 27, 46, 0.03)', strokeWidth: 2 }}
                   contentStyle={{
-                    background: 'rgba(255, 255, 255, 0.85)',
+                    background: isDark ? 'rgba(30, 41, 59, 0.9)' : 'rgba(255, 255, 255, 0.85)',
                     backdropFilter: 'blur(20px)',
                     borderRadius: '16px',
                     border: 'none',
@@ -248,13 +251,13 @@ export default function AnalyticsClient({
                     padding: '12px 16px',
                   }}
                   itemStyle={{
-                    color: '#131b2e',
+                    color: isDark ? '#e2e8f0' : '#131b2e',
                     fontFamily: 'var(--font-inter)',
                     fontSize: '13px',
                     fontWeight: 600,
                   }}
                   labelStyle={{
-                    color: '#44495a',
+                    color: isDark ? '#94a3b8' : '#44495a',
                     fontFamily: 'var(--font-inter)',
                     fontSize: '11px',
                     fontWeight: 500,
@@ -323,13 +326,13 @@ export default function AnalyticsClient({
       </section>
 
       {/* User Completion Table */}
-      <section className="bg-white rounded-xl border border-slate-100 shadow-[0_2px_12px_-3px_rgba(15,23,42,0.03)] overflow-hidden border-none">
+      <section className="bg-white dark:bg-[#131b2e] rounded-xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
         <div className="p-6 border-none flex justify-between items-center">
           <h4 className="font-manrope font-bold text-lg text-on-surface">Chi tiết hiệu suất nhân sự</h4>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-slate-50 font-inter text-[11px] font-semibold text-slate-500 uppercase tracking-[0.05em] border-none">
+            <thead className="bg-slate-50 dark:bg-slate-800/50 font-inter text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.05em]">
               <tr>
                 <th className="px-6 py-4 font-semibold">Thành viên</th>
                 <th className="px-6 py-4 font-semibold">Bộ phận</th>
@@ -356,7 +359,7 @@ export default function AnalyticsClient({
                   <tr 
                     key={user.id} 
                     className={cn(
-                      "hover:bg-slate-50 even:bg-slate-50/40 transition-all duration-150 group border-none",
+                      "hover:bg-slate-50 dark:hover:bg-slate-800/50 even:bg-slate-50/40 dark:even:bg-slate-800/30 transition-all duration-150 group",
                       isRed && "bg-rose-500/[0.02]"
                     )}
                   >

@@ -87,11 +87,11 @@ function getDayStatus(
 }
 
 const STATUS_COLORS: Record<DayStatus, { bg: string; text: string }> = {
-  completed: { bg: "bg-emerald-50", text: "text-emerald-700" },
-  partial: { bg: "bg-amber-50", text: "text-amber-700" },
+  completed: { bg: "bg-success-bg", text: "text-success-text" },
+  partial: { bg: "bg-warn-bg", text: "text-warn-text" },
   empty: { bg: "bg-surface-container-low", text: "text-on-surface-variant" },
-  overdue: { bg: "bg-red-50", text: "text-red-700" },
-  mixed: { bg: "bg-amber-50", text: "text-amber-700" },
+  overdue: { bg: "bg-error-bg", text: "text-error-text" },
+  mixed: { bg: "bg-warn-bg", text: "text-warn-text" },
 };
 
 export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
@@ -149,19 +149,19 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
           <div className="flex items-center space-x-2">
             <button
               onClick={prev}
-              className="w-9 h-9 rounded-full flex items-center justify-center bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-surface-low hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={next}
-              className="w-9 h-9 rounded-full flex items-center justify-center bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-surface-low hover:bg-surface-container-lowest hover:shadow-ambient transition-all text-on-surface-variant"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
             <button
               onClick={today}
-              className="px-4 py-1.5 rounded-full bg-[#f2f3ff] hover:bg-surface-container-lowest hover:shadow-ambient text-xs font-bold text-on-surface-variant transition-all"
+              className="px-4 py-1.5 rounded-full bg-surface-low hover:bg-surface-container-lowest hover:shadow-ambient text-xs font-bold text-on-surface-variant transition-all"
             >
               Hôm nay
             </button>
@@ -169,21 +169,21 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
         </div>
 
         {/* Legend */}
-        <div className="hidden md:flex items-center space-x-4 px-4 py-2 bg-[#f2f3ff] rounded-xl">
+        <div className="hidden md:flex items-center space-x-4 px-4 py-2 bg-surface-low rounded-xl">
           <div className="flex items-center space-x-1.5">
             <div className="w-3 h-3 rounded-full bg-surface-container" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Trống</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-full bg-amber-300" />
+            <div className="w-3 h-3 rounded-full bg-warn-text" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Một phần</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-full bg-emerald-400" />
+            <div className="w-3 h-3 rounded-full bg-success-text" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Hoàn thành</span>
           </div>
           <div className="flex items-center space-x-1.5">
-            <div className="w-3 h-3 rounded-full bg-red-300" />
+            <div className="w-3 h-3 rounded-full bg-error-text" />
             <span className="text-[11px] font-semibold text-on-surface-variant">Quá hạn</span>
           </div>
         </div>
@@ -192,7 +192,7 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
       {/* Calendar Grid */}
       <div className="bg-surface-container-lowest rounded-[24px] overflow-hidden shadow-[0_20px_40px_rgba(19,27,46,0.06)]">
         {/* Day Names Header */}
-        <div className="grid grid-cols-7 bg-[#f2f3ff]">
+        <div className="grid grid-cols-7 bg-surface-low">
           {weekDays.map((day) => (
             <div
               key={day}
@@ -226,9 +226,9 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
               <div
                 key={idx}
                 className={cn(
-                  "relative min-h-[120px] flex flex-col p-2 transition-colors duration-200 border border-[#f2f3ff]",
+                  "relative min-h-[120px] flex flex-col p-2 transition-colors duration-200 border border-surface-low",
                   !isCurrentMonth ? "opacity-30" : cellBg,
-                  isCurrentDay && "ring-2 ring-[#0050cb] ring-inset z-10"
+                  isCurrentDay && "ring-2 ring-primary ring-inset z-10"
                 )}
               >
                 {/* Date Number */}
@@ -237,7 +237,7 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
                     className={cn(
                       "text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full",
                       isCurrentDay
-                        ? "bg-[#0050cb] text-white shadow-ambient"
+                        ? "bg-primary text-primary-foreground shadow-ambient"
                         : "text-on-surface-variant"
                     )}
                   >
@@ -263,7 +263,7 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
                     <>
                       <CalendarPostCard post={dayPosts[0]} onClick={handleCellClick} />
                       <CalendarPostCard post={dayPosts[1]} onClick={handleCellClick} />
-                      <div className="text-[10px] font-bold text-[#0050cb] text-center py-0.5 bg-surface-container-lowest rounded-xl border border-[#f2f3ff]">
+                      <div className="text-[10px] font-bold text-primary text-center py-0.5 bg-surface-container-lowest rounded-xl border border-surface-low">
                         +{dayPosts.length - 2} bài
                       </div>
                     </>
@@ -277,12 +277,12 @@ export function PostCalendarView({ posts, onCheckIn }: CalendarProps) {
                       className={cn(
                         "w-2 h-2 rounded-full",
                         dayStatus === "completed"
-                          ? "bg-emerald-400"
+                          ? "bg-success-text"
                           : dayStatus === "partial"
-                          ? "bg-amber-400"
+                          ? "bg-warn-text"
                           : dayStatus === "overdue"
-                          ? "bg-red-400"
-                          : "bg-slate-300"
+                          ? "bg-error-text"
+                          : "bg-outline"
                       )}
                     />
                   </div>
@@ -336,7 +336,7 @@ function CalendarPostCard({
           ? "border-rose-200 hover:border-rose-300"
           : isPending
           ? "border-amber-200 hover:border-amber-300"
-          : "border-outline-variant/10 hover:border-[#0050cb]/30"
+          : "border-outline-variant/10 hover:border-primary/30"
       )}
     >
       {/* Mini thumbnail */}
@@ -366,10 +366,10 @@ function CalendarPostCard({
           className={cn(
             "text-[11px] font-bold line-clamp-2 leading-snug break-words mt-1 hover:text-primary hover:underline transition-colors",
             isSubmitted
-              ? "text-emerald-800"
+              ? "text-success-text"
               : isRejected
-              ? "text-rose-700"
-              : "text-slate-800"
+              ? "text-error-text"
+              : "text-slate-800 dark:text-white"
           )}
         >
           {post.title}
@@ -383,7 +383,7 @@ function CalendarPostCard({
 
       {/* Action area */}
       {isSubmitted ? (
-        <CheckCircle2 className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+        <CheckCircle2 className="w-3 h-3 text-success-text flex-shrink-0" />
       ) : isRejected ? (
         <button
           onClick={(e) => { e.stopPropagation(); onClick(post); }}

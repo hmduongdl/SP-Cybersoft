@@ -19,7 +19,7 @@ export default async function DashboardContent() {
       userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true } }) : Promise.resolve(null),
     ]);
 
-  const trustScore = user?.trust_score ?? 50;
+  const trustScore = user?.trust_score ?? 80;
   const userName = session?.user?.name || "Thành viên";
 
   // Ensure completedCount never exceeds totalPostsCount

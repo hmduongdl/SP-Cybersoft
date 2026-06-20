@@ -25,6 +25,7 @@ import { uploadImage, deleteImage } from "@/lib/upload";
 import exifr from "exifr";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
+import { updateUserTrustScore } from "@/lib/trust-score";
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
@@ -117,7 +118,7 @@ interface StatusResult {
   /** [0, 1] — độ tin cậy hệ thống, lưu để admin review */
   aiConfidence: number;
   /** Lý do kèm theo, dùng trong response message */
-  reason: "exif_valid" | "exif_out_of_window" | "no_exif";
+  reason: "exif_valid" | "exif_out_of_window" | "no_exif" | "exif_valid_but_low_trust";
 }
 
 function determineStatus(
@@ -163,6 +164,8 @@ function buildMessage(reason: StatusResult["reason"]): string {
       return "Ảnh có dữ liệu EXIF nhưng thời gian chụp nằm ngoài cửa sổ 24h. Chuyển sang hàng đợi duyệt thủ công.";
     case "no_exif":
       return "Không phát hiện thông tin EXIF (có thể là ảnh chụp màn hình). Chuyển sang hàng đợi duyệt thủ công.";
+    case "exif_valid_but_low_trust":
+      return "Dữ liệu EXIF hợp lệ nhưng tài khoản đang có Độ tin cậy thấp. Chuyển sang hàng đợi duyệt thủ công.";
   }
 }
 
@@ -390,6 +393,21 @@ export async function POST(request: Request) {
       new Date(post.start_at)
     );
 
+    let finalStatus = status;
+    let finalReason = reason;
+
+    // Kiểm tra trust_score
+    const userRecord = await db.user.findUnique({
+      where: { id: userId },
+      select: { trust_score: true }
+    });
+    const trustScore = userRecord?.trust_score ?? 80;
+
+    if (status === "AUTO_APPROVED" && trustScore < 50) {
+      finalStatus = "PENDING";
+      finalReason = "exif_valid_but_low_trust";
+    }
+
     // ── 8. Tạo bản ghi Checkin ───────────────────────────────────────────────
     const checkin = await db.checkin.create({
       data: {
@@ -397,9 +415,10 @@ export async function POST(request: Request) {
         post_id: post.id,
         image_url: imageUrl,
         exif_time: exif.exifTime ?? null,
-        status,
+        status: finalStatus,
         ai_confidence: aiConfidence,
-        is_ai_flagged: status === "PENDING" && !exif.exifFound,
+        is_ai_flagged: finalStatus === "PENDING" && !exif.exifFound,
+        ai_analysis_reason: finalReason === "exif_valid_but_low_trust" ? "Độ tin cậy thấp, yêu cầu duyệt tay" : null,
         // reviewed_by và reject_reason để null, chờ admin điền
       },
     });
@@ -409,17 +428,21 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
+    if (finalStatus === "AUTO_APPROVED") {
+      await updateUserTrustScore(userId, "AUTO_APPROVED");
+    }
+
     // ── 9. Trả về kết quả ────────────────────────────────────────────────────
     return NextResponse.json(
       {
         success: true,
-        status,
+        status: finalStatus,
         exif_time: exif.exifTime ? exif.exifTime.toISOString() : null,
         exif_found: exif.exifFound,
         exif_source_tag: exif.sourceTag,
         image_url: imageUrl,
         checkin_id: checkin.id,
-        message: buildMessage(reason),
+        message: buildMessage(finalReason),
       },
       { status: 201 }
     );
