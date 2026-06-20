@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { deleteImage } from "@/lib/upload";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
-import { recalculateTrustScoresForUsers } from "@/lib/trust-score";
+import { updateUserTrustScore } from "@/lib/trust-score";
 
 export const dynamic = "force-dynamic";
 
@@ -75,15 +75,18 @@ export async function POST(request: Request) {
       });
     }
 
-    // Fetch unique user_ids from affected checkins to recalculate trust scores
     const affectedCheckins = await db.checkin.findMany({
       where: { id: { in: checkinIds } },
       select: { user_id: true },
-      distinct: ["user_id"],
     });
-    const affectedUserIds = affectedCheckins.map(c => c.user_id);
-
-    await recalculateTrustScoresForUsers(affectedUserIds);
+    
+    // Process trust scores
+    for (const checkin of affectedCheckins) {
+      await updateUserTrustScore(
+        checkin.user_id, 
+        action === "APPROVE" ? "APPROVED" : "REJECTED"
+      );
+    }
 
     // Revalidate cache after admin approves/rejects checkins
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");

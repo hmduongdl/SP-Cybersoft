@@ -177,8 +177,8 @@ export function DashboardOverview({
   const dashOffset = DONUT_CIRCUMFERENCE * (1 - progress / 100);
 
   const trustColor =
-    trustScore >= 70 ? "emerald" :
-      trustScore >= 40 ? "amber" :
+    trustScore >= 85 ? "emerald" :
+      trustScore >= 50 ? "amber" :
         "rose";
 
   const remainingPosts = Math.max(0, totalPostsCount - completedCount);

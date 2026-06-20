@@ -20,7 +20,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#F8FAFC]">
+    <div className="flex h-screen overflow-hidden bg-surface">
       {/* Left Sidebar */}
       <Sidebar />
 
@@ -30,7 +30,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
         <SiteHeader />
 
         {/* Content Area */}
-        <div className={`flex-1 w-full bg-[#F8FAFC] ${isTasksPage ? "overflow-hidden h-full" : "overflow-y-auto"}`}>
+        <div className={`flex-1 w-full bg-surface ${isTasksPage ? "overflow-hidden h-full" : "overflow-y-auto"}`}>
           {isTasksPage ? (
             children
           ) : (

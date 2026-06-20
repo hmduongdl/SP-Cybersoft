@@ -110,12 +110,12 @@ export default function MaintenancePage() {
           overflow: hidden;
         }
         .glitch::before {
-          color: #ff4466;
+          color: #f87171;
           clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
           animation: glitch-before 4s infinite;
         }
         .glitch::after {
-          color: #44ffdd;
+          color: #34d399;
           clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
           animation: glitch-after 4s infinite;
         }
@@ -123,7 +123,7 @@ export default function MaintenancePage() {
 
       <div style={{
         minHeight: '100vh',
-        background: '#0d0d1a',
+        background: '#050711',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         position: 'relative', overflow: 'hidden',
         padding: '40px 20px',
@@ -152,8 +152,8 @@ export default function MaintenancePage() {
         {/* Main card */}
         <div style={{
           position: 'relative', zIndex: 2,
-          background: 'rgba(255,255,255,.04)',
-          border: '1px solid rgba(255,255,255,.08)',
+          background: '#0e1228',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
           borderRadius: 24, padding: '48px 40px',
           maxWidth: 460, width: '100%',
           textAlign: 'center',
@@ -172,10 +172,10 @@ export default function MaintenancePage() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16 }}>
             <div style={{
               width: 8, height: 8, borderRadius: '50%',
-              background: '#ff4466', boxShadow: '0 0 8px #ff4466',
+              background: '#f87171', boxShadow: '0 0 8px #f87171',
               animation: 'pulse-dot 1.2s ease-in-out infinite',
             }} />
-            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#ff4466', letterSpacing: '.1em' }}>
+            <span style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: '#f87171', letterSpacing: '.1em' }}>
               SYSTEM OFFLINE
             </span>
           </div>
@@ -185,15 +185,15 @@ export default function MaintenancePage() {
             HỆ THỐNG BẢO TRÌ
           </h1>
 
-          <p style={{ color: 'rgba(255,255,255,.55)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
+          <p style={{ color: '#9496b0', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
             Chúng tôi đang nâng cấp để mang lại trải nghiệm tốt hơn.
             Quá trình có thể kéo dài đến vài giờ.
           </p>
 
           {/* Terminal box */}
           <div style={{
-            background: 'rgba(0,0,0,.4)',
-            border: '1px solid rgba(255,255,255,.08)',
+            background: '#090c1a',
+            border: '1px solid rgba(255, 255, 255, 0.04)',
             borderRadius: 12, padding: 16, marginBottom: 24,
             textAlign: 'left',
             fontFamily: "'Space Mono',monospace", fontSize: 11,
@@ -204,11 +204,11 @@ export default function MaintenancePage() {
               ))}
               <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 10, marginLeft: 4 }}>sps-system — bash</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>$ <span style={{ color: '#44ffdd' }}>sudo systemctl status sps-ai</span></div>
-            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>● <span style={{ color: '#ff4466' }}>sps-ai.service — FAILED (crashed)</span></div>
-            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>⚠ <span style={{ color: '#ffcc44' }}>Rebuilding modules... please wait</span></div>
-            <div style={{ color: 'rgba(255,255,255,.35)' }}>$ <span style={{ color: '#44ffdd' }}>npm run build</span>
-              <span style={{ display: 'inline-block', width: 8, height: 13, background: '#44ffdd', marginLeft: 2, verticalAlign: 'middle', animation: 'cursor-blink .8s step-end infinite' }} />
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>$ <span style={{ color: '#34d399' }}>sudo systemctl status sps-ai</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>● <span style={{ color: '#f87171' }}>sps-ai.service — FAILED (crashed)</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>⚠ <span style={{ color: '#fbbf24' }}>Rebuilding modules... please wait</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)' }}>$ <span style={{ color: '#34d399' }}>npm run build</span>
+              <span style={{ display: 'inline-block', width: 8, height: 13, background: '#34d399', marginLeft: 2, verticalAlign: 'middle', animation: 'cursor-blink .8s step-end infinite' }} />
             </div>
           </div>
 
@@ -218,11 +218,11 @@ export default function MaintenancePage() {
               <span>Tiến trình cập nhật</span>
               <span>{Math.round(progress)}%</span>
             </div>
-            <div style={{ height: 4, background: 'rgba(255,255,255,.08)', borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{ height: 4, background: 'rgba(255, 255, 255, 0.06)', borderRadius: 999, overflow: 'hidden' }}>
               <div style={{
                 height: '100%',
                 width: `${progress}%`,
-                background: 'linear-gradient(90deg,#5050ff,#44ffdd)',
+                background: 'linear-gradient(90deg, #4f7de8, #34d399)',
                 borderRadius: 999,
                 transition: 'width .2s ease',
               }} />
@@ -231,11 +231,11 @@ export default function MaintenancePage() {
 
           <Link href="/" style={{
             display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: 'linear-gradient(135deg,#5050ff,#7744ff)',
+            background: 'linear-gradient(135deg, #4f7de8, #152052)',
             color: 'white', borderRadius: 12,
             padding: '12px 28px', fontSize: 14, fontWeight: 600,
             textDecoration: 'none',
-            boxShadow: '0 4px 24px rgba(80,80,255,.35)',
+            boxShadow: '0 4px 24px rgba(79, 125, 232, 0.35)',
           }}>
             <Home size={16} /> Quay lại trang chủ
           </Link>

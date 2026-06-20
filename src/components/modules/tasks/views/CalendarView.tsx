@@ -90,8 +90,8 @@ export function CalendarView() {
 
           return (
             <div 
-              key={day} 
-              className="min-h-[110px] p-2 flex flex-col gap-1 transition-colors duration-150 hover:bg-surface-low/50 bg-white"
+              key={day}
+              className="min-h-[110px] p-2 flex flex-col gap-1 transition-colors duration-150 hover:bg-surface-low/50 bg-surface"
             >
               <div className="flex items-center justify-end mb-1">
                 <span className={clsx(
