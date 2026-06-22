@@ -4,7 +4,6 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
-import SystemAnnouncementModal from "@/components/shared/SystemAnnouncementModal";
 import { AIAssistant } from "@/components/AIAssistant";
 
 import { useLayout } from "@/components/shared/layout-context";
@@ -41,9 +40,6 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
           )}
         </div>
 
-        {/* System-wide announcement popup — shown once per session */}
-        <SystemAnnouncementModal />
-        
         {/* Global AI Assistant Pop-up Chat */}
         <AIAssistant />
       </div>
