@@ -105,6 +105,7 @@ export function SiteHeader() {
       dashboard: "Tổng quan",
       "like-share": "Like - Share",
       reports: "Báo cáo cá nhân",
+      timetable: "Thời gian biểu",
       "task-manager": "Task Manager",
       "seo-tools": "SEO Tools",
       admin: "Quản trị",
