@@ -176,17 +176,6 @@ model SystemStatus {
   updatedAt      DateTime @updatedAt
 }
 
-model SystemAnnouncement {
-  id         String   @id @default(uuid())
-  title      String
-  content    String
-  image_url  String?
-  file_url   String?
-  file_name  String?
-  is_active  Boolean  @default(false)
-  updated_at DateTime @updatedAt
-}
-
 enum UserRole {
   ADMIN
   USER
