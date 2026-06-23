@@ -292,6 +292,7 @@ export default function TimetablePage() {
   const [rows, setRows] = useState<TimetableRow[]>([]);
   const [loadingRows, setLoadingRows] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(DEFAULT_VISIBLE);
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -342,6 +343,35 @@ export default function TimetablePage() {
       toast.success("Đồng bộ task thành công!");
     } catch { toast.error("Đồng bộ thất bại."); }
     setSyncing(false);
+  };
+
+  // ── Export ───────────────────────────────────────────────────────────────
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch("/api/timetable/export");
+      if (!res.ok) {
+        toast.error("Không thể xuất file Excel.");
+        setExporting(false);
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+      a.download = `TKB_${dateStr}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Xuất file Excel thành công! 🎉");
+    } catch {
+      toast.error("Đã xảy ra lỗi khi xuất file Excel.");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const validateAndSave = async () => {
@@ -526,15 +556,19 @@ export default function TimetablePage() {
           )}
           {/* Export button */}
           {rows.length > 0 && (
-            <a
-              href="/api/timetable/export"
-              download
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all"
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all disabled:opacity-50"
               title="Xuất file Excel"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Xuất Excel
-            </a>
+              {exporting ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+              )}
+              {exporting ? "Đang xuất..." : "Xuất Excel"}
+            </button>
           )}
           {/* Settings popover */}
           {config && (

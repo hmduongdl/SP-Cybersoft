@@ -102,9 +102,9 @@ function formatMinutes(m: number) {
 const OPTION_BASE =
   "flex items-center gap-3 w-full px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all cursor-pointer select-none";
 const OPTION_ACTIVE =
-  "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300";
+  "border-indigo-500 bg-indigo-950/50 text-indigo-300";
 const OPTION_IDLE =
-  "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 text-slate-700 dark:text-slate-300";
+  "border-slate-800 hover:border-slate-700 bg-slate-900/50 text-slate-300";
 
 export default function TimetableOnboardingModal({ onComplete }: Props) {
   const [step, setStep] = useState(0);
@@ -150,16 +150,16 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
 
   return (
     /* Overlay */
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4">
       {/* Card */}
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 16 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg bg-slate-950/70 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden"
       >
         {/* Progress bar */}
-        <div className="h-1 bg-slate-100 dark:bg-slate-800">
+        <div className="h-1 bg-slate-800">
           <motion.div
             className="h-full bg-indigo-500 rounded-full"
             animate={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
@@ -170,7 +170,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
         <div className="p-8">
           {/* Header */}
           <div className="flex items-center gap-2 mb-6">
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-400 bg-indigo-950/50 px-2.5 py-1 rounded-full">
               <Sparkles className="w-3.5 h-3.5" />
               Thiết lập thời khóa biểu
             </span>
@@ -184,10 +184,10 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
             <StepIcon className={`w-6 h-6 ${current.color}`} />
           </div>
 
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1.5">
+          <h2 className="text-xl font-bold text-slate-100 mb-1.5">
             {current.title}
           </h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-8 leading-relaxed">
+          <p className="text-sm text-slate-400 mb-8 leading-relaxed">
             {current.subtitle}
           </p>
 
@@ -207,7 +207,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                 {step === 0 && (
                   <div className="space-y-4">
                     <div className="text-center">
-                      <span className="text-3xl font-bold text-slate-900 dark:text-white">
+                      <span className="text-3xl font-bold text-slate-100">
                         {formatMinutes(config.max_focus_time)}
                       </span>
                     </div>
@@ -253,12 +253,12 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                         onClick={() => setConfig((c) => ({ ...c, is_job_flexible: value }))}
                         className={`${OPTION_BASE} ${config.is_job_flexible === value ? OPTION_ACTIVE : OPTION_IDLE}`}
                       >
-                        <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${config.is_job_flexible === value ? "border-indigo-500 bg-indigo-500" : "border-slate-300 dark:border-slate-600"}`}>
+                        <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-all ${config.is_job_flexible === value ? "border-indigo-500 bg-indigo-500" : "border-slate-700"}`}>
                           {config.is_job_flexible === value && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
                         </div>
                         <div className="text-left">
                           <div className="font-semibold">{label}</div>
-                          <div className="text-xs font-normal text-slate-500 dark:text-slate-400">{desc}</div>
+                          <div className="text-xs font-normal text-slate-400">{desc}</div>
                         </div>
                       </button>
                     ))}
@@ -280,7 +280,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                         <span className="text-xl">{emoji}</span>
                         <div className="text-left">
                           <div className="font-semibold">{label}</div>
-                          <div className="text-xs font-normal text-slate-500 dark:text-slate-400">{desc}</div>
+                          <div className="text-xs font-normal text-slate-400">{desc}</div>
                         </div>
                         {config.best_energy_time === value && (
                           <CheckCircle2 className="ml-auto w-5 h-5 text-indigo-500 shrink-0" />
@@ -316,7 +316,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                 {step === 4 && (
                   <div className="space-y-4">
                     <div className="text-center">
-                      <span className="text-3xl font-bold text-slate-900 dark:text-white">
+                      <span className="text-3xl font-bold text-slate-100">
                         {formatMinutes(config.max_learning_time)}
                       </span>
                     </div>
@@ -341,7 +341,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                         <button
                           key={v}
                           onClick={() => setConfig((c) => ({ ...c, max_learning_time: v }))}
-                          className={`${OPTION_BASE} justify-center py-2 text-xs ${config.max_learning_time === v ? "border-rose-400 bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300" : OPTION_IDLE}`}
+                          className={`${OPTION_BASE} justify-center py-2 text-xs ${config.max_learning_time === v ? "border-rose-500 bg-rose-950/50 text-rose-300" : OPTION_IDLE}`}
                         >
                           {formatMinutes(v)}
                         </button>
@@ -357,7 +357,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       className={`flex items-center gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${config.sync_task_manager ? OPTION_ACTIVE : OPTION_IDLE}`}
                       onClick={() => setConfig((c) => ({ ...c, sync_task_manager: !c.sync_task_manager }))}
                     >
-                      <div className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${config.sync_task_manager ? "bg-indigo-500" : "bg-slate-200 dark:bg-slate-700"}`}>
+                      <div className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${config.sync_task_manager ? "bg-indigo-500" : "bg-slate-800"}`}>
                         <motion.span
                           animate={{ x: config.sync_task_manager ? 24 : 2 }}
                           transition={{ type: "spring", stiffness: 500, damping: 30 }}
@@ -368,7 +368,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                         <p className="font-semibold text-sm">
                           {config.sync_task_manager ? "Bật tích hợp Task Manager" : "Không tích hợp"}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-normal">
+                        <p className="text-xs text-slate-400 mt-0.5 font-normal">
                           {config.sync_task_manager
                             ? "AI sẽ tự động sắp xếp task có deadline vào thời khóa biểu."
                             : "Bạn có thể bật tính năng này sau trong cài đặt."}
@@ -385,11 +385,11 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
           </div>
 
           {/* Navigation */}
-          <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-100 dark:border-slate-800">
+          <div className="flex items-center justify-between mt-8 pt-6 border-t border-slate-800">
             <button
               onClick={() => navigate(-1)}
               disabled={step === 0}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronLeft className="w-4 h-4" />
               Trước
@@ -400,7 +400,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
               {STEPS.map((_, i) => (
                 <span
                   key={i}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? "w-5 bg-indigo-500" : i < step ? "w-1.5 bg-indigo-300 dark:bg-indigo-700" : "w-1.5 bg-slate-200 dark:bg-slate-700"}`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? "w-5 bg-indigo-500" : i < step ? "w-1.5 bg-indigo-700" : "w-1.5 bg-slate-800"}`}
                 />
               ))}
             </div>
