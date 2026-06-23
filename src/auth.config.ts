@@ -25,7 +25,7 @@ export const authConfig = {
       }
 
       // Admin routes — yêu cầu role ADMIN
-      if (pathname.startsWith("/admin")) {
+      if (pathname.startsWith("/admin") || pathname.startsWith("/timetable")) {
         if (auth.user?.role === "ADMIN") return true;
         return Response.redirect(new URL("/dashboard", nextUrl));
       }

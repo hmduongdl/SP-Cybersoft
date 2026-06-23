@@ -8,17 +8,6 @@ Thiết kế trang Timetable (Số cột và định dạng như hình - k cần
 - Câu hỏi 5: Bạn có thể học tập lâu nhất là bao nhiêu lâu?
 - Câu hỏi 6: Bạn có muốn tôi tích hợp các công việc của bạn từ Task Manager vào thời khoá biểu không?
 2.Sau khi người dùng trả lời xong các câu trả lời, AI sẽ tạo bảng và tuỳ chỉnh bảng mẫu theo người dùng. Đây là cách phân tích từng câu hỏi theo quy tắc sau:
-[📅 Phương pháp Hộp thời gian (Time Boxing)
-Thay vì chỉ ghi "làm bài tập" hay "viết code", bạn hãy ấn định một khoảng thời gian cố định (ví dụ: 14:00 - 15:30) cho một công việc cụ thể. Khi hết thời gian, bạn bắt buộc phải dừng lại và chuyển sang việc tiếp theo.
-Ưu điểm: Tránh trì hoãn, tạo áp lực thời gian tích cực để tập trung tối đa.
-🧱 Phương pháp Khối thời gian (Time Blocking)
-Chia một ngày thành các "khối" chức năng lớn. Ví dụ:
-Khối Sáng (Deep Work): Dành cho các công việc đòi hỏi tư duy cao, logic khó (lập trình, học kiến thức mới).
-Khối Chiều (Shallow Work): Dành cho công việc hành chính, họp hành, trả lời email, chỉnh sửa thiết kế nhẹ nhàng.
-Khối Tối: Dành cho cá nhân, gia đình và giải trí.
-🍅 Quy tắc Cà chua (Pomodoro)
-Chia nhỏ thời gian làm việc thành các chu kỳ: 25 phút tập trung cao độ + 5 phút nghỉ ngắn. Sau 4 chu kỳ thì nghỉ dài 15 - 30 phút.
-Ưu điểm: Rất hiệu quả khi bạn đang đối mặt với những phần việc nhàm chán hoặc dễ gây nản lòng.]
  Dựa trên câu hỏi, ta có:
 - Câu hỏi 1: Thời gian tối ưu cho công việc cố định, dựa trên câu trả lời, nếu thời gian đó lớn hơn hoặc = 45phút x 2 thì chia ra 2 phase, mỗi phase dài bằng nhau và có thời gian nghỉ từ 5-10p (nghỉ 5 phút đối với 1 tiếng rưỡi, 10p đối với 2 tiếng, và k có thời gian nghỉ nếu dưới 1 tiếng 30 phút) 
 - Câu hỏi 2: Nếu cố định thì build cấu trúc bảng như bảng mẫu. Nếu không cố định thì chỉ cần thêm các công việc cố định hàng ngày như: Khởi động đầu giờ sáng như bảng mẫu và Tổng kết cuối ngày.

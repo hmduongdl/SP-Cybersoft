@@ -269,8 +269,8 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                 {step === 2 && (
                   <div className="space-y-3">
                     {[
-                      { value: "morning", label: "Buổi Sáng", desc: "Năng lượng cao nhất từ 6:00 – 12:00", emoji: "🌅" },
-                      { value: "afternoon", label: "Buổi Chiều", desc: "Năng lượng cao nhất từ 13:30 – 18:30", emoji: "☀️" },
+                      { value: "morning", label: "Buổi Sáng", desc: "Tràn đầy năng lượng, mức độ tập trung cao", emoji: "🌅" },
+                      { value: "afternoon", label: "Buổi Chiều", desc: "Tràn đầy năng lượng, mức độ tập trung cao", emoji: "☀️" },
                     ].map(({ value, label, desc, emoji }) => (
                       <button
                         key={value}
@@ -294,11 +294,11 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                 {step === 3 && (
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { value: "morning", label: "Sáng sớm", emoji: "🌄", time: "5:00 – 8:00" },
-                      { value: "noon", label: "Buổi Trưa", emoji: "🌞", time: "12:00 – 13:30" },
-                      { value: "afternoon", label: "Đầu giờ chiều", emoji: "🌤️", time: "13:30 – 15:30" },
-                      { value: "evening", label: "Buổi Tối", emoji: "🌙", time: "19:00 – 22:00" },
-                    ].map(({ value, label, emoji, time }) => (
+                      { value: "morning", label: "Sáng sớm", emoji: "🌄" },
+                      { value: "noon", label: "Buổi Trưa", emoji: "🌞" },
+                      { value: "afternoon", label: "Đầu giờ chiều", emoji: "🌤️" },
+                      { value: "evening", label: "Buổi Tối", emoji: "🌙" },
+                    ].map(({ value, label, emoji }) => (
                       <button
                         key={value}
                         onClick={() => setConfig((c) => ({ ...c, best_learning_time: value }))}
@@ -306,7 +306,6 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       >
                         <span className="text-2xl">{emoji}</span>
                         <span className="text-sm font-semibold">{label}</span>
-                        <span className="text-xs text-slate-400 font-normal">{time}</span>
                       </button>
                     ))}
                   </div>
