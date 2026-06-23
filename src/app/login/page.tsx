@@ -17,7 +17,7 @@ export default function LoginPage() {
 
         {/* Brand Identity */}
         <div className="relative z-10 text-center space-y-4">
-          <h1 className="text-7xl md:text-8xl font-bold font-manrope text-primary tracking-tight">SPS</h1>
+          <h1 className="text-7xl md:text-8xl font-bold font-manrope text-primary tracking-tight">SP-CyberSoft</h1>
           <p className="text-xl md:text-2xl font-medium font-manrope text-on-surface-variant">AI Check-in Tool</p>
         </div>
       </section>
@@ -26,7 +26,7 @@ export default function LoginPage() {
       <section className="flex-1 md:w-[40%] h-full bg-surface flex flex-col items-center justify-center px-6 md:px-12 relative overflow-y-auto">
         {/* Mobile Brand Logo */}
         <div className="md:hidden absolute top-12 left-6">
-          <span className="text-2xl font-bold text-primary font-manrope">SPS</span>
+          <span className="text-2xl font-bold text-primary font-manrope">SP-CyberSoft</span>
         </div>
 
         <Suspense fallback={<div className="flex items-center justify-center text-outline">Đang tải...</div>}>
@@ -35,7 +35,7 @@ export default function LoginPage() {
 
         {/* Page Footer */}
         <footer className="mt-8 text-center relative z-10">
-          <p className="text-xs text-outline">© 2026 SPS AI. Tất cả quyền được bảo lưu.</p>
+          <p className="text-xs text-outline">© 2026 SP-CyberSoft. Tất cả quyền được bảo lưu.</p>
         </footer>
       </section>
     </main>

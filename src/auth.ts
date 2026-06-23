@@ -130,6 +130,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
+          if (!user.is_active) {
+            throw new Error("ACCOUNT_LOCKED");
+          }
+
           return {
             id: user.id,
             name: user.name,

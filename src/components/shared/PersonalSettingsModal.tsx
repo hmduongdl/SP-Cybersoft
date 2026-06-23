@@ -16,8 +16,9 @@ import {
   Check,
   Settings,
   ExternalLink,
+  Camera,
 } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useTheme } from "next-themes";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -71,6 +72,9 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -102,6 +106,41 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
     load();
     return () => { active = false; };
   }, []);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowed.includes(file.type)) {
+      toast.error("Chỉ hỗ trợ ảnh JPG, PNG hoặc WebP.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ảnh tối đa 2MB.");
+      return;
+    }
+
+    setPreviewUrl(URL.createObjectURL(file));
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload/avatar", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Upload thất bại.");
+      setAvatarUrl(data.url);
+      if (update) await update();
+      window.dispatchEvent(new CustomEvent("profile-updated"));
+      toast.success("Cập nhật ảnh đại diện thành công!");
+    } catch (err: any) {
+      toast.error(err.message);
+      setPreviewUrl(null);
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,13 +194,34 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
     <form onSubmit={handleSave} className="space-y-5">
       {/* Avatar */}
       <div className="flex items-center gap-4 pb-2">
-        <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-indigo-500/10 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 bg-slate-100 dark:bg-slate-800">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <UserAvatar name={name || null} size="lg" className="w-full h-full" />
-          )}
-        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleAvatarUpload}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="relative group cursor-pointer disabled:cursor-wait shrink-0"
+        >
+          <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-indigo-500/10 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 bg-slate-100 dark:bg-slate-800">
+            {previewUrl || avatarUrl ? (
+              <img src={previewUrl || avatarUrl || ""} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <UserAvatar name={name || null} size="lg" className="w-full h-full" />
+            )}
+          </div>
+          <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {uploading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-white" />
+            ) : (
+              <Camera className="w-5 h-5 text-white" />
+            )}
+          </div>
+        </button>
         <div>
           <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{name || "Chưa có tên"}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">{email}</p>
@@ -221,7 +281,7 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className={labelCls}>Mật khẩu mới</label>
             <input type={showNewPass ? "text" : "password"} value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Tối thiểu 6 ký tự" className={inputCls} />
@@ -344,7 +404,7 @@ function TagManager({ workspaceId, title, description, hideIfEmpty }: { workspac
       )}
 
       {wsTags.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {wsTags.map(tag => (
             <div key={tag.id} className="flex items-center justify-between px-3 py-2 bg-surface-mid dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 group hover:border-slate-200 dark:hover:border-slate-700 transition-all">
               <div className="flex items-center gap-2">
@@ -653,7 +713,7 @@ function AppearanceTab() {
   return (
     <div className="space-y-6">
       <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Chế độ hiển thị</p>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {themes.map(t => {
           const active = theme === t.id;
           return (
@@ -716,30 +776,30 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
       {/* Overlay */}
       <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4" onClick={onClose}>
         <div
-          className="bg-surface-mid dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl max-w-4xl w-full h-[80vh] flex overflow-hidden animate-fade-in"
+          className="bg-surface-mid dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl max-w-4xl w-full h-[85vh] md:h-[80vh] flex flex-col md:flex-row overflow-hidden animate-fade-in"
           onClick={e => e.stopPropagation()}
         >
-          {/* ── Sidebar Tabs (220px) ── */}
-          <div className="w-[220px] shrink-0 bg-slate-50/80 dark:bg-slate-800/40 border-r border-slate-100 dark:border-slate-800 flex flex-col">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-100 dark:border-slate-800">
+          {/* ── Sidebar Tabs ── */}
+          <div className="w-full md:w-[220px] shrink-0 bg-slate-50/80 dark:bg-slate-800/40 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 flex flex-col">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-100 dark:border-slate-800 shrink-0">
               <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Cài đặt</h2>
               <button onClick={onClose} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 <X size={16} />
               </button>
             </div>
-            <nav className="flex-1 py-2 px-2 space-y-0.5 overflow-y-auto">
+            <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar py-2 px-2 gap-1 md:space-y-0.5 shrink-0">
               {TABS.map(tab => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.id;
                 return (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
+                    className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left shrink-0 ${
                       active
                         ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
                         : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200"
                     }`}>
                     <Icon size={18} className={active ? "text-indigo-600 dark:text-indigo-400" : "text-slate-400 dark:text-slate-500"} />
-                    {tab.label}
+                    <span>{tab.label}</span>
                   </button>
                 );
               })}
@@ -747,11 +807,11 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
           </div>
 
           {/* ── Content Area ── */}
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="px-6 h-14 flex items-center border-b border-slate-100 dark:border-slate-800">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <div className="px-6 h-14 flex items-center border-b border-slate-100 dark:border-slate-800 shrink-0">
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{tabTitles[activeTab]}</h3>
             </div>
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
               {renderContent()}
             </div>
           </div>

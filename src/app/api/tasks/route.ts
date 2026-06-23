@@ -39,6 +39,12 @@ export async function GET(req: Request) {
       include: {
         tags: true,
         creator: { select: { name: true, avatar_url: true } },
+        assignee: { select: { id: true, name: true, avatar_url: true } },
+        customProperties: {
+          include: {
+            definition: { select: { id: true, name: true, type: true, options: true } },
+          },
+        },
         workspace: { select: { is_public: true, owner_id: true } }
       },
       orderBy: { createdAt: 'desc' }
@@ -69,7 +75,7 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { title, description, status, due_date, tags, workspace_id } = body;
+    const { title, description, status, due_date, tags, workspace_id, assignee_id } = body;
 
     if (!title || !workspace_id) return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
 
@@ -109,13 +115,15 @@ export async function POST(req: Request) {
         due_date: due_date ? new Date(due_date) : null,
         workspace_id,
         creator_id: session.user.id,
+        assignee_id: assignee_id || null,
         tags: finalTags.length > 0 ? {
           connect: finalTags
         } : undefined
       },
       include: {
         tags: true,
-        creator: { select: { name: true, avatar_url: true } }
+        creator: { select: { name: true, avatar_url: true } },
+        assignee: { select: { id: true, name: true, avatar_url: true } }
       }
     });
 

@@ -27,13 +27,29 @@ export interface Task {
   status: TaskStatus;
   due_date?: string | null;
   priority?: 'high' | 'mid' | 'low';
-  assignee?: { name: string; avatar_url?: string };
+  assignee_id?: string | null;
+  assignee?: { id: string; name: string; avatar_url: string | null } | null;
   workspace_id: string;
   creator_id: string;
   creator?: { name: string; avatar_url: string | null };
   is_archived: boolean;
   createdAt: string;
   tags?: Tag[];
+  customProperties?: {
+    id: string;
+    task_id: string;
+    definition_id: string;
+    value_text?: string | null;
+    value_number?: number | null;
+    value_boolean?: boolean | null;
+    value_date?: string | null;
+    definition: {
+      id: string;
+      name: string;
+      type: string;
+      options?: string[] | null;
+    };
+  }[];
   note?: {
     id: string;
     content: any;

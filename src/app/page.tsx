@@ -1,10 +1,12 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/auth";
+import type { Metadata } from "next";
+import LandingPage from "@/components/landing/LandingPage";
 
-export default async function HomePage() {
-  const session = await auth();
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-  redirect("/dashboard");
+export const metadata: Metadata = {
+  title: "SP Cybersoft | Kỹ Trị & Đột Phá Số",
+  description:
+    "SP Cybersoft cung cấp các giải pháp phần mềm tùy chỉnh, hạ tầng đám mây và trải nghiệm số đẳng cấp thế giới cho các doanh nghiệp dẫn đầu.",
+};
+
+export default function HomePage() {
+  return <LandingPage />;
 }

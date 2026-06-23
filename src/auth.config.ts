@@ -12,7 +12,10 @@ export const authConfig = {
 
       const isLoggedIn = !!auth?.user;
 
-      if (!isLoggedIn) return false;
+      if (!isLoggedIn) {
+        if (nextUrl.pathname === "/") return true;
+        return false;
+      }
 
       const pathname = nextUrl.pathname;
 

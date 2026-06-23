@@ -1,7 +1,7 @@
 import TaskManagerMain from "@/components/modules/tasks/TaskManagerMain";
 
 export const metadata = {
-  title: "Task Manager | SPS",
+  title: "Task Manager | SP-CyberSoft",
   description: "Quản lý công việc thông minh với RAG AI",
 };
 
