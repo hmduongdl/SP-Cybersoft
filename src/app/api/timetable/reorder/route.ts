@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -16,7 +15,7 @@ import { prisma } from "@/lib/prisma";
  *   anchor_end   → always order = TOTAL - 1 (absolute last row)
  */
 export async function PATCH(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -41,7 +40,7 @@ export async function PATCH(req: Request) {
     select: { id: true, row_type: true, is_locked: true, order: true },
   });
 
-  const ownedIds = new Set(allRows.map((r) => r.id));
+  const ownedIds = new Set(allRows.map((r: { id: string }) => r.id));
 
   // Security: reject any IDs that don't belong to this user
   const invalidId = orderedIds.find((id) => !ownedIds.has(id));
@@ -53,8 +52,8 @@ export async function PATCH(req: Request) {
   }
 
   // Security: reject if caller tries to reorder a locked row
-  const lockedRows = allRows.filter((r) => r.is_locked);
-  const lockedIds = new Set(lockedRows.map((r) => r.id));
+  const lockedRows = allRows.filter((r: { is_locked: boolean }) => r.is_locked);
+  const lockedIds = new Set(lockedRows.map((r: { id: string }) => r.id));
   const attemptedLockedMove = orderedIds.find((id) => lockedIds.has(id));
   if (attemptedLockedMove) {
     return NextResponse.json(
@@ -64,9 +63,9 @@ export async function PATCH(req: Request) {
   }
 
   // ── 2. Find anchor rows by type ──────────────────────────────────────────
-  const anchorStart = allRows.find((r) => r.row_type === "anchor_start");
-  const anchorMid   = allRows.find((r) => r.row_type === "anchor_mid");
-  const anchorEnd   = allRows.find((r) => r.row_type === "anchor_end");
+  const anchorStart = allRows.find((r: { row_type: string }) => r.row_type === "anchor_start");
+  const anchorMid   = allRows.find((r: { row_type: string }) => r.row_type === "anchor_mid");
+  const anchorEnd   = allRows.find((r: { row_type: string }) => r.row_type === "anchor_end");
 
   // ── 3. Build the full ordered list by re-inserting anchors ───────────────
   //
@@ -86,11 +85,11 @@ export async function PATCH(req: Request) {
   // current order relative to anchor_mid's original position.
   const anchorMidCurrentOrder = anchorMid?.order ?? 99;
   const morningFreeRows = freeRows.filter((id) => {
-    const row = allRows.find((r) => r.id === id);
+    const row = allRows.find((r: { id: string }) => r.id === id);
     return row && row.order < anchorMidCurrentOrder;
   });
   const afternoonFreeRows = freeRows.filter((id) => {
-    const row = allRows.find((r) => r.id === id);
+    const row = allRows.find((r: { id: string }) => r.id === id);
     return row && row.order > anchorMidCurrentOrder;
   });
 

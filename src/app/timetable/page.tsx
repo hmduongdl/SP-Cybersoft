@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   ChevronRight, Home, Calendar, RefreshCw,
-  Lock, GripVertical, Trash2, Plus, AlertCircle,
+  Lock, GripVertical, Trash2, Plus, AlertCircle, FileSpreadsheet,
 } from "lucide-react";
 import {
   DragDropContext, Droppable, Draggable,
@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import TimetableOnboardingModal from "@/components/modules/timetable/TimetableOnboardingModal";
 import CellEditor from "@/components/modules/timetable/CellEditor";
+import TimetableSettingsPopover, { DEFAULT_VISIBLE } from "@/components/modules/timetable/TimetableSettingsPopover";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const DAY_COLS = [
@@ -152,7 +153,7 @@ function RowBoundary({
 
 // ─── Main TableRow ────────────────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange,
+  row, provided, snapshot, onDelete, onCellChange, onTitleChange, visibleCols,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
@@ -160,6 +161,7 @@ function TimetableTableRow({
   onDelete: (id: string) => void;
   onCellChange: (rowId: string, colKey: string, items: string[]) => void;
   onTitleChange: (rowId: string, title: string) => void;
+  visibleCols: string[];
 }) {
   const isLocked = row.is_locked;
   const isDragging = snapshot.isDragging;
@@ -198,52 +200,58 @@ function TimetableTableRow({
       ].join(" ")}
     >
       {/* # / drag handle */}
-      <td className="border-r border-slate-100 dark:border-slate-800 w-9 px-1.5 py-2.5 text-center align-middle">
-        {isLocked ? (
-          <Lock className="w-3 h-3 text-slate-300 dark:text-slate-600 mx-auto" />
-        ) : (
-          <div
-            {...provided.dragHandleProps}
-            className="flex items-center justify-center cursor-grab active:cursor-grabbing"
-            title="Kéo để di chuyển"
-          >
-            <GripVertical className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 transition-colors" />
-          </div>
-        )}
-      </td>
+      {visibleCols.includes("order") && (
+        <td className="border-r border-slate-100 dark:border-slate-800 w-9 px-1.5 py-2.5 text-center align-middle">
+          {isLocked ? (
+            <Lock className="w-3 h-3 text-slate-300 dark:text-slate-600 mx-auto" />
+          ) : (
+            <div
+              {...provided.dragHandleProps}
+              className="flex items-center justify-center cursor-grab active:cursor-grabbing"
+              title="Kéo để di chuyển"
+            >
+              <GripVertical className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 group-hover:text-slate-400 transition-colors" />
+            </div>
+          )}
+        </td>
+      )}
 
       {/* Khung giờ */}
-      <td className="border-r border-slate-100 dark:border-slate-800 w-[116px] px-2 py-2.5 align-middle">
-        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-          {row.start_time} – {row.end_time}
-        </span>
-      </td>
+      {visibleCols.includes("time") && (
+        <td className="border-r border-slate-100 dark:border-slate-800 w-[116px] px-2 py-2.5 align-middle">
+          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+            {row.start_time} – {row.end_time}
+          </span>
+        </td>
+      )}
 
       {/* Tên công việc */}
-      <td className="border-r border-slate-100 dark:border-slate-800 w-44 px-2 py-1.5 align-middle">
-        {isLocked ? (
-          <div className="flex items-center gap-1.5 px-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
-            <span className={`text-[12px] font-semibold text-slate-700 dark:text-slate-200 ${row.row_type === "break" ? "italic text-slate-400 dark:text-slate-500" : ""}`}>
-              {row.title}
-            </span>
-          </div>
-        ) : (
-          <input
-            type="text"
-            defaultValue={row.title}
-            onChange={(e) => handleTitleChange(e.target.value)}
-            placeholder="Tên công việc..."
-            className="w-full bg-transparent outline-none border-none text-[12px] font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-700 px-1"
-          />
-        )}
-      </td>
+      {visibleCols.includes("title") && (
+        <td className="border-r border-slate-100 dark:border-slate-800 w-44 px-2 py-1.5 align-middle">
+          {isLocked ? (
+            <div className="flex items-center gap-1.5 px-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
+              <span className={`text-[12px] font-semibold text-slate-700 dark:text-slate-200 ${row.row_type === "break" ? "italic text-slate-400 dark:text-slate-500" : ""}`}>
+                {row.title}
+              </span>
+            </div>
+          ) : (
+            <input
+              type="text"
+              defaultValue={row.title}
+              onChange={(e) => handleTitleChange(e.target.value)}
+              placeholder="Tên công việc..."
+              className="w-full bg-transparent outline-none border-none text-[12px] font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-700 px-1"
+            />
+          )}
+        </td>
+      )}
 
       {/* Ghi chú */}
-      <NoteCell row={row} />
+      {visibleCols.includes("notes") && <NoteCell row={row} />}
 
       {/* Day cells */}
-      {DAY_COLS.map((d) => {
+      {DAY_COLS.filter((d) => visibleCols.includes(d.key)).map((d) => {
         const cell = getCell(d.key);
         const items = Array.isArray(cell?.content) ? (cell!.content as string[]) : [];
         return (
@@ -284,6 +292,7 @@ export default function TimetablePage() {
   const [rows, setRows] = useState<TimetableRow[]>([]);
   const [loadingRows, setLoadingRows] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [visibleCols, setVisibleCols] = useState<string[]>(DEFAULT_VISIBLE);
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Bootstrap ────────────────────────────────────────────────────────────
@@ -292,7 +301,14 @@ export default function TimetablePage() {
       .then((r) => r.json())
       .then(({ config }) => {
         if (!config || !config.is_onboarded) { setShowOnboarding(true); }
-        else { setConfig(config); fetchRows(); }
+        else {
+          setConfig(config);
+          // Restore saved column visibility
+          if (Array.isArray(config.visible_columns) && config.visible_columns.length > 0) {
+            setVisibleCols(config.visible_columns as string[]);
+          }
+          fetchRows();
+        }
       })
       .catch(() => setShowOnboarding(true))
       .finally(() => setLoadingConfig(false));
@@ -301,14 +317,14 @@ export default function TimetablePage() {
   const fetchRows = useCallback(async () => {
     setLoadingRows(true);
     try {
-      const res = await fetch("/api/timetable/sync-tasks");
+      const res = await fetch("/api/timetable");
       const data = await res.json();
       if (data.rows) setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
     } catch {}
     setLoadingRows(false);
   }, []);
 
-  const handleOnboardingComplete = async (newConfig: TimetableConfig, generatedRows: TimetableRow[]) => {
+  const handleOnboardingComplete = async (newConfig: any, generatedRows: any[]) => {
     setConfig(newConfig);
     setRows([...generatedRows].sort((a, b) => a.order - b.order));
     setShowOnboarding(false);
@@ -328,8 +344,8 @@ export default function TimetablePage() {
     setSyncing(false);
   };
 
-  // ── Validate zero-duration ────────────────────────────────────────────────
-  const validateAndSave = () => {
+  const validateAndSave = async () => {
+    // Zero-duration guard
     const zeroDur = rows.find((r) => !r.is_locked && rowDuration(r) <= 0);
     if (zeroDur) {
       toast.error(
@@ -344,7 +360,44 @@ export default function TimetablePage() {
       );
       return;
     }
-    toast.success("Đã lưu thời khóa biểu!");
+
+    // Build payload — include all rows with their current cells
+    const payload = {
+      rows: rows.map((r) => ({
+        id:         r.id,
+        title:      r.title,
+        row_type:   r.row_type,
+        start_time: r.start_time,
+        end_time:   r.end_time,
+        is_locked:  r.is_locked,
+        order:      r.order,
+        cells:      r.cells.map((c) => ({
+          column_name: c.column_name,
+          content:     c.content,
+          task_ids:    c.task_ids,
+          is_deadline: c.is_deadline,
+        })),
+      })),
+    };
+
+    try {
+      const res = await fetch("/api/timetable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error ?? "Lưu thất bại.");
+        return;
+      }
+      const data = await res.json();
+      // Re-hydrate rows from server response to keep IDs consistent
+      setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
+      toast.success("Đã lưu thời khóa biểu! 💾");
+    } catch {
+      toast.error("Không thể kết nối server. Vui lòng thử lại.");
+    }
   };
 
   // ── Insert row ────────────────────────────────────────────────────────────
@@ -471,6 +524,27 @@ export default function TimetablePage() {
               {syncing ? "Đang đồng bộ..." : "Đồng bộ Tasks"}
             </button>
           )}
+          {/* Export button */}
+          {rows.length > 0 && (
+            <a
+              href="/api/timetable/export"
+              download
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all"
+              title="Xuất file Excel"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Xuất Excel
+            </a>
+          )}
+          {/* Settings popover */}
+          {config && (
+            <TimetableSettingsPopover
+              visibleCols={visibleCols}
+              syncTaskManager={config.sync_task_manager}
+              onColumnsChange={(cols) => setVisibleCols(cols)}
+              onSyncChange={(enabled) => setConfig((c) => c ? { ...c, sync_task_manager: enabled } : c)}
+            />
+          )}
           <button onClick={validateAndSave}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all">
             Lưu thời khóa biểu
@@ -496,11 +570,11 @@ export default function TimetablePage() {
                 <table className="w-full border-collapse text-sm" style={{ minWidth: 1000 }}>
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
-                      <th className="border-r border-slate-200 dark:border-slate-700 w-9 px-2 py-2.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wide text-center">#</th>
-                      <th className="border-r border-slate-200 dark:border-slate-700 w-[116px] px-2 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Khung giờ</th>
-                      <th className="border-r border-slate-200 dark:border-slate-700 w-44 px-2 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Tên công việc</th>
-                      <th className="border-r border-slate-200 dark:border-slate-700 w-36 px-2 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Ghi chú</th>
-                      {DAY_COLS.map((d) => (
+                      {visibleCols.includes("order") && <th className="border-r border-slate-200 dark:border-slate-700 w-9 px-2 py-2.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wide text-center">#</th>}
+                      {visibleCols.includes("time") && <th className="border-r border-slate-200 dark:border-slate-700 w-[116px] px-2 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Khung giờ</th>}
+                      {visibleCols.includes("title") && <th className="border-r border-slate-200 dark:border-slate-700 w-44 px-2 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Tên công việc</th>}
+                      {visibleCols.includes("notes") && <th className="border-r border-slate-200 dark:border-slate-700 w-36 px-2 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Ghi chú</th>}
+                      {DAY_COLS.filter((d) => visibleCols.includes(d.key)).map((d) => (
                         <th key={d.key} className="border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wide last:border-r-0">
                           {d.label}
                         </th>
@@ -562,6 +636,7 @@ export default function TimetablePage() {
                                     onDelete={handleDeleteRow}
                                     onCellChange={handleCellChange}
                                     onTitleChange={handleTitleChange}
+                                    visibleCols={visibleCols}
                                   />
                                 )}
                               </Draggable>

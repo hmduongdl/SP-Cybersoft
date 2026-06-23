@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -70,7 +69,7 @@ function mergeIds(
 // ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -159,8 +158,8 @@ export async function POST() {
 
   // Find the primary "important work" row (peak focus row)
   const peakRow =
-    rows.find((r) => r.row_type === "focus_peak") ??
-    rows.find((r) => FOCUS_ROW_TYPES.has(r.row_type)) ??
+    rows.find((r: { row_type: string }) => r.row_type === "focus_peak") ??
+    rows.find((r: { row_type: string }) => FOCUS_ROW_TYPES.has(r.row_type)) ??
     null;
 
   if (!peakRow) {
@@ -202,7 +201,7 @@ export async function POST() {
     if (isThisWeek && dueDate) {
       // ── Case A: Task has deadline within this week ─────────────────────
       const dayCol = DAY_INDEX_TO_COL[dueDate.getDay()];
-      const existingCell = peakRow.cells.find((c) => c.column_name === dayCol);
+      const existingCell = peakRow.cells.find((c: { column_name: string }) => c.column_name === dayCol);
 
       const patch = getOrInit(peakRow.id, dayCol, existingCell);
       if (!patch.content.includes(task.title)) patch.content.push(task.title);
@@ -212,7 +211,7 @@ export async function POST() {
       // ── Case B: No deadline or deadline outside this week ──────────────
       // Spread task across Mon–Fri (Google Calendar "all-week" style)
       for (const col of WEEKDAY_COLS) {
-        const existingCell = peakRow.cells.find((c) => c.column_name === col);
+        const existingCell = peakRow.cells.find((c: { column_name: string }) => c.column_name === col);
         const patch = getOrInit(peakRow.id, col, existingCell);
         if (!patch.content.includes(task.title)) patch.content.push(task.title);
         if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
@@ -225,7 +224,7 @@ export async function POST() {
   // Build a Set of row IDs that belong to this user (sourced from DB query above).
   // Hard ownership gate: even if row_id were somehow manipulated, only rows that
   // belong to userId (fetched with where: { user_id: userId }) can be written.
-  const ownedRowIds = new Set(rows.map((r) => r.id));
+  const ownedRowIds = new Set(rows.map((r: { id: string }) => r.id));
 
   const mutations: Prisma.PrismaPromise<unknown>[] = [];
 
@@ -268,7 +267,7 @@ export async function POST() {
 // ─── GET: Fetch current sync state (which cells have synced tasks) ─────────────
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

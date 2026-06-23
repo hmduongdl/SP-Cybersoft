@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/authOptions";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
@@ -332,11 +331,11 @@ const ALL_COLUMNS = [...DAY_COLUMNS, "notes", "tasks"];
 
 function seedCells(
   description?: string,
-): { column_name: string; content: Prisma.InputJsonValue | null; task_ids: Prisma.InputJsonValue | null; is_deadline: boolean }[] {
+): { column_name: string; content: Prisma.InputJsonValue; task_ids: Prisma.InputJsonValue; is_deadline: boolean }[] {
   return ALL_COLUMNS.map((col) => ({
     column_name: col,
-    content: col === "notes" && description ? [description] : null,
-    task_ids: null,
+    content: (col === "notes" && description ? [description] : []) as Prisma.InputJsonValue,
+    task_ids: [] as Prisma.InputJsonValue,
     is_deadline: false,
   }));
 }
@@ -344,7 +343,7 @@ function seedCells(
 // ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -429,10 +428,12 @@ export async function POST(req: Request) {
             order: bp.order,
             cells: {
               createMany: {
-                data: seedCells(
-                  "placeholder", // row_id will be the actual ID; prisma handles nested create
-                  bp.description,
-                ).map(({ column_name, content }) => ({ column_name, content })),
+                data: seedCells(bp.description).map(({ column_name, content, task_ids, is_deadline }) => ({
+                  column_name,
+                  content,
+                  task_ids,
+                  is_deadline,
+                })),
               },
             },
           },
