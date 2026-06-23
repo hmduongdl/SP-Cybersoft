@@ -243,6 +243,8 @@ function buildRows(answers: {
   });
 
   // ── Lunch break ──────────────────────────────────────────────────────────
+  // User requested to NOT add the lunch break into the timetable.
+  /*
   rows.push({
     title: "Nghỉ trưa",
     row_type: "break",
@@ -251,6 +253,7 @@ function buildRows(answers: {
     is_locked: false,
     order: order++,
   });
+  */
 
   cursor = toMinutes("13:30");
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
-export default function LandingPage() {
+export default function LandingPage({ userName }: { userName?: string | null }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("");
@@ -134,10 +134,10 @@ export default function LandingPage() {
           </nav>
           <div className="flex items-center gap-3">
             <Link
-              href="/login"
+              href={userName ? "/dashboard" : "/login"}
               className="bg-primary text-on-primary text-sm font-bold px-6 py-2 rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
-              Đăng nhập
+              {userName ? `Xin chào, ${userName}` : "Đăng nhập"}
             </Link>
           </div>
         </div>

@@ -7,6 +7,9 @@ export const metadata: Metadata = {
     "SP Cybersoft cung cấp các giải pháp phần mềm tùy chỉnh, hạ tầng đám mây và trải nghiệm số đẳng cấp thế giới cho các doanh nghiệp dẫn đầu.",
 };
 
-export default function HomePage() {
-  return <LandingPage />;
+import { auth } from "@/auth";
+
+export default async function HomePage() {
+  const session = await auth();
+  return <LandingPage userName={session?.user?.name || null} />;
 }

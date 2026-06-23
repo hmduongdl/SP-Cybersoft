@@ -15,9 +15,6 @@ export async function PATCH(
   const row = await prisma.timetableRow.findUnique({ where: { id: rowId } });
   if (!row || row.user_id !== session.user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (row.is_locked)
-    return NextResponse.json({ error: "Cannot modify locked rows" }, { status: 400 });
-
   const body = await req.json();
   const updated = await prisma.timetableRow.update({
     where: { id: rowId },

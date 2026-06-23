@@ -122,18 +122,17 @@ function RowBoundary({
 
   return (
     <tr
-      className="relative h-0"
+      className="group cursor-pointer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <td colSpan={totalCols} className="p-0 h-0">
-        <div className={`relative h-0 transition-all duration-150 ${hovered ? "h-5" : ""}`}>
+      <td colSpan={totalCols} className="p-0 border-none">
+        <div className={`relative w-full flex items-center justify-center transition-all duration-150 ${hovered ? "h-6 bg-indigo-50/50 dark:bg-indigo-900/10" : "h-2"}`}>
           {hovered && (
-            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center px-4 pointer-events-none">
+            <div className="absolute inset-x-0 flex items-center px-4 z-10">
               <div className="flex-1 h-px bg-indigo-400 dark:bg-indigo-600" />
               <button
-                pointer-events="all"
-                className="pointer-events-auto mx-2 w-5 h-5 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center shadow-md transition-colors shrink-0"
+                className="mx-2 w-5 h-5 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white flex items-center justify-center shadow-md transition-colors shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   onInsert(aboveRow.order, aboveRow.end_time);
@@ -153,7 +152,7 @@ function RowBoundary({
 
 // ─── Main TableRow ────────────────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange, visibleCols,
+  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
@@ -161,6 +160,7 @@ function TimetableTableRow({
   onDelete: (id: string) => void;
   onCellChange: (rowId: string, colKey: string, items: string[]) => void;
   onTitleChange: (rowId: string, title: string) => void;
+  onTimeChange: (rowId: string, start_time: string, end_time: string) => void;
   visibleCols: string[];
 }) {
   const isLocked = row.is_locked;
@@ -170,9 +170,18 @@ function TimetableTableRow({
 
   const getCell = (colKey: string) => row.cells.find((c) => c.column_name === colKey);
 
+  // Auto-resize for title textarea
+  const titleRef = useRef<HTMLTextAreaElement>(null);
+  const autoResizeTitle = () => {
+    if (!titleRef.current) return;
+    titleRef.current.style.height = "auto";
+    titleRef.current.style.height = titleRef.current.scrollHeight + "px";
+  };
+  useEffect(() => { autoResizeTitle(); }, [row.title]);
+
   // Title debounce
   const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const handleTitleChange = (v: string) => {
+  const handleLocalTitleChange = (v: string) => {
     onTitleChange(row.id, v);
     if (titleTimer.current) clearTimeout(titleTimer.current);
     titleTimer.current = setTimeout(async () => {
@@ -181,6 +190,24 @@ function TimetableTableRow({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ title: v }),
+        });
+      } catch {}
+    }, 800);
+  };
+
+  // Time debounce
+  const timeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleLocalTimeChange = (field: "start" | "end", val: string) => {
+    const nextStart = field === "start" ? val : row.start_time;
+    const nextEnd = field === "end" ? val : row.end_time;
+    onTimeChange(row.id, nextStart, nextEnd);
+    if (timeTimer.current) clearTimeout(timeTimer.current);
+    timeTimer.current = setTimeout(async () => {
+      try {
+        await fetch(`/api/timetable/rows/${row.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ start_time: nextStart, end_time: nextEnd }),
         });
       } catch {}
     }, 800);
@@ -219,9 +246,21 @@ function TimetableTableRow({
       {/* Khung giờ */}
       {visibleCols.includes("time") && (
         <td className="border-r border-slate-100 dark:border-slate-800 w-28 px-2 py-2.5 align-middle">
-          <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-            {row.start_time} – {row.end_time}
-          </span>
+          <div className="flex items-center gap-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+            <input
+              type="time"
+              defaultValue={row.start_time}
+              onChange={(e) => handleLocalTimeChange("start", e.target.value)}
+              className="bg-transparent border-none p-0 focus:ring-0 w-12 outline-none text-[11px]"
+            />
+            <span>–</span>
+            <input
+              type="time"
+              defaultValue={row.end_time}
+              onChange={(e) => handleLocalTimeChange("end", e.target.value)}
+              className="bg-transparent border-none p-0 focus:ring-0 w-12 outline-none text-[11px]"
+            />
+          </div>
         </td>
       )}
 
@@ -229,19 +268,27 @@ function TimetableTableRow({
       {visibleCols.includes("title") && (
         <td className="border-r border-slate-100 dark:border-slate-800 w-36 px-2 py-1.5 align-middle">
           {isLocked ? (
-            <div className="flex items-center gap-1.5 px-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0" />
-              <span className={`text-[12px] font-semibold text-slate-700 dark:text-slate-200 ${row.row_type === "break" ? "italic text-slate-400 dark:text-slate-500" : ""}`}>
-                {row.title}
-              </span>
+            <div className="flex items-start gap-1.5 px-1 pt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0 mt-1.5" />
+              <textarea
+                ref={titleRef}
+                defaultValue={row.title}
+                onChange={(e) => { handleLocalTitleChange(e.target.value); autoResizeTitle(); }}
+                placeholder="Tên công việc..."
+                rows={1}
+                className={`w-full bg-transparent border-none outline-none focus:ring-0 text-[12px] font-semibold text-slate-700 dark:text-slate-200 resize-none p-0 leading-snug overflow-hidden ${row.row_type === "break" ? "italic text-slate-400 dark:text-slate-500" : ""}`}
+                style={{ minHeight: 20 }}
+              />
             </div>
           ) : (
-            <input
-              type="text"
+            <textarea
+              ref={titleRef}
               defaultValue={row.title}
-              onChange={(e) => handleTitleChange(e.target.value)}
+              onChange={(e) => { handleLocalTitleChange(e.target.value); autoResizeTitle(); }}
               placeholder="Tên công việc..."
-              className="w-full bg-transparent outline-none border-none text-[12px] font-medium text-slate-700 dark:text-slate-300 placeholder:text-slate-300 dark:placeholder:text-slate-700 px-1"
+              rows={1}
+              className="w-full bg-transparent border-none outline-none focus:ring-0 text-[12px] font-medium text-slate-700 dark:text-slate-300 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-700 px-1 py-1 leading-snug overflow-hidden"
+              style={{ minHeight: 20 }}
             />
           )}
         </td>
@@ -430,6 +477,40 @@ export default function TimetablePage() {
     }
   };
 
+  const handleRegenerate = async () => {
+    if (!config) {
+      setShowOnboarding(true);
+      return;
+    }
+    const confirmed = window.confirm("Hành động này sẽ xóa toàn bộ bảng hiện tại và tạo lại bảng mới dựa trên cấu hình gần nhất. Bạn có chắc chắn không?");
+    if (!confirmed) return;
+
+    setLoadingRows(true);
+    try {
+      const res = await fetch("/api/timetable/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          max_focus_time: config.max_focus_time,
+          is_job_flexible: config.is_job_flexible,
+          best_energy_time: config.best_energy_time,
+          best_learning_time: config.best_learning_time,
+          max_learning_time: config.max_learning_time,
+          sync_task_manager: config.sync_task_manager,
+        }),
+      });
+      if (!res.ok) throw new Error("Lỗi khi tạo lại bảng");
+      const data = await res.json();
+      setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
+      setConfig(data.config);
+      toast.success("Đã tạo lại thời khóa biểu mới! ✨");
+    } catch (err) {
+      toast.error("Không thể tạo lại bảng. Vui lòng thử lại.");
+    } finally {
+      setLoadingRows(false);
+    }
+  };
+
   // ── Insert row ────────────────────────────────────────────────────────────
   const handleInsertRow = async (afterOrder: number, startTime: string) => {
     try {
@@ -483,6 +564,11 @@ export default function TimetablePage() {
     setRows((prev) => prev.map((r) => r.id !== rowId ? r : { ...r, title }));
   };
 
+  // ── Time change (optimistic) ──────────────────────────────────────────────
+  const handleTimeChange = (rowId: string, start_time: string, end_time: string) => {
+    setRows((prev) => prev.map((r) => r.id !== rowId ? r : { ...r, start_time, end_time }));
+  };
+
   // ── DnD ──────────────────────────────────────────────────────────────────
   const onDragEnd = useCallback((result: DropResult) => {
     if (!result.destination) return;
@@ -520,7 +606,7 @@ export default function TimetablePage() {
   }, [rows]);
 
   // ── Section tracking ──────────────────────────────────────────────────────
-  let afternoonEmitted = false;
+  const firstAfternoonIndex = rows.findIndex(r => toMins(r.start_time) >= toMins("13:30"));
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -577,9 +663,9 @@ export default function TimetablePage() {
             />
           )}
           <button
-            onClick={() => setShowOnboarding(true)}
+            onClick={handleRegenerate}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-            title="Tạo lại bảng bằng khảo sát onboarding"
+            title="Xóa và tạo lại bảng mới theo cấu hình đã lưu"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Tạo lại bảng
@@ -637,9 +723,7 @@ export default function TimetablePage() {
                     {(drop) => (
                       <tbody ref={drop.innerRef} {...drop.droppableProps}>
                         {rows.map((row, index) => {
-                          const isAfternoonRow = toMins(row.start_time) >= toMins("13:30");
-                          const showAfternoon = isAfternoonRow && !afternoonEmitted;
-                          if (showAfternoon) afternoonEmitted = true;
+                          const showAfternoon = index === firstAfternoonIndex;
 
                           // Can we show a (+) boundary above this row?
                           const prevRow = index > 0 ? rows[index - 1] : null;
@@ -649,9 +733,9 @@ export default function TimetablePage() {
                             <>
                               {/* Afternoon divider */}
                               {showAfternoon && (
-                                <tr key={`div-${row.id}`} className="bg-slate-100/80 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700">
-                                  <td colSpan={5 + DAY_COLS.length} className="py-2 px-4 font-bold text-slate-700 dark:text-slate-200">
-                                    <span className="text-[10px] uppercase tracking-widest">
+                                <tr key={`div-${row.id}`} className="bg-indigo-50 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900">
+                                  <td colSpan={5 + DAY_COLS.length} className="px-4 py-1.5">
+                                    <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
                                       🌤️ BUỔI CHIỀU &nbsp;|&nbsp; 13:30 – 18:30
                                     </span>
                                   </td>
@@ -676,6 +760,7 @@ export default function TimetablePage() {
                                     onDelete={handleDeleteRow}
                                     onCellChange={handleCellChange}
                                     onTitleChange={handleTitleChange}
+                                    onTimeChange={handleTimeChange}
                                     visibleCols={visibleCols}
                                   />
                                 )}
