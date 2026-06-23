@@ -270,7 +270,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                   <div className="space-y-3">
                     {[
                       { value: "morning", label: "Buổi Sáng", desc: "Năng lượng cao nhất từ 6:00 – 12:00", emoji: "🌅" },
-                      { value: "afternoon", label: "Buổi Chiều", desc: "Năng lượng cao nhất từ 13:00 – 18:00", emoji: "☀️" },
+                      { value: "afternoon", label: "Buổi Chiều", desc: "Năng lượng cao nhất từ 13:30 – 18:30", emoji: "☀️" },
                     ].map(({ value, label, desc, emoji }) => (
                       <button
                         key={value}
@@ -295,8 +295,8 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { value: "morning", label: "Sáng sớm", emoji: "🌄", time: "5:00 – 8:00" },
-                      { value: "noon", label: "Buổi Trưa", emoji: "🌞", time: "11:30 – 13:00" },
-                      { value: "afternoon", label: "Đầu giờ chiều", emoji: "🌤️", time: "13:00 – 15:00" },
+                      { value: "noon", label: "Buổi Trưa", emoji: "🌞", time: "12:00 – 13:30" },
+                      { value: "afternoon", label: "Đầu giờ chiều", emoji: "🌤️", time: "13:30 – 15:30" },
                       { value: "evening", label: "Buổi Tối", emoji: "🌙", time: "19:00 – 22:00" },
                     ].map(({ value, label, emoji, time }) => (
                       <button

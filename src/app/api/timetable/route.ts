@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 // ─── GET /api/timetable ───────────────────────────────────────────────────────
 // Returns the full timetable structure for the authenticated user:
@@ -125,36 +126,59 @@ export async function POST(req: Request) {
     // 1. Delete all existing rows for this user (cells cascade)
     await tx.timetableRow.deleteMany({ where: { user_id: userId } });
 
-    // 2. Re-insert rows in provided order
-    const createdRows = [];
-    for (const [idx, rowData] of body.rows.entries()) {
-      const row = await tx.timetableRow.create({
-        data: {
-          user_id:    userId,
-          title:      rowData.title,
-          row_type:   rowData.row_type ?? "custom",
-          start_time: rowData.start_time,
-          end_time:   rowData.end_time,
-          is_fixed:   rowData.is_locked,   // keep legacy field in sync
-          is_locked:  rowData.is_locked,
-          order:      idx,                  // enforce sequential order
-          cells: {
-            createMany: {
-              data: (rowData.cells ?? []).map((cell) => ({
-                column_name: cell.column_name,
-                content:     (cell.content ?? null) as Prisma.InputJsonValue,
-                task_ids:    (cell.task_ids ?? null) as Prisma.InputJsonValue,
-                is_deadline: cell.is_deadline ?? false,
-              })),
-            },
-          },
-        },
-        include: { cells: true },
-      });
-      createdRows.push(row);
+    // 2. Map data with randomUUID for bulk insert
+    const rowData = body.rows.map((r, idx) => {
+      const rowId = randomUUID();
+      return {
+        id:          rowId,
+        user_id:     userId,
+        title:       r.title,
+        row_type:    r.row_type ?? "custom",
+        start_time:  r.start_time,
+        end_time:    r.end_time,
+        is_fixed:    r.is_locked,   // keep legacy field in sync
+        is_locked:   r.is_locked,
+        order:       idx,
+        originalCells: r.cells ?? [],
+      };
+    });
+
+    // 3. Re-insert rows in bulk
+    await tx.timetableRow.createMany({
+      data: rowData.map(({ originalCells, ...rest }) => rest),
+    });
+
+    // 4. Re-insert cells in bulk
+    const cellData: any[] = [];
+    for (const r of rowData) {
+      for (const cell of r.originalCells) {
+        cellData.push({
+          id:          randomUUID(),
+          row_id:      r.id,
+          column_name: cell.column_name,
+          content:     (cell.content ?? null) as Prisma.InputJsonValue,
+          task_ids:    (cell.task_ids ?? null) as Prisma.InputJsonValue,
+          is_deadline: cell.is_deadline ?? false,
+        });
+      }
     }
 
+    if (cellData.length > 0) {
+      await tx.timetableCell.createMany({
+        data: cellData,
+      });
+    }
+
+    // 5. Query rows back with their cell relations
+    const createdRows = await tx.timetableRow.findMany({
+      where: { user_id: userId },
+      include: { cells: true },
+      orderBy: { order: "asc" },
+    });
+
     return createdRows;
+  }, {
+    timeout: 30000,
   });
 
   return NextResponse.json(

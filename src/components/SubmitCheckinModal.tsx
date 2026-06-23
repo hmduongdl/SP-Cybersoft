@@ -218,6 +218,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
     reject_reason?: string | null;
   } | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
+  const [thumbError, setThumbError] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -234,6 +235,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
       setImageUrl(null);
       setIsChecked1(false);
       setIsChecked2(false);
+      setThumbError(false);
       setSubmitStatus("idle");
       setSubmitResult(null);
       setSubmitError(null);
@@ -624,9 +626,16 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
               {/* Post info + CTA link */}
               <div className="flex gap-3 bg-slate-50/60 border border-slate-200/50 rounded-2xl p-4">
-                {postThumb ? (
+                {postThumb && !thumbError ? (
                   <div className="w-14 h-14 rounded-lg overflow-hidden border-none flex-shrink-0 relative bg-surface-container">
-                    <Image src={postThumb} alt={post.title} fill className="object-cover" sizes="56px" />
+                    <Image 
+                      src={postThumb} 
+                      alt={post.title} 
+                      fill 
+                      className="object-cover" 
+                      sizes="56px" 
+                      onError={() => setThumbError(true)}
+                    />
                   </div>
                 ) : (
                   <div className="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
