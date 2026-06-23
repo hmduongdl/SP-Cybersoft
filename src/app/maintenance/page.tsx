@@ -202,10 +202,10 @@ export default function MaintenancePage() {
               {['#ff5f57', '#febc2e', '#28c840'].map(c => (
                 <div key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c }} />
               ))}
-              <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 10, marginLeft: 4 }}>sps-system — bash</span>
+              <span style={{ color: 'rgba(255,255,255,.2)', fontSize: 10, marginLeft: 4 }}>sp-cybersoft-system — bash</span>
             </div>
-            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>$ <span style={{ color: '#34d399' }}>sudo systemctl status sps-ai</span></div>
-            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>● <span style={{ color: '#f87171' }}>sps-ai.service — FAILED (crashed)</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>$ <span style={{ color: '#34d399' }}>sudo systemctl status sp-cybersoft-ai</span></div>
+            <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>● <span style={{ color: '#f87171' }}>sp-cybersoft-ai.service — FAILED (crashed)</span></div>
             <div style={{ color: 'rgba(255,255,255,.35)', marginBottom: 5 }}>⚠ <span style={{ color: '#fbbf24' }}>Rebuilding modules... please wait</span></div>
             <div style={{ color: 'rgba(255,255,255,.35)' }}>$ <span style={{ color: '#34d399' }}>npm run build</span>
               <span style={{ display: 'inline-block', width: 8, height: 13, background: '#34d399', marginLeft: 2, verticalAlign: 'middle', animation: 'cursor-blink .8s step-end infinite' }} />

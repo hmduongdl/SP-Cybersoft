@@ -25,7 +25,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SPS AI Check-in Tool",
+  title: "SP-CyberSoft Check-in Tool",
   description: "Modern employee post sharing and check-in management tool",
   icons: {
     icon: "/songphuong.vn.png",

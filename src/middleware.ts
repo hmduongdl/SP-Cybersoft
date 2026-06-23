@@ -31,7 +31,7 @@ export const middleware = auth((request) => {
   // Middleware from NextAuth's authorized callback should have caught this,
   // but sometimes it doesn't due to race conditions or beta version quirks.
   const isLoggedIn = !!request.auth?.user;
-  if (!isLoggedIn && pathname !== "/login" && pathname !== "/login/" && pathname !== "/maintenance") {
+  if (!isLoggedIn && pathname !== "/login" && pathname !== "/login/" && pathname !== "/maintenance" && pathname !== "/") {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }

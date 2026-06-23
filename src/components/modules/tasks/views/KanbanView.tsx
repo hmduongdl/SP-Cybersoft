@@ -153,12 +153,14 @@ export function KanbanView() {
                                   </span>
                                   <div className="flex items-center gap-1.5">
                                     <div className="w-[6px] h-[6px] rounded-full" style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} />
-                                    {task.creator?.avatar_url ? (
-                                      <img src={task.creator.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                                    ) : (
-                                      <div className="w-5 h-5 rounded-full bg-primary-container dark:bg-indigo-500/20 flex items-center justify-center text-[8px] font-semibold text-[#0050cb] dark:text-indigo-300">
-                                        {task.creator?.name ? task.creator.name.substring(0, 2).toUpperCase() : 'US'}
+                                    {task.assignee?.avatar_url ? (
+                                      <img src={task.assignee.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" title={task.assignee.name || ''} />
+                                    ) : task.assignee?.name ? (
+                                      <div className="w-5 h-5 rounded-full bg-primary-container dark:bg-indigo-500/20 flex items-center justify-center text-[8px] font-semibold text-[#0050cb] dark:text-indigo-300" title={task.assignee.name}>
+                                        {task.assignee.name.substring(0, 2).toUpperCase()}
                                       </div>
+                                    ) : (
+                                      <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600" />
                                     )}
                                   </div>
                                 </div>

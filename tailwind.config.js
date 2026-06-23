@@ -21,7 +21,7 @@ module.exports = {
 
         // Primary
         primary: {
-          DEFAULT:   'var(--color-primary, #0050cb)',
+          DEFAULT:   'var(--color-primary, #2e308a)',
           container: 'var(--color-primary-container)',
           foreground:'var(--color-on-primary)',
         },
@@ -35,8 +35,8 @@ module.exports = {
         'error-text':   'var(--color-error-text)',
 
         // Preserve other support/original colors for compatibility
-        'primary-end': '#0066ff',
-        'primary-gradient-end': '#0066ff',
+        'primary-end': '#4a4dc4',
+        'primary-gradient-end': '#4a4dc4',
         'surface-container-lowest': 'var(--color-surface-container-lowest)',
         'surface-container-low': 'var(--color-surface-container-low)',
         'surface-container': 'var(--color-surface-container)',
@@ -57,12 +57,12 @@ module.exports = {
         'on-background': '#191b23',
         'inverse-surface': '#2e3038',
         'inverse-on-surface': '#f0f0fb',
-        'inverse-primary': '#b3c5ff',
-        'surface-tint': '#1155d0',
-        'primary-fixed': '#dae1ff',
-        'primary-fixed-dim': '#b3c5ff',
-        'on-primary-fixed': '#001849',
-        'on-primary-fixed-variant': '#003fa4',
+        'inverse-primary': '#c0c1ff',
+        'surface-tint': '#2e308a',
+        'primary-fixed': '#e1e0ff',
+        'primary-fixed-dim': '#c0c1ff',
+        'on-primary-fixed': '#06016b',
+        'on-primary-fixed-variant': '#393c95',
         'secondary-fixed': '#dae1ff',
         'secondary-fixed-dim': '#b4c5fc',
         'on-secondary-fixed': '#031846',
@@ -94,7 +94,7 @@ module.exports = {
         'full': '9999px',
       },
       backgroundImage: {
-        'gradient-primary': 'linear-gradient(135deg, #0050cb, #0066ff)',
+        'gradient-primary': 'linear-gradient(135deg, #2e308a, #4a4dc4)',
       },
       boxShadow: {
         ambient: '0 20px 40px rgba(19, 27, 46, 0.06)',

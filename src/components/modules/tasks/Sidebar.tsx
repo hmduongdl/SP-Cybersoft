@@ -22,7 +22,7 @@ export function Sidebar() {
   // Fallbacks in case workspaces are still loading or empty in store
   const activeWorkspace = currentWorkspace || workspaces[0] || {
     id: "ws-1",
-    name: "Dự án SPS",
+    name: "Dự án SP-CyberSoft",
     icon: "🚀",
     color: "#0050cb",
   };
@@ -66,7 +66,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-[13px] font-semibold text-on-surface truncate">
-              {activeWorkspace.name || "Dự án SPS"}
+              {activeWorkspace.name || "Dự án SP-CyberSoft"}
             </p>
             <p className="text-[10px] text-on-muted">Workspace</p>
           </div>

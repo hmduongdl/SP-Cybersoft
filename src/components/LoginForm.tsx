@@ -54,10 +54,10 @@ export default function LoginForm() {
       <div className="mb-10">
         {/* Mobile inline logo */}
         <div className="flex md:hidden items-center gap-3 mb-6">
-          <h1 className="text-xl font-bold text-primary font-manrope">SPS AI</h1>
+          <h1 className="text-xl font-bold text-primary font-manrope">SP-CyberSoft</h1>
         </div>
         <h2 className="text-2xl font-semibold text-on-surface font-manrope mb-1">Đăng nhập</h2>
-        <p className="text-sm text-on-surface-variant font-inter">Chào mừng bạn quay trở lại với SPS AI.</p>
+        <p className="text-sm text-on-surface-variant font-inter">Chào mừng bạn quay trở lại với SP-CyberSoft.</p>
       </div>
 
       {/* Form Card */}

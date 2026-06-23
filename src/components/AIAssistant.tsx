@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Sparkles, X, AlertTriangle, Bot } from "lucide-react";
 import { toast } from "sonner";
+import { usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Message {
   role: "user" | "assistant";
@@ -122,6 +124,42 @@ function formatTimestamp(date: Date): string {
   return date.toLocaleDateString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 }
 
+function getSuggestions(pathname: string | null): string[] {
+  if (!pathname || pathname.includes("/admin")) return [];
+
+  if (pathname.includes("/like-share")) {
+    return [
+      "Tôi có bài nào chưa share không?",
+      "Thống kê lượt share bài của tôi tháng này?",
+      "Làm sao để được duyệt bài nhanh và tự động nhất?"
+    ];
+  } else if (pathname.includes("/tasks")) {
+    return [
+      "Liệt kê các công việc đang quá hạn của tôi.",
+      "Hôm nay tôi có những task nào cần làm?",
+      "Đánh giá hiệu suất làm việc của tôi tháng này."
+    ];
+  } else if (pathname.includes("/reports")) {
+    return [
+      "Có thể kiểm tra các công việc tôi đã hoàn thành trong tháng này không?",
+      "Hiệu suất tổng quan tháng này thế nào?"
+    ];
+  } else if (pathname.includes("/timetable")) {
+    return [
+      "Lịch làm việc hôm nay của tôi có gì?",
+      "Tuần này có sự kiện nào quan trọng không?",
+      "Giúp tôi soạn báo cáo công việc cuối ngày của hôm nay"
+    ];
+  }
+
+  // Default suggestions for dashboard or general pages
+  return [
+    "Tóm tắt công việc hôm nay của tôi?",
+    "Chỉ số hiệu suất hiện tại của tôi?",
+    "Có task nào khẩn cấp cần xử lý không?"
+  ];
+}
+
 export function AIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -130,7 +168,10 @@ export function AIAssistant() {
   const [quotaStatus, setQuotaStatus] = useState<QuotaStatus | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [hasPulsed, setHasPulsed] = useState(false);
+  const [showBubble, setShowBubble] = useState(false);
+  const [bubbleText, setBubbleText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
 
   const fetchQuota = useCallback(async () => {
     try {
@@ -150,6 +191,23 @@ export function AIAssistant() {
   useEffect(() => {
     // Tạm thời vô hiệu hóa kiểm tra quota theo yêu cầu
   }, [isOpen, fetchQuota]);
+
+  useEffect(() => {
+    if (!pathname || isOpen) return;
+    
+    let pageName = "";
+    if (pathname.includes("/like-share")) pageName = "Like-Share (Share bài Facebook)";
+    else if (pathname.includes("/tasks")) pageName = "Quản lý công việc (Task Manager)";
+    else if (pathname.includes("/reports")) pageName = "Báo cáo thống kê";
+    else if (pathname.includes("/timetable")) pageName = "Lịch biểu (Timetable)";
+
+    if (pageName) {
+      setBubbleText(`Bạn có thắc mắc gì không? Tôi có thể giúp bạn về trang ${pageName}`);
+      setShowBubble(true);
+      const timer = setTimeout(() => setShowBubble(false), 8000);
+      return () => clearTimeout(timer);
+    }
+  }, [pathname, isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -188,6 +246,7 @@ export function AIAssistant() {
         body: JSON.stringify({
           messages: chatHistory.map(m => ({ role: m.role, content: m.content })),
           usePro: false,
+          currentPath: pathname,
         }),
       });
 
@@ -266,6 +325,37 @@ export function AIAssistant() {
 
   return (
     <>
+      <AnimatePresence>
+        {!isOpen && showBubble && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.9 }}
+            className="fixed bottom-24 right-6 z-50 max-w-[260px] bg-surface glass p-3.5 rounded-2xl shadow-xl border border-outline-variant/30 flex items-start gap-3 cursor-pointer"
+            onClick={() => {
+              setIsOpen(true);
+              setShowBubble(false);
+            }}
+          >
+            <div className="h-8 w-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
+              <Bot className="h-4 w-4 text-on-primary" />
+            </div>
+            <div className="flex-1 mt-0.5">
+              <p className="text-xs text-on-surface font-inter font-medium leading-relaxed">{bubbleText}</p>
+            </div>
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowBubble(false);
+              }}
+              className="text-on-surface-variant hover:text-on-surface shrink-0 mt-0.5"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -332,27 +422,16 @@ export function AIAssistant() {
                   </p>
                 </div>
                 <div className="mt-2 flex flex-col gap-2 w-full max-w-[260px]">
-                  <button
-                    onClick={() => setInput("Tôi có bài nào chưa share không?")}
-                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
-                  >
-                    <span>Tôi có bài nào chưa share không?</span>
-                    <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                  <button
-                    onClick={() => setInput("Có bài nào tôi quá hạn không?")}
-                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
-                  >
-                    <span>Có bài nào tôi quá hạn không?</span>
-                    <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                  <button
-                    onClick={() => setInput("Tình hình share bài của tôi trong 2 tháng qua?")}
-                    className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
-                  >
-                    <span>Tình hình share bài trong 2 tháng qua?</span>
-                    <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
+                  {getSuggestions(pathname).map((suggestion, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setInput(suggestion)}
+                      className="px-3 py-2.5 bg-surface-container-low hover:bg-surface-container text-on-surface text-xs rounded-xl transition-all duration-150 text-left flex items-center justify-between group"
+                    >
+                      <span>{suggestion}</span>
+                      <Send className="h-3 w-3 text-on-surface-variant opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </button>
+                  ))}
                 </div>
               </div>
             ) : (
