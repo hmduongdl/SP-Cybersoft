@@ -173,7 +173,7 @@ export async function GET() {
 
     // Afternoon banner before anchor_mid row
     if (row.row_type === "anchor_mid" && !afternoonBannerEmitted) {
-      emitBanner("🌤  BUỔI CHIỀU  |  13:00 – 18:30", COLOR.sectionBg);
+      emitBanner("🌤  BUỔI CHIỀU  |  13:30 – 18:30", COLOR.sectionBg);
       afternoonBannerEmitted = true;
     }
 

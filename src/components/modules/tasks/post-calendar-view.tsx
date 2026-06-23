@@ -41,6 +41,33 @@ type Post = {
   is_archived?: boolean;
 };
 
+function CalendarPostThumbnail({ src, alt }: { src: string | null | undefined; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  React.useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-outline">
+        <ImageIcon className="w-3 h-3" />
+      </div>
+    );
+  }
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      fill
+      sizes="24px"
+      className="object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+
 type CalendarProps = {
   posts: Post[];
   onCheckIn: (post: Post) => void;
@@ -341,19 +368,7 @@ function CalendarPostCard({
     >
       {/* Mini thumbnail */}
       <div className="w-6 h-6 rounded-xl overflow-hidden bg-surface-container flex-shrink-0 relative">
-        {thumbnailUrl ? (
-          <Image
-            src={thumbnailUrl}
-            alt=""
-            fill
-            sizes="24px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-outline">
-            <ImageIcon className="w-3 h-3" />
-          </div>
-        )}
+        <CalendarPostThumbnail src={thumbnailUrl} alt="" />
       </div>
 
       {/* Title + Author */}

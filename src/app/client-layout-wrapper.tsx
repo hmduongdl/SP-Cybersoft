@@ -15,6 +15,8 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const isLandingPage = pathname === "/";
   const isMaintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
   const isTasksPage = pathname === "/tasks" || pathname?.startsWith("/tasks/");
+  const isTimetablePage = pathname === "/timetable" || pathname?.startsWith("/timetable/");
+  const isFullWidthPage = isTasksPage || isTimetablePage;
 
   if (isLoginPage || isLandingPage || isMaintenanceMode || pathname === "/maintenance") {
     return <div className="h-screen w-screen overflow-y-auto bg-surface">{children}</div>;
@@ -31,8 +33,8 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
         <SiteHeader />
 
         {/* Content Area */}
-        <div className={`flex-1 w-full bg-surface ${isTasksPage ? "overflow-hidden h-full" : "overflow-y-auto"}`}>
-          {isTasksPage ? (
+        <div className={`flex-1 w-full bg-surface ${isFullWidthPage ? "overflow-hidden h-full" : "overflow-y-auto"}`}>
+          {isFullWidthPage ? (
             children
           ) : (
             <main className="p-4 md:p-6 lg:p-8 pt-6 lg:pt-8 max-w-7xl mx-auto w-full">

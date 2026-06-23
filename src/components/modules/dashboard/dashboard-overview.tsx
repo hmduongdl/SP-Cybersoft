@@ -124,6 +124,30 @@ function generateMonthOptions() {
   return options;
 }
 
+function DashboardPostThumbnail({ src, alt }: { src: string | null; alt: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
+  if (!src || failed) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <FileText className="w-6 h-6 text-slate-300" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+
 export function DashboardOverview({
   userName,
   pendingCount: initialPendingCount,
@@ -379,17 +403,7 @@ export function DashboardOverview({
                     className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-4 flex items-center gap-4 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all cursor-pointer group"
                   >
                     <div className="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden shrink-0">
-                      {post.thumbnail_url ? (
-                        <img
-                          src={post.thumbnail_url}
-                          alt={post.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <FileText className="w-6 h-6 text-slate-300" />
-                        </div>
-                      )}
+                      <DashboardPostThumbnail src={post.thumbnail_url} alt={post.title} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-inter text-[15px] font-bold text-on-surface dark:text-white truncate group-hover:text-primary transition-colors">

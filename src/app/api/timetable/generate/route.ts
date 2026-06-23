@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -119,7 +120,7 @@ function learningSlotStart(
     case "morning":
       return toMinutes("08:15"); // right after startup
     case "noon":
-      return toMinutes("12:00") - maxLearningTime - 15; // 15-min buffer before morning review
+      return toMinutes("11:30") - maxLearningTime; // Ends right before morning review (starts at 11:30)
     case "afternoon":
       return toMinutes("13:30");
     case "evening":
@@ -214,17 +215,18 @@ function buildRows(answers: {
     order = result.nextOrder;
     cursor = result.endMin;
 
-    // Q4 noon slot: before morning review
-    if (best_learning_time === "noon") {
-      rows.push({
-        title: "Học tập / Tiếp thu kiến thức",
-        row_type: "learning",
-        start_time: toTime(learnStart),
-        end_time: toTime(learnEnd),
-        is_locked: false,
-        order: order++,
-      });
-    }
+  }
+
+  // Q4 noon slot: before morning review
+  if (best_learning_time === "noon") {
+    rows.push({
+      title: "Học tập / Tiếp thu kiến thức",
+      row_type: "learning",
+      start_time: toTime(learnStart),
+      end_time: toTime(learnEnd),
+      is_locked: false,
+      order: order++,
+    });
   }
 
   // ═══════════════════════════════════════════════════════
@@ -245,12 +247,12 @@ function buildRows(answers: {
     title: "Nghỉ trưa",
     row_type: "break",
     start_time: "12:00",
-    end_time: "13:00",
+    end_time: "13:30",
     is_locked: false,
     order: order++,
   });
 
-  cursor = toMinutes("13:00");
+  cursor = toMinutes("13:30");
 
   // ═══════════════════════════════════════════════════════
   //  Q4: Learning slot – "afternoon" → 13:30
@@ -279,7 +281,7 @@ function buildRows(answers: {
     const result = buildFocusBlock(
       afternoonLabel,
       best_energy_time === "afternoon" ? "focus_peak" : "focus_off",
-      cursor < toMinutes("13:00") ? toMinutes("13:00") : cursor,
+      cursor < toMinutes("13:30") ? toMinutes("13:30") : cursor,
       afternoonFocus,
       order,
     );
@@ -413,36 +415,56 @@ export async function POST(req: Request) {
         max_learning_time,
       });
 
-      // 4. Create rows and their cells
-      const createdRows = [];
-      for (const bp of blueprints) {
-        const row = await tx.timetableRow.create({
-          data: {
-            user_id: userId,
-            title: bp.title,
-            row_type: bp.row_type,
-            start_time: bp.start_time,
-            end_time: bp.end_time,
-            is_fixed: bp.is_locked,
-            is_locked: bp.is_locked,
-            order: bp.order,
-            cells: {
-              createMany: {
-                data: seedCells(bp.description).map(({ column_name, content, task_ids, is_deadline }) => ({
-                  column_name,
-                  content,
-                  task_ids,
-                  is_deadline,
-                })),
-              },
-            },
-          },
-          include: { cells: true },
-        });
-        createdRows.push(row);
+      // 4. Create rows and cells in bulk (using createMany to save DB roundtrips)
+      const rowData = blueprints.map((bp) => {
+        const rowId = randomUUID();
+        return {
+          id: rowId,
+          user_id: userId,
+          title: bp.title,
+          row_type: bp.row_type,
+          start_time: bp.start_time,
+          end_time: bp.end_time,
+          is_fixed: bp.is_locked,
+          is_locked: bp.is_locked,
+          order: bp.order,
+          description: bp.description,
+        };
+      });
+
+      await tx.timetableRow.createMany({
+        data: rowData.map(({ description, ...rest }) => rest),
+      });
+
+      const cellData: any[] = [];
+      for (const row of rowData) {
+        const cells = seedCells(row.description);
+        for (const c of cells) {
+          cellData.push({
+            id: randomUUID(),
+            row_id: row.id,
+            column_name: c.column_name,
+            content: c.content,
+            task_ids: c.task_ids,
+            is_deadline: c.is_deadline,
+          });
+        }
       }
 
+      await tx.timetableCell.createMany({
+        data: cellData,
+      });
+
+      // 5. Query rows back with their cell relations
+      const createdRows = await tx.timetableRow.findMany({
+        where: { user_id: userId },
+        include: { cells: true },
+        orderBy: { order: "asc" },
+      });
+
       return { config, rows: createdRows };
+    }, {
+      timeout: 30000, // Increase transaction timeout to 30 seconds to prevent DB connection limits/slow writes from failing onboarding
     });
 
     return NextResponse.json(
