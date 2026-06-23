@@ -42,6 +42,8 @@ model User {
   assigned_tasks        Task[]                  @relation("UserAssignedTasks")
   workspaces            Workspace[]             @relation("UserWorkspaces")
   collaborators         WorkspaceCollaborator[]
+  timetable_config      UserTimetableConfig?
+  timetable_rows        TimetableRow[]
 
   @@index([email])
 }
@@ -248,4 +250,51 @@ model CustomPropertyValue {
   definition    CustomPropertyDefinition @relation(fields: [definition_id], references: [id], onDelete: Cascade)
 
   @@unique([task_id, definition_id]) // Một task chỉ có duy nhất 1 ô nhập liệu cho 1 thuộc tính
+}
+
+model UserTimetableConfig {
+  id                 String   @id @default(uuid())
+  user_id            String   @unique
+  max_focus_time     Int      @default(120) // in minutes
+  is_job_flexible    Boolean  @default(false)
+  best_energy_time   String   @default("morning") // morning, afternoon
+  best_learning_time String   @default("morning") // morning, noon, afternoon, evening
+  max_learning_time  Int      @default(60) // in minutes
+  sync_task_manager  Boolean  @default(false)
+  visible_columns    Json?    // list of visible columns
+  is_onboarded       Boolean  @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model TimetableRow {
+  id           String          @id @default(uuid())
+  user_id      String
+  title        String          // display name e.g. "Khởi động"
+  row_type     String          @default("custom") // anchor_start | anchor_mid | anchor_end | focus | learning | custom
+  start_time   String          // e.g. "08:00"
+  end_time     String          // e.g. "10:00"
+  order        Int             // for drag and drop sorting
+  is_fixed     Boolean         @default(false) // deprecated, use is_locked
+  is_locked    Boolean         @default(false) // user cannot move or delete these rows
+  created_at   DateTime        @default(now())
+  updated_at   DateTime        @updatedAt
+
+  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  cells TimetableCell[]
+}
+
+model TimetableCell {
+  id           String   @id @default(uuid())
+  row_id       String
+  column_name  String   // "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun" | "notes" | "tasks"
+  content      Json?    // String[] of task titles / notes for this cell
+  task_ids     Json?    // String[] of Task.id references synced from Task Manager
+  is_deadline  Boolean  @default(false) // true when a task with that deadline lands on this exact day
+
+  row TimetableRow @relation(fields: [row_id], references: [id], onDelete: Cascade)
+
+  @@unique([row_id, column_name])
 }
