@@ -48,7 +48,7 @@ function CheckRow({
         "flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer select-none group transition-colors",
         disabled
           ? "opacity-40 cursor-not-allowed"
-          : "hover:bg-slate-100 dark:hover:bg-slate-800/60",
+          : "hover:bg-slate-800/60",
       ].join(" ")}
     >
       {/* Custom checkbox */}
@@ -57,18 +57,18 @@ function CheckRow({
           "w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0",
           checked
             ? "bg-indigo-500 border-indigo-500"
-            : "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600",
+            : "bg-slate-900 border-slate-750",
           disabled ? "" : "group-hover:border-indigo-400",
         ].join(" ")}
         onClick={() => !disabled && onChange(!checked)}
       >
         {checked && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
       </span>
-      <span className="text-[12px] text-slate-700 dark:text-slate-300 font-medium leading-tight">
+      <span className="text-[12px] text-slate-300 font-medium leading-tight">
         {label}
       </span>
       {disabled && (
-        <span className="ml-auto text-[10px] text-slate-400 italic">bắt buộc</span>
+        <span className="ml-auto text-[10px] text-slate-500 italic">bắt buộc</span>
       )}
     </label>
   );
@@ -152,15 +152,15 @@ export default function TimetableSettingsPopover({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -4 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 top-10 z-50 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-slate-950/40 overflow-hidden"
+            className="absolute right-0 top-10 z-50 w-64 bg-slate-950/70 border border-slate-800 rounded-2xl shadow-2xl shadow-slate-950/50 text-slate-100 overflow-hidden"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
               <div>
-                <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-100">
+                <p className="text-[13px] font-semibold text-slate-100">
                   Cài đặt hiển thị
                 </p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                <p className="text-[11px] text-slate-400 mt-0.5">
                   Tùy biến cột & tích hợp
                 </p>
               </div>
@@ -171,7 +171,7 @@ export default function TimetableSettingsPopover({
 
             <div className="p-2 space-y-0.5">
               {/* Column section */}
-              <p className="px-2 pt-1 pb-0.5 text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
+              <p className="px-2 pt-1 pb-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Cột hiển thị
               </p>
               {ALL_COLUMNS.map((col) => (
@@ -185,23 +185,23 @@ export default function TimetableSettingsPopover({
               ))}
 
               {/* Divider */}
-              <div className="my-1.5 border-t border-slate-100 dark:border-slate-800 mx-2" />
+              <div className="my-1.5 border-t border-slate-800 mx-2" />
 
               {/* Sync section */}
-              <p className="px-2 pt-0.5 pb-0.5 text-[10px] font-bold text-slate-400 dark:text-slate-600 uppercase tracking-widest">
+              <p className="px-2 pt-0.5 pb-0.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Tích hợp
               </p>
 
               {/* Sync toggle — styled separately as a switch-like row */}
               <div
-                className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/60 cursor-pointer transition-colors"
+                className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-800/60 cursor-pointer transition-colors"
                 onClick={() => toggleSync(!syncTaskManager)}
               >
                 {/* Animated toggle */}
                 <span
                   className={[
                     "relative w-8 h-4 rounded-full transition-colors shrink-0",
-                    syncTaskManager ? "bg-indigo-500" : "bg-slate-200 dark:bg-slate-700",
+                    syncTaskManager ? "bg-indigo-500" : "bg-slate-800",
                   ].join(" ")}
                 >
                   <motion.span
@@ -211,24 +211,24 @@ export default function TimetableSettingsPopover({
                   />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[12px] font-medium text-slate-700 dark:text-slate-300 leading-tight">
+                  <p className="text-[12px] font-medium text-slate-300 leading-tight">
                     Đồng bộ từ Task Manager
                   </p>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-tight mt-0.5">
+                  <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
                     {syncTaskManager ? "Đang bật — task sẽ xuất hiện trong TKB" : "Đang tắt"}
                   </p>
                 </div>
               </div>
 
               {/* Reset to default */}
-              <div className="mx-2 mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
+              <div className="mx-2 mt-1.5 pt-1.5 border-t border-slate-800">
                 <button
                   onClick={() => {
                     const allKeys = DEFAULT_VISIBLE;
                     onColumnsChange(allKeys);
                     persist({ visible_columns: allKeys });
                   }}
-                  className="w-full text-[11px] text-slate-400 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-400 py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-center"
+                  className="w-full text-[11px] text-slate-400 hover:text-slate-200 py-1 rounded-lg hover:bg-slate-800 transition-colors text-center"
                 >
                   Khôi phục mặc định
                 </button>

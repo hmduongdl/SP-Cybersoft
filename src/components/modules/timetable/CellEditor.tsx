@@ -172,15 +172,15 @@ export default function CellEditor({
   return (
     <div ref={popoverRef} className="relative">
       {/* Mini popover panel */}
-      <div className="absolute z-50 top-0 left-0 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-2.5 space-y-2">
+      <div className="absolute z-50 top-0 left-0 w-56 bg-slate-950/70 border border-slate-800 rounded-xl shadow-xl p-2.5 space-y-2 text-slate-100">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
             {colLabel}
           </span>
           <button
             onClick={() => setOpen(false)}
-            className="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors"
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 transition-colors"
           >
             <X className="w-3 h-3" />
           </button>
@@ -195,8 +195,8 @@ export default function CellEditor({
                 className={[
                   "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium leading-tight",
                   isDeadline
-                    ? "bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700",
+                    ? "bg-red-950/50 text-red-300 border border-red-800"
+                    : "bg-slate-800 text-slate-200 border border-slate-700",
                 ].join(" ")}
               >
                 <span className="max-w-[140px] truncate">{item}</span>
@@ -212,14 +212,14 @@ export default function CellEditor({
         )}
 
         {/* Input */}
-        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 rounded-lg px-2 py-1.5 border border-slate-200 dark:border-slate-700 focus-within:border-indigo-400 dark:focus-within:border-indigo-600 transition-colors">
+        <div className="flex items-center gap-1.5 bg-slate-900 rounded-lg px-2 py-1.5 border border-slate-800 focus-within:border-indigo-500 transition-colors">
           <input
             ref={inputRef}
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={handleKey}
             placeholder="Nhập rồi nhấn Enter..."
-            className="flex-1 min-w-0 bg-transparent text-[12px] text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none"
+            className="flex-1 min-w-0 bg-transparent text-[12px] text-slate-200 placeholder:text-slate-500 outline-none"
           />
           <button
             onClick={() => push(inputVal)}
@@ -230,10 +230,10 @@ export default function CellEditor({
           </button>
         </div>
 
-        <p className="text-[10px] text-slate-400 dark:text-slate-600">
-          <kbd className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">Enter</kbd> thêm &nbsp;·&nbsp;
-          <kbd className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">Esc</kbd> đóng &nbsp;·&nbsp;
-          <kbd className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded">⌫</kbd> xóa cuối
+        <p className="text-[10px] text-slate-400">
+          <kbd className="font-mono bg-slate-800 px-1 rounded">Enter</kbd> thêm &nbsp;·&nbsp;
+          <kbd className="font-mono bg-slate-800 px-1 rounded">Esc</kbd> đóng &nbsp;·&nbsp;
+          <kbd className="font-mono bg-slate-800 px-1 rounded">⌫</kbd> xóa cuối
         </p>
       </div>
 

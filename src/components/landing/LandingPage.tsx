@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 
 export default function LandingPage() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -30,10 +30,8 @@ export default function LandingPage() {
         const el = document.getElementById(section);
         if (el) {
           const rect = el.getBoundingClientRect();
-          // Active when section top is <= 200px from top and bottom > 200px from top
-          if (rect.top <= 200 && rect.bottom > 200) {
+          if (rect.top <= 100 && rect.bottom >= 100) {
             current = section;
-            break;
           }
         }
       }
@@ -71,12 +69,12 @@ export default function LandingPage() {
     }, 1500);
   };
 
-  const fadeInUp = {
+  const fadeInUp: Variants = {
     hidden: { opacity: 0, y: 40 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
   };
 
-  const staggerContainer = {
+  const staggerContainer: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
