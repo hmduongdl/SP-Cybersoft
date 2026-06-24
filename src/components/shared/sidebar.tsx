@@ -100,7 +100,7 @@ export function Sidebar() {
         {/* Upper section */}
         <div className="flex flex-col gap-6 flex-1 min-h-0">
           {/* Logo Area */}
-          <div className={clsx("flex items-center justify-between px-2 shrink-0", collapsed ? "flex-col gap-4 py-2 justify-center" : "")}>
+          <div className={clsx("flex items-center justify-between shrink-0", collapsed ? "flex-col gap-4 py-2 px-2 justify-center" : "")}>
             {!collapsed ? (
               <Link href="/">
                 <div className="flex items-center">
