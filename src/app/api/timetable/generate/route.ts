@@ -104,32 +104,6 @@ function buildFocusBlock(
   return { rows, endMin: cursor, nextOrder: order };
 }
 
-/**
- * Find the correct learning slot start based on Q4 answer.
- * Constraints:
- *   morning  → after startup (08:15)
- *   noon     → before morning review (must end by 12:00)
- *   afternoon → starts at 13:30
- *   evening  → before end-of-day review (must end by 18:00)
- */
-function learningSlotStart(
-  bestLearningTime: string,
-  maxLearningTime: number,
-): number {
-  switch (bestLearningTime) {
-    case "morning":
-      return toMinutes("08:15"); // right after startup
-    case "noon":
-      return toMinutes("11:30") - maxLearningTime; // Ends right before morning review (starts at 11:30)
-    case "afternoon":
-      return toMinutes("13:30");
-    case "evening":
-      return toMinutes("18:00") - maxLearningTime; // slot ends at 18:00
-    default:
-      return toMinutes("08:15");
-  }
-}
-
 // ─── Row Builder ─────────────────────────────────────────────────────────────
 
 function buildRows(answers: {
@@ -148,7 +122,6 @@ function buildRows(answers: {
   } = answers;
 
   // ── Q3: Determine focus time per session ─────────────────────────────────
-  // Peak session: full T_focus, Off-peak session: 0.75 × T_focus
   const morningFocus =
     best_energy_time === "morning"
       ? max_focus_time
@@ -158,48 +131,43 @@ function buildRows(answers: {
       ? max_focus_time
       : Math.round(max_focus_time * 0.75);
 
-  // ── Q4: Learning slot ────────────────────────────────────────────────────
-  const learnStart = learningSlotStart(best_learning_time, max_learning_time);
-  const learnEnd = learnStart + max_learning_time;
-
   const rows: RowBlueprint[] = [];
+  let order = 0;
+  let cursor = toMinutes("08:00");
 
   // ═══════════════════════════════════════════════════════
-  //  ANCHOR 1 – Khởi động (08:00 → 08:15, always locked)
+  //  ANCHOR 1 – Khởi động
   // ═══════════════════════════════════════════════════════
   rows.push({
     title: "Khởi động",
     row_type: "anchor_start",
-    start_time: "08:00",
-    end_time: "08:15",
+    start_time: toTime(cursor),
+    end_time: toTime(cursor + 15),
     is_locked: true,
-    order: 0,
+    order: order++,
     description: "Kiểm tra email, lên kế hoạch ngày mới, warm-up",
   });
-
-  let order = 1;
-  let cursor = toMinutes("08:15");
+  cursor += 15; // now 08:15
 
   // ═══════════════════════════════════════════════════════
-  //  Q4: Learning slot – if "morning" or "noon", place it now
+  //  Morning Learning
   // ═══════════════════════════════════════════════════════
   if (best_learning_time === "morning") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
-      start_time: toTime(learnStart),
-      end_time: toTime(learnEnd),
+      start_time: toTime(cursor),
+      end_time: toTime(cursor + max_learning_time),
       is_locked: false,
       order: order++,
     });
-    cursor = learnEnd;
+    cursor += max_learning_time;
   }
 
   // ═══════════════════════════════════════════════════════
   //  Morning focus block (Q1 + Q3)
   // ═══════════════════════════════════════════════════════
   if (!is_job_flexible) {
-    // Fixed schedule: full morning focus block
     const morningLabel =
       best_energy_time === "morning"
         ? "Công việc quan trọng (Buổi sáng)"
@@ -214,62 +182,60 @@ function buildRows(answers: {
     rows.push(...result.rows);
     order = result.nextOrder;
     cursor = result.endMin;
-
   }
 
-  // Q4 noon slot: before morning review
+  // ═══════════════════════════════════════════════════════
+  //  Noon Learning
+  // ═══════════════════════════════════════════════════════
   if (best_learning_time === "noon") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
-      start_time: toTime(learnStart),
-      end_time: toTime(learnEnd),
+      start_time: toTime(cursor),
+      end_time: toTime(cursor + max_learning_time),
       is_locked: false,
       order: order++,
     });
+    cursor += max_learning_time;
   }
 
   // ═══════════════════════════════════════════════════════
-  //  ANCHOR 2 – Tổng kết buổi sáng (ends at 12:00, locked)
+  //  ANCHOR 2 – Tổng kết buổi sáng
   // ═══════════════════════════════════════════════════════
+  if (cursor < toMinutes("11:30")) {
+    cursor = toMinutes("11:30");
+  }
   rows.push({
     title: "Tổng kết buổi sáng",
     row_type: "anchor_mid",
-    start_time: "11:30",
-    end_time: "12:00",
+    start_time: toTime(cursor),
+    end_time: toTime(cursor + 30),
     is_locked: true,
     order: order++,
     description: "Review tiến độ buổi sáng, chuẩn bị cho buổi chiều",
   });
-
-  // ── Lunch break ──────────────────────────────────────────────────────────
-  // User requested to NOT add the lunch break into the timetable.
-  /*
-  rows.push({
-    title: "Nghỉ trưa",
-    row_type: "break",
-    start_time: "12:00",
-    end_time: "13:30",
-    is_locked: false,
-    order: order++,
-  });
-  */
-
-  cursor = toMinutes("13:30");
+  cursor += 30;
 
   // ═══════════════════════════════════════════════════════
-  //  Q4: Learning slot – "afternoon" → 13:30
+  //  Afternoon starts
+  // ═══════════════════════════════════════════════════════
+  if (cursor < toMinutes("13:30")) {
+    cursor = toMinutes("13:30");
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  Afternoon Learning
   // ═══════════════════════════════════════════════════════
   if (best_learning_time === "afternoon") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
-      start_time: toTime(learnStart),
-      end_time: toTime(learnEnd),
+      start_time: toTime(cursor),
+      end_time: toTime(cursor + max_learning_time),
       is_locked: false,
       order: order++,
     });
-    cursor = learnEnd;
+    cursor += max_learning_time;
   }
 
   // ═══════════════════════════════════════════════════════
@@ -280,11 +246,10 @@ function buildRows(answers: {
       best_energy_time === "afternoon"
         ? "Công việc quan trọng (Buổi chiều)"
         : "Công việc thông thường (Buổi chiều)";
-
     const result = buildFocusBlock(
       afternoonLabel,
       best_energy_time === "afternoon" ? "focus_peak" : "focus_off",
-      cursor < toMinutes("13:30") ? toMinutes("13:30") : cursor,
+      cursor,
       afternoonFocus,
       order,
     );
@@ -294,36 +259,45 @@ function buildRows(answers: {
   }
 
   // ═══════════════════════════════════════════════════════
-  //  Q4: Learning slot – "evening" → before 18:00
+  //  Evening Learning
   // ═══════════════════════════════════════════════════════
   if (best_learning_time === "evening") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
-      start_time: toTime(learnStart),
-      end_time: toTime(learnEnd),
+      start_time: toTime(cursor),
+      end_time: toTime(cursor + max_learning_time),
       is_locked: false,
       order: order++,
     });
+    cursor += max_learning_time;
   }
 
   // ═══════════════════════════════════════════════════════
-  //  ANCHOR 3 – Tổng kết cuối ngày (ends at 18:30, locked)
+  //  ANCHOR 3 – Tổng kết cuối ngày
   // ═══════════════════════════════════════════════════════
+  if (cursor < toMinutes("18:00")) {
+    cursor = toMinutes("18:00");
+  }
   rows.push({
     title: "Tổng kết cuối ngày",
     row_type: "anchor_end",
-    start_time: "18:00",
-    end_time: "18:30",
+    start_time: toTime(cursor),
+    end_time: toTime(cursor + 30),
     is_locked: true,
     order: order++,
     description: "Review toàn bộ ngày, ghi nhận kết quả, lên kế hoạch ngày mai",
   });
+  cursor += 30;
 
-  // Sort all rows by their start_time to ensure correct visual order
-  rows.sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time));
+  // Sort by start_time to be safe, though they are already sequential
+  rows.sort((a, b) => {
+    const diff = toMinutes(a.start_time) - toMinutes(b.start_time);
+    if (diff !== 0) return diff;
+    return toMinutes(a.end_time) - toMinutes(b.end_time);
+  });
 
-  // Re-assign order after sorting
+  // Re-assign order purely to ensure consistency
   rows.forEach((r, i) => (r.order = i));
 
   return rows;

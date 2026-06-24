@@ -24,7 +24,6 @@ const FOCUS_ROW_TYPES = new Set([
   "focus_peak",
   "focus_off",
   "custom",
-  "anchor_start", // fallback when no focus row exists
 ]);
 
 // ─── Helper: get the current ISO week boundaries (Mon 00:00 – Sun 23:59) ──────
@@ -156,13 +155,15 @@ export async function POST() {
     orderBy: { order: "asc" },
   });
 
-  // Find the primary "important work" row (peak focus row)
-  const peakRow =
-    rows.find((r: { row_type: string }) => r.row_type === "focus_peak") ??
-    rows.find((r: { row_type: string }) => FOCUS_ROW_TYPES.has(r.row_type)) ??
-    null;
+  // Find all focus rows (important or normal work)
+  let targetRows = rows.filter((r: { row_type: string }) => FOCUS_ROW_TYPES.has(r.row_type));
 
-  if (!peakRow) {
+  // Fallback to Khởi động if no focus rows exist
+  if (targetRows.length === 0) {
+    targetRows = rows.filter((r: { row_type: string }) => r.row_type === "anchor_start");
+  }
+
+  if (targetRows.length === 0) {
     return NextResponse.json(
       { error: "Không tìm thấy hàng công việc để chèn task vào. Hãy tạo thời khóa biểu trước." },
       { status: 400 },
@@ -201,21 +202,24 @@ export async function POST() {
     if (isThisWeek && dueDate) {
       // ── Case A: Task has deadline within this week ─────────────────────
       const dayCol = DAY_INDEX_TO_COL[dueDate.getDay()];
-      const existingCell = peakRow.cells.find((c: { column_name: string }) => c.column_name === dayCol);
-
-      const patch = getOrInit(peakRow.id, dayCol, existingCell);
-      if (!patch.content.includes(task.title)) patch.content.push(task.title);
-      if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
-      patch.is_deadline = true; // mark red
+      for (const row of targetRows) {
+        const existingCell = row.cells.find((c: { column_name: string }) => c.column_name === dayCol);
+        const patch = getOrInit(row.id, dayCol, existingCell);
+        if (!patch.content.includes(task.title)) patch.content.push(task.title);
+        if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
+        patch.is_deadline = true; // mark red
+      }
     } else {
       // ── Case B: No deadline or deadline outside this week ──────────────
       // Spread task across Mon–Fri (Google Calendar "all-week" style)
       for (const col of WEEKDAY_COLS) {
-        const existingCell = peakRow.cells.find((c: { column_name: string }) => c.column_name === col);
-        const patch = getOrInit(peakRow.id, col, existingCell);
-        if (!patch.content.includes(task.title)) patch.content.push(task.title);
-        if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
-        // Don't set is_deadline — this is a floating task
+        for (const row of targetRows) {
+          const existingCell = row.cells.find((c: { column_name: string }) => c.column_name === col);
+          const patch = getOrInit(row.id, col, existingCell);
+          if (!patch.content.includes(task.title)) patch.content.push(task.title);
+          if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
+          // Don't set is_deadline — this is a floating task
+        }
       }
     }
   }

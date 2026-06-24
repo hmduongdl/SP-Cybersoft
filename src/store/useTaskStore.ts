@@ -177,8 +177,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     try {
       const res = await fetch(`/api/user/list`);
       if (res.ok) {
-        const users = await res.json();
-        set({ users });
+        const data = await res.json();
+        set({ users: data.users });
       }
     } catch (error) {
       console.error('Failed to fetch users', error);
