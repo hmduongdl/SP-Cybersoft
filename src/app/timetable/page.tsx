@@ -51,271 +51,51 @@ function rowDuration(row: TimetableRow) {
   return toMins(row.end_time) - toMins(row.start_time);
 }
 
-// ─── WeekendMiniEditor — inline chip-input for one day ───────────────────────
-// Used inside the WeekendCell popup. Does NOT open its own popup.
-function WeekendMiniEditor({
-  label,
-  dayKey,
-  cell,
-  isDeadline,
-  onPersist,
-}: {
-  label: string;
-  dayKey: "sat" | "sun";
-  cell: TimetableCell | undefined;
-  isDeadline: boolean;
-  onPersist: (items: string[]) => void;
-}) {
-  const [items, setItems] = useState<string[]>(
-    Array.isArray(cell?.content) ? (cell!.content as string[]) : [],
-  );
-  const [input, setInput] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync if cell changes externally
-  useEffect(() => {
-    setItems(Array.isArray(cell?.content) ? (cell!.content as string[]) : []);
-  }, [cell?.content]);
-
-  const persist = (next: string[]) => {
-    onPersist(next);
-    if (!cell?.id) return;
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
-      try {
-        await fetch(`/api/timetable/cells/${cell.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: next }),
-        });
-      } catch { }
-    }, 700);
-  };
-
-  const push = () => {
-    const v = input.trim();
-    if (!v || items.includes(v)) return;
-    const next = [...items, v];
-    setItems(next);
-    persist(next);
-    setInput("");
-  };
-
-  const remove = (i: number) => {
-    const next = items.filter((_, idx) => idx !== i);
-    setItems(next);
-    persist(next);
-  };
-
-  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && input.trim()) { e.preventDefault(); push(); }
-    if (e.key === "Backspace" && !input && items.length > 0) remove(items.length - 1);
-  };
-
-  const deadlineStyle = "bg-red-950/50 text-red-300 border border-red-800/70";
-  const normalStyle   = "bg-slate-800 text-slate-200 border border-slate-700";
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      {/* Section header */}
-      <div className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded ${isDeadline ? "bg-red-950/30" : "bg-slate-800/60"}`}>
-        {isDeadline && <AlertTriangle className="w-2.5 h-2.5 text-red-400 shrink-0" />}
-        <span className={`text-[9px] font-bold uppercase tracking-widest ${isDeadline ? "text-red-400" : "text-slate-400"}`}>
-          {label}
-        </span>
-        {isDeadline && <span className="text-[8px] text-red-500 italic ml-auto">deadline</span>}
-      </div>
-
-      {/* Chips */}
-      {items.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {items.map((item, i) => (
-            <span
-              key={i}
-              className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium leading-tight ${isDeadline ? deadlineStyle : normalStyle}`}
-            >
-              <span className="max-w-[90px] truncate">{item}</span>
-              <button
-                onClick={() => remove(i)}
-                className="shrink-0 text-slate-500 hover:text-red-400 transition-colors"
-              >
-                <X className="w-2 h-2" />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {/* Input row */}
-      <div className="flex items-center gap-1 bg-slate-900 rounded-lg px-2 py-1 border border-slate-800 focus-within:border-indigo-500 transition-colors">
-        <input
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
-          placeholder="Nhập + Enter..."
-          className="flex-1 min-w-0 bg-transparent text-[10px] text-slate-300 placeholder:text-slate-600 outline-none"
-        />
-        <button
-          onClick={push}
-          disabled={!input.trim()}
-          className="shrink-0 w-4 h-4 flex items-center justify-center rounded-full bg-indigo-500 text-white disabled:opacity-30 hover:bg-indigo-600 transition-colors"
-        >
-          <Plus className="w-2.5 h-2.5" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── WeekendCell — merged T7/CN preview + edit popup ─────────────────────────
+// ─── WeekendCell — merged T7/CN display ──────────────────────────────────────
 function WeekendCell({
   satCell,
   sunCell,
-  onSatChange,
-  onSunChange,
 }: {
   satCell: TimetableCell | undefined;
   sunCell: TimetableCell | undefined;
-  onSatChange: (items: string[]) => void;
-  onSunChange: (items: string[]) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
   const satItems = Array.isArray(satCell?.content) ? (satCell!.content as string[]) : [];
   const sunItems = Array.isArray(sunCell?.content) ? (sunCell!.content as string[]) : [];
   const satDeadline = satCell?.is_deadline ?? false;
   const sunDeadline = sunCell?.is_deadline ?? false;
 
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
-
-  // ── Chip renderer helper ─────────────────────────────────────────────────
-  const renderHalf = (
-    label: string,
-    items: string[],
-    isDeadline: boolean,
-    emptyText: string,
-  ) => {
-    const chipCls = isDeadline
-      ? "bg-red-100 dark:bg-red-950/60 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800/70"
-      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80";
-    const labelCls = isDeadline ? "text-red-500 dark:text-red-400" : "text-slate-400 dark:text-slate-600";
+  const renderHalf = (label: string, items: string[], isDeadline: boolean) => {
+    if (items.length === 0) return null;
 
     return (
-      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-        {/* Day label */}
-        <div className={`flex items-center gap-0.5 mb-0.5`}>
-          {isDeadline && <AlertTriangle className="w-2 h-2 text-red-500 shrink-0" />}
-          <span className={`text-[8px] font-bold uppercase tracking-widest ${labelCls}`}>{label}</span>
+      <div className="flex flex-col gap-1 pr-0.5">
+        <div className={`flex items-center gap-1 mb-0.5 shrink-0 ${isDeadline ? "text-red-500" : "text-slate-500 dark:text-slate-400"}`}>
+          {isDeadline && <AlertTriangle className="w-2 h-2 shrink-0" />}
+          <span className="text-[9px] font-bold uppercase tracking-wide">{label}</span>
+          {isDeadline && <span className="text-[9px] font-bold uppercase tracking-wide ml-1">Deadline</span>}
         </div>
-
-        {items.length === 0 ? (
-          <span className="text-[9px] text-slate-300 dark:text-slate-700 italic">{emptyText}</span>
-        ) : (
-          <>
-            {items.slice(0, 2).map((item, i) => (
-              <div
-                key={i}
-                className={`text-[10px] px-1.5 py-0.5 rounded leading-tight truncate ${chipCls}`}
-              >
-                {item}
-              </div>
-            ))}
-            {items.length > 2 && (
-              <span className="text-[9px] font-semibold text-indigo-500 dark:text-indigo-400 pl-0.5">
-                +{items.length - 2} thêm
-              </span>
-            )}
-          </>
-        )}
+        <ul className="flex flex-col gap-1">
+          {items.map((item, i) => (
+            <li
+              key={i}
+              className={`flex items-start gap-1.5 text-[10.5px] leading-snug shrink-0 whitespace-normal break-words ${isDeadline ? "text-red-700 dark:text-red-300 font-semibold" : "text-slate-700 dark:text-slate-300"}`}
+            >
+              <span className={`mt-1.5 w-1 h-1 rounded-full shrink-0 ${isDeadline ? "bg-red-500" : "bg-slate-400 dark:bg-slate-500"}`} />
+              <span className="flex-1 min-w-0">{item}</span>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   };
 
-  // ── Preview (closed) ─────────────────────────────────────────────────────
-  if (!open) {
-    return (
-      <div
-        ref={containerRef}
-        className="relative flex gap-1.5 min-h-[28px] cursor-pointer group"
-        onDoubleClick={() => setOpen(true)}
-        title="Double-click để sửa T7 / CN"
-      >
-        {renderHalf("T7", satItems, satDeadline, "—")}
-
-        {/* Vertical divider */}
-        <div className="w-px self-stretch bg-slate-100 dark:bg-slate-800 shrink-0" />
-
-        {renderHalf("CN", sunItems, sunDeadline, "—")}
-
-        {/* Edit hint on hover */}
-        <div className="absolute inset-0 rounded opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center bg-white/30 dark:bg-slate-900/30 backdrop-blur-[1px]">
-          <span className="text-[9px] text-slate-400 dark:text-slate-500 italic">dbl-click</span>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Edit popup ───────────────────────────────────────────────────────────
   return (
-    <div ref={containerRef} className="relative">
-      <div className="absolute z-50 top-0 left-1/2 -translate-x-1/2 w-[340px] bg-slate-950/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl shadow-slate-950/60 text-slate-100 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-200">Cuối tuần</span>
-            <span className="text-[10px] text-slate-500 font-mono">T7 · CN</span>
-          </div>
-          <button
-            onClick={() => setOpen(false)}
-            className="w-5 h-5 flex items-center justify-center rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
-
-        {/* Two-column editors */}
-        <div className="grid grid-cols-2 divide-x divide-slate-800">
-          <div className="p-3">
-            <WeekendMiniEditor
-              label="Thứ 7"
-              dayKey="sat"
-              cell={satCell}
-              isDeadline={satDeadline}
-              onPersist={onSatChange}
-            />
-          </div>
-          <div className="p-3">
-            <WeekendMiniEditor
-              label="Chủ Nhật"
-              dayKey="sun"
-              cell={sunCell}
-              isDeadline={sunDeadline}
-              onPersist={onSunChange}
-            />
-          </div>
-        </div>
-
-        <div className="px-4 pb-2.5">
-          <p className="text-[9px] text-slate-600">
-            <kbd className="font-mono bg-slate-800 px-1 rounded text-slate-500">Enter</kbd> thêm &nbsp;·&nbsp;
-            <kbd className="font-mono bg-slate-800 px-1 rounded text-slate-500">⌫</kbd> xóa cuối
-          </p>
-        </div>
-      </div>
-      <div className="min-h-[28px]" />
+    <div className="flex flex-col gap-3 min-h-[24px]">
+      {satItems.length === 0 && sunItems.length === 0 && (
+        <span className="text-[10px] text-slate-300 dark:text-slate-700 italic flex items-center h-full">—</span>
+      )}
+      {renderHalf("T7", satItems, satDeadline)}
+      {renderHalf("CN", sunItems, sunDeadline)}
     </div>
   );
 }
@@ -428,8 +208,11 @@ function TimetableTableRow({
       {...provided.draggableProps}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => {
+        window.dispatchEvent(new CustomEvent('openEditRowModal', { detail: row }));
+      }}
       className={[
-        "border-b border-slate-100 dark:border-slate-800 group transition-colors",
+        "border-b border-slate-100 dark:border-slate-800 group transition-colors cursor-pointer",
         isDragging
           ? "shadow-xl ring-2 ring-indigo-300 dark:ring-indigo-700 opacity-95 bg-white dark:bg-slate-900"
           : "bg-white dark:bg-slate-900",
@@ -512,36 +295,10 @@ function TimetableTableRow({
           <WeekendCell
             satCell={getCell("sat")}
             sunCell={getCell("sun")}
-            onSatChange={(items) => onCellChange(row.id, "sat", items)}
-            onSunChange={(items) => onCellChange(row.id, "sun", items)}
           />
         </td>
       )}
 
-      {/* Delete / Edit */}
-      <td className="w-10 px-0.5 align-middle text-center">
-        {!isLocked && (
-          <div className={`flex items-center justify-center gap-1 transition-opacity ${hovered ? "opacity-100" : "opacity-0"}`}>
-            <button
-              onClick={() => {
-                // We dispatch a custom event to open the modal from the parent
-                window.dispatchEvent(new CustomEvent('openEditRowModal', { detail: row }));
-              }}
-              className="w-5 h-5 flex items-center justify-center rounded text-slate-300 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
-              title="Chỉnh sửa"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-            </button>
-            <button
-              onClick={() => onDelete(row.id)}
-              className="w-5 h-5 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all"
-              title="Xóa hàng này"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-      </td>
     </tr>
   );
 }
@@ -844,7 +601,7 @@ export default function TimetablePage() {
   const morningRows = midIndex >= 0 ? rows.slice(0, midIndex + 1) : rows.filter(r => toMins(r.start_time) < toMins("13:30"));
   const afternoonRows = midIndex >= 0 ? rows.slice(midIndex + 1) : rows.filter(r => toMins(r.start_time) >= toMins("13:30"));
   
-  const showWeekend = visibleCols.includes("weekend");
+  const showWeekend = visibleCols.includes("weekend") || visibleCols.includes("sat") || visibleCols.includes("sun");
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
   // Total col count: drag + time + title + notes? + weekdays + weekend? + delete
@@ -852,8 +609,7 @@ export default function TimetablePage() {
     1 + 1 + 1 +
     (visibleCols.includes("notes") ? 1 : 0) +
     activeWeekdays.length +
-    (showWeekend ? 1 : 0) +
-    1;
+    (showWeekend ? 1 : 0);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -867,6 +623,7 @@ export default function TimetablePage() {
         onClose={() => setEditingRow(null)}
         row={editingRow}
         onSave={handleEditRowSave}
+        onDelete={handleDeleteRow}
       />
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -953,7 +710,6 @@ export default function TimetablePage() {
                 {activeWeekdays.map((d) => <col key={d.key} />)}
                 {/* weekend col is 1.6× a weekday col to accommodate two sub-columns */}
                 {showWeekend && <col style={{ width: "13%" }} />}
-                <col style={{ width: 40 }} />   {/* actions */}
               </colgroup>
 
               {/* ── THEAD ─────────────────────────────────────────────── */}
@@ -985,7 +741,6 @@ export default function TimetablePage() {
                       </div>
                     </th>
                   )}
-                  <th className="w-10 text-center" />
                 </tr>
               </thead>
 

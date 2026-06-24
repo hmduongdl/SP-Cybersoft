@@ -331,7 +331,7 @@ export function AIAssistant() {
             initial={{ opacity: 0, y: 20, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            className="fixed bottom-24 right-6 z-50 max-w-[260px] bg-surface glass p-3.5 rounded-2xl shadow-xl border border-outline-variant/30 flex items-start gap-3 cursor-pointer"
+            className="fixed bottom-24 right-6 z-30 max-w-[260px] bg-surface glass p-3.5 rounded-2xl shadow-xl border border-outline-variant/30 flex items-start gap-3 cursor-pointer"
             onClick={() => {
               setIsOpen(true);
               setShowBubble(false);
@@ -359,7 +359,7 @@ export function AIAssistant() {
       {/* Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 h-[52px] w-[52px] gradient-primary text-on-primary rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105"
+        className="fixed bottom-6 right-6 z-30 h-[52px] w-[52px] gradient-primary text-on-primary rounded-full flex items-center justify-center transition-all duration-150 hover:scale-105"
         style={{ boxShadow: "0 8px 24px rgba(0, 80, 203, 0.35)" }}
         aria-label="Mở Trợ lý AI"
       >
@@ -386,7 +386,7 @@ export function AIAssistant() {
       {/* Chat Panel */}
       {isOpen && (
         <div
-          className="fixed bottom-6 right-6 z-50 flex flex-col overflow-hidden glass shadow-[0_32px_64px_rgba(19,27,46,0.14)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.4)]"
+          className="fixed bottom-[84px] right-6 z-30 flex flex-col overflow-hidden glass shadow-[0_32px_64px_rgba(19,27,46,0.14)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.4)]"
           style={{
             width: "360px",
             maxHeight: "520px",

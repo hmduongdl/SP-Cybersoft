@@ -37,10 +37,11 @@ export async function PATCH(
 
     if (body.cells) {
       for (const [col, content] of Object.entries(body.cells)) {
+        const taskIds = body.taskIds?.[col] || [];
         await tx.timetableCell.upsert({
           where: { row_id_column_name: { row_id: rowId, column_name: col } },
-          update: { content: content as any },
-          create: { row_id: rowId, column_name: col, content: content as any },
+          update: { content: content as any, task_ids: taskIds },
+          create: { row_id: rowId, column_name: col, content: content as any, task_ids: taskIds },
         });
       }
     }

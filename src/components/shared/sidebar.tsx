@@ -62,7 +62,7 @@ export function Sidebar() {
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
         { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
-        { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false, adminOnlyAlert: true },
+        { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
       ]
