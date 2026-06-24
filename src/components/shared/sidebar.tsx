@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLayout } from "./layout-context";
 import { useSession, signOut } from "next-auth/react";
@@ -13,7 +14,6 @@ import { useTaskStore, FilterStatus } from "@/store/useTaskStore";
 import { UserAvatar } from "./user-avatar";
 import { CreateTagModal } from "@/components/modules/tasks/CreateTagModal";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
-import Link from "next/link";
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -102,14 +102,17 @@ export function Sidebar() {
           {/* Logo Area */}
           <div className={clsx("flex items-center justify-between px-2 shrink-0", collapsed ? "flex-col gap-4 py-2 justify-center" : "")}>
             {!collapsed ? (
-              <div className="flex items-center gap-1">
-                <span className="font-manrope font-bold text-2xl text-slate-800 dark:text-white tracking-tight">SP-CyberSoft</span>
-                <span className="w-2 h-2 rounded-full bg-indigo-500 mt-2" />
-              </div>
+              <Link href="/">
+                <div className="flex items-center">
+                  <img src="/spcybersoftlogo.png" alt="SP-CyberSoft" className="h-7 w-auto dark:brightness-0 dark:invert" />
+                </div>
+              </Link>
             ) : (
-              <div className="flex items-center justify-center">
-                <span className="font-manrope font-bold text-2xl text-indigo-500 dark:text-indigo-400 tracking-tight">S</span>
-              </div>
+              <Link href="/">
+                <div className="flex items-center justify-center">
+                  <span className="font-manrope font-bold text-2xl text-indigo-500 dark:text-indigo-400 tracking-tight">S</span>
+                </div>
+              </Link>
             )}
 
             {/* Toggle / Close Button */}

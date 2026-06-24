@@ -123,7 +123,7 @@ export function MainContent() {
         <div className="col-span-1 lg:col-span-3 min-w-0 w-full h-full flex flex-col bg-transparent rounded-2xl min-h-0">
           <AnimatePresence mode="wait">
             {activeView === 'list' && (
-              <div className="flex-1 overflow-y-auto min-h-0 h-full" key="list">
+              <div className="flex-1 overflow-y-auto min-h-0" key="list">
                 <ListView />
               </div>
             )}

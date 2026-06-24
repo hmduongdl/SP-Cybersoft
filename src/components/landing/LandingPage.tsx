@@ -94,9 +94,9 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
         }`}
       >
         <div className="flex justify-between items-center h-full px-6 max-w-7xl mx-auto">
-          <Link href="/" className="font-manrope font-bold text-2xl text-primary tracking-tight">
-            SP Cybersoft
-          </Link>
+          <a href="https://www.sp-cybersoft.com/" target="_blank" rel="noopener noreferrer">
+            <img src="/spcybersoftlogo.png" alt="SP Cybersoft" className="h-[52px] w-auto dark:brightness-0 dark:invert" />
+          </a>
           <nav className="hidden md:flex items-center space-x-6">
             <a
               href="#about"
@@ -540,9 +540,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
       <footer className="bg-surface-container-highest text-on-surface py-20 w-full border-t border-outline-variant">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 px-6 max-w-7xl mx-auto">
           <div className="space-y-6">
-            <div className="font-manrope font-semibold text-2xl font-bold text-primary">
-              SP Cybersoft
-            </div>
+            <img src="/spcybersoftlogo.png" alt="SP Cybersoft" className="h-[52px] w-auto dark:brightness-0 dark:invert" />
             <p className="text-base text-on-surface-variant">
               Đối tác công nghệ đáng tin cậy cho các doanh nghiệp tại Việt Nam.
             </p>
