@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useLayout } from "./layout-context";
 import { useSession, signOut } from "next-auth/react";
@@ -13,7 +14,6 @@ import { useTaskStore, FilterStatus } from "@/store/useTaskStore";
 import { UserAvatar } from "./user-avatar";
 import { CreateTagModal } from "@/components/modules/tasks/CreateTagModal";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
-import Link from "next/link";
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -62,7 +62,7 @@ export function Sidebar() {
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
         { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
-        { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false, adminOnlyAlert: true },
+        { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
       ]
@@ -100,16 +100,19 @@ export function Sidebar() {
         {/* Upper section */}
         <div className="flex flex-col gap-6 flex-1 min-h-0">
           {/* Logo Area */}
-          <div className={clsx("flex items-center justify-between px-2 shrink-0", collapsed ? "flex-col gap-4 py-2 justify-center" : "")}>
+          <div className={clsx("flex items-center justify-between shrink-0", collapsed ? "flex-col gap-4 py-2 px-2 justify-center" : "")}>
             {!collapsed ? (
-              <div className="flex items-center gap-1">
-                <span className="font-manrope font-bold text-2xl text-slate-800 dark:text-white tracking-tight">SP-CyberSoft</span>
-                <span className="w-2 h-2 rounded-full bg-indigo-500 mt-2" />
-              </div>
+              <Link href="/">
+                <div className="flex items-center">
+                  <img src="/spcybersoftlogo.png" alt="SP-CyberSoft" className="h-7 w-auto dark:brightness-0 dark:invert" />
+                </div>
+              </Link>
             ) : (
-              <div className="flex items-center justify-center">
-                <span className="font-manrope font-bold text-2xl text-indigo-500 dark:text-indigo-400 tracking-tight">S</span>
-              </div>
+              <Link href="/">
+                <div className="flex items-center justify-center">
+                  <span className="font-manrope font-bold text-2xl text-indigo-500 dark:text-indigo-400 tracking-tight">S</span>
+                </div>
+              </Link>
             )}
 
             {/* Toggle / Close Button */}

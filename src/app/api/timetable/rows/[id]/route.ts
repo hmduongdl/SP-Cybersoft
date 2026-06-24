@@ -16,14 +16,40 @@ export async function PATCH(
   if (!row || row.user_id !== session.user.id)
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const body = await req.json();
-  const updated = await prisma.timetableRow.update({
-    where: { id: rowId },
-    data: {
-      ...(body.title !== undefined && { title: body.title }),
-      ...(body.start_time !== undefined && { start_time: body.start_time }),
-      ...(body.end_time !== undefined && { end_time: body.end_time }),
-    },
-    include: { cells: true },
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const r = await tx.timetableRow.update({
+      where: { id: rowId },
+      data: {
+        ...(body.title !== undefined && { title: body.title }),
+        ...(body.start_time !== undefined && { start_time: body.start_time }),
+        ...(body.end_time !== undefined && { end_time: body.end_time }),
+      },
+    });
+
+    if (body.notes !== undefined) {
+      await tx.timetableCell.upsert({
+        where: { row_id_column_name: { row_id: rowId, column_name: "notes" } },
+        update: { content: body.notes },
+        create: { row_id: rowId, column_name: "notes", content: body.notes },
+      });
+    }
+
+    if (body.cells) {
+      for (const [col, content] of Object.entries(body.cells)) {
+        const taskIds = body.taskIds?.[col] || [];
+        await tx.timetableCell.upsert({
+          where: { row_id_column_name: { row_id: rowId, column_name: col } },
+          update: { content: content as any, task_ids: taskIds },
+          create: { row_id: rowId, column_name: col, content: content as any, task_ids: taskIds },
+        });
+      }
+    }
+
+    return await tx.timetableRow.findUnique({
+      where: { id: rowId },
+      include: { cells: true },
+    });
   });
 
   return NextResponse.json({ row: updated });

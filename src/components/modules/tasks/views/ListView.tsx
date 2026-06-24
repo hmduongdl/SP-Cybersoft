@@ -109,7 +109,7 @@ export function ListView() {
         </div>
       </div>
 
-      <div className="bg-surface-mid dark:bg-slate-900 rounded-2xl overflow-hidden shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 font-inter">
+      <div className="bg-surface-mid dark:bg-slate-900 rounded-2xl overflow-y-auto flex-1 min-h-0 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 font-inter">
         {/* Table header */}
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_40px] px-5 py-3 bg-surface-low dark:bg-slate-900 border-b border-transparent dark:border-slate-800 select-none items-center">
           {['TIÊU ĐỀ', 'THẺ TAG', 'HẠN CHÓT', 'TRẠNG THÁI', ''].map(h => (

@@ -7,17 +7,17 @@ import { toast } from "sonner";
 
 // ─── Column definitions ────────────────────────────────────────────────────────
 export const ALL_COLUMNS = [
-  { key: "order",  label: "Số thứ tự (#)",  alwaysOn: true  },
-  { key: "time",   label: "Khung giờ",       alwaysOn: true  },
-  { key: "title",  label: "Tên công việc",   alwaysOn: true  },
-  { key: "notes",  label: "Ghi chú",         alwaysOn: false },
-  { key: "mon",    label: "Thứ 2",           alwaysOn: false },
-  { key: "tue",    label: "Thứ 3",           alwaysOn: false },
-  { key: "wed",    label: "Thứ 4",           alwaysOn: false },
-  { key: "thu",    label: "Thứ 5",           alwaysOn: false },
-  { key: "fri",    label: "Thứ 6",           alwaysOn: false },
-  { key: "sat",    label: "Thứ 7",           alwaysOn: false },
-  { key: "sun",    label: "Chủ Nhật",        alwaysOn: false },
+  { key: "order",   label: "Số thứ tự (#)",           alwaysOn: true  },
+  { key: "time",    label: "Khung giờ",                alwaysOn: true  },
+  { key: "title",   label: "Tên công việc",            alwaysOn: true  },
+  { key: "notes",   label: "Ghi chú",                  alwaysOn: false },
+  { key: "mon",     label: "Thứ 2",                    alwaysOn: false },
+  { key: "tue",     label: "Thứ 3",                    alwaysOn: false },
+  { key: "wed",     label: "Thứ 4",                    alwaysOn: false },
+  { key: "thu",     label: "Thứ 5",                    alwaysOn: false },
+  { key: "fri",     label: "Thứ 6",                    alwaysOn: false },
+  // T7 + CN are merged into one "weekend" column in the UI
+  { key: "weekend", label: "Cuối tuần (T7 · CN)",      alwaysOn: false, hint: "Gộp T7 & CN thành 1 cột" },
 ];
 
 export const DEFAULT_VISIBLE = ALL_COLUMNS.map((c) => c.key);
@@ -35,11 +35,13 @@ function CheckRow({
   label,
   checked,
   disabled,
+  hint,
   onChange,
 }: {
   label: string;
   checked: boolean;
   disabled?: boolean;
+  hint?: string;
   onChange: (v: boolean) => void;
 }) {
   return (
@@ -57,18 +59,23 @@ function CheckRow({
           "w-4 h-4 rounded flex items-center justify-center border transition-all shrink-0",
           checked
             ? "bg-indigo-500 border-indigo-500"
-            : "bg-slate-900 border-slate-750",
+            : "bg-slate-900 border-slate-700",
           disabled ? "" : "group-hover:border-indigo-400",
         ].join(" ")}
         onClick={() => !disabled && onChange(!checked)}
       >
         {checked && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
       </span>
-      <span className="text-[12px] text-slate-300 font-medium leading-tight">
+      <span className="text-[12px] text-slate-300 font-medium leading-tight flex-1">
         {label}
       </span>
+      {hint && (
+        <span className="text-[9px] text-slate-500 italic bg-slate-800/60 px-1.5 py-0.5 rounded-full shrink-0">
+          {hint}
+        </span>
+      )}
       {disabled && (
-        <span className="ml-auto text-[10px] text-slate-500 italic">bắt buộc</span>
+        <span className="text-[10px] text-slate-500 italic shrink-0">bắt buộc</span>
       )}
     </label>
   );
@@ -180,6 +187,7 @@ export default function TimetableSettingsPopover({
                   label={col.label}
                   checked={col.alwaysOn || visibleCols.includes(col.key)}
                   disabled={col.alwaysOn}
+                  hint={(col as any).hint}
                   onChange={(on) => toggleColumn(col.key, on)}
                 />
               ))}
