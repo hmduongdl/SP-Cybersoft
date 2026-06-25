@@ -18,7 +18,7 @@ import {
   ExternalLink,
   Camera,
 } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTheme } from "next-themes";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -53,7 +53,7 @@ const TAG_COLORS = [
 ];
 
 // ──────────────────── Profile Tab ────────────────────
-function ProfileTab({ onClose }: { onClose: () => void }) {
+const ProfileTab = React.memo(function ProfileTab({ onClose }: { onClose: () => void }) {
   const { data: session, status, update } = useSession();
   const router = useRouter();
 
@@ -307,7 +307,7 @@ function ProfileTab({ onClose }: { onClose: () => void }) {
       </div>
     </form>
   );
-}
+});
 
 
 // ──────────────────── Tag Management Component ────────────────────
@@ -572,7 +572,7 @@ function WorkspaceDetailView({ workspace, onBack, onWorkspaceUpdated }: { worksp
 }
 
 // ──────────────────── WorkspacesTab ────────────────────
-function WorkspacesTab() {
+const WorkspacesTab = React.memo(function WorkspacesTab() {
   const { data: session } = useSession();
   const { workspaces, fetchWorkspaces } = useTaskStore();
   const [name, setName] = useState("");
@@ -699,9 +699,9 @@ function WorkspacesTab() {
       </div>
     </div>
   );
-}
+});
 // ──────────────────── AppearanceTab ────────────────────
-function AppearanceTab() {
+const AppearanceTab = React.memo(function AppearanceTab() {
   const { theme, setTheme } = useTheme();
 
   const themes = [
@@ -744,7 +744,7 @@ function AppearanceTab() {
       </div>
     </div>
   );
-}
+});
 
 // ──────────────────── Main Modal ────────────────────
 export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModalProps) {
@@ -756,20 +756,11 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
 
   if (!isOpen) return null;
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case "profile":     return <ProfileTab onClose={onClose} />;
-      case "workspaces":  return <WorkspacesTab />;
-      case "appearance":  return <AppearanceTab />;
-      default: return null;
-    }
-  };
-
-  const tabTitles: Record<string, string> = {
+  const tabTitles = useMemo<Record<string, string>>(() => ({
     profile: "Hồ sơ tài khoản",
     workspaces: "Quản lý Không gian & Thẻ Tag",
     appearance: "Giao diện hiển thị",
-  };
+  }), []);
 
   return (
     <>
@@ -812,7 +803,15 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{tabTitles[activeTab]}</h3>
             </div>
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
-              {renderContent()}
+              <div className={activeTab === 'profile' ? 'block animate-fade-in' : 'hidden'}>
+                <ProfileTab onClose={onClose} />
+              </div>
+              <div className={activeTab === 'workspaces' ? 'block animate-fade-in' : 'hidden'}>
+                <WorkspacesTab />
+              </div>
+              <div className={activeTab === 'appearance' ? 'block animate-fade-in' : 'hidden'}>
+                <AppearanceTab />
+              </div>
             </div>
           </div>
         </div>

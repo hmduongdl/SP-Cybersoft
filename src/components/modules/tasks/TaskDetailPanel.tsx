@@ -13,15 +13,15 @@ import "@blocknote/mantine/style.css";
 import { CustomPropertyField } from "./CustomPropertyField";
 
 const STATUS_MAP = {
-  TODO:        { label: 'Cần làm',  bg: '#f2f3ff', color: '#44495a' },
+  TODO: { label: 'Cần làm', bg: '#f2f3ff', color: '#44495a' },
   IN_PROGRESS: { label: 'Đang làm', bg: '#fff3cd', color: '#b45309' },
-  DONE:        { label: 'Xong',     bg: '#d5f8e8', color: '#0d5c34' },
+  DONE: { label: 'Xong', bg: '#d5f8e8', color: '#0d5c34' },
 };
 
 function StatusBadge({ status }: { status: TaskStatus }) {
   const s = STATUS_MAP[status] || STATUS_MAP.TODO;
   return (
-    <span 
+    <span
       className="text-[10px] font-semibold px-2.5 py-1 rounded-md inline-block cursor-pointer hover:opacity-80 transition-opacity"
       style={{ background: s.bg, color: s.color }}
     >
@@ -31,11 +31,11 @@ function StatusBadge({ status }: { status: TaskStatus }) {
 }
 
 export function TaskDetailPanel() {
-  const { 
-    selectedTaskId, 
-    setSelectedTaskId, 
-    tasks, 
-    updateTask, 
+  const {
+    selectedTaskId,
+    setSelectedTaskId,
+    tasks,
+    updateTask,
     updateTaskNote,
     deleteTask,
     currentWorkspace,
@@ -48,6 +48,7 @@ export function TaskDetailPanel() {
 
   const [assigneeSearch, setAssigneeSearch] = useState("");
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // ── Custom Properties state ──
@@ -79,7 +80,7 @@ export function TaskDetailPanel() {
         const d = await res.json();
         setPropertyDefs(d.properties || []);
       }
-    } catch {}
+    } catch { }
   }, [task?.workspace_id]);
 
   useEffect(() => {
@@ -205,6 +206,20 @@ export function TaskDetailPanel() {
     }
   }, [selectedTaskId, editor]);
 
+  // Detect dark mode for BlockNote theme
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains('dark');
+    setIsDarkMode(isDark);
+
+    const observer = new MutationObserver(() => {
+      const isDarkNow = document.documentElement.classList.contains('dark');
+      setIsDarkMode(isDarkNow);
+    });
+
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
+
   const handleClose = () => {
     setSelectedTaskId(null);
   };
@@ -257,7 +272,7 @@ export function TaskDetailPanel() {
     if (task) updateTask(task.id, { assignee_id: newUserId });
   };
 
-  const saveTask = () => {};
+  const saveTask = () => { };
 
   if (!selectedTaskId || !task) return null;
 
@@ -273,8 +288,8 @@ export function TaskDetailPanel() {
         <>
           {/* Backdrop */}
           <motion.div
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-40 bg-slate-950/40"
             onClick={handleClose}
@@ -282,18 +297,18 @@ export function TaskDetailPanel() {
 
           {/* Slide-over Panel from right */}
           <motion.div
-            initial={{ x: '100%' }} 
-            animate={{ x: 0 }} 
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             className="fixed top-0 right-0 h-screen w-full sm:w-[600px] md:w-[650px] bg-surface-mid border-l border-slate-100 shadow-2xl z-50 flex flex-col font-inter"
           >
             <div className="flex-1 overflow-y-auto pt-6 pb-24 px-6 md:px-10">
-              
+
               {/* Header Navigation */}
               <div className="flex items-center justify-between mb-6 text-sm text-slate-500">
                 <div className="flex items-center gap-2">
-                  <span className="text-lg">🚀</span> 
+                  <span className="text-lg">🚀</span>
                   <select
                     value={task.workspace_id}
                     onChange={e => updateTaskWorkspace(e.target.value)}
@@ -304,7 +319,7 @@ export function TaskDetailPanel() {
                     ))}
                   </select>
                 </div>
-                <button 
+                <button
                   onClick={handleClose}
                   className="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
                 >
@@ -570,7 +585,7 @@ export function TaskDetailPanel() {
                   📝 Ghi chú & Nội dung
                 </h3>
                 <div className="flex-1 min-h-[300px] text-sm text-slate-800 focus:outline-none -mx-10 mt-2">
-                  <BlockNoteView editor={editor} theme="light" />
+                  <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} />
                 </div>
               </div>
 
@@ -578,7 +593,7 @@ export function TaskDetailPanel() {
 
             {/* Bottom Sticky Action Bar */}
             <div className="border-t border-slate-100 p-4 bg-slate-50/80 backdrop-blur-sm shrink-0 flex items-center justify-between gap-3">
-              <button 
+              <button
                 onClick={handleDelete}
                 className="px-4 py-2 flex items-center gap-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 bg-transparent rounded-lg transition-colors"
                 title="Xóa công việc này"
@@ -587,13 +602,13 @@ export function TaskDetailPanel() {
                 <span className="hidden sm:inline">Xóa</span>
               </button>
               <div className="flex items-center gap-3">
-                <button 
+                <button
                   onClick={handleClose}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
                 >
                   Hủy
                 </button>
-                <button 
+                <button
                   onClick={handleSaveNote}
                   className="px-5 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 hover:shadow transition-all"
                 >
