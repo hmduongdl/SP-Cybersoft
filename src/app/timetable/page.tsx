@@ -30,6 +30,11 @@ const WEEKDAY_COLS = [
 ] as const;
 
 const STICKY_SHADOW = "shadow-[4px_0_12px_-4px_rgba(19,27,46,0.08)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.35)]";
+const WEEKEND_COLS = [
+  { key: "sat", label: "T7", fullLabel: "Thứ 7" },
+  { key: "sun", label: "CN", fullLabel: "Chủ nhật" },
+] as const;
+const COLUMN_ORDER = ["order", "time", "title", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "notes"];
 
 function getTodayColKey(): string | null {
   const day = new Date().getDay();
@@ -37,6 +42,31 @@ function getTodayColKey(): string | null {
     0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat",
   };
   return map[day] ?? null;
+}
+
+function normalizeVisibleColumns(cols: unknown): string[] {
+  const source = Array.isArray(cols) ? (cols as string[]) : DEFAULT_VISIBLE;
+  const normalized = source.includes("weekend")
+    ? [...source.filter((c) => c !== "weekend"), "sat", "sun"]
+    : source;
+  const set = new Set(normalized);
+  if (!set.has("sat") && !set.has("sun")) {
+    set.add("sat");
+  }
+  return COLUMN_ORDER.filter((k) => set.has(k));
+}
+
+function getCurrentWeekDateRangeLabel(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const format = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${format(monday)} - ${format(sunday)}/${sunday.getFullYear()}`;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -243,7 +273,7 @@ function BreakRow({
 
 // ─── Main TimetableTableRow ───────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, showWeekend, isGroupHighlighted, isOverlapping, isFlashing, todayColKey,
+  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, shouldMergeWeekend, singleWeekendDays, isGroupHighlighted, isOverlapping, isFlashing, todayColKey,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
@@ -253,7 +283,8 @@ function TimetableTableRow({
   onTitleChange: (rowId: string, title: string) => void;
   onTimeChange: (rowId: string, start_time: string, end_time: string) => void;
   visibleCols: string[];
-  showWeekend: boolean;
+  shouldMergeWeekend: boolean;
+  singleWeekendDays: readonly { key: "sat" | "sun"; label: string; fullLabel: string }[];
   isGroupHighlighted?: boolean;
   isOverlapping?: boolean;
   isFlashing?: boolean;
@@ -376,8 +407,8 @@ function TimetableTableRow({
         );
       })}
 
-      {/* Merged weekend column (T7 + CN) */}
-      {showWeekend && (
+      {/* Weekend columns */}
+      {shouldMergeWeekend ? (
         <td
           onClick={(e) => e.stopPropagation()}
           className={[
@@ -391,6 +422,31 @@ function TimetableTableRow({
             sunCell={getCell("sun")}
           />
         </td>
+      ) : (
+        singleWeekendDays.map((d) => {
+          const cell = getCell(d.key);
+          const items = Array.isArray(cell?.content) ? (cell!.content as string[]) : [];
+          const isToday = todayColKey === d.key;
+          return (
+            <td
+              key={d.key}
+              onClick={(e) => e.stopPropagation()}
+              className={[
+                "border-r border-outline/30 px-2 py-2 align-top transition-colors last:border-r-0",
+                isToday ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+              ].join(" ")}
+              style={{ minWidth: 0 }}
+            >
+              <CellEditor
+                cellId={cell?.id}
+                items={items}
+                isDeadline={cell?.is_deadline ?? false}
+                colLabel={d.fullLabel}
+                onChange={(next) => onCellChange(row.id, d.key, next)}
+              />
+            </td>
+          );
+        })
       )}
 
     </tr>
@@ -483,14 +539,7 @@ export default function TimetablePage() {
         if (!config || !config.is_onboarded) { setShowOnboarding(true); }
         else {
           setConfig(config);
-          if (Array.isArray(config.visible_columns) && config.visible_columns.length > 0) {
-            // Migrate old sat/sun → weekend
-            let cols = config.visible_columns as string[];
-            if ((cols.includes("sat") || cols.includes("sun")) && !cols.includes("weekend")) {
-              cols = [...cols.filter((c: string) => c !== "sat" && c !== "sun"), "weekend"];
-            }
-            setVisibleCols(cols);
-          }
+          setVisibleCols(normalizeVisibleColumns(config.visible_columns));
           fetchRows();
         }
       })
@@ -874,7 +923,10 @@ export default function TimetablePage() {
   // Detect rows whose time intervals overlap with at least one other row
   const overlapIds = useMemo(() => computeOverlapIds(rows), [rows]);
 
-  const showWeekend = visibleCols.includes("weekend") || visibleCols.includes("sat") || visibleCols.includes("sun");
+  const showSat = visibleCols.includes("sat");
+  const showSun = visibleCols.includes("sun");
+  const shouldMergeWeekend = showSat && showSun;
+  const singleWeekendDays = WEEKEND_COLS.filter((d) => visibleCols.includes(d.key));
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
   // Total col count: drag + time + title + notes? + weekdays + weekend? + delete
@@ -882,9 +934,10 @@ export default function TimetablePage() {
     1 + 1 + 1 +
     (visibleCols.includes("notes") ? 1 : 0) +
     activeWeekdays.length +
-    (showWeekend ? 1 : 0);
+    (shouldMergeWeekend ? 1 : singleWeekendDays.length);
 
   const todayColKey = useMemo(() => getTodayColKey(), []);
+  const weekDateRangeLabel = useMemo(() => getCurrentWeekDateRangeLabel(), []);
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
 
@@ -951,6 +1004,9 @@ export default function TimetablePage() {
             <h1 className="font-manrope font-bold text-lg text-on-surface leading-tight truncate">
               Thời khóa biểu tuần
             </h1>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] font-medium text-on-surface-variant">
+              {weekDateRangeLabel}
+            </span>
             {rows.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] font-medium text-on-surface-variant">
@@ -980,7 +1036,7 @@ export default function TimetablePage() {
               visibleCols={visibleCols}
               syncTaskManager={config.sync_task_manager}
               syncing={syncing}
-              onColumnsChange={(cols) => setVisibleCols(cols)}
+              onColumnsChange={(cols) => setVisibleCols(normalizeVisibleColumns(cols))}
               onSyncChange={(enabled) => setConfig((c) => c ? { ...c, sync_task_manager: enabled } : c)}
               onSyncToggle={handleSyncToggle}
             />
@@ -1015,6 +1071,16 @@ export default function TimetablePage() {
                     {exporting ? "Đang xuất..." : "Xuất Excel"}
                   </button>
                 )}
+                <button
+                  onClick={() => {
+                    toast.info("Chức năng đang phát triển");
+                    setMoreOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-on-surface-variant" />
+                  Xuất Báo Cáo Tuần
+                </button>
                 <button onClick={() => { handleSortByTime(); setMoreOpen(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors">
                   <ArrowUpDown className="w-3.5 h-3.5" />
@@ -1079,7 +1145,9 @@ export default function TimetablePage() {
                 <col style={{ width: 92 }} />
                 <col style={{ width: 144 }} />
                 {activeWeekdays.map((d) => <col key={d.key} />)}
-                {showWeekend && <col style={{ width: "14%" }} />}
+                {shouldMergeWeekend
+                  ? <col style={{ width: "14%" }} />
+                  : singleWeekendDays.map((d) => <col key={d.key} />)}
               </colgroup>
 
               {/* ── THEAD ─────────────────────────────────────────────── */}
@@ -1101,7 +1169,7 @@ export default function TimetablePage() {
                       </th>
                     );
                   })}
-                  {showWeekend && (
+                  {shouldMergeWeekend ? (
                     <th className={[
                       "sticky top-0 z-20 border-r border-outline/40 px-0 py-0 text-center last:border-r-0",
                       (todayColKey === "sat" || todayColKey === "sun") ? "bg-primary-container/50" : "bg-surface-container-low",
@@ -1117,6 +1185,23 @@ export default function TimetablePage() {
                         <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sun" ? "text-primary" : "text-on-surface-variant/70"}`}>CN</div>
                       </div>
                     </th>
+                  ) : (
+                    singleWeekendDays.map((d) => {
+                      const isToday = todayColKey === d.key;
+                      return (
+                        <th
+                          key={d.key}
+                          className={[
+                            "sticky top-0 z-20 border-r border-outline/40 px-2 py-3 text-center transition-colors last:border-r-0",
+                            isToday ? "bg-primary-container/50 text-primary" : "bg-surface-container-low",
+                          ].join(" ")}
+                        >
+                          <span className="hidden sm:inline">{d.fullLabel}</span>
+                          <span className="sm:hidden">{d.label}</span>
+                          {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>}
+                        </th>
+                      );
+                    })
                   )}
                 </tr>
               </thead>
@@ -1163,7 +1248,8 @@ export default function TimetablePage() {
                                 onTitleChange={handleTitleChange}
                                 onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
-                                showWeekend={showWeekend}
+                                shouldMergeWeekend={shouldMergeWeekend}
+                                singleWeekendDays={singleWeekendDays}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
                                 isFlashing={flashingRowId === row.id}
@@ -1220,7 +1306,8 @@ export default function TimetablePage() {
                                 onTitleChange={handleTitleChange}
                                 onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
-                                showWeekend={showWeekend}
+                                shouldMergeWeekend={shouldMergeWeekend}
+                                singleWeekendDays={singleWeekendDays}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
                                 isFlashing={flashingRowId === row.id}

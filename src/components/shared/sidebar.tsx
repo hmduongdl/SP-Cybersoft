@@ -63,7 +63,7 @@ export function Sidebar() {
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
         { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
-        { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
+        { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false },
       ]
     },
     {

@@ -607,7 +607,10 @@ export function DashboardOverview({
             </Link>
 
             {/* SEO Tools Card */}
-            <div className="block bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-5 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 opacity-70">
+            <Link
+              href="/seo-tools"
+              className="block bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-5 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all duration-150 group"
+            >
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
                   <TrendingUp className="w-5 h-5 text-amber-600" />
@@ -617,14 +620,12 @@ export function DashboardOverview({
                     SEO Tools
                   </p>
                   <p className="text-[12px] text-on-surface-variant font-inter">
-                    Chức năng đang phát triển
+                    Phân tích meta tags và tối ưu SEO
                   </p>
                 </div>
-                <span className="text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-700 px-2 py-1 rounded-full shrink-0">
-                  Sớm ra mắt
-                </span>
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </div>
