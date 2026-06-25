@@ -67,9 +67,7 @@ export async function POST(
     if (!type || !VALID_TYPES.includes(type)) {
       return NextResponse.json({ error: `Kiểu dữ liệu không hợp lệ. Hỗ trợ: ${VALID_TYPES.join(", ")}` }, { status: 400 });
     }
-    if ((type === "SELECT" || type === "MULTI_SELECT") && (!options || !Array.isArray(options) || options.length === 0)) {
-      return NextResponse.json({ error: "SELECT và MULTI_SELECT cần có danh sách options" }, { status: 400 });
-    }
+    // options is optional — can be added later via property editing
 
     // Check for duplicate name in the same workspace
     const existing = await db.customPropertyDefinition.findUnique({
@@ -86,7 +84,7 @@ export async function POST(
         workspace_id: workspaceId,
         name: name.trim(),
         type,
-        options: (type === "SELECT" || type === "MULTI_SELECT") ? options : undefined,
+        options: (type === "SELECT" || type === "MULTI_SELECT") ? (Array.isArray(options) ? options : []) : undefined,
       },
     });
 

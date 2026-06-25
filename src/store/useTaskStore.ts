@@ -27,8 +27,7 @@ export interface Task {
   status: TaskStatus;
   due_date?: string | null;
   priority?: 'high' | 'mid' | 'low';
-  assignee_id?: string | null;
-  assignee?: { id: string; name: string; avatar_url: string | null } | null;
+  assignees: { id: string; name: string; avatar_url: string | null }[];
   workspace_id: string;
   creator_id: string;
   creator?: { name: string; avatar_url: string | null };
@@ -382,7 +381,20 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
       // Optimistic update
       set((state) => ({
-        tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, ...taskData } : t)),
+        tasks: state.tasks.map((t) => {
+          if (t.id !== taskId) return t;
+          // Khi cập nhật assignee_ids, cập nhật luôn assignees array
+          // để tránh race condition khi click liên tiếp nhiều người
+          const updated = { ...t, ...taskData };
+          if ((taskData as any).assignee_ids) {
+            const ids = (taskData as any).assignee_ids as string[];
+            updated.assignees = ids.map(id => {
+              const existing = t.assignees.find(a => a.id === id);
+              return existing || { id, name: '', avatar_url: null };
+            });
+          }
+          return updated;
+        }),
       }));
 
       const res = await fetch(`/api/tasks/${taskId}`, {
@@ -469,10 +481,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         body: JSON.stringify({ content: noteContent }),
       });
       if (res.ok) {
-        const updatedNote = await res.json();
+        const data = await res.json();
+        const savedNote = data.note ?? data;
         set((state) => ({
           tasks: state.tasks.map((t) =>
-            t.id === taskId ? { ...t, note: updatedNote } : t
+            t.id === taskId ? { ...t, note: savedNote } : t
           ),
         }));
       }

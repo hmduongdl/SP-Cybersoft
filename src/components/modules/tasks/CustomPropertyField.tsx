@@ -1,21 +1,12 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import {
-  Hash,
-  Link,
-  Mail,
-  Phone,
-  Calendar,
-  CheckSquare,
-  ChevronDown,
-  X,
-} from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { Hash, Link, Mail, Phone, Calendar, CheckSquare, ChevronDown, X, Type, AlignLeft } from "lucide-react";
+import { format } from "date-fns";
 
 // ── Types ──
-interface CustomPropertyDefinition {
+export interface CustomPropertyDefinition {
   id: string;
   name: string;
   type: string;
@@ -36,9 +27,8 @@ interface Props {
   onChange: (newValue: any) => void;
 }
 
-// ── Icon map by type ──
-const TYPE_ICONS: Record<string, React.ElementType> = {
-  TEXT: Hash,
+export const TYPE_ICONS: Record<string, React.ElementType> = {
+  TEXT: AlignLeft,
   NUMBER: Hash,
   SELECT: ChevronDown,
   MULTI_SELECT: ChevronDown,
@@ -49,283 +39,283 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
   PHONE: Phone,
 };
 
-// ── Page filter for desktop — used by DATE picker ──
-const page = (d: Date) => Math.floor(d.getTime() / (1000 * 60 * 60 * 24));
+export const TYPE_LABELS: Record<string, string> = {
+  TEXT: "Văn bản",
+  NUMBER: "Số",
+  SELECT: "Chọn một",
+  MULTI_SELECT: "Nhiều lựa chọn",
+  DATE: "Ngày",
+  CHECKBOX: "Hộp kiểm",
+  URL: "URL",
+  EMAIL: "Email",
+  PHONE: "Điện thoại",
+};
 
-// ── Single Row Component ──
-export function CustomPropertyField({ property, value, onChange }: Props) {
-  const Icon = TYPE_ICONS[property.type] || Hash;
+// ── Shared popover hook ──
+function useOutsideClick(ref: React.RefObject<HTMLElement | null>, cb: () => void) {
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) cb();
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [ref, cb]);
+}
+
+// ── Sub-components per type ──
+
+function TextValue({ value, placeholder = "Trống", onChange }: { value: string; placeholder?: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      className="w-full bg-transparent outline-none text-on-surface placeholder:text-on-muted/50 px-2 py-1 rounded hover:bg-surface-high focus:bg-surface-high transition-colors text-xs"
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function NumberValue({ value, onChange }: { value: string | number; onChange: (v: number | null) => void }) {
+  return (
+    <input
+      type="number"
+      className="w-full bg-transparent outline-none text-on-surface placeholder:text-on-muted/50 px-2 py-1 rounded hover:bg-surface-high focus:bg-surface-high transition-colors text-xs [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+      placeholder="Trống"
+      value={value === "" || value == null ? "" : value}
+      onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+    />
+  );
+}
+
+function CheckboxValue({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0",
+        checked ? "bg-primary border-primary" : "border-outline hover:border-primary"
+      )}
+    >
+      {checked && <CheckSquare size={9} className="text-white" strokeWidth={3} />}
+    </button>
+  );
+}
+
+const dayOfWeek = (y: number, m: number) => {
+  const d = new Date(y, m, 1).getDay();
+  return d === 0 ? 6 : d - 1; // Mon=0
+};
+const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+function DateValue({ value, onChange }: { value: string | null; onChange: (v: string | null) => void }) {
+  const date = value ? new Date(value) : null;
+  const [open, setOpen] = useState(false);
+  const [month, setMonth] = useState(date || new Date());
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useOutsideClick(ref, close);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 text-on-surface px-2 py-1 rounded hover:bg-surface-high transition-colors text-xs"
+      >
+        <Calendar size={11} className="text-on-muted shrink-0" />
+        {date ? format(date, "dd/MM/yyyy") : <span className="text-on-muted/60">Trống</span>}
+        {date && (
+          <X size={11} className="text-on-muted hover:text-error-text ml-1 shrink-0"
+            onClick={(e) => { e.stopPropagation(); onChange(null); }} />
+        )}
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 w-60 bg-surface-bright border border-outline rounded-xl shadow-xl p-3">
+          <div className="flex items-center justify-between mb-2">
+            <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1))}
+              className="p-1 hover:bg-surface-high rounded text-on-muted hover:text-on-surface transition-colors">‹</button>
+            <span className="text-xs font-semibold text-on-surface">
+              {format(month, "MM/yyyy")}
+            </span>
+            <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1))}
+              className="p-1 hover:bg-surface-high rounded text-on-muted hover:text-on-surface transition-colors">›</button>
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
+            {["T2","T3","T4","T5","T6","T7","CN"].map(d => (
+              <span key={d} className="text-[9px] font-medium text-on-muted py-0.5">{d}</span>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-0.5">
+            {Array.from({ length: dayOfWeek(month.getFullYear(), month.getMonth()) }).map((_, i) => <div key={`e${i}`} />)}
+            {Array.from({ length: daysInMonth(month.getFullYear(), month.getMonth()) }, (_, i) => {
+              const day = i + 1;
+              const d = new Date(month.getFullYear(), month.getMonth(), day);
+              const sel = date && sameDay(date, d);
+              const today = sameDay(new Date(), d);
+              return (
+                <button key={day} type="button"
+                  onClick={() => { onChange(new Date(month.getFullYear(), month.getMonth(), day).toISOString()); setOpen(false); }}
+                  className={cn(
+                    "text-[11px] w-7 h-7 rounded-full flex items-center justify-center mx-auto transition-colors",
+                    sel && "bg-primary text-white font-semibold",
+                    !sel && today && "border border-primary text-primary",
+                    !sel && !today && "text-on-surface hover:bg-surface-high"
+                  )}
+                >{day}</button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SelectValue({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useOutsideClick(ref, close);
 
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-surface-high transition-colors text-xs min-w-[80px]">
+        {value
+          ? <span className="px-1.5 py-0.5 rounded bg-primary-container text-primary font-medium text-[10px]">{value}</span>
+          : <span className="text-on-muted/60">Trống</span>
+        }
+        <ChevronDown size={11} className="text-on-muted ml-auto shrink-0" />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 min-w-[140px] bg-surface-bright border border-outline rounded-xl shadow-xl py-1 overflow-hidden">
+          <button type="button" onClick={() => { onChange(""); setOpen(false); }}
+            className="w-full px-3 py-1.5 text-xs text-on-muted hover:bg-surface-high transition-colors text-left">
+            Trống
+          </button>
+          {options.map(opt => (
+            <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors text-left",
+                value === opt ? "bg-primary-container text-primary font-medium" : "text-on-surface hover:bg-surface-high"
+              )}>
+              <span className="flex-1">{opt}</span>
+              {value === opt && <span className="text-primary text-[10px]">✓</span>}
+            </button>
+          ))}
+          {options.length === 0 && (
+            <p className="px-3 py-2 text-xs text-on-muted/60 italic">Chưa có lựa chọn</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-  const renderInput = () => {
+function MultiSelectValue({ options, selected, onChange }: { options: string[]; selected: string[]; onChange: (v: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useOutsideClick(ref, close);
+
+  const toggle = (opt: string) => {
+    const next = selected.includes(opt) ? selected.filter(x => x !== opt) : [...selected, opt];
+    onChange(next);
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 flex-wrap px-2 py-1 rounded hover:bg-surface-high transition-colors min-w-[80px]">
+        {selected.length === 0
+          ? <span className="text-on-muted/60 text-xs">Trống</span>
+          : selected.map(s => (
+              <span key={s} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-primary-container text-primary flex items-center gap-0.5">
+                {s}
+                <X size={9} className="shrink-0 hover:text-error-text cursor-pointer"
+                  onClick={e => { e.stopPropagation(); toggle(s); }} />
+              </span>
+            ))
+        }
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 w-52 bg-surface-bright border border-outline rounded-xl shadow-xl py-1 overflow-hidden">
+          {options.map(opt => {
+            const active = selected.includes(opt);
+            return (
+              <button key={opt} type="button" onClick={() => toggle(opt)}
+                className={cn(
+                  "w-full flex items-center gap-2 px-3 py-1.5 text-xs transition-colors",
+                  active ? "bg-primary-container/60" : "hover:bg-surface-high"
+                )}>
+                <div className={cn(
+                  "w-3.5 h-3.5 rounded border-2 flex items-center justify-center shrink-0",
+                  active ? "bg-primary border-primary" : "border-outline"
+                )}>
+                  {active && <span className="text-[8px] text-white leading-none">✓</span>}
+                </div>
+                <span className={active ? "text-primary font-medium" : "text-on-surface"}>{opt}</span>
+              </button>
+            );
+          })}
+          {options.length === 0 && (
+            <p className="px-3 py-2 text-xs text-on-muted/60 italic">Chưa có lựa chọn</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Component ──
+export function CustomPropertyField({ property, value, onChange }: Props) {
+  const Icon = TYPE_ICONS[property.type] || Type;
+
+  const renderValue = () => {
     switch (property.type) {
       case "TEXT":
       case "URL":
       case "EMAIL":
-      case "PHONE": {
-        const current = value?.value_text ?? "";
-        return (
-          <input
-            className="w-full bg-transparent outline-none text-slate-700 dark:text-slate-200 placeholder:text-slate-400 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 focus:bg-slate-100 dark:focus:bg-white/5 transition-colors"
-            placeholder="Chưa nhập..."
-            value={current}
-            onChange={(e) => onChange(e.target.value)}
-          />
-        );
-      }
+      case "PHONE":
+        return <TextValue value={value?.value_text ?? ""} onChange={onChange} />;
 
-      case "NUMBER": {
-        const current = value?.value_number ?? "";
-        return (
-          <input
-            type="number"
-            className="w-full bg-transparent outline-none text-slate-700 dark:text-slate-200 placeholder:text-slate-400 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 focus:bg-slate-100 dark:focus:bg-white/5 transition-colors [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            placeholder="0"
-            value={current === "" ? "" : current}
-            onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-          />
-        );
-      }
+      case "NUMBER":
+        return <NumberValue value={value?.value_number ?? ""} onChange={onChange} />;
 
-      case "CHECKBOX": {
-        const checked = value?.value_boolean ?? false;
-        return (
-          <button
-            type="button"
-            onClick={() => onChange(!checked)}
-            className={cn(
-              "w-4 h-4 rounded border-2 flex items-center justify-center transition-colors",
-              checked
-                ? "bg-primary border-primary text-white"
-                : "border-slate-300 dark:border-slate-600 hover:border-primary"
-            )}
-          >
-            {checked && <CheckSquare size={10} className="text-white" />}
-          </button>
-        );
-      }
+      case "CHECKBOX":
+        return <CheckboxValue checked={value?.value_boolean ?? false} onChange={onChange} />;
 
-      case "DATE": {
-        const date = value?.value_date ? new Date(value.value_date) : null;
-        const [calOpen, setCalOpen] = useState(false);
-        const [calMonth, setCalMonth] = useState(date || new Date());
-        const calRef = useRef<HTMLDivElement>(null);
-
-        useEffect(() => {
-          const h = (e: MouseEvent) => {
-            if (calRef.current && !calRef.current.contains(e.target as Node)) setCalOpen(false);
-          };
-          document.addEventListener("mousedown", h);
-          return () => document.removeEventListener("mousedown", h);
-        }, []);
-
-        const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-        const firstDay = (y: number, m: number) => new Date(y, m, 1).getDay();
-
-        const selectDay = (d: number) => {
-          const picked = new Date(calMonth.getFullYear(), calMonth.getMonth(), d);
-          onChange(picked.toISOString());
-          setCalOpen(false);
-        };
-
-        return (
-          <div className="relative" ref={calRef}>
-            <button
-              type="button"
-              onClick={() => setCalOpen(!calOpen)}
-              className="flex items-center gap-1.5 text-slate-700 dark:text-slate-200 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-            >
-              <Calendar size={12} className="text-slate-400" />
-              {date ? format(date, "dd/MM/yyyy") : <span className="text-slate-400">Chọn ngày</span>}
-              {date && (
-                <X
-                  size={12}
-                  className="text-slate-400 hover:text-red-500 ml-1"
-                  onClick={(e) => { e.stopPropagation(); onChange(null); }}
-                />
-              )}
-            </button>
-            {calOpen && (
-              <div className="absolute top-full left-0 mt-1 z-50 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <button
-                    type="button"
-                    onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1))}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-xs"
-                  >
-                    ←
-                  </button>
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    {format(calMonth, "MM/yyyy")}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1))}
-                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-xs"
-                  >
-                    →
-                  </button>
-                </div>
-                <div className="grid grid-cols-7 gap-0.5 text-center">
-                  {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d) => (
-                    <span key={d} className="text-[10px] font-medium text-slate-400 py-1">
-                      {d}
-                    </span>
-                  ))}
-                  {Array.from({ length: firstDay(calMonth.getFullYear(), calMonth.getMonth()) }, (_, i) => (
-                    <div key={`empty-${i}`} />
-                  ))}
-                  {Array.from({ length: daysInMonth(calMonth.getFullYear(), calMonth.getMonth()) }, (_, i) => {
-                    const day = i + 1;
-                    const d = new Date(calMonth.getFullYear(), calMonth.getMonth(), day);
-                    const sel = date && page(date) === page(d);
-                    const today = page(new Date()) === page(d);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() => selectDay(day)}
-                        className={cn(
-                          "text-xs w-7 h-7 rounded-full flex items-center justify-center transition-colors",
-                          sel && "bg-primary text-white",
-                          !sel && today && "border border-primary text-primary",
-                          !sel && !today && "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
-                        )}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-      }
+      case "DATE":
+        return <DateValue value={value?.value_date ?? null} onChange={onChange} />;
 
       case "SELECT": {
-        const options = (property.options as string[]) || [];
-        const current = value?.value_text ?? "";
-        return (
-          <div className="relative">
-            <select
-              className="w-full bg-transparent outline-none text-slate-700 dark:text-slate-200 px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 focus:bg-slate-100 dark:focus:bg-white/5 transition-colors cursor-pointer appearance-none"
-              value={current}
-              onChange={(e) => onChange(e.target.value)}
-            >
-              <option value="">Chưa chọn</option>
-              {options.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          </div>
-        );
+        const opts = (property.options as string[]) || [];
+        return <SelectValue options={opts} value={value?.value_text ?? ""} onChange={onChange} />;
       }
 
       case "MULTI_SELECT": {
-        const options = (property.options as string[]) || [];
-        let selected: string[] = [];
-        try {
-          const raw = value?.value_text;
-          selected = raw ? JSON.parse(raw) : [];
-          if (!Array.isArray(selected)) selected = [];
-        } catch {
-          selected = [];
-        }
-
-        return (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setOpen(!open)}
-              className="flex items-center gap-1.5 flex-wrap px-2 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-            >
-              {selected.length === 0 && <span className="text-slate-400">Chưa chọn</span>}
-              {selected.map((s) => (
-                <span
-                  key={s}
-                  className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 flex items-center gap-1"
-                >
-                  {s}
-                  <X
-                    size={10}
-                    className="cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onChange(selected.filter((x) => x !== s));
-                    }}
-                  />
-                </span>
-              ))}
-            </button>
-            {open && (
-              <div className="absolute top-full left-0 mt-1 z-50 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-1.5">
-                {options.map((opt) => {
-                  const active = selected.includes(opt);
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => {
-                        const next = active
-                          ? selected.filter((x) => x !== opt)
-                          : [...selected, opt];
-                        onChange(next);
-                      }}
-                      className={cn(
-                        "w-full flex items-center gap-2 px-2.5 py-1.5 text-xs rounded-lg transition-colors",
-                        active
-                          ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
-                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          "w-3.5 h-3.5 rounded border flex items-center justify-center",
-                          active
-                            ? "bg-primary border-primary"
-                            : "border-slate-300 dark:border-slate-600"
-                        )}
-                      >
-                        {active && <span className="text-[8px] text-white">✓</span>}
-                      </div>
-                      {opt}
-                    </button>
-                  );
-                })}
-                {options.length === 0 && (
-                  <p className="text-xs text-slate-400 text-center py-2">Không có lựa chọn</p>
-                )}
-              </div>
-            )}
-          </div>
-        );
+        const opts = (property.options as string[]) || [];
+        let sel: string[] = [];
+        try { const raw = value?.value_text; sel = raw ? JSON.parse(raw) : []; if (!Array.isArray(sel)) sel = []; } catch { sel = []; }
+        return <MultiSelectValue options={opts} selected={sel} onChange={onChange} />;
       }
 
       default:
-        return <span className="text-slate-400 px-2 py-1">Không hỗ trợ</span>;
+        return <span className="text-on-muted/60 px-2 py-1 text-xs">—</span>;
     }
   };
 
   return (
-    <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1.5 text-xs text-slate-700 dark:text-slate-300">
-      <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400">
-        <Icon size={13} />
-        <span>{property.name}</span>
+    <div className="grid grid-cols-[140px_1fr] items-center gap-2 py-0.5 group">
+      <div className="flex items-center gap-1.5 text-on-muted text-xs px-2 py-1 rounded hover:bg-surface-high transition-colors cursor-default">
+        <Icon size={12} className="shrink-0 opacity-60" />
+        <span className="truncate">{property.name}</span>
       </div>
-      {renderInput()}
+      <div className="min-w-0">
+        {renderValue()}
+      </div>
     </div>
   );
 }

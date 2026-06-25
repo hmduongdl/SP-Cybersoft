@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTheme } from "next-themes";
+import { useUserTheme } from "@/components/shared/ThemeProvider";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -702,7 +703,8 @@ const WorkspacesTab = React.memo(function WorkspacesTab() {
 });
 // ──────────────────── AppearanceTab ────────────────────
 const AppearanceTab = React.memo(function AppearanceTab() {
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
+  const { setUserTheme } = useUserTheme();
 
   const themes = [
     { id: "light", label: "Chế độ Sáng", icon: Sun },
@@ -717,18 +719,7 @@ const AppearanceTab = React.memo(function AppearanceTab() {
         {themes.map(t => {
           const active = theme === t.id;
           return (
-            <button key={t.id} onClick={async () => {
-               setTheme(t.id);
-               try {
-                 await fetch("/api/user/profile", {
-                   method: "PUT",
-                   headers: { "Content-Type": "application/json" },
-                   body: JSON.stringify({ theme: t.id }),
-                 });
-               } catch (e) {
-                 console.error("Lỗi khi lưu thiết lập theme:", e);
-               }
-             }}
+            <button key={t.id} onClick={() => setUserTheme(t.id)}
               className={`flex flex-col items-center justify-center gap-3 p-6 rounded-2xl border-2 transition-all ${
                 active
                   ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20"

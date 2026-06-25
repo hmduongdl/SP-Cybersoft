@@ -98,7 +98,7 @@ export async function POST() {
   // ── 1. Fetch ALL tasks related to this user ───────────────────────────────
   // Covers every assignment path:
   //   A) creator_id = userId           (tasks the user created themselves)
-  //   B) assignee_id = userId          (tasks explicitly assigned to the user)
+  //   B) assignee via TaskAssignee    (tasks explicitly assigned to the user)
   //   C) workspace collaborator tasks  (user is a member of the workspace that owns the task)
   //      — so tasks from shared workspaces also appear
   const tasks = await prisma.task.findMany({
@@ -110,7 +110,8 @@ export async function POST() {
           OR: [
             // Direct assignment
             { creator_id: userId },
-            { assignee_id: userId },
+            // Multi-assignee support
+            { assignees: { some: { user_id: userId } } },
             // Workspace-level: user is a collaborator in the workspace that owns this task
             {
               workspace: {
@@ -134,7 +135,6 @@ export async function POST() {
       title: true,
       due_date: true,
       status: true,
-      assignee_id: true,
       creator_id: true,
     },
     orderBy: [
@@ -157,7 +157,7 @@ export async function POST() {
   });
 
   // Find all focus rows (important or normal work)
-  let targetRows = rows.filter((r: { row_type: string }) => FOCUS_ROW_TYPES.has(r.row_type));
+  let targetRows = rows.filter((r: { row_type: string, title: string }) => FOCUS_ROW_TYPES.has(r.row_type) && r.title !== "Cập nhật tin tức sản phẩm");
 
   // Fallback to Khởi động if no focus rows exist
   if (targetRows.length === 0) {
@@ -206,7 +206,15 @@ export async function POST() {
       for (const row of targetRows) {
         const existingCell = row.cells.find((c: { column_name: string }) => c.column_name === dayCol);
         const patch = getOrInit(row.id, dayCol, existingCell);
-        if (!patch.content.includes(task.title)) patch.content.push(task.title);
+        
+        const titleWithMarker = `[DEADLINE] ${task.title}`;
+        const existingIdx = patch.content.indexOf(task.title);
+        if (existingIdx >= 0) {
+          patch.content[existingIdx] = titleWithMarker;
+        } else if (!patch.content.includes(titleWithMarker)) {
+          patch.content.push(titleWithMarker);
+        }
+        
         if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
         patch.is_deadline = true; // mark red
       }

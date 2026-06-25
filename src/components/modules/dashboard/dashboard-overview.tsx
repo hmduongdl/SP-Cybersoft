@@ -575,13 +575,6 @@ export function DashboardOverview({
                 <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
                   Bạn có thể truy cập AI Scan Assistant thông qua trang quản lý bài viết hoặc từ thanh công cụ trên dashboard.
                 </p>
-                <Link
-                  href="/admin/queue"
-                  className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold rounded-xl transition-colors"
-                >
-                  <span>Tìm hiểu ngay</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
               </div>
             </div>
           </div>

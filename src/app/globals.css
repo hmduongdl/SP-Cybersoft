@@ -573,3 +573,71 @@
   background-color: #fff3cd;
   color: #b45309;
 }
+
+/* ================================================
+   Task Detail Panel — BlockNote editor (Notion-style: no box)
+   ================================================ */
+.task-detail-editor .bn-container {
+  border-radius: 0;
+  overflow: visible;
+}
+
+.task-detail-editor .bn-editor {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-height: 240px;
+}
+
+.task-detail-editor .bn-root {
+  --bn-colors-editor-background: transparent;
+}
+
+.dark .task-detail-editor .bn-root {
+  --bn-colors-editor-background: transparent;
+  --bn-colors-editor-text: #e8eaf6;
+  --bn-colors-menu-text: #9496b0;
+  --bn-colors-hovered-background: rgba(255, 255, 255, 0.05);
+  --bn-colors-selected-background: rgba(79, 125, 232, 0.15);
+  --bn-colors-disabled-text: #6b6f85;
+  --bn-colors-shadow: rgba(0, 0, 0, 0.4);
+  --bn-colors-border: rgba(255, 255, 255, 0.06);
+  --bn-colors-side-menu: #9496b0;
+}
+
+.task-detail-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
+  color: #9496b0;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.dark .task-detail-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
+  color: #9496b0;
+}
+
+.dark .task-detail-editor .bn-editor {
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  min-height: 240px;
+}
+
+.dark .task-detail-editor .bn-block {
+  --bn-colors-highlight: rgba(79, 125, 232, 0.2);
+}
+
+.dark .task-detail-editor .bn-inline-code {
+  background-color: #191f3a !important;
+  color: #4f7de8 !important;
+}
+
+.dark .task-detail-editor .bn-editor a {
+  color: #588cf0;
+}
+
+.dark .task-detail-editor .bn-editor::selection {
+  background-color: rgba(79, 125, 232, 0.35);
+  color: #e8eaf6;
+}

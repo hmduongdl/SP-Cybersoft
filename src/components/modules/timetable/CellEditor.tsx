@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { X, Plus, AlertTriangle } from "lucide-react";
+import { X, Plus } from "lucide-react";
 
 interface Props {
   cellId?: string;
@@ -20,41 +20,34 @@ export default function CellEditor({
   readOnly = false,
   onChange,
 }: Props) {
+  const DEADLINE_PREFIX = "[DEADLINE] ";
   const [open, setOpen] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [localItems, setLocalItems] = useState<string[]>(items);
-  const [showOverflow, setShowOverflow] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const overflowTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync if parent items change
   useEffect(() => { setLocalItems(items); }, [items]);
 
-  // Close on outside click
   useEffect(() => {
-    if (!open && !showOverflow) return;
+    if (!open) return;
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setShowOverflow(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [open, showOverflow]);
+  }, [open]);
 
-  // Focus input when opened
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
 
-  // Cleanup timers
   useEffect(() => {
     return () => {
       if (saveTimeout.current) clearTimeout(saveTimeout.current);
-      if (overflowTimeout.current) clearTimeout(overflowTimeout.current);
     };
   }, []);
 
@@ -95,123 +88,129 @@ export default function CellEditor({
     if (e.key === "Backspace" && !inputVal && localItems.length > 0) remove(0);
   };
 
-  // ── Closed state: compact chip/pill preview ──────────────────────────────
-  if (!open) {
-    const emptyEl = (
-      <div
-        className={`min-h-[24px] flex items-center ${readOnly ? "" : "cursor-pointer group"}`}
-        onDoubleClick={() => !readOnly && setOpen(true)}
-        title={readOnly ? undefined : "Double-click để thêm"}
-      >
-        {!readOnly && (
-          <span className="text-[10px] text-slate-300 dark:text-slate-700 italic group-hover:text-indigo-400 dark:group-hover:text-indigo-500 transition-colors select-none">
-            + Thêm
-          </span>
-        )}
-        {readOnly && <span className="text-[10px] text-slate-300 dark:text-slate-700 italic">—</span>}
-      </div>
-    );
+  const hasItemDeadline = localItems.some((item) => item.startsWith(DEADLINE_PREFIX));
+  const getItemMeta = (item: string) => {
+    const markedDeadline = item.startsWith(DEADLINE_PREFIX);
+    const isItemDeadline = markedDeadline || (isDeadline && !hasItemDeadline);
+    const displayItem = markedDeadline ? item.slice(DEADLINE_PREFIX.length) : item;
+    return { isItemDeadline, displayItem };
+  };
 
-    if (localItems.length === 0) return emptyEl;
+  // ── Closed state ───────────────────────────────────────────────────────────
+  if (!open) {
+    if (localItems.length === 0) {
+      return (
+        <div
+          className={`min-h-[28px] flex items-center rounded-lg ${readOnly ? "" : "cursor-pointer group hover:bg-surface-container-low/80"}`}
+          onDoubleClick={() => !readOnly && setOpen(true)}
+          title={readOnly ? undefined : "Double-click để thêm"}
+        >
+          {!readOnly && (
+            <span className="text-[10px] text-on-surface-variant/40 italic group-hover:text-primary transition-colors select-none px-1">
+              + Thêm
+            </span>
+          )}
+          {readOnly && <span className="text-[10px] text-on-surface-variant/30 italic px-1">—</span>}
+        </div>
+      );
+    }
 
     return (
       <div ref={containerRef} className="relative">
         <div
-          className={`flex flex-col gap-1 min-h-[24px] pr-0.5 ${readOnly ? "" : "cursor-pointer"}`}
+          className={`flex flex-col gap-1 min-h-[28px] ${readOnly ? "" : "cursor-pointer"}`}
           onDoubleClick={() => !readOnly && setOpen(true)}
           title={readOnly ? undefined : "Double-click để sửa"}
         >
-          {/* Deadline badge header */}
-          {isDeadline && (
-            <div className="flex items-center gap-1 mb-0.5 shrink-0">
-              <AlertTriangle className="w-2 h-2 text-red-500 shrink-0" />
-              <span className="text-[9px] font-bold text-red-500 uppercase tracking-wide">Deadline</span>
-            </div>
-          )}
-
-          {/* Bullet list */}
-          <ul className="flex flex-col gap-1 mt-0.5">
-            {localItems.map((item, i) => (
-              <li
-                key={i}
-                className={`flex items-start gap-1.5 text-[10.5px] leading-snug shrink-0 whitespace-normal break-words ${isDeadline ? "text-red-700 dark:text-red-300 font-semibold" : "text-slate-700 dark:text-slate-300"}`}
-              >
-                <span className={`mt-1.5 w-1 h-1 rounded-full shrink-0 ${isDeadline ? "bg-red-500" : "bg-slate-400 dark:bg-slate-500"}`} />
-                <span className="flex-1 min-w-0">{item}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="flex flex-col gap-1">
+            {localItems.map((item, i) => {
+              const { isItemDeadline, displayItem } = getItemMeta(item);
+              return (
+                <span
+                  key={i}
+                  className={[
+                    "block text-[10.5px] leading-snug break-words rounded-md px-1.5 py-0.5 border",
+                    isItemDeadline
+                      ? "bg-error-bg/80 text-error-text border-error-text/15 font-medium"
+                      : "bg-surface-container-low text-on-surface border-outline/30",
+                  ].join(" ")}
+                >
+                  {displayItem}
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
   }
 
-  // ── Open state: inline popover editor ──────────────────────────────────────
+  // ── Open state: popover editor ─────────────────────────────────────────────
   return (
     <div ref={containerRef} className="relative">
-      <div className="absolute z-50 top-0 left-0 w-60 bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl shadow-xl p-2.5 space-y-2 text-slate-100">
-        {/* Header */}
+      <div className="absolute z-50 top-0 left-0 w-64 bg-surface-container-lowest border border-outline/40 rounded-xl shadow-2xl p-3 space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">{colLabel}</span>
+          <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">{colLabel}</span>
           <button
             onClick={() => setOpen(false)}
-            className="w-5 h-5 flex items-center justify-center rounded hover:bg-slate-800 text-slate-400 transition-colors"
+            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-surface-container-low text-on-surface-variant transition-colors"
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Tag pills */}
         {localItems.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {localItems.map((item, i) => (
-              <span
-                key={i}
-                className={[
-                  "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium leading-tight",
-                  isDeadline
-                    ? "bg-red-950/50 text-red-300 border border-red-800"
-                    : "bg-slate-800 text-slate-200 border border-slate-700",
-                ].join(" ")}
-              >
-                <span className="max-w-[120px] truncate">{item}</span>
-                <button
-                  onClick={() => remove(i)}
-                  className="shrink-0 text-slate-400 hover:text-red-500 transition-colors"
+          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+            {localItems.map((item, i) => {
+              const { isItemDeadline, displayItem } = getItemMeta(item);
+              return (
+                <span
+                  key={i}
+                  className={[
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-medium leading-tight border",
+                    isItemDeadline
+                      ? "bg-error-bg text-error-text border-error-text/20"
+                      : "bg-surface-container-low text-on-surface border-outline/30",
+                  ].join(" ")}
                 >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </span>
-            ))}
+                  <span className="max-w-[140px] truncate">{displayItem}</span>
+                  <button
+                    onClick={() => remove(i)}
+                    className="shrink-0 text-on-surface-variant hover:text-error-text transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              );
+            })}
           </div>
         )}
 
-        {/* Input */}
-        <div className="flex items-center gap-1.5 bg-slate-900 rounded-lg px-2 py-1.5 border border-slate-800 focus-within:border-indigo-500 transition-colors">
+        <div className="flex items-center gap-1.5 bg-surface-container-low rounded-lg px-2.5 py-2 border border-outline/30 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
           <input
             ref={inputRef}
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Nhập rồi nhấn Enter..."
-            className="flex-1 min-w-0 bg-transparent text-[11px] text-slate-200 placeholder:text-slate-500 outline-none"
+            placeholder="Nhập rồi Enter..."
+            className="flex-1 min-w-0 bg-transparent text-xs text-on-surface placeholder:text-on-surface-variant/50 outline-none"
           />
           <button
             onClick={() => push(inputVal)}
             disabled={!inputVal.trim()}
-            className="shrink-0 w-5 h-5 flex items-center justify-center rounded-full bg-indigo-500 text-white disabled:opacity-30 hover:bg-indigo-600 transition-colors"
+            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-lg gradient-primary text-white disabled:opacity-30 hover:opacity-90 transition-opacity"
           >
-            <Plus className="w-3 h-3" />
+            <Plus className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        <p className="text-[9px] text-slate-500">
-          <kbd className="font-mono bg-slate-800 px-1 rounded">Enter</kbd> thêm &nbsp;·&nbsp;
-          <kbd className="font-mono bg-slate-800 px-1 rounded">Esc</kbd> đóng &nbsp;·&nbsp;
-          <kbd className="font-mono bg-slate-800 px-1 rounded">⌫</kbd> xóa cuối
+        <p className="text-[9px] text-on-surface-variant/60">
+          <kbd className="font-mono bg-surface-container-low px-1 rounded">Enter</kbd> thêm ·{" "}
+          <kbd className="font-mono bg-surface-container-low px-1 rounded">Esc</kbd> đóng ·{" "}
+          <kbd className="font-mono bg-surface-container-low px-1 rounded">⌫</kbd> xóa cuối
         </p>
       </div>
-      <div className="min-h-[24px]" />
+      <div className="min-h-[28px]" />
     </div>
   );
 }

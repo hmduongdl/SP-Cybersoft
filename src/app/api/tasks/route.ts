@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     } else {
       whereClause.OR = [
         { workspace: { owner_id: session.user.id, type: "PERSONAL" } },
-        { assignee_id: session.user.id },
+        { assignees: { some: { user_id: session.user.id } } },
         { creator_id: session.user.id }
       ];
     }
@@ -45,19 +45,30 @@ export async function GET(req: Request) {
         include: {
           tags: true,
           creator: { select: { name: true, avatar_url: true } },
-          assignee: { select: { id: true, name: true, avatar_url: true } },
+          assignees: {
+            include: {
+              user: { select: { id: true, name: true, avatar_url: true } }
+            }
+          },
           customProperties: {
             include: {
               definition: { select: { id: true, name: true, type: true, options: true } },
             },
           },
+          note: true,
         },
         orderBy: { createdAt: 'desc' }
       }),
       db.task.count({ where: whereClause }),
     ]);
 
-    return NextResponse.json({ tasks, total, page, limit });
+    // Flatten assignees for frontend
+    const flattened = tasks.map(t => ({
+      ...t,
+      assignees: t.assignees.map(a => a.user)
+    }));
+
+    return NextResponse.json({ tasks: flattened, total, page, limit });
   } catch (error) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
@@ -69,7 +80,7 @@ export async function POST(req: Request) {
     if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { title, description, status, due_date, tags, workspace_id, assignee_id } = body;
+    const { title, description, status, due_date, tags, workspace_id, assignee_ids } = body;
 
     if (!title || !workspace_id) return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
 
@@ -109,19 +120,28 @@ export async function POST(req: Request) {
         due_date: due_date ? new Date(due_date) : null,
         workspace_id,
         creator_id: session.user.id,
-        assignee_id: assignee_id || null,
         tags: finalTags.length > 0 ? {
           connect: finalTags
+        } : undefined,
+        assignees: assignee_ids && assignee_ids.length > 0 ? {
+          create: assignee_ids.map((uid: string) => ({ user_id: uid }))
         } : undefined
       },
       include: {
         tags: true,
         creator: { select: { name: true, avatar_url: true } },
-        assignee: { select: { id: true, name: true, avatar_url: true } }
+        assignees: {
+          include: {
+            user: { select: { id: true, name: true, avatar_url: true } }
+          }
+        }
       }
     });
 
-    return NextResponse.json(task);
+    // Flatten assignees for response
+    const result = { ...task, assignees: task.assignees.map(a => a.user) };
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

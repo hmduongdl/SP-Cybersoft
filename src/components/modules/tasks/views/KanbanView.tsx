@@ -65,7 +65,9 @@ export function KanbanView() {
 
       // 3. Status logic
       if (filterStatus === 'my_tasks') {
-        if (t.assignee_id !== currentUserId) return false;
+        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
+        const isCreator = t.creator_id === currentUserId;
+        if (!isAssigned && !isCreator) return false;
       }
 
       if (selectedTagId) {
@@ -203,8 +205,15 @@ export function KanbanView() {
                                   </span>
                                   <div className="flex items-center gap-1.5">
                                     <div className="w-[6px] h-[6px] rounded-full" style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} />
-                                    {task.assignee ? (
-                                      <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-5 !h-5 !text-[8px]" />
+                                    {task.assignees && task.assignees.length > 0 ? (
+                                      <div className="flex items-center -space-x-1.5">
+                                        {task.assignees.slice(0, 2).map(a => (
+                                          <UserAvatar key={a.id} src={a.avatar_url} name={a.name} className="!w-5 !h-5 !text-[8px]" />
+                                        ))}
+                                        {task.assignees.length > 2 && (
+                                          <span className="text-[9px] text-slate-500 ml-0.5">+{task.assignees.length - 2}</span>
+                                        )}
+                                      </div>
                                     ) : (
                                       <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600 flex-shrink-0" />
                                     )}

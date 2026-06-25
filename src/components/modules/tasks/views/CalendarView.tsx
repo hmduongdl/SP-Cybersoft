@@ -25,7 +25,9 @@ export function CalendarView() {
       if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
 
       if (filterStatus === 'my_tasks') {
-        if (t.assignee_id !== currentUserId) return false;
+        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
+        const isCreator = t.creator_id === currentUserId;
+        if (!isAssigned && !isCreator) return false;
       } else if (filterStatus === 'today') {
         if (!t.due_date) return false;
         return t.due_date.startsWith(todayStr);
@@ -131,8 +133,8 @@ export function CalendarView() {
                         : "bg-primary-container text-primary"
                     )}
                   >
-                    {task.assignee && (
-                      <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-3.5 !h-3.5 !text-[7px]" />
+                    {task.assignees && task.assignees.length > 0 && (
+                      <UserAvatar src={task.assignees[0].avatar_url} name={task.assignees[0].name} className="!w-3.5 !h-3.5 !text-[7px]" />
                     )}
                     <span className="truncate">{task.title}</span>
                   </div>
