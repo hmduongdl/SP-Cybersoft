@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { generateSeoText } from "@/lib/openai-client";
 import { buildSpecSummaryPrompt } from "@/lib/seo-prompts";
+import { createSeoStreamResponse } from "@/lib/seo-stream-route";
 import { formatZodError, specRequestSchema } from "@/lib/seo-schemas";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   try {
@@ -28,13 +29,11 @@ export async function POST(request: Request) {
     const { inputText } = parsed.data;
     const prompt = buildSpecSummaryPrompt(inputText);
 
-    const content = await generateSeoText({
+    return createSeoStreamResponse({
       prompt,
-      maxTokens: 6000,
+      maxTokens: 1500,
       temperature: 0.2,
     });
-
-    return NextResponse.json({ summary: content });
   } catch (error: unknown) {
     console.error("SEO Spec Summary Error:", error);
     const message =

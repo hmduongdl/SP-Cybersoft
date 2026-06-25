@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { generateSeoText } from "@/lib/openai-client";
 import { buildTablePrompt } from "@/lib/seo-prompts";
+import { createSeoStreamResponse } from "@/lib/seo-stream-route";
 import { formatZodError, tableRequestSchema } from "@/lib/seo-schemas";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   try {
@@ -28,19 +29,11 @@ export async function POST(request: Request) {
     const { inputText } = parsed.data;
     const prompt = buildTablePrompt(inputText);
 
-    const raw = await generateSeoText({
+    return createSeoStreamResponse({
       prompt,
-      maxTokens: 8000,
+      maxTokens: 3500,
       temperature: 0.3,
     });
-
-    // Làm sạch code fence ```markdown / ``` nếu model bọc kết quả.
-    const markdown = raw
-      .replace(/^```(?:markdown|md)?/i, "")
-      .replace(/```$/, "")
-      .trim();
-
-    return NextResponse.json({ markdown });
   } catch (error: unknown) {
     console.error("SEO Table Generation Error:", error);
     const message =

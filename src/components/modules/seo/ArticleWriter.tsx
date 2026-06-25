@@ -4,15 +4,14 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Copy, Sparkles, Code2, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { copyToClipboard, parseApiErrorResponse } from "@/lib/seo-client";
+import { copyToClipboard, parseApiErrorResponse, readTextStream } from "@/lib/seo-client";
 import { ARTICLE_TONE_VALUES, validateSeoMinOnly } from "@/lib/seo-schemas";
 import {
   AiTypingIndicator,
   SAMPLE_ARTICLE_TOPIC,
   SampleButton,
   SeoTips,
-  TypewriterMarkdown,
-  useTypewriter,
+  StreamingMarkdown,
 } from "@/components/modules/seo/seo-helpers";
 
 const TONE_OPTIONS = [
@@ -28,14 +27,7 @@ export function ArticleWriter() {
   const [tone, setTone] = useState<(typeof ARTICLE_TONE_VALUES)[number]>(ARTICLE_TONE_VALUES[0]);
   const [content, setContent] = useState("");
   const [activeTab, setActiveTab] = useState<OutputTab>("preview");
-  const [isLoading, setIsLoading] = useState(false);
-
-  const { displayed: codeDisplayed, isTyping: isCodeTyping } = useTypewriter(
-    activeTab === "code" ? content : "",
-    activeTab === "code" && !!content,
-    5,
-    5
-  );
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +36,8 @@ export function ArticleWriter() {
     if (topicError) { toast.error(topicError); return; }
 
     setContent("");
-    setIsLoading(true);
+    setIsStreaming(true);
+    setActiveTab("preview");
     try {
       const res = await fetch("/api/seo/article", {
         method: "POST",
@@ -57,20 +50,23 @@ export function ArticleWriter() {
         return;
       }
 
-      const data = await res.json();
-      setContent(data.content || "");
-      setActiveTab("preview");
+      const result = await readTextStream(res, setContent);
+      if (!result.trim()) {
+        toast.error("Không nhận được phản hồi từ AI. Vui lòng thử lại.");
+        return;
+      }
+
       toast.success("Hoàn tất mô tả sản phẩm");
     } catch {
       toast.error("Không thể kết nối máy chủ. Vui lòng thử lại.");
     } finally {
-      setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
   const fillSample = () => setTopic(SAMPLE_ARTICLE_TOPIC);
 
-  const showOutput = isLoading || !!content;
+  const showOutput = isStreaming || !!content;
 
   return (
     <div className="space-y-6">
@@ -124,10 +120,10 @@ export function ArticleWriter() {
         <div className="sm:col-span-2">
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isStreaming}
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold font-inter hover:bg-primary/90 transition-all disabled:opacity-60"
           >
-            {isLoading ? (
+            {isStreaming ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Đang xử lý...
@@ -144,7 +140,7 @@ export function ArticleWriter() {
 
       {showOutput && (
         <div className="space-y-3 pt-2 border-t border-outline/20">
-          {isLoading ? (
+          {isStreaming && !content ? (
             <AiTypingIndicator label="AI đang soạn mô tả sản phẩm" />
           ) : (
             <>
@@ -181,7 +177,8 @@ export function ArticleWriter() {
                 <button
                   type="button"
                   onClick={() => copyToClipboard(content, "Đã sao chép nội dung")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline/30 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  disabled={isStreaming || !content.trim()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline/30 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   Sao chép
@@ -192,8 +189,8 @@ export function ArticleWriter() {
                 <div className="relative rounded-xl bg-slate-950 overflow-hidden">
                   <pre className="p-4 overflow-x-auto max-h-[480px] overflow-y-auto">
                     <code className="text-xs text-slate-100 font-mono whitespace-pre-wrap break-words">
-                      {codeDisplayed}
-                      {isCodeTyping && (
+                      {content}
+                      {isStreaming && (
                         <span className="inline-block w-[2px] h-3.5 bg-primary ml-0.5 align-middle animate-pulse rounded-full" />
                       )}
                     </code>
@@ -201,7 +198,7 @@ export function ArticleWriter() {
                 </div>
               ) : (
                 <div className="rounded-xl bg-white dark:bg-slate-900 p-4 sm:p-6 border border-outline/20">
-                  <TypewriterMarkdown text={content} />
+                  <StreamingMarkdown text={content} isStreaming={isStreaming} />
                 </div>
               )}
             </>

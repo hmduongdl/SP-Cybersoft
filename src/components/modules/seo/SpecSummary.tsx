@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Copy, Sparkles } from "lucide-react";
-import { copyToClipboard, parseApiErrorResponse } from "@/lib/seo-client";
+import { copyToClipboard, parseApiErrorResponse, readTextStream } from "@/lib/seo-client";
 import { validateSeoMinOnly } from "@/lib/seo-schemas";
 import {
   AiTypingIndicator,
@@ -11,14 +11,14 @@ import {
   SAMPLE_SPEC,
   SampleButton,
   SeoTips,
+  StreamingPlain,
   TemplateChips,
-  TypewriterPlain,
 } from "@/components/modules/seo/seo-helpers";
 
 export function SpecSummary() {
   const [inputText, setInputText] = useState("");
   const [summary, setSummary] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +27,7 @@ export function SpecSummary() {
     if (inputError) { toast.error(inputError); return; }
 
     setSummary("");
-    setIsLoading(true);
+    setIsStreaming(true);
     try {
       const res = await fetch("/api/seo/spec", {
         method: "POST",
@@ -40,13 +40,17 @@ export function SpecSummary() {
         return;
       }
 
-      const data = await res.json();
-      setSummary(data.summary || "");
+      const result = await readTextStream(res, setSummary);
+      if (!result.trim()) {
+        toast.error("Không nhận được phản hồi từ AI. Vui lòng thử lại.");
+        return;
+      }
+
       toast.success("Hoàn tất tóm tắt thông số");
     } catch {
       toast.error("Không thể kết nối máy chủ. Vui lòng thử lại.");
     } finally {
-      setIsLoading(false);
+      setIsStreaming(false);
     }
   };
 
@@ -54,7 +58,7 @@ export function SpecSummary() {
     setInputText((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${value}` : value));
   };
 
-  const showOutput = isLoading || !!summary;
+  const showOutput = isStreaming || !!summary;
 
   return (
     <div className="space-y-6">
@@ -88,10 +92,10 @@ export function SpecSummary() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={isStreaming}
           className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold font-inter hover:bg-primary/90 transition-all disabled:opacity-60"
         >
-          {isLoading ? (
+          {isStreaming ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
               Đang xử lý...
@@ -107,7 +111,7 @@ export function SpecSummary() {
 
       {showOutput && (
         <div className="space-y-3 pt-2 border-t border-outline/20">
-          {isLoading ? (
+          {isStreaming && !summary ? (
             <AiTypingIndicator label="AI đang tóm tắt thông số" />
           ) : (
             <>
@@ -118,7 +122,8 @@ export function SpecSummary() {
                 <button
                   type="button"
                   onClick={() => copyToClipboard(summary, "Đã sao chép nội dung")}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline/30 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                  disabled={isStreaming || !summary.trim()}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-outline/30 text-xs font-semibold text-on-surface-variant hover:bg-surface-container-low transition-colors disabled:opacity-50"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   Sao chép
@@ -126,7 +131,7 @@ export function SpecSummary() {
               </div>
 
               <div className="rounded-xl bg-surface-container-low px-4 py-3 min-h-[120px] max-h-[480px] overflow-y-auto">
-                <TypewriterPlain text={summary} />
+                <StreamingPlain text={summary} isStreaming={isStreaming} />
               </div>
             </>
           )}
