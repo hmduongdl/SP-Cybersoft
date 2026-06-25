@@ -392,7 +392,7 @@ function TimetableTableRow({
             onClick={(e) => e.stopPropagation()}
             className={[
               "border-r border-outline/30 px-2 py-2 align-top transition-colors",
-              isToday ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+              isToday ? "bg-blue-50/60 dark:bg-amber-500/10" : "",
             ].join(" ")}
             style={{ minWidth: 0 }}
           >
@@ -413,7 +413,7 @@ function TimetableTableRow({
           onClick={(e) => e.stopPropagation()}
           className={[
             "border-r border-outline/30 px-2 py-2 align-top last:border-r-0 transition-colors",
-            (todayColKey === "sat" || todayColKey === "sun") ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+            (todayColKey === "sat" || todayColKey === "sun") ? "bg-blue-50/60 dark:bg-amber-500/10" : "",
           ].join(" ")}
           style={{ minWidth: 0 }}
         >
@@ -433,7 +433,7 @@ function TimetableTableRow({
               onClick={(e) => e.stopPropagation()}
               className={[
                 "border-r border-outline/30 px-2 py-2 align-top transition-colors last:border-r-0",
-                isToday ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+                isToday ? "bg-blue-50/60 dark:bg-amber-500/10" : "",
               ].join(" ")}
               style={{ minWidth: 0 }}
             >
@@ -1161,28 +1161,28 @@ export default function TimetablePage() {
                     return (
                       <th key={d.key} className={[
                         "sticky top-0 z-20 border-r border-outline/40 px-2 py-3 text-center transition-colors",
-                        isToday ? "bg-primary-container/50 text-primary" : "bg-surface-container-low",
+                        isToday ? "bg-blue-100/50 dark:bg-amber-500/20 text-blue-700 dark:text-amber-400" : "bg-surface-container-low",
                       ].join(" ")}>
                         <span className="hidden sm:inline">{d.fullLabel}</span>
                         <span className="sm:hidden">{d.label}</span>
-                        {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>}
+                        {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal opacity-80 mt-0.5">Hôm nay</span>}
                       </th>
                     );
                   })}
                   {shouldMergeWeekend ? (
                     <th className={[
                       "sticky top-0 z-20 border-r border-outline/40 px-0 py-0 text-center last:border-r-0",
-                      (todayColKey === "sat" || todayColKey === "sun") ? "bg-primary-container/50" : "bg-surface-container-low",
+                      (todayColKey === "sat" || todayColKey === "sun") ? "bg-blue-100/50 dark:bg-amber-500/20 text-blue-700 dark:text-amber-400" : "bg-surface-container-low",
                     ].join(" ")}>
-                      <div className="py-2 border-b border-outline/40 text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">
+                      <div className="py-2 border-b border-outline/40 text-[10px] font-bold text-inherit uppercase tracking-wide">
                         Cuối tuần
                         {(todayColKey === "sat" || todayColKey === "sun") && (
-                          <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>
+                          <span className="block text-[8px] font-bold normal-case tracking-normal opacity-80 mt-0.5">Hôm nay</span>
                         )}
                       </div>
                       <div className="grid grid-cols-2 divide-x divide-outline/40">
-                        <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sat" ? "text-primary" : "text-on-surface-variant/70"}`}>T7</div>
-                        <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sun" ? "text-primary" : "text-on-surface-variant/70"}`}>CN</div>
+                        <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sat" ? "text-inherit" : "text-on-surface-variant/70"}`}>T7</div>
+                        <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sun" ? "text-inherit" : "text-on-surface-variant/70"}`}>CN</div>
                       </div>
                     </th>
                   ) : (
@@ -1193,12 +1193,12 @@ export default function TimetablePage() {
                           key={d.key}
                           className={[
                             "sticky top-0 z-20 border-r border-outline/40 px-2 py-3 text-center transition-colors last:border-r-0",
-                            isToday ? "bg-primary-container/50 text-primary" : "bg-surface-container-low",
+                            isToday ? "bg-blue-100/50 dark:bg-amber-500/20 text-blue-700 dark:text-amber-400" : "bg-surface-container-low",
                           ].join(" ")}
                         >
                           <span className="hidden sm:inline">{d.fullLabel}</span>
                           <span className="sm:hidden">{d.label}</span>
-                          {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>}
+                          {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal opacity-80 mt-0.5">Hôm nay</span>}
                         </th>
                       );
                     })
