@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { generateSeoText } from "@/lib/openai-client";
 import { buildArticlePrompt } from "@/lib/seo-prompts";
+import { createSeoStreamResponse } from "@/lib/seo-stream-route";
 import { articleRequestSchema, formatZodError } from "@/lib/seo-schemas";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 export async function POST(request: Request) {
   try {
@@ -28,12 +29,7 @@ export async function POST(request: Request) {
     const { topic, tone } = parsed.data;
     const prompt = buildArticlePrompt(topic, tone);
 
-    const content = await generateSeoText({
-      prompt,
-      maxTokens: 8000,
-    });
-
-    return NextResponse.json({ content });
+    return createSeoStreamResponse({ prompt, maxTokens: 2500 });
   } catch (error: unknown) {
     console.error("SEO Article Generation Error:", error);
     const message =

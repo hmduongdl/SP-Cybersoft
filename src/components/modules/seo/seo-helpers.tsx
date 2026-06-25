@@ -122,6 +122,72 @@ function BlinkingCursor() {
   return <span className="inline-block w-[2px] h-[1em] bg-primary ml-0.5 align-middle animate-pulse rounded-full" />;
 }
 
+/** Vùng output plain text — hiển thị trực tiếp khi stream, không delay typewriter. */
+export function StreamingPlain({
+  text,
+  isStreaming,
+  className,
+}: {
+  text: string;
+  isStreaming: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap", className)}>
+      {text}
+      {isStreaming && <BlinkingCursor />}
+    </div>
+  );
+}
+
+/** Vùng output Markdown — plain text khi đang stream, render Markdown khi xong. */
+export function StreamingMarkdown({
+  text,
+  isStreaming,
+  className,
+}: {
+  text: string;
+  isStreaming: boolean;
+  className?: string;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isStreaming) {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    }
+  }, [text, isStreaming]);
+
+  if (!isStreaming && text) {
+    return (
+      <div
+        ref={scrollRef}
+        className={cn(
+          "prose prose-sm sm:prose-base prose-slate dark:prose-invert max-w-none overflow-x-auto max-h-[480px] overflow-y-auto",
+          className
+        )}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+          {text}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      className={cn(
+        "text-sm text-on-surface font-inter leading-relaxed whitespace-pre-wrap overflow-x-auto max-h-[480px] overflow-y-auto",
+        className
+      )}
+    >
+      {text}
+      {isStreaming && <BlinkingCursor />}
+    </div>
+  );
+}
+
 /** Vùng output plain text với hiệu ứng gõ chữ. */
 export function TypewriterPlain({
   text,
