@@ -107,6 +107,7 @@ export function SiteHeader() {
       reports: "Báo cáo cá nhân",
       timetable: "Thời gian biểu",
       "task-manager": "Task Manager",
+      tasks: "Task Manager",
       "seo-tools": "SEO Tools",
       admin: "Quản trị",
       queue: "Duyệt Bài",

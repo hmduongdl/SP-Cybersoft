@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface UserAvatarProps {
   name: string | null | undefined;
@@ -44,6 +44,11 @@ function getColorClass(initials: string): string {
 
 export function UserAvatar({ name, src, className = "", size = "md" }: UserAvatarProps) {
   const [imgFailed, setImgFailed] = useState(false);
+
+  // Reset error state when src changes
+  useEffect(() => {
+    setImgFailed(false);
+  }, [src]);
 
   if (src && !imgFailed) {
     return (

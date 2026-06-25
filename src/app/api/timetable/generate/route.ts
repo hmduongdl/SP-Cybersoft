@@ -33,9 +33,14 @@ function toTime(m: number): string {
 
 // ─── Algorithm Core ───────────────────────────────────────────────────────────
 
+function roundTo5(num: number): number {
+  return Math.round(num / 5) * 5;
+}
+
 /**
  * Q1 → Focus phase & break lengths
- *  < 90 min  → 1 phase, 0 break
+ *  < 60 min  → 1 phase, 0 break
+ *  60 - 89 min → 2 phases of equal length, 5-min break
  *  = 90 min  → 2 phases of 45 min, 5-min break
  *  > 90 min (up to 120) → 2 equal phases, 10-min break
  */
@@ -44,15 +49,24 @@ function calcPhaseAndBreak(maxFocusTime: number): {
   breakLen: number;
   phases: number;
 } {
-  if (maxFocusTime < 90) {
-    return { phaseLen: maxFocusTime, breakLen: 0, phases: 1 };
+  if (maxFocusTime < 60) {
+    return { phaseLen: roundTo5(maxFocusTime), breakLen: 0, phases: 1 };
+  }
+  if (maxFocusTime >= 60 && maxFocusTime < 90) {
+    const halfWork = Math.floor((maxFocusTime - 5) / 2);
+    return {
+      phaseLen: roundTo5(halfWork),
+      breakLen: 5,
+      phases: 2,
+    };
   }
   if (maxFocusTime === 90) {
     return { phaseLen: 45, breakLen: 5, phases: 2 };
   }
   // 91–120 min
+  const half = Math.floor(maxFocusTime / 2);
   return {
-    phaseLen: Math.floor(maxFocusTime / 2),
+    phaseLen: roundTo5(half),
     breakLen: 10,
     phases: 2,
   };
@@ -83,7 +97,7 @@ function buildFocusBlock(
       end_time: toTime(phaseEnd),
       is_locked: false,
       order: order++,
-      description: phases > 1 ? `Phase ${p + 1}/${phases}` : undefined,
+      description: phases > 1 ? `Phase ${p + 1}/${phases}` : "Phase 1/1",
     });
     cursor = phaseEnd;
 
@@ -104,6 +118,82 @@ function buildFocusBlock(
   return { rows, endMin: cursor, nextOrder: order };
 }
 
+/**
+ * Build a flexible work block.
+ * Keeps Phase 1/2 / Phase 2/2 description markers intact so group
+ * drag-and-drop detection continues to work. Only the row title is
+ * changed to "Deep work / Công việc tự chọn".
+ */
+function buildFlexBlock(
+  startMin: number,
+  focusTime: number,
+  orderStart: number,
+): { rows: RowBlueprint[]; endMin: number; nextOrder: number } {
+  const result = buildFocusBlock(
+    "Deep work / Công việc tự chọn",
+    "focus_flexible",
+    startMin,
+    focusTime,
+    orderStart,
+  );
+  // Do NOT override description — Phase 1/2 / Phase 2/2 markers must stay
+  // so getFocusGroup() can detect the split-phase trio for group dragging.
+  return result;
+}
+
+/**
+ * Calculates focus duration and energy classification.
+ */
+function calcFocusDuration(
+  session: string,
+  bestEnergyTime: string,
+  maxFocusTime: number,
+): { duration: number; label: string } {
+  if (session === bestEnergyTime) {
+    return { duration: roundTo5(maxFocusTime), label: "focus_peak" };
+  } else {
+    return { duration: roundTo5(Math.floor(maxFocusTime * 0.75)), label: "focus_off" };
+  }
+}
+
+/**
+ * Calculates total block duration including breaks.
+ */
+function getBlockTotalDuration(focusTime: number): number {
+  const { phaseLen, breakLen, phases } = calcPhaseAndBreak(focusTime);
+  return phases * phaseLen + (phases - 1) * breakLen;
+}
+
+/**
+ * Inserts a buffer row if the current cursor is before the minimum required time.
+ */
+function insertBufferIfNeeded(
+  cursor: number,
+  minTimeStr: string,
+  description: string,
+  orderStart: number,
+): { rows: RowBlueprint[]; nextCursor: number; nextOrder: number } {
+  const minTime = toMinutes(minTimeStr);
+  const rows: RowBlueprint[] = [];
+  let order = orderStart;
+  let currentCursor = cursor;
+
+  if (currentCursor < minTime) {
+    rows.push({
+      title: description,
+      row_type: "buffer",
+      start_time: toTime(currentCursor),
+      end_time: toTime(minTime),
+      is_locked: false,
+      order: order++,
+      description: description,
+    });
+    currentCursor = minTime;
+  }
+
+  return { rows, nextCursor: currentCursor, nextOrder: order };
+}
+
 // ─── Row Builder ─────────────────────────────────────────────────────────────
 
 function buildRows(answers: {
@@ -121,23 +211,13 @@ function buildRows(answers: {
     max_learning_time,
   } = answers;
 
-  // ── Q3: Determine focus time per session ─────────────────────────────────
-  const morningFocus =
-    best_energy_time === "morning"
-      ? max_focus_time
-      : Math.round(max_focus_time * 0.75);
-  const afternoonFocus =
-    best_energy_time === "afternoon"
-      ? max_focus_time
-      : Math.round(max_focus_time * 0.75);
-
   const rows: RowBlueprint[] = [];
   let order = 0;
   let cursor = toMinutes("08:00");
 
-  // ═══════════════════════════════════════════════════════
-  //  ANCHOR 1 – Khởi động
-  // ═══════════════════════════════════════════════════════
+  // ── BUỔI SÁNG ──────────────────────────────────
+
+  // 1. Khởi động (Warmup)
   rows.push({
     title: "Khởi động",
     row_type: "anchor_start",
@@ -145,159 +225,234 @@ function buildRows(answers: {
     end_time: toTime(cursor + 15),
     is_locked: true,
     order: order++,
-    description: "Kiểm tra email, lên kế hoạch ngày mới, warm-up",
+    description: "Check email, warm-up, lên kế hoạch",
   });
-  cursor += 15; // now 08:15
+  cursor += 15; // cursor is now 08:15
 
-  // ═══════════════════════════════════════════════════════
-  //  Morning Learning
-  // ═══════════════════════════════════════════════════════
+  // 2. Morning Learning
   if (best_learning_time === "morning") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
       start_time: toTime(cursor),
-      end_time: toTime(cursor + max_learning_time),
+      end_time: toTime(cursor + roundTo5(max_learning_time)),
       is_locked: false,
       order: order++,
     });
-    cursor += max_learning_time;
+    cursor += roundTo5(max_learning_time);
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  Morning focus block (Q1 + Q3)
-  // ═══════════════════════════════════════════════════════
-  if (!is_job_flexible) {
-    const morningLabel =
-      best_energy_time === "morning"
-        ? "Công việc quan trọng (Buổi sáng)"
-        : "Công việc thông thường (Buổi sáng)";
-    const result = buildFocusBlock(
-      morningLabel,
-      best_energy_time === "morning" ? "focus_peak" : "focus_off",
-      cursor,
-      morningFocus,
-      order,
-    );
-    rows.push(...result.rows);
-    order = result.nextOrder;
-    cursor = result.endMin;
+  // 2.5. Cập nhật tin tức sản phẩm (45 phút) - Chỉ cho buổi không quan trọng của user
+  if (best_energy_time !== "morning") {
+    rows.push({
+      title: "Cập nhật tin tức sản phẩm",
+      row_type: "custom",
+      start_time: toTime(cursor),
+      end_time: toTime(cursor + 45),
+      is_locked: false,
+      order: order++,
+      description: "Cập nhật tin tức sản phẩm",
+    });
+    cursor += 45;
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  Noon Learning
-  // ═══════════════════════════════════════════════════════
+  // 3. Morning Focus/Flex Block (at least one, repeat if space permits)
+  const morningDurLbl = calcFocusDuration("morning", best_energy_time, max_focus_time);
+  const morningBlockDur = getBlockTotalDuration(morningDurLbl.duration);
+  let isFirstMorningBlock = true;
+
+  if (morningBlockDur > 0) {
+    while (isFirstMorningBlock || cursor + morningBlockDur <= toMinutes("11:00")) {
+      isFirstMorningBlock = false;
+      if (!is_job_flexible) {
+        const morningLabel =
+          best_energy_time === "morning"
+            ? "Công việc quan trọng (Buổi sáng)"
+            : "Công việc thông thường (Buổi sáng)";
+        const result = buildFocusBlock(
+          morningLabel,
+          morningDurLbl.label,
+          cursor,
+          morningDurLbl.duration,
+          order,
+        );
+        rows.push(...result.rows);
+        order = result.nextOrder;
+        cursor = result.endMin;
+      } else {
+        const result = buildFlexBlock(
+          cursor,
+          morningDurLbl.duration,
+          order,
+        );
+        rows.push(...result.rows);
+        order = result.nextOrder;
+        cursor = result.endMin;
+      }
+    }
+  }
+
+  // 4. Noon Learning
   if (best_learning_time === "noon") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
       start_time: toTime(cursor),
-      end_time: toTime(cursor + max_learning_time),
+      end_time: toTime(cursor + roundTo5(max_learning_time)),
       is_locked: false,
       order: order++,
     });
-    cursor += max_learning_time;
+    cursor += roundTo5(max_learning_time);
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  ANCHOR 2 – Tổng kết buổi sáng
-  // ═══════════════════════════════════════════════════════
-  if (cursor < toMinutes("11:30")) {
-    cursor = toMinutes("11:30");
-  }
+  // 5. Morning Buffer check (goes all the way to Anchor Mid start time)
+  const morningBuffer = insertBufferIfNeeded(
+    cursor,
+    "11:50",
+    "Xử lý email / Tác vụ nhỏ",
+    order,
+  );
+  rows.push(...morningBuffer.rows);
+  order = morningBuffer.nextOrder;
+  cursor = morningBuffer.nextCursor;
+
+  // 6. Anchor Mid (Tổng kết buổi sáng - 10 phút cố định)
+  const anchorMidStart = Math.max(cursor, toMinutes("11:50"));
   rows.push({
     title: "Tổng kết buổi sáng",
     row_type: "anchor_mid",
-    start_time: toTime(cursor),
-    end_time: toTime(cursor + 30),
+    start_time: toTime(anchorMidStart),
+    end_time: toTime(anchorMidStart + 10),
     is_locked: true,
     order: order++,
-    description: "Review tiến độ buổi sáng, chuẩn bị cho buổi chiều",
+    description: "Tổng kết buổi sáng",
   });
-  cursor += 30;
+  cursor = anchorMidStart + 10;
 
-  // ═══════════════════════════════════════════════════════
-  //  Afternoon starts
-  // ═══════════════════════════════════════════════════════
-  if (cursor < toMinutes("13:30")) {
-    cursor = toMinutes("13:30");
-  }
+  // ── BUỔI CHIỀU ─────────────────────────────────
 
-  // ═══════════════════════════════════════════════════════
-  //  Afternoon Learning
-  // ═══════════════════════════════════════════════════════
+  // 7. Bắt đầu chiều
+  cursor = Math.max(cursor, toMinutes("13:30"));
+
+  // 7.5. Recheck & Nhận công việc đầu buổi (20 phút cố định)
+  rows.push({
+    title: "Recheck & Nhận công việc",
+    row_type: "anchor_start",
+    start_time: toTime(cursor),
+    end_time: toTime(cursor + 20),
+    is_locked: true,
+    order: order++,
+    description: "Recheck & Nhận công việc đầu buổi",
+  });
+  cursor += 20; // cursor is now 13:50
+
+  // 8. Afternoon Learning
   if (best_learning_time === "afternoon") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
       start_time: toTime(cursor),
-      end_time: toTime(cursor + max_learning_time),
+      end_time: toTime(cursor + roundTo5(max_learning_time)),
       is_locked: false,
       order: order++,
     });
-    cursor += max_learning_time;
+    cursor += roundTo5(max_learning_time);
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  Afternoon focus block (Q1 + Q3)
-  // ═══════════════════════════════════════════════════════
-  if (!is_job_flexible) {
-    const afternoonLabel =
-      best_energy_time === "afternoon"
-        ? "Công việc quan trọng (Buổi chiều)"
-        : "Công việc thông thường (Buổi chiều)";
-    const result = buildFocusBlock(
-      afternoonLabel,
-      best_energy_time === "afternoon" ? "focus_peak" : "focus_off",
-      cursor,
-      afternoonFocus,
-      order,
-    );
-    rows.push(...result.rows);
-    order = result.nextOrder;
-    cursor = result.endMin;
+  // 8.5. Cập nhật tin tức sản phẩm (45 phút) - Chỉ cho buổi không quan trọng của user
+  if (best_energy_time !== "afternoon") {
+    rows.push({
+      title: "Cập nhật tin tức sản phẩm",
+      row_type: "custom",
+      start_time: toTime(cursor),
+      end_time: toTime(cursor + 45),
+      is_locked: false,
+      order: order++,
+      description: "Cập nhật tin tức sản phẩm",
+    });
+    cursor += 45;
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  Evening Learning
-  // ═══════════════════════════════════════════════════════
+  // 9. Afternoon Focus/Flex Block (at least one, repeat if space permits)
+  const afternoonDurLbl = calcFocusDuration("afternoon", best_energy_time, max_focus_time);
+  const afternoonBlockDur = getBlockTotalDuration(afternoonDurLbl.duration);
+  let isFirstAfternoonBlock = true;
+
+  if (afternoonBlockDur > 0) {
+    while (isFirstAfternoonBlock || cursor + afternoonBlockDur <= toMinutes("17:00")) {
+      isFirstAfternoonBlock = false;
+      if (!is_job_flexible) {
+        const afternoonLabel =
+          best_energy_time === "afternoon"
+            ? "Công việc quan trọng (Buổi chiều)"
+            : "Công việc thông thường (Buổi chiều)";
+        const result = buildFocusBlock(
+          afternoonLabel,
+          afternoonDurLbl.label,
+          cursor,
+          afternoonDurLbl.duration,
+          order,
+        );
+        rows.push(...result.rows);
+        order = result.nextOrder;
+        cursor = result.endMin;
+      } else {
+        const result = buildFlexBlock(
+          cursor,
+          afternoonDurLbl.duration,
+          order,
+        );
+        rows.push(...result.rows);
+        order = result.nextOrder;
+        cursor = result.endMin;
+      }
+    }
+  }
+
+  // 10. Evening Learning
   if (best_learning_time === "evening") {
     rows.push({
       title: "Học tập / Tiếp thu kiến thức",
       row_type: "learning",
       start_time: toTime(cursor),
-      end_time: toTime(cursor + max_learning_time),
+      end_time: toTime(cursor + roundTo5(max_learning_time)),
       is_locked: false,
       order: order++,
     });
-    cursor += max_learning_time;
+    cursor += roundTo5(max_learning_time);
   }
 
-  // ═══════════════════════════════════════════════════════
-  //  ANCHOR 3 – Tổng kết cuối ngày
-  // ═══════════════════════════════════════════════════════
-  if (cursor < toMinutes("18:00")) {
-    cursor = toMinutes("18:00");
-  }
+  // 11. Afternoon Buffer check (goes all the way to Anchor End start time)
+  const afternoonBuffer = insertBufferIfNeeded(
+    cursor,
+    "18:00",
+    "Công việc tuỳ chọn",
+    order,
+  );
+  rows.push(...afternoonBuffer.rows);
+  order = afternoonBuffer.nextOrder;
+  cursor = afternoonBuffer.nextCursor;
+
+  // 12. Anchor End (Tổng kết cuối ngày)
+  const anchorEndStart = Math.max(cursor, toMinutes("18:00"));
   rows.push({
     title: "Tổng kết cuối ngày",
     row_type: "anchor_end",
-    start_time: toTime(cursor),
-    end_time: toTime(cursor + 30),
+    start_time: toTime(anchorEndStart),
+    end_time: toTime(anchorEndStart + 30),
     is_locked: true,
     order: order++,
-    description: "Review toàn bộ ngày, ghi nhận kết quả, lên kế hoạch ngày mai",
+    description: "Tổng kết cuối ngày",
   });
-  cursor += 30;
+  cursor = anchorEndStart + 30;
 
-  // Sort by start_time to be safe, though they are already sequential
+  // Final Sort & order normalization
   rows.sort((a, b) => {
     const diff = toMinutes(a.start_time) - toMinutes(b.start_time);
     if (diff !== 0) return diff;
     return toMinutes(a.end_time) - toMinutes(b.end_time);
   });
 
-  // Re-assign order purely to ensure consistency
   rows.forEach((r, i) => (r.order = i));
 
   return rows;

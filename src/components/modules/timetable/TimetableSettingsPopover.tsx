@@ -10,7 +10,6 @@ export const ALL_COLUMNS = [
   { key: "order",   label: "Số thứ tự (#)",           alwaysOn: true  },
   { key: "time",    label: "Khung giờ",                alwaysOn: true  },
   { key: "title",   label: "Tên công việc",            alwaysOn: true  },
-  { key: "notes",   label: "Ghi chú",                  alwaysOn: false },
   { key: "mon",     label: "Thứ 2",                    alwaysOn: false },
   { key: "tue",     label: "Thứ 3",                    alwaysOn: false },
   { key: "wed",     label: "Thứ 4",                    alwaysOn: false },
@@ -26,8 +25,11 @@ export const DEFAULT_VISIBLE = ALL_COLUMNS.map((c) => c.key);
 interface Props {
   visibleCols: string[];
   syncTaskManager: boolean;
+  syncing?: boolean;
   onColumnsChange: (cols: string[]) => void;
   onSyncChange: (enabled: boolean) => void;
+  /** If provided, called instead of onSyncChange — allows parent to auto-run sync after enabling */
+  onSyncToggle?: (enabled: boolean) => void;
 }
 
 // ─── Checkbox item ────────────────────────────────────────────────────────────
@@ -85,8 +87,10 @@ function CheckRow({
 export default function TimetableSettingsPopover({
   visibleCols,
   syncTaskManager,
+  syncing = false,
   onColumnsChange,
   onSyncChange,
+  onSyncToggle,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -131,8 +135,11 @@ export default function TimetableSettingsPopover({
 
   // ── Sync toggle ─────────────────────────────────────────────────────────
   const toggleSync = (enabled: boolean) => {
-    onSyncChange(enabled);
+    // Always update config state via onSyncChange
+    if (onSyncChange) onSyncChange(enabled);
     persist({ sync_task_manager: enabled });
+    // If parent provides onSyncToggle, delegate orchestration (auto-sync) there
+    if (onSyncToggle) onSyncToggle(enabled);
   };
 
   return (
@@ -202,8 +209,13 @@ export default function TimetableSettingsPopover({
 
               {/* Sync toggle — styled separately as a switch-like row */}
               <div
-                className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-800/60 cursor-pointer transition-colors"
-                onClick={() => toggleSync(!syncTaskManager)}
+                className={[
+                  "flex items-center gap-2.5 px-2 py-2 rounded-lg transition-colors",
+                  syncing
+                    ? "cursor-not-allowed opacity-70"
+                    : "hover:bg-slate-800/60 cursor-pointer",
+                ].join(" ")}
+                onClick={() => !syncing && toggleSync(!syncTaskManager)}
               >
                 {/* Animated toggle */}
                 <span
@@ -218,14 +230,22 @@ export default function TimetableSettingsPopover({
                     className="absolute top-0.5 left-0 w-3 h-3 bg-white rounded-full shadow-sm"
                   />
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-[12px] font-medium text-slate-300 leading-tight">
                     Đồng bộ từ Task Manager
                   </p>
                   <p className="text-[10px] text-slate-400 leading-tight mt-0.5">
-                    {syncTaskManager ? "Đang bật — task sẽ xuất hiện trong TKB" : "Đang tắt"}
+                    {syncing
+                      ? "Đang đồng bộ dữ liệu..."
+                      : syncTaskManager
+                        ? "Đang bật — task sẽ xuất hiện trong TKB"
+                        : "Đang tắt"}
                   </p>
                 </div>
+                {/* Spinning indicator shown while syncing */}
+                {syncing && syncTaskManager && (
+                  <RefreshCw className="w-3 h-3 text-indigo-400 animate-spin shrink-0" />
+                )}
               </div>
 
               {/* Reset to default */}

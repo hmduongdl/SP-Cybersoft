@@ -1,37 +1,55 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTaskStore } from "@/store/useTaskStore";
+import { useSession } from "next-auth/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { clsx } from "clsx";
 
 export function CalendarView() {
-  const { 
-    tasks: allTasks, 
-    currentWorkspaceId,
-    filterStatus,
-    setSelectedTaskId 
-  } = useTaskStore();
+  const { data: session } = useSession();
+  const allTasks = useTaskStore(s => s.tasks);
+  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
+  const filterStatus = useTaskStore(s => s.filterStatus);
+  const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
 
-  // Filter tasks based on current workspace and selected filter
-  const tasks = allTasks.filter(t => {
-    if (t.workspace_id !== currentWorkspaceId) return false;
-    
-    if (filterStatus === 'today') {
-      if (!t.due_date) return false;
-      const todayStr = new Date().toISOString().split('T')[0];
-      return t.due_date.startsWith(todayStr);
+  const currentUserId = session?.user?.id;
+
+  // Memoized filter
+  const tasks = useMemo(() => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    return allTasks.filter(t => {
+      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
+
+      if (filterStatus === 'my_tasks') {
+        if (t.assignee_id !== currentUserId) return false;
+      } else if (filterStatus === 'today') {
+        if (!t.due_date) return false;
+        return t.due_date.startsWith(todayStr);
+      } else if (filterStatus === 'upcoming') {
+        if (!t.due_date) return false;
+        const taskDate = t.due_date.substring(0, 10);
+        return taskDate >= todayStr;
+      }
+
+      return true;
+    });
+  }, [allTasks, currentWorkspaceId, filterStatus, currentUserId]);
+
+  // Build day-to-tasks map once instead of filtering per day cell
+  const tasksByDate = useMemo(() => {
+    const map: Record<string, typeof tasks> = {};
+    for (const t of tasks) {
+      if (!t.due_date) continue;
+      const dateKey = t.due_date.substring(0, 10);
+      if (!map[dateKey]) map[dateKey] = [];
+      map[dateKey].push(t);
     }
-    
-    if (filterStatus === 'upcoming') {
-      if (!t.due_date) return true;
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      return new Date(t.due_date) >= todayStart;
-    }
-    
-    return true;
-  });
+    return map;
+  }, [tasks]);
 
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -85,7 +103,7 @@ export function CalendarView() {
         ))}
         {days.map((day, index) => {
           const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
-          const dayTasks = tasks.filter(t => t.due_date?.startsWith(dateStr));
+          const dayTasks = tasksByDate[dateStr] || [];
           const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
           return (
@@ -107,13 +125,16 @@ export function CalendarView() {
                     key={task.id} 
                     onClick={(e) => { e.stopPropagation(); setSelectedTaskId(task.id); }}
                     className={clsx(
-                      "text-[10px] px-2 py-1 rounded-lg truncate font-medium cursor-pointer transition-opacity duration-150 hover:opacity-80", 
+                      "text-[10px] px-2 py-1 rounded-lg font-medium cursor-pointer transition-opacity duration-150 hover:opacity-80 flex items-center gap-1.5", 
                       task.status === 'DONE' 
                         ? "bg-surface-low text-on-muted line-through opacity-60" 
                         : "bg-primary-container text-primary"
                     )}
                   >
-                    {task.title}
+                    {task.assignee && (
+                      <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-3.5 !h-3.5 !text-[7px]" />
+                    )}
+                    <span className="truncate">{task.title}</span>
                   </div>
                 ))}
               </div>

@@ -85,6 +85,7 @@ export async function POST(req: Request) {
       end_time: string;
       is_locked: boolean;
       order: number;
+      description?: string;
       cells: Array<{
         column_name: string;
         content: string[] | null;
@@ -139,6 +140,7 @@ export async function POST(req: Request) {
         is_fixed:    r.is_locked,   // keep legacy field in sync
         is_locked:   r.is_locked,
         order:       idx,
+        description: r.description ?? null,
         originalCells: r.cells ?? [],
       };
     });

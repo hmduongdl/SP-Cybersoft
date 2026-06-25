@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 
+import { LandingAIChat } from "./LandingAIChat";
+
 export default function LandingPage({ userName }: { userName?: string | null }) {
   const [isScrolled, setIsScrolled] = useState(false);
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -613,6 +615,9 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
           </p>
         </div>
       </footer>
+
+      {/* AI Chat */}
+      <LandingAIChat />
 
       {/* Back to top button */}
       <AnimatePresence>

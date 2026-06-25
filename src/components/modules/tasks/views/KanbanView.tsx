@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
+import { useSession } from "next-auth/react";
 import { Calendar, MoreHorizontal, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { isPast, parseISO, format, differenceInDays } from "date-fns";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 const COLS = [
   { key: 'TODO',        label: 'Cần làm',  dot: '#44495a', bgClass: 'bg-[#f1f5f9] dark:bg-slate-800/80' },
@@ -15,40 +17,58 @@ const COLS = [
 ];
 
 export function KanbanView() {
-  const { 
-    tasks: allTasks, 
-    currentWorkspaceId,
-    filterStatus,
-    updateTask, 
-    setSelectedTaskId, 
-    setAddTaskModalOpen,
-    selectedTagId
-  } = useTaskStore();
+  const { data: session } = useSession();
+  const allTasks = useTaskStore(s => s.tasks);
+  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
+  const filterStatus = useTaskStore(s => s.filterStatus);
+  const updateTask = useTaskStore(s => s.updateTask);
+  const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
+  const setAddTaskModalOpen = useTaskStore(s => s.setAddTaskModalOpen);
+  const selectedTagId = useTaskStore(s => s.selectedTagId);
+  const tags = useTaskStore(s => s.tags);
 
-  // Filter tasks based on current workspace and selected filter
-  const tasks = allTasks.filter(t => {
-    if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-    
-    if (filterStatus === 'today') {
-      if (!t.due_date) return false;
-      const todayStr = new Date().toISOString().split('T')[0];
-      return t.due_date.startsWith(todayStr);
+  const currentUserId = session?.user?.id;
+
+  // Memoized filter: only recomputes when deps change
+  const tasks = useMemo(() => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    return allTasks.filter(t => {
+      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
+
+      if (filterStatus === 'my_tasks') {
+        if (t.assignee_id !== currentUserId) return false;
+      } else if (filterStatus === 'today') {
+        if (!t.due_date) return false;
+        return t.due_date.startsWith(todayStr);
+      } else if (filterStatus === 'upcoming') {
+        if (!t.due_date) return false;
+        const taskDate = t.due_date.substring(0, 10);
+        return taskDate >= todayStr;
+      }
+
+      if (selectedTagId) {
+        const selectedTag = tags.find(tag => tag.id === selectedTagId);
+        if (selectedTag) {
+          const matchName = selectedTag.name.toLowerCase().trim();
+          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
+          if (!hasTag) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allTasks, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+
+  // Memoize column groups to avoid 3 filter calls per render
+  const columnTasksMap = useMemo(() => {
+    const grouped: Record<string, typeof tasks> = {};
+    for (const col of COLS) {
+      grouped[col.key] = tasks.filter(t => t.status === col.key);
     }
-    
-    if (filterStatus === 'upcoming') {
-      if (!t.due_date) return true;
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      if (new Date(t.due_date) < todayStart) return false;
-    }
-    
-    if (selectedTagId) {
-      const hasTag = t.tags?.some(tag => tag.id === selectedTagId) || (t as any).tag?.id === selectedTagId;
-      if (!hasTag) return false;
-    }
-    
-    return true;
-  });
+    return grouped;
+  }, [tasks]);
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -63,7 +83,7 @@ export function KanbanView() {
       <div className="w-full h-full flex-1 overflow-y-hidden overflow-x-auto min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch font-inter h-full min-w-[700px] min-h-0">
           {COLS.map((col) => {
-            const columnTasks = tasks.filter((t) => t.status === col.key);
+            const columnTasks = columnTasksMap[col.key];
             return (
               <div key={col.key} className={cn("col-span-1 rounded-2xl p-3 flex flex-col gap-2 min-h-0 h-full overflow-hidden transition-colors", col.bgClass)}>
               
@@ -153,14 +173,10 @@ export function KanbanView() {
                                   </span>
                                   <div className="flex items-center gap-1.5">
                                     <div className="w-[6px] h-[6px] rounded-full" style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} />
-                                    {task.assignee?.avatar_url ? (
-                                      <img src={task.assignee.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" title={task.assignee.name || ''} />
-                                    ) : task.assignee?.name ? (
-                                      <div className="w-5 h-5 rounded-full bg-primary-container dark:bg-indigo-500/20 flex items-center justify-center text-[8px] font-semibold text-[#0050cb] dark:text-indigo-300" title={task.assignee.name}>
-                                        {task.assignee.name.substring(0, 2).toUpperCase()}
-                                      </div>
+                                    {task.assignee ? (
+                                      <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-5 !h-5 !text-[8px]" />
                                     ) : (
-                                      <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600" />
+                                      <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600 flex-shrink-0" />
                                     )}
                                   </div>
                                 </div>

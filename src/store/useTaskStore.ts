@@ -56,7 +56,7 @@ export interface Task {
   };
 }
 
-export type FilterStatus = 'all' | 'todo' | 'in_progress' | 'done' | 'today' | 'upcoming';
+export type FilterStatus = 'all' | 'todo' | 'in_progress' | 'done' | 'today' | 'upcoming' | 'my_tasks';
 
 export interface User {
   id: string;
@@ -120,11 +120,15 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   setCurrentWorkspaceId: (id) => set((state) => ({ 
     currentWorkspaceId: id,
-    currentWorkspace: state.workspaces.find(w => w.id === id) || null
+    currentWorkspace: state.workspaces.find(w => w.id === id) || null,
+    filterStatus: 'all',
+    selectedTagId: null
   })),
   setCurrentWorkspace: (workspace) => set({ 
     currentWorkspace: workspace,
-    currentWorkspaceId: workspace ? workspace.id : null 
+    currentWorkspaceId: workspace ? workspace.id : null,
+    filterStatus: 'all',
+    selectedTagId: null
   }),
   setCurrentView: (view) => set({ currentView: view }),
   toggleAIChat: () => set((state) => ({ isAIChatOpen: !state.isAIChatOpen })),

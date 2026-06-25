@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, KeyboardEvent } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, KeyboardEvent } from "react";
 import {
   ChevronRight, Calendar, RefreshCw,
   Lock, GripVertical, Trash2, Plus, AlertCircle, FileSpreadsheet,
@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import {
   DragDropContext, Droppable, Draggable,
-  type DropResult, type DraggableProvided, type DraggableStateSnapshot,
+  type DropResult, type DragStart,
+  type DraggableProvided, type DraggableStateSnapshot,
 } from "@hello-pangea/dnd";
 import { toast } from "sonner";
 import TimetableOnboardingModal from "@/components/modules/timetable/TimetableOnboardingModal";
@@ -41,6 +42,7 @@ export interface TimetableRow {
   id: string; title: string; row_type: string;
   start_time: string; end_time: string; is_locked: boolean;
   order: number; cells: TimetableCell[];
+  description?: string;
 }
 
 // ─── Time helpers ─────────────────────────────────────────────────────────────
@@ -49,6 +51,29 @@ function toMins(t: string) {
 }
 function rowDuration(row: TimetableRow) {
   return toMins(row.end_time) - toMins(row.start_time);
+}
+
+// ─── Overlap detection ────────────────────────────────────────────────
+// Two rows overlap when their [start, end) intervals intersect.
+// Locked anchor rows (anchor_start / anchor_mid / anchor_end) are
+// excluded because they intentionally share boundaries with neighbours.
+const ANCHOR_TYPES = new Set(["anchor_start", "anchor_mid", "anchor_end"]);
+function computeOverlapIds(rows: TimetableRow[]): Set<string> {
+  const ids = new Set<string>();
+  const candidates = rows.filter(r => !ANCHOR_TYPES.has(r.row_type));
+  for (let i = 0; i < candidates.length; i++) {
+    for (let j = i + 1; j < candidates.length; j++) {
+      const a = candidates[i], b = candidates[j];
+      const aStart = toMins(a.start_time), aEnd = toMins(a.end_time);
+      const bStart = toMins(b.start_time), bEnd = toMins(b.end_time);
+      // Half-open interval overlap: a.start < b.end && b.start < a.end
+      if (aStart < bEnd && bStart < aEnd) {
+        ids.add(a.id);
+        ids.add(b.id);
+      }
+    }
+  }
+  return ids;
 }
 
 // ─── WeekendCell — merged T7/CN display ──────────────────────────────────────
@@ -150,20 +175,39 @@ function NoteCell({ row }: { row: TimetableRow }) {
 }
 
 // ─── Break Row (compact inline strip) ────────────────────────────────────────
-function BreakRow({ row, provided, colCount }: { row: TimetableRow; provided: DraggableProvided; colCount: number }) {
+function BreakRow({
+  row, provided, colCount, isGroupHighlighted, isOverlapping,
+}: {
+  row: TimetableRow; provided: DraggableProvided; colCount: number;
+  isGroupHighlighted?: boolean; isOverlapping?: boolean;
+}) {
   return (
     <tr
       ref={provided.innerRef}
       {...provided.draggableProps}
       {...provided.dragHandleProps}
-      className="border-b border-slate-100 dark:border-slate-800/60"
+      className={[
+        "border-b border-slate-100 dark:border-slate-800/60 transition-all duration-150",
+        isOverlapping
+          ? "overlap-pulse ring-2 ring-inset ring-amber-400 dark:ring-amber-500 bg-amber-50/70 dark:bg-amber-900/20"
+          : isGroupHighlighted
+            ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20"
+            : "",
+      ].join(" ")}
     >
       <td colSpan={colCount} className="px-3 py-1 bg-slate-50/80 dark:bg-slate-800/30">
         <div className="flex items-center gap-2">
           <Coffee className="w-2.5 h-2.5 text-slate-400 dark:text-slate-600 shrink-0" />
           <span className="text-[10px] text-slate-400 dark:text-slate-600 italic">{row.title || "Giải lao"}</span>
-          <span className="text-[10px] text-slate-300 dark:text-slate-700 font-mono">{row.start_time} – {row.end_time}</span>
+          <span className={`text-[10px] font-mono ${isOverlapping ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-300 dark:text-slate-700"}`}>
+            {row.start_time} – {row.end_time}
+          </span>
           <span className="text-[10px] text-slate-300 dark:text-slate-700">({rowDuration(row)} phút)</span>
+          {isOverlapping && (
+            <span className="ml-auto text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
+              <AlertTriangle className="w-2.5 h-2.5" /> Trùng giờ
+            </span>
+          )}
         </div>
       </td>
     </tr>
@@ -172,7 +216,7 @@ function BreakRow({ row, provided, colCount }: { row: TimetableRow; provided: Dr
 
 // ─── Main TimetableTableRow ───────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, showWeekend,
+  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, showWeekend, isGroupHighlighted, isOverlapping,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
@@ -183,6 +227,8 @@ function TimetableTableRow({
   onTimeChange: (rowId: string, start_time: string, end_time: string) => void;
   visibleCols: string[];
   showWeekend: boolean;
+  isGroupHighlighted?: boolean;
+  isOverlapping?: boolean;
 }) {
   const isLocked = row.is_locked;
   const isDragging = snapshot.isDragging;
@@ -202,6 +248,10 @@ function TimetableTableRow({
 
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
+  const noteCell = row.cells.find((c) => c.column_name === "notes");
+  const noteText = Array.isArray(noteCell?.content)
+    ? (noteCell!.content as string[]).join(", ") : "";
+
   return (
     <tr
       ref={provided.innerRef}
@@ -211,12 +261,22 @@ function TimetableTableRow({
       onClick={() => {
         window.dispatchEvent(new CustomEvent('openEditRowModal', { detail: row }));
       }}
+      title={noteText ? `Ghi chú: ${noteText}` : undefined}
       className={[
-        "border-b border-slate-100 dark:border-slate-800 group transition-colors cursor-pointer",
+        "border-b border-slate-100 dark:border-slate-800 group transition-all duration-150 cursor-pointer",
         isDragging
-          ? "shadow-xl ring-2 ring-indigo-300 dark:ring-indigo-700 opacity-95 bg-white dark:bg-slate-900"
-          : "bg-white dark:bg-slate-900",
-        !isDragging && !isLocked ? "hover:bg-slate-50/70 dark:hover:bg-slate-800/20" : "",
+          ? "shadow-xl ring-2 ring-indigo-400 dark:ring-indigo-600 opacity-95 bg-white dark:bg-slate-900 scale-[1.01]"
+          : isOverlapping
+            ? "overlap-pulse bg-white dark:bg-slate-900"
+            : "bg-white dark:bg-slate-900",
+        !isDragging && isOverlapping
+          ? "ring-2 ring-inset ring-amber-400 dark:ring-amber-500"
+          : "",
+        !isDragging && !isOverlapping && isGroupHighlighted
+          ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/40 dark:bg-indigo-900/20"
+          : "",
+        !isDragging && !isLocked && !isGroupHighlighted && !isOverlapping
+          ? "hover:bg-slate-50/70 dark:hover:bg-slate-800/20" : "",
       ].join(" ")}
     >
       {/* Drag handle (sticky) */}
@@ -233,12 +293,21 @@ function TimetableTableRow({
         )}
       </td>
 
-      {/* Time (sticky) */}
+      {/* Time (sticky) — highlights amber when overlapping */}
       <td className="sticky left-7 z-10 bg-inherit border-r border-slate-100 dark:border-slate-800 w-[88px] px-2 py-2 align-middle">
-        <div className="flex flex-col gap-0.5 font-mono text-[10px] text-slate-500 dark:text-slate-400">
-          <div>{row.start_time}</div>
+        <div className="flex flex-col gap-0.5 font-mono text-[10px]">
+          {isOverlapping && (
+            <span className="text-[8px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wide flex items-center gap-0.5 mb-0.5">
+              <AlertTriangle className="w-2 h-2 shrink-0" /> Trùng giờ
+            </span>
+          )}
+          <div className={isOverlapping ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-500 dark:text-slate-400"}>
+            {row.start_time}
+          </div>
           <div className="h-px w-full bg-slate-100 dark:bg-slate-800 my-0.5" />
-          <div>{row.end_time}</div>
+          <div className={isOverlapping ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-500 dark:text-slate-400"}>
+            {row.end_time}
+          </div>
         </div>
       </td>
 
@@ -257,13 +326,6 @@ function TimetableTableRow({
           </div>
         </div>
       </td>
-
-      {/* Notes (sticky) */}
-      {visibleCols.includes("notes") && (
-        <td className="sticky left-[223px] z-10 bg-inherit border-r border-slate-100 dark:border-slate-800 w-32 px-2 py-1.5 align-top">
-          <NoteCell row={row} />
-        </td>
-      )}
 
       {/* Weekday cells (T2–T6) */}
       {activeWeekdays.map((d) => {
@@ -315,6 +377,8 @@ export default function TimetablePage() {
   const [visibleCols, setVisibleCols] = useState<string[]>(DEFAULT_VISIBLE);
   const [showAddRowModal, setShowAddRowModal] = useState(false);
   const [editingRow, setEditingRow] = useState<TimetableRow | null>(null);
+  // Track group IDs being dragged for visual highlight on companion rows
+  const [draggedGroupIds, setDraggedGroupIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const handleOpenEdit = (e: any) => {
@@ -351,7 +415,7 @@ export default function TimetablePage() {
   const fetchRows = useCallback(async () => {
     setLoadingRows(true);
     try {
-      const res = await fetch("/api/timetable");
+      const res = await fetch(`/api/timetable?_t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       if (data.rows) setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
     } catch { }
@@ -362,6 +426,10 @@ export default function TimetablePage() {
     setConfig(newConfig);
     setRows([...generatedRows].sort((a, b) => a.order - b.order));
     setShowOnboarding(false);
+    toast.success("Khởi tạo thời khóa biểu thành công! 🎉", {
+      description: "Bản kế hoạch gợi ý từ AI đã được thiết lập. Lưu ý: Lịch trình này chỉ mang tính chất tham khảo, bạn có thể tự do điều chỉnh và tùy biến để phù hợp nhất với nhu cầu sử dụng thực tế.",
+      duration: 6000,
+    });
     if (newConfig.sync_task_manager) {
       try { await fetch("/api/timetable/sync-tasks", { method: "POST" }); fetchRows(); } catch { }
     }
@@ -375,6 +443,18 @@ export default function TimetablePage() {
       toast.success("Đồng bộ task thành công!");
     } catch { toast.error("Đồng bộ thất bại."); }
     setSyncing(false);
+  };
+
+  /** Called by the settings toggle — saves config then auto-syncs when turning ON */
+  const handleSyncToggle = async (enabled: boolean) => {
+    // Optimistically update local config state first
+    setConfig((c) => c ? { ...c, sync_task_manager: enabled } : c);
+    if (enabled) {
+      // Brief delay so the UI reflects the toggle state before the spinner starts
+      setTimeout(() => handleSync(), 50);
+    } else {
+      toast.info("Đã tắt đồng bộ Task Manager.");
+    }
   };
 
   const handleExport = async () => {
@@ -417,6 +497,7 @@ export default function TimetablePage() {
         id: r.id, title: r.title, row_type: r.row_type,
         start_time: r.start_time, end_time: r.end_time,
         is_locked: r.is_locked, order: r.order,
+        description: r.description,
         cells: r.cells.map((c) => ({
           column_name: c.column_name, content: c.content,
           task_ids: c.task_ids, is_deadline: c.is_deadline,
@@ -548,24 +629,94 @@ export default function TimetablePage() {
     toast.success("Đã sắp xếp lại theo thời gian!");
   };
 
+  // ── Group detection: use description as source of truth ─────────────────────
+  // A split focus block is: [Phase 1/2 row] → [break row] → [Phase 2/2 row]
+  // We identify group membership purely from the description field for reliability.
+  const getFocusGroup = useCallback((draggedId: string, currentRows: TimetableRow[]): TimetableRow[] => {
+    const idx = currentRows.findIndex(r => r.id === draggedId);
+    if (idx === -1) return [];
+    const r = currentRows[idx];
+
+    const FOCUS_TYPES = new Set(["focus_peak", "focus_off", "focus_flexible"]);
+
+    const isPhase1 = (row: TimetableRow | undefined): row is TimetableRow =>
+      !!row && FOCUS_TYPES.has(row.row_type) && !!(row.description?.includes("Phase 1/2"));
+
+    const isPhase2 = (row: TimetableRow | undefined): row is TimetableRow =>
+      !!row && FOCUS_TYPES.has(row.row_type) && !!(row.description?.includes("Phase 2/2"));
+
+    const isMidBreak = (row: TimetableRow | undefined): row is TimetableRow =>
+      !!row && row.row_type === "break";
+
+    // Dragging Phase 1 → pull break + phase2 along
+    if (isPhase1(r)) {
+      const brk = currentRows[idx + 1];
+      const ph2 = currentRows[idx + 2];
+      if (isMidBreak(brk) && isPhase2(ph2)) return [r, brk, ph2];
+    }
+
+    // Dragging break that sits between Phase 1 and Phase 2 → pull the whole trio
+    if (isMidBreak(r)) {
+      const ph1 = currentRows[idx - 1];
+      const ph2 = currentRows[idx + 1];
+      if (isPhase1(ph1) && isPhase2(ph2)) return [ph1, r, ph2];
+    }
+
+    // Dragging Phase 2 → pull phase1 + break along
+    if (isPhase2(r)) {
+      const brk = currentRows[idx - 1];
+      const ph1 = currentRows[idx - 2];
+      if (isMidBreak(brk) && isPhase1(ph1)) return [ph1, brk, r];
+    }
+
+    return [r];
+  }, []);
+
+  // Called when drag starts — highlight companion rows immediately
+  const onDragStart = useCallback((start: DragStart) => {
+    const group = getFocusGroup(start.draggableId, rows);
+    if (group.length > 1) {
+      setDraggedGroupIds(new Set(group.map(g => g.id)));
+    }
+  }, [getFocusGroup, rows]);
+
   const onDragEnd = useCallback((result: DropResult) => {
+    // Always clear group highlight when drag ends
+    setDraggedGroupIds(new Set());
+
     if (!result.destination) return;
     const { source, destination, draggableId } = result;
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
-    
+
     const dragged = rows.find((r) => r.id === draggableId);
     if (!dragged || dragged.is_locked) return;
 
-    const midIndex = rows.findIndex(r => r.row_type === "anchor_mid");
-    const mRows = midIndex >= 0 ? rows.slice(0, midIndex + 1) : rows.filter(r => toMins(r.start_time) < toMins("13:30"));
-    const aRows = midIndex >= 0 ? rows.slice(midIndex + 1) : rows.filter(r => toMins(r.start_time) >= toMins("13:30"));
+    // Determine the group that must travel together
+    const group = getFocusGroup(draggableId, rows);
+    const groupIds = new Set(group.map(g => g.id));
 
-    if (source.droppableId === "morning") mRows.splice(source.index, 1);
-    else aRows.splice(source.index, 1);
+    // Use the same section split as the derived morningRows / afternoonRows below,
+    // so indices perfectly align with what @hello-pangea/dnd sees.
+    const midIdx = rows.findIndex(r => r.row_type === "anchor_mid");
+    let mRows = (midIdx >= 0 ? rows.slice(0, midIdx + 1) : rows.filter(r => toMins(r.start_time) < toMins("13:30"))).slice();
+    let aRows = (midIdx >= 0 ? rows.slice(midIdx + 1) : rows.filter(r => toMins(r.start_time) >= toMins("13:30"))).slice();
 
-    if (destination.droppableId === "morning") mRows.splice(destination.index, 0, dragged);
-    else aRows.splice(destination.index, 0, dragged);
+    // Remove the group from whichever section it currently lives in
+    if (source.droppableId === "morning") {
+      mRows = mRows.filter(r => !groupIds.has(r.id));
+    } else {
+      aRows = aRows.filter(r => !groupIds.has(r.id));
+    }
 
+    // Insert the group at the drop destination index
+    // destination.index already accounts for the placeholder row being removed
+    if (destination.droppableId === "morning") {
+      mRows.splice(destination.index, 0, ...group);
+    } else {
+      aRows.splice(destination.index, 0, ...group);
+    }
+
+    // Guard: anchor rows must stay at their fixed positions
     if (mRows.length > 0 && mRows[0].row_type !== "anchor_start") {
       toast.error("Không được kéo lên trên Khởi động.");
       return;
@@ -583,24 +734,27 @@ export default function TimetablePage() {
     const withOrder = newRows.map((r, i) => ({ ...r, order: i }));
     setRows(withOrder);
 
+    // Persist new order — debounced, sends ALL row IDs in the final order
     if (saveOrderTimer.current) clearTimeout(saveOrderTimer.current);
     saveOrderTimer.current = setTimeout(async () => {
-      const freeIds = withOrder.filter((r) => !r.is_locked).map((r) => r.id);
       try {
         await fetch("/api/timetable/reorder", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderedIds: freeIds }),
+          body: JSON.stringify({ orderedIds: withOrder.map(r => r.id) }),
         });
       } catch { toast.error("Không thể lưu thứ tự."); }
     }, 600);
-  }, [rows]);
+  }, [rows, getFocusGroup]);
 
   // ── Derived state ─────────────────────────────────────────────────────────
   const midIndex = rows.findIndex(r => r.row_type === "anchor_mid");
   const morningRows = midIndex >= 0 ? rows.slice(0, midIndex + 1) : rows.filter(r => toMins(r.start_time) < toMins("13:30"));
   const afternoonRows = midIndex >= 0 ? rows.slice(midIndex + 1) : rows.filter(r => toMins(r.start_time) >= toMins("13:30"));
   
+  // Detect rows whose time intervals overlap with at least one other row
+  const overlapIds = useMemo(() => computeOverlapIds(rows), [rows]);
+
   const showWeekend = visibleCols.includes("weekend") || visibleCols.includes("sat") || visibleCols.includes("sun");
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
@@ -614,6 +768,16 @@ export default function TimetablePage() {
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
+      {/* Overlap pulse animation — injected globally */}
+      <style>{`
+        @keyframes overlap-pulse {
+          0%, 100% { background-color: transparent; }
+          40%       { background-color: rgba(251,191,36,0.12); }
+          60%       { background-color: rgba(239,68,68,0.08); }
+        }
+        .overlap-pulse { animation: overlap-pulse 2s ease-in-out infinite; }
+      `}</style>
+
       {showOnboarding && !loadingConfig && (
         <TimetableOnboardingModal onComplete={handleOnboardingComplete} />
       )}
@@ -658,8 +822,10 @@ export default function TimetablePage() {
             <TimetableSettingsPopover
               visibleCols={visibleCols}
               syncTaskManager={config.sync_task_manager}
+              syncing={syncing}
               onColumnsChange={(cols) => setVisibleCols(cols)}
               onSyncChange={(enabled) => setConfig((c) => c ? { ...c, sync_task_manager: enabled } : c)}
+              onSyncToggle={handleSyncToggle}
             />
           )}
           <button onClick={() => setShowAddRowModal(true)}
@@ -696,40 +862,35 @@ export default function TimetablePage() {
             <p className="text-sm">Chưa có thời khóa biểu nào.</p>
           </div>
         ) : (
-          <DragDropContext onDragEnd={onDragEnd}>
+          <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
             <table
               className="border-collapse text-sm bg-white dark:bg-slate-900"
               style={{ width: "100%", tableLayout: "fixed" }}
             >
               {/* colgroup: pin meta widths, weekdays + weekend share the rest */}
               <colgroup>
-                <col style={{ width: 28 }} />   {/* drag */}
-                <col style={{ width: 88 }} />   {/* time */}
-                <col style={{ width: 128 }} />  {/* title */}
-                {visibleCols.includes("notes") && <col style={{ width: 128 }} />}
+                <col style={{ width: 28 }} />
+                <col style={{ width: 88 }} />
+                <col style={{ width: 128 }} />
                 {activeWeekdays.map((d) => <col key={d.key} />)}
-                {/* weekend col is 1.6× a weekday col to accommodate two sub-columns */}
                 {showWeekend && <col style={{ width: "13%" }} />}
               </colgroup>
 
               {/* ── THEAD ─────────────────────────────────────────────── */}
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                  <th className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-700 w-7 px-1 py-2.5 text-center">#</th>
-                  <th className="sticky left-7 z-20 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Khung giờ</th>
-                  <th className="sticky left-[95px] z-20 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Công việc</th>
-                  {visibleCols.includes("notes") && (
-                    <th className="sticky left-[223px] z-20 bg-slate-50 dark:bg-slate-800/80 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Ghi chú</th>
-                  )}
+                <tr className="border-b border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
+                  <th className="sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 w-7 px-1 py-2.5 text-center">#</th>
+                  <th className="sticky top-0 left-7 z-30 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Khung giờ</th>
+                  <th className="sticky top-0 left-[95px] z-30 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Công việc</th>
                   {activeWeekdays.map((d) => (
-                    <th key={d.key} className="border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-center">
+                    <th key={d.key} className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-center">
                       <span className="hidden sm:inline">{d.fullLabel}</span>
                       <span className="sm:hidden">{d.label}</span>
                     </th>
                   ))}
                   {/* Weekend merged header */}
                   {showWeekend && (
-                    <th className="border-r border-slate-200 dark:border-slate-700 px-0 py-0 text-center last:border-r-0">
+                    <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-0 py-0 text-center last:border-r-0">
                       {/* Outer label */}
                       <div className="py-1.5 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                         Cuối tuần
@@ -759,11 +920,20 @@ export default function TimetablePage() {
                     </tr>
                     {morningRows.map((row, index) => {
                       const isBreakRow = row.row_type === "break";
+                      // Highlight companion rows (non-dragged members of the group)
+                      const isGroupHighlighted = draggedGroupIds.size > 1 && draggedGroupIds.has(row.id);
+                      const isOverlapping = overlapIds.has(row.id);
                       return (
                         <Draggable key={row.id} draggableId={row.id} index={index} isDragDisabled={row.is_locked}>
                           {(drag, snap) => (
                             isBreakRow ? (
-                              <BreakRow row={row} provided={drag} colCount={totalColCount} />
+                              <BreakRow
+                                row={row}
+                                provided={drag}
+                                colCount={totalColCount}
+                                isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
+                                isOverlapping={isOverlapping}
+                              />
                             ) : (
                               <TimetableTableRow
                                 row={row}
@@ -775,6 +945,8 @@ export default function TimetablePage() {
                                 onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
                                 showWeekend={showWeekend}
+                                isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
+                                isOverlapping={isOverlapping}
                               />
                             )
                           )}
@@ -801,11 +973,19 @@ export default function TimetablePage() {
                     </tr>
                     {afternoonRows.map((row, index) => {
                       const isBreakRow = row.row_type === "break";
+                      const isGroupHighlighted = draggedGroupIds.size > 1 && draggedGroupIds.has(row.id);
+                      const isOverlapping = overlapIds.has(row.id);
                       return (
                         <Draggable key={row.id} draggableId={row.id} index={index} isDragDisabled={row.is_locked}>
                           {(drag, snap) => (
                             isBreakRow ? (
-                              <BreakRow row={row} provided={drag} colCount={totalColCount} />
+                              <BreakRow
+                                row={row}
+                                provided={drag}
+                                colCount={totalColCount}
+                                isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
+                                isOverlapping={isOverlapping}
+                              />
                             ) : (
                               <TimetableTableRow
                                 row={row}
@@ -817,6 +997,8 @@ export default function TimetablePage() {
                                 onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
                                 showWeekend={showWeekend}
+                                isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
+                                isOverlapping={isOverlapping}
                               />
                             )
                           )}

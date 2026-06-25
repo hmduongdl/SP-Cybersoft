@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
+import { useSession } from "next-auth/react";
 import { Check, Pencil } from "lucide-react";
+import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 import { isPast, parseISO, format } from "date-fns";
 
@@ -15,7 +17,7 @@ const STATUS_MAP = {
 function StatusBadge({ status }: { status: TaskStatus }) {
   const s = STATUS_MAP[status] || STATUS_MAP.TODO;
   return (
-    <span 
+    <span
       className="text-[9px] font-semibold px-2.5 py-1 rounded-full inline-block text-center w-[80px]"
       style={{ background: s.bg, color: s.color }}
     >
@@ -25,43 +27,51 @@ function StatusBadge({ status }: { status: TaskStatus }) {
 }
 
 export function ListView() {
-  const { 
-    tasks: allTasks, 
-    currentWorkspaceId,
-    filterStatus,
-    updateTask, 
-    setSelectedTaskId,
-    selectedTagId
-  } = useTaskStore();
+  const { data: session } = useSession();
+  const allTasks = useTaskStore(s => s.tasks);
+  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
+  const filterStatus = useTaskStore(s => s.filterStatus);
+  const updateTask = useTaskStore(s => s.updateTask);
+  const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
+  const selectedTagId = useTaskStore(s => s.selectedTagId);
+  const tags = useTaskStore(s => s.tags);
 
   const [sortOption, setSortOption] = useState("newest");
+  const currentUserId = session?.user?.id;
 
-  // Filter tasks based on current workspace and selected filter
-  const tasks = allTasks.filter(t => {
-    if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-    
-    if (filterStatus === 'today') {
-      if (!t.due_date) return false;
-      const todayStr = new Date().toISOString().split('T')[0];
-      return t.due_date.startsWith(todayStr);
-    }
-    
-    if (filterStatus === 'upcoming') {
-      if (!t.due_date) return true;
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      if (new Date(t.due_date) < todayStart) return false;
-    }
-    
-    if (selectedTagId) {
-      const hasTag = t.tags?.some(tag => tag.id === selectedTagId) || (t as any).tag?.id === selectedTagId;
-      if (!hasTag) return false;
-    }
-    
-    return true;
-  });
+  // Memoized filter: only recomputes when deps change
+  const tasks = useMemo(() => {
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-  const sortedTasks = [...tasks].sort((a, b) => {
+    return allTasks.filter(t => {
+      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
+
+      if (filterStatus === 'my_tasks') {
+        if (t.assignee_id !== currentUserId) return false;
+      } else if (filterStatus === 'today') {
+        if (!t.due_date) return false;
+        return t.due_date.startsWith(todayStr);
+      } else if (filterStatus === 'upcoming') {
+        if (!t.due_date) return false;
+        const taskDate = t.due_date.substring(0, 10);
+        return taskDate >= todayStr;
+      }
+
+      if (selectedTagId) {
+        const selectedTag = tags.find(tag => tag.id === selectedTagId);
+        if (selectedTag) {
+          const matchName = selectedTag.name.toLowerCase().trim();
+          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
+          if (!hasTag) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allTasks, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+
+  const sortedTasks = useMemo(() => [...tasks].sort((a, b) => {
     if (sortOption === 'newest') {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     }
@@ -76,7 +86,7 @@ export function ListView() {
       return (order[a.status as keyof typeof order] || 0) - (order[b.status as keyof typeof order] || 0);
     }
     return 0;
-  });
+  }), [tasks, sortOption]);
 
   const cycleStatus = (task: any) => {
     let nextStatus: TaskStatus = "TODO";
@@ -159,6 +169,11 @@ export function ListView() {
                   >
                     {isDone && <Check size={11} className="text-success-text stroke-[3]" />}
                   </button>
+                  {task.assignee ? (
+                    <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-6 !h-6 !text-[9px]" />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full border border-dashed border-slate-300 dark:border-slate-600 flex-shrink-0" />
+                  )}
                   <span className={cn(
                     "text-[13px] text-on-surface dark:text-white truncate",
                     isDone && "line-through text-on-muted dark:text-slate-500"

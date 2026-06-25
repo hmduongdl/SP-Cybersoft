@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useTaskStore, Workspace, Tag, FilterStatus } from "@/store/useTaskStore";
 import { useSession, signOut } from "next-auth/react";
-import { ChevronDown, LogOut, CalendarDays, CheckSquare, Plus, Clock, Inbox, Tag as TagIcon } from "lucide-react";
+import { ChevronDown, LogOut, CalendarDays, CheckSquare, Plus, Clock, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -13,6 +13,7 @@ export function Sidebar() {
     currentWorkspace,
     tags,
     filterStatus,
+    selectedTagId,
     setFilter,
     setCurrentWorkspace,
   } = useTaskStore();
@@ -41,6 +42,7 @@ export function Sidebar() {
 
   const filterItems = [
     { id: "all", label: "Tất cả", icon: CheckSquare },
+    { id: "my_tasks", label: "Cá nhân", icon: UserIcon },
     { id: "today", label: "Hôm nay", icon: Clock },
     { id: "upcoming", label: "Sắp tới", icon: CalendarDays },
   ];
@@ -138,15 +140,22 @@ export function Sidebar() {
             THẺ TAG
           </p>
           <div className="flex flex-wrap gap-1.5 px-2">
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                className="text-[10px] font-semibold px-2.5 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
-                style={{ background: `${tag.color}25` || "#6b728025", color: tag.color || "#6b7280" }}
-              >
-                {tag.name}
-              </button>
-            ))}
+            {Array.from(new Map(tags.map(t => [t.name.toLowerCase().trim(), t])).values()).map((tag) => {
+              const isSelected = selectedTagId === tag.id;
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => useTaskStore.getState().setSelectedTagId(isSelected ? null : tag.id)}
+                  className={cn(
+                    "text-[10px] font-semibold px-2.5 py-1 rounded-full cursor-pointer transition-all",
+                    isSelected ? "ring-2 ring-offset-1 opacity-100" : "hover:opacity-80 opacity-70"
+                  )}
+                  style={{ background: `${tag.color}25` || "#6b728025", color: tag.color || "#6b7280" }}
+                >
+                  {tag.name}
+                </button>
+              );
+            })}
           </div>
           <div className="px-2 mt-2">
             {/* Tạo tag button */}
