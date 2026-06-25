@@ -13,6 +13,7 @@ export function MainContent() {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id;
   const tasks = useTaskStore(s => s.tasks);
+  const isTasksLoading = useTaskStore(s => s.isTasksLoading);
   const currentWorkspace = useTaskStore(s => s.currentWorkspace);
   const workspaces = useTaskStore(s => s.workspaces);
   const currentView = useTaskStore(s => s.currentView);
@@ -161,7 +162,15 @@ export function MainContent() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-stretch w-full flex-1 min-h-0">
 
         {/* Left: Kanban / List View */}
-        <div className="col-span-1 lg:col-span-3 min-w-0 w-full h-full flex flex-col bg-transparent rounded-2xl min-h-0">
+        <div className="col-span-1 lg:col-span-3 min-w-0 w-full h-full flex flex-col bg-transparent rounded-2xl min-h-0 relative">
+          {isTasksLoading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-slate-50/60 dark:bg-slate-900/60 rounded-2xl">
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-6 h-6 border-2 border-[#0050cb] border-t-transparent rounded-full animate-spin" />
+                <span className="text-[11px] text-on-muted font-medium">Đang tải...</span>
+              </div>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             {activeView === 'list' && (
               <div className="flex-1 overflow-y-auto min-h-0" key="list">

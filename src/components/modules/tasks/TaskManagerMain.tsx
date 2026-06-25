@@ -14,8 +14,7 @@ export default function TaskManagerMain() {
     isAIChatOpen,
     selectedTaskId,
     fetchWorkspaces,
-    fetchTags,
-    fetchTasks,
+    switchWorkspace,
     currentWorkspaceId
   } = useTaskStore();
 
@@ -25,10 +24,9 @@ export default function TaskManagerMain() {
 
   useEffect(() => {
     if (currentWorkspaceId) {
-      fetchTags(currentWorkspaceId);
-      fetchTasks(currentWorkspaceId);
+      switchWorkspace(currentWorkspaceId);
     }
-  }, [currentWorkspaceId, fetchTags, fetchTasks]);
+  }, [currentWorkspaceId, switchWorkspace]);
 
   return (
     <>

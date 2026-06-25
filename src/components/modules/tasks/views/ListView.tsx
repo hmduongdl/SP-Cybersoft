@@ -29,33 +29,56 @@ function StatusBadge({ status }: { status: TaskStatus }) {
 export function ListView() {
   const { data: session } = useSession();
   const allTasks = useTaskStore(s => s.tasks);
+  const timeFilter = useTaskStore(s => s.timeFilter);
   const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
   const filterStatus = useTaskStore(s => s.filterStatus);
   const updateTask = useTaskStore(s => s.updateTask);
   const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
   const selectedTagId = useTaskStore(s => s.selectedTagId);
   const tags = useTaskStore(s => s.tags);
+  const taskTotal = useTaskStore(s => s.taskTotal);
+  const isLoadingMore = useTaskStore(s => s.isLoadingMore);
+  const loadMoreTasks = useTaskStore(s => s.loadMoreTasks);
 
   const [sortOption, setSortOption] = useState("newest");
   const currentUserId = session?.user?.id;
 
-  // Memoized filter: only recomputes when deps change
   const tasks = useMemo(() => {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    return allTasks.filter(t => {
+    const filtered = allTasks.filter(t => {
+      // 1. Time filter logic
+      if (timeFilter !== "all") {
+        if (timeFilter === "today") {
+          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() !== today.getTime()) return false;
+        } else if (timeFilter === "upcoming") {
+          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() < today.getTime()) return false;
+        }
+      }
+
+      // 2. Workspace logic
       if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
 
+      // 3. Status logic
       if (filterStatus === 'my_tasks') {
         if (t.assignee_id !== currentUserId) return false;
-      } else if (filterStatus === 'today') {
-        if (!t.due_date) return false;
-        return t.due_date.startsWith(todayStr);
-      } else if (filterStatus === 'upcoming') {
-        if (!t.due_date) return false;
-        const taskDate = t.due_date.substring(0, 10);
-        return taskDate >= todayStr;
       }
 
       if (selectedTagId) {
@@ -69,24 +92,41 @@ export function ListView() {
 
       return true;
     });
-  }, [allTasks, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+    return filtered;
+  }, [allTasks, timeFilter, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
 
-  const sortedTasks = useMemo(() => [...tasks].sort((a, b) => {
-    if (sortOption === 'newest') {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  const sortedTasks = useMemo(() => {
+    let currentSort = sortOption;
+    // Tự động chuyển sort sang deadline gần nhất nếu đang xem Sắp tới / Hôm nay
+    if ((timeFilter === 'upcoming' || timeFilter === 'today') && sortOption === 'newest') {
+      currentSort = 'due_date';
     }
-    if (sortOption === 'oldest') {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    }
-    if (sortOption === 'az') {
-      return a.title.localeCompare(b.title);
-    }
-    if (sortOption === 'status') {
-      const order = { "TODO": 1, "IN_PROGRESS": 2, "DONE": 3 };
-      return (order[a.status as keyof typeof order] || 0) - (order[b.status as keyof typeof order] || 0);
-    }
-    return 0;
-  }), [tasks, sortOption]);
+
+    return [...tasks].sort((a, b) => {
+      if (currentSort === 'due_date') {
+        if (a.due_date && b.due_date) {
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        }
+        if (a.due_date && !b.due_date) return -1;
+        if (!a.due_date && b.due_date) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (currentSort === 'newest') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (currentSort === 'oldest') {
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      }
+      if (currentSort === 'az') {
+        return a.title.localeCompare(b.title);
+      }
+      if (currentSort === 'status') {
+        const order = { "TODO": 1, "IN_PROGRESS": 2, "DONE": 3 };
+        return (order[a.status as keyof typeof order] || 0) - (order[b.status as keyof typeof order] || 0);
+      }
+      return 0;
+    });
+  }, [tasks, sortOption, timeFilter]);
 
   const cycleStatus = (task: any) => {
     let nextStatus: TaskStatus = "TODO";
@@ -112,6 +152,7 @@ export function ListView() {
             className="bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none focus:ring-0 text-slate-700 dark:text-slate-200 cursor-pointer"
           >
             <option value="newest">Thứ tự thêm (Mới nhất lên trên)</option>
+            <option value="due_date">Ngày đến hạn (Gần nhất lên trên)</option>
             <option value="oldest">Thứ tự thêm (Cũ nhất lên trên)</option>
             <option value="az">Theo tên (A-Z)</option>
             <option value="status">Trạng thái (Cần làm - Đang làm - Xong)</option>
@@ -219,6 +260,31 @@ export function ListView() {
             );
           })}
         </div>
+
+        {/* Load more */}
+        {sortedTasks.length > 0 && sortedTasks.length < taskTotal && (
+          <div className="flex justify-center py-4 border-t border-slate-100 dark:border-slate-800">
+            <button
+              onClick={loadMoreTasks}
+              disabled={isLoadingMore}
+              className="flex items-center gap-2 px-5 py-2 text-xs font-semibold text-[#0050cb] hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {isLoadingMore ? (
+                <>
+                  <span className="w-3.5 h-3.5 border-2 border-[#0050cb] border-t-transparent rounded-full animate-spin" />
+                  Đang tải...
+                </>
+              ) : (
+                <>
+                  <span>Tải thêm</span>
+                  <span className="text-on-muted font-normal">
+                    ({sortedTasks.length}/{taskTotal})
+                  </span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

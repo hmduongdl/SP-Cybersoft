@@ -10,60 +10,54 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
 
+    // Pagination params
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "100")));
+    const skip = (page - 1) * limit;
+
     let whereClause: any = { is_archived: false };
+
     if (workspaceId && workspaceId !== "ALL") {
-      const reqWs = await db.workspace.findUnique({ where: { id: workspaceId }, select: { name: true }});
-      if (reqWs && ["Tech", "Website", "Web"].includes(reqWs.name)) {
-        const allMatchingWs = await db.workspace.findMany({ where: { name: reqWs.name }, select: { id: true } });
-        whereClause.workspace_id = { in: allMatchingWs.map(w => w.id) };
-      } else {
-        whereClause.workspace_id = workspaceId;
-      }
-    } else {
-      const userWorkspaces = await db.workspace.findMany({ 
-        where: {
-          OR: [
-            { owner_id: session.user.id },
-            { name: { in: ["Tech", "Website", "Web"] } },
-            { collaborators: { some: { user_id: session.user.id } } }
-          ]
-        }, 
-        select: { id: true } 
+      // Quick privacy check first — avoid expensive query if unauthorized
+      const wsInfo = await db.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { is_public: true, owner_id: true }
       });
-      const userWsIds = userWorkspaces.map(w => w.id);
-      whereClause.workspace_id = { in: userWsIds };
+      if (!wsInfo) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+      if (!wsInfo.is_public && wsInfo.owner_id !== session.user.id) {
+        return NextResponse.json({ error: "Private workspace" }, { status: 403 });
+      }
+      whereClause.workspace_id = workspaceId;
+    } else {
+      whereClause.OR = [
+        { workspace: { owner_id: session.user.id, type: "PERSONAL" } },
+        { assignee_id: session.user.id },
+        { creator_id: session.user.id }
+      ];
     }
 
-    const tasks = await db.task.findMany({
-      where: whereClause,
-      include: {
-        tags: true,
-        creator: { select: { name: true, avatar_url: true } },
-        assignee: { select: { id: true, name: true, avatar_url: true } },
-        customProperties: {
-          include: {
-            definition: { select: { id: true, name: true, type: true, options: true } },
+    // Run count + findMany in parallel
+    const [tasks, total] = await Promise.all([
+      db.task.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        include: {
+          tags: true,
+          creator: { select: { name: true, avatar_url: true } },
+          assignee: { select: { id: true, name: true, avatar_url: true } },
+          customProperties: {
+            include: {
+              definition: { select: { id: true, name: true, type: true, options: true } },
+            },
           },
         },
-        workspace: { select: { is_public: true, owner_id: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+        orderBy: { createdAt: 'desc' }
+      }),
+      db.task.count({ where: whereClause }),
+    ]);
 
-    // Check privacy if specific workspace requested
-    if (workspaceId && workspaceId !== "ALL" && tasks.length > 0) {
-      const ws = tasks[0].workspace;
-      if (!ws.is_public && ws.owner_id !== session.user.id) {
-         return NextResponse.json({ error: "Private workspace" }, { status: 403 });
-      }
-    } else if (workspaceId && workspaceId !== "ALL") {
-      const wsInfo = await db.workspace.findUnique({ where: { id: workspaceId }, select: { is_public: true, owner_id: true } });
-      if (wsInfo && !wsInfo.is_public && wsInfo.owner_id !== session.user.id) {
-         return NextResponse.json({ error: "Private workspace" }, { status: 403 });
-      }
-    }
-
-    return NextResponse.json({ tasks });
+    return NextResponse.json({ tasks, total, page, limit });
   } catch (error) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }

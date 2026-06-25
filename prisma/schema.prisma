@@ -32,18 +32,18 @@ model User {
   trust_score           Int                     @default(80)
   is_verified           Boolean                 @default(false)
   quick_note            String?
-  theme                 String?                 @default("system")
   total_auto_approved   Int                     @default(0)
   total_rejected        Int                     @default(0)
+  theme                 String?                 @default("system")
   reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")
   checkins              Checkin[]               @relation("UserCheckins")
   tags                  Tag[]
-  created_tasks         Task[]                  @relation("UserCreatedTasks")
   assigned_tasks        Task[]                  @relation("UserAssignedTasks")
+  created_tasks         Task[]                  @relation("UserCreatedTasks")
+  timetable_rows        TimetableRow[]
+  timetable_config      UserTimetableConfig?
   workspaces            Workspace[]             @relation("UserWorkspaces")
   collaborators         WorkspaceCollaborator[]
-  timetable_config      UserTimetableConfig?
-  timetable_rows        TimetableRow[]
 
   @@index([email])
 }
@@ -99,21 +99,21 @@ model Department {
 }
 
 model Workspace {
-  id                    String                     @id @default(uuid())
-  name                  String
-  description           String?
-  icon                  String?
-  color                 String?
-  owner_id              String
-  createdAt             DateTime                   @default(now())
-  is_default            Boolean                    @default(false)
-  is_public             Boolean                    @default(true)
-  type                  String                     @default("CUSTOM")
-  tags                  Tag[]                      @relation("WorkspaceTags")
-  tasks                 Task[]                     @relation("WorkspaceTasks")
-  owner                 User                       @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
-  collaborators         WorkspaceCollaborator[]
-  customProperties      CustomPropertyDefinition[]
+  id               String                     @id @default(uuid())
+  name             String
+  description      String?
+  icon             String?
+  color            String?
+  owner_id         String
+  createdAt        DateTime                   @default(now())
+  is_default       Boolean                    @default(false)
+  is_public        Boolean                    @default(true)
+  type             String                     @default("CUSTOM")
+  customProperties CustomPropertyDefinition[]
+  tags             Tag[]                      @relation("WorkspaceTags")
+  tasks            Task[]                     @relation("WorkspaceTasks")
+  owner            User                       @relation("UserWorkspaces", fields: [owner_id], references: [id], onDelete: Cascade)
+  collaborators    WorkspaceCollaborator[]
 }
 
 model Tag {
@@ -142,23 +142,23 @@ model WorkspaceCollaborator {
 }
 
 model Task {
-  id           String     @id @default(uuid())
-  title        String
-  description  String?
-  status       TaskStatus @default(TODO)
-  due_date     DateTime?
-  workspace_id String
-  creator_id   String
-  assignee_id  String?
-  is_archived  Boolean    @default(false)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  creator      User       @relation("UserCreatedTasks", fields: [creator_id], references: [id], onDelete: Cascade)
-  assignee     User?      @relation("UserAssignedTasks", fields: [assignee_id], references: [id], onDelete: SetNull)
-  workspace    Workspace  @relation("WorkspaceTasks", fields: [workspace_id], references: [id], onDelete: Cascade)
-  note         TaskNote?
-  tags         Tag[]      @relation("TaskTags")
+  id               String                @id @default(uuid())
+  title            String
+  description      String?
+  status           TaskStatus            @default(TODO)
+  due_date         DateTime?
+  workspace_id     String
+  creator_id       String
+  is_archived      Boolean               @default(false)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  assignee_id      String?
   customProperties CustomPropertyValue[]
+  assignee         User?                 @relation("UserAssignedTasks", fields: [assignee_id], references: [id])
+  creator          User                  @relation("UserCreatedTasks", fields: [creator_id], references: [id], onDelete: Cascade)
+  workspace        Workspace             @relation("WorkspaceTasks", fields: [workspace_id], references: [id], onDelete: Cascade)
+  note             TaskNote?
+  tags             Tag[]                 @relation("TaskTags")
 }
 
 model TaskNote {
@@ -181,6 +181,77 @@ model SystemStatus {
   id             String   @id @default(uuid())
   is_maintenance Boolean  @default(false)
   updatedAt      DateTime @updatedAt
+}
+
+model CustomPropertyDefinition {
+  id           String                @id @default(uuid())
+  workspace_id String
+  name         String
+  type         CustomPropertyType
+  options      Json?
+  created_at   DateTime              @default(now())
+  workspace    Workspace             @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+  values       CustomPropertyValue[]
+
+  @@unique([workspace_id, name])
+}
+
+model CustomPropertyValue {
+  id            String                   @id @default(uuid())
+  task_id       String
+  definition_id String
+  value_text    String?
+  value_number  Float?
+  value_boolean Boolean?
+  value_date    DateTime?
+  definition    CustomPropertyDefinition @relation(fields: [definition_id], references: [id], onDelete: Cascade)
+  task          Task                     @relation(fields: [task_id], references: [id], onDelete: Cascade)
+
+  @@unique([task_id, definition_id])
+}
+
+model UserTimetableConfig {
+  id                 String   @id @default(uuid())
+  user_id            String   @unique
+  max_focus_time     Int      @default(120)
+  is_job_flexible    Boolean  @default(false)
+  best_energy_time   String   @default("morning")
+  best_learning_time String   @default("morning")
+  max_learning_time  Int      @default(60)
+  sync_task_manager  Boolean  @default(false)
+  visible_columns    Json?
+  is_onboarded       Boolean  @default(false)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  user               User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model TimetableRow {
+  id         String          @id @default(uuid())
+  user_id    String
+  title      String
+  row_type   String          @default("custom")
+  start_time String
+  end_time   String
+  order      Int
+  is_fixed   Boolean         @default(false)
+  is_locked  Boolean         @default(false)
+  created_at DateTime        @default(now())
+  updated_at DateTime        @updatedAt
+  cells      TimetableCell[]
+  user       User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+}
+
+model TimetableCell {
+  id          String       @id @default(uuid())
+  row_id      String
+  column_name String
+  content     Json?
+  task_ids    Json?
+  is_deadline Boolean      @default(false)
+  row         TimetableRow @relation(fields: [row_id], references: [id], onDelete: Cascade)
+
+  @@unique([row_id, column_name])
 }
 
 enum UserRole {
@@ -219,82 +290,4 @@ enum CustomPropertyType {
   URL
   EMAIL
   PHONE
-}
-
-model CustomPropertyDefinition {
-  id           String               @id @default(uuid())
-  workspace_id String
-  name         String               // Tên thuộc tính (Ví dụ: "Ngân sách", "Link Figma")
-  type         CustomPropertyType
-  options      Json?                // Danh sách lựa chọn dạng ["Option A", "Option B"] (chỉ dùng cho SELECT/MULTI_SELECT)
-  created_at   DateTime             @default(now())
-
-  workspace    Workspace            @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
-  values       CustomPropertyValue[]
-
-  @@unique([workspace_id, name]) // Tránh tạo trùng tên thuộc tính trong cùng 1 Workspace
-}
-
-model CustomPropertyValue {
-  id            String                   @id @default(uuid())
-  task_id       String
-  definition_id String
-
-  // Lưu trữ giá trị thô hoặc chuỗi JSON tùy thuộc vào Type
-  value_text    String?                  @db.Text
-  value_number  Float?
-  value_boolean Boolean?
-  value_date    DateTime?
-
-  task          Task                     @relation(fields: [task_id], references: [id], onDelete: Cascade)
-  definition    CustomPropertyDefinition @relation(fields: [definition_id], references: [id], onDelete: Cascade)
-
-  @@unique([task_id, definition_id]) // Một task chỉ có duy nhất 1 ô nhập liệu cho 1 thuộc tính
-}
-
-model UserTimetableConfig {
-  id                 String   @id @default(uuid())
-  user_id            String   @unique
-  max_focus_time     Int      @default(120) // in minutes
-  is_job_flexible    Boolean  @default(false)
-  best_energy_time   String   @default("morning") // morning, afternoon
-  best_learning_time String   @default("morning") // morning, noon, afternoon, evening
-  max_learning_time  Int      @default(60) // in minutes
-  sync_task_manager  Boolean  @default(false)
-  visible_columns    Json?    // list of visible columns
-  is_onboarded       Boolean  @default(false)
-  created_at         DateTime @default(now())
-  updated_at         DateTime @updatedAt
-
-  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model TimetableRow {
-  id           String          @id @default(uuid())
-  user_id      String
-  title        String          // display name e.g. "Khởi động"
-  row_type     String          @default("custom") // anchor_start | anchor_mid | anchor_end | focus | learning | custom
-  start_time   String          // e.g. "08:00"
-  end_time     String          // e.g. "10:00"
-  order        Int             // for drag and drop sorting
-  is_fixed     Boolean         @default(false) // deprecated, use is_locked
-  is_locked    Boolean         @default(false) // user cannot move or delete these rows
-  created_at   DateTime        @default(now())
-  updated_at   DateTime        @updatedAt
-
-  user  User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  cells TimetableCell[]
-}
-
-model TimetableCell {
-  id           String   @id @default(uuid())
-  row_id       String
-  column_name  String   // "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun" | "notes" | "tasks"
-  content      Json?    // String[] of task titles / notes for this cell
-  task_ids     Json?    // String[] of Task.id references synced from Task Manager
-  is_deadline  Boolean  @default(false) // true when a task with that deadline lands on this exact day
-
-  row TimetableRow @relation(fields: [row_id], references: [id], onDelete: Cascade)
-
-  @@unique([row_id, column_name])
 }

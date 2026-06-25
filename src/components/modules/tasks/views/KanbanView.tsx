@@ -19,6 +19,7 @@ const COLS = [
 export function KanbanView() {
   const { data: session } = useSession();
   const allTasks = useTaskStore(s => s.tasks);
+  const timeFilter = useTaskStore(s => s.timeFilter);
   const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
   const filterStatus = useTaskStore(s => s.filterStatus);
   const updateTask = useTaskStore(s => s.updateTask);
@@ -29,23 +30,42 @@ export function KanbanView() {
 
   const currentUserId = session?.user?.id;
 
-  // Memoized filter: only recomputes when deps change
   const tasks = useMemo(() => {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-    return allTasks.filter(t => {
+    const filtered = allTasks.filter(t => {
+      // 1. Time filter logic
+      if (timeFilter !== "all") {
+        if (timeFilter === "today") {
+          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() !== today.getTime()) return false;
+        } else if (timeFilter === "upcoming") {
+          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() < today.getTime()) return false;
+        }
+      }
+
+      // 2. Workspace logic
       if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
 
+      // 3. Status logic
       if (filterStatus === 'my_tasks') {
         if (t.assignee_id !== currentUserId) return false;
-      } else if (filterStatus === 'today') {
-        if (!t.due_date) return false;
-        return t.due_date.startsWith(todayStr);
-      } else if (filterStatus === 'upcoming') {
-        if (!t.due_date) return false;
-        const taskDate = t.due_date.substring(0, 10);
-        return taskDate >= todayStr;
       }
 
       if (selectedTagId) {
@@ -59,7 +79,17 @@ export function KanbanView() {
 
       return true;
     });
-  }, [allTasks, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+
+    // Cải thiện logic sắp xếp: ưu tiên task có deadline gần nhất lên trên
+    return filtered.sort((a, b) => {
+      if (a.due_date && b.due_date) {
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      }
+      if (a.due_date && !b.due_date) return -1; // Task có hạn lên trước
+      if (!a.due_date && b.due_date) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Fallback mới nhất
+    });
+  }, [allTasks, timeFilter, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
 
   // Memoize column groups to avoid 3 filter calls per render
   const columnTasksMap = useMemo(() => {

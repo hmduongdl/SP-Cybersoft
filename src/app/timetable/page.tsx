@@ -379,6 +379,8 @@ export default function TimetablePage() {
   const [editingRow, setEditingRow] = useState<TimetableRow | null>(null);
   // Track group IDs being dragged for visual highlight on companion rows
   const [draggedGroupIds, setDraggedGroupIds] = useState<Set<string>>(new Set());
+  // Track whether there are unsaved changes
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     const handleOpenEdit = (e: any) => {
@@ -388,6 +390,17 @@ export default function TimetablePage() {
     return () => window.removeEventListener('openEditRowModal', handleOpenEdit);
   }, []);
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Unsaved-changes guard — warn before closing/navigating away ────────────
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      e.preventDefault();
+      e.returnValue = "Bạn có thay đổi chưa được lưu. Bạn có chắc chắn muốn rời trang?";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
 
   // ── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -426,6 +439,7 @@ export default function TimetablePage() {
     setConfig(newConfig);
     setRows([...generatedRows].sort((a, b) => a.order - b.order));
     setShowOnboarding(false);
+    setIsDirty(false); // Fresh generation is already saved
     toast.success("Khởi tạo thời khóa biểu thành công! 🎉", {
       description: "Bản kế hoạch gợi ý từ AI đã được thiết lập. Lưu ý: Lịch trình này chỉ mang tính chất tham khảo, bạn có thể tự do điều chỉnh và tùy biến để phù hợp nhất với nhu cầu sử dụng thực tế.",
       duration: 6000,
@@ -492,6 +506,19 @@ export default function TimetablePage() {
       return;
     }
 
+    // Warn about overlapping rows before saving
+    const currentOverlaps = computeOverlapIds(rows);
+    if (currentOverlaps.size > 0) {
+      const overlapTitles = rows
+        .filter(r => currentOverlaps.has(r.id))
+        .map(r => `• ${r.title} (${r.start_time}–${r.end_time})`)
+        .join("\n");
+      const confirmed = window.confirm(
+        `⚠️ Bảng có ${currentOverlaps.size} hàng bị trùng khung giờ:\n\n${overlapTitles}\n\nBạn có muốn tiếp tục lưu không?`
+      );
+      if (!confirmed) return;
+    }
+
     const payload = {
       rows: rows.map((r) => ({
         id: r.id, title: r.title, row_type: r.row_type,
@@ -514,6 +541,7 @@ export default function TimetablePage() {
       if (!res.ok) { const err = await res.json(); toast.error(err.error ?? "Lưu thất bại."); return; }
       const data = await res.json();
       setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
+      setIsDirty(false);
       toast.success("Đã lưu thời khóa biểu! 💾");
     } catch { toast.error("Không thể kết nối server. Vui lòng thử lại."); }
   };
@@ -552,6 +580,7 @@ export default function TimetablePage() {
         return next.sort((a, b) => a.order - b.order);
       });
       toast.success("Thêm công việc thành công!");
+      setIsDirty(true);
       fetchRows(); // Ensure exact order sync
     } catch (e: any) { 
       toast.error(e.message ?? "Không thể thêm công việc."); 
@@ -567,6 +596,7 @@ export default function TimetablePage() {
       });
       if (!res.ok) throw new Error();
       toast.success("Cập nhật công việc thành công!");
+      setIsDirty(true);
       fetchRows();
     } catch {
       toast.error("Không thể cập nhật công việc.");
@@ -577,6 +607,7 @@ export default function TimetablePage() {
     const row = rows.find((r) => r.id === id);
     if (row?.is_locked) return;
     setRows((prev) => prev.filter((r) => r.id !== id));
+    setIsDirty(true);
     try {
       const res = await fetch(`/api/timetable/rows/${id}`, { method: "DELETE" });
       if (!res.ok) { fetchRows(); toast.error("Xóa thất bại."); }
@@ -584,6 +615,7 @@ export default function TimetablePage() {
   };
 
   const handleCellChange = (rowId: string, colKey: string, items: string[]) => {
+    setIsDirty(true);
     setRows((prev) =>
       prev.map((r) =>
         r.id !== rowId ? r : {
@@ -595,10 +627,12 @@ export default function TimetablePage() {
   };
 
   const handleTitleChange = (rowId: string, title: string) => {
+    setIsDirty(true);
     setRows((prev) => prev.map((r) => r.id !== rowId ? r : { ...r, title }));
   };
 
   const handleTimeChange = (rowId: string, start_time: string, end_time: string) => {
+    setIsDirty(true);
     setRows((prev) => prev.map((r) => r.id !== rowId ? r : { ...r, start_time, end_time }));
   };
 
@@ -790,7 +824,19 @@ export default function TimetablePage() {
         onDelete={handleDeleteRow}
       />
 
-      {/* ── Header ─────────────────────────────────────────────────────── */}
+      {/* ── Header ───────────────────────────────────────────── */}
+      {isDirty && (
+        <div className="sticky top-0 z-40 bg-amber-400/95 dark:bg-amber-600/95 backdrop-blur-sm px-4 py-1.5 flex items-center gap-2 text-amber-950 dark:text-amber-50 text-[11px] font-medium shrink-0">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+          <span>Bạn có thay đổi chưa được lưu. Hãy nhấn <strong>“Lưu thời khóa biểu”</strong> trước khi rời trang.</span>
+          <button
+            onClick={validateAndSave}
+            className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md bg-amber-900/20 hover:bg-amber-900/30 text-amber-950 dark:text-amber-50 font-semibold transition-colors"
+          >
+            Lưu ngay
+          </button>
+        </div>
+      )}
       <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-5 py-3 flex items-center justify-between gap-4 shrink-0">
         <div className="min-w-0">
           <nav className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-600 mb-0.5">
@@ -844,7 +890,14 @@ export default function TimetablePage() {
             Tạo lại
           </button>
           <button onClick={validateAndSave}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all">
+            className={[
+              "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold shadow-sm transition-all relative",
+              isDirty
+                ? "bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 dark:ring-amber-700 animate-pulse"
+                : "bg-indigo-600 hover:bg-indigo-700 text-white",
+            ].join(" ")}
+          >
+            {isDirty && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-950" />}
             Lưu thời khóa biểu
           </button>
         </div>
