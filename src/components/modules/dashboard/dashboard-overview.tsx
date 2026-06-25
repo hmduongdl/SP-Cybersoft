@@ -559,7 +559,7 @@ export function DashboardOverview({
             </div>
           </div>
 
-          {/* AI Scan Assistant */}
+          {/* Timetable & AI Studio */}
           <div className="bg-[#FAFAFA] dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-6 shadow-ambient dark:shadow-none">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center shrink-0">
@@ -567,65 +567,19 @@ export function DashboardOverview({
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-manrope text-[16px] font-bold text-on-surface">
-                  AI CHAT ĐÃ TRỞ LẠI VÀ LỢI HẠI HƠN XƯA!
+                  THỜI GIAN BIỂU & AI STUDIO ĐÃ SẴN SÀNG!
                 </h3>
                 <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
-                  Hiện nay, AI Scan Assistant đã được nâng cấp với khả năng phân tích nội dung bài viết, gợi ý cải thiện chất lượng và tối ưu hóa SEO. Hãy trải nghiệm ngay để nâng cao hiệu quả công việc của bạn!
+                  <strong>Thời gian biểu</strong> — Công cụ quản lý lịch làm việc trực quan, hỗ trợ kéo thả, tự động lưu và xuất Excel. Sắp xếp công việc theo tuần dễ dàng hơn bao giờ hết!
                 </p>
                 <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
-                  Bạn có thể truy cập AI Scan Assistant thông qua trang quản lý bài viết hoặc từ thanh công cụ trên dashboard.
+                  <strong>AI Studio</strong> — Bộ công cụ SEO thông minh: viết bài chuẩn SEO, tạo bảng spec, tóm tắt nội dung tự động. Tối ưu hóa nội dung nhanh chóng với sự trợ giúp của AI.
+                </p>
+                <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
+                  Truy cập ngay từ thanh menu bên trái để trải nghiệm!
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Truy cập nhanh */}
-          <div className="space-y-3">
-            <h2 className="font-manrope text-headline-md font-bold text-on-surface">
-              Truy cập nhanh
-            </h2>
-
-            {/* Task Manager Card */}
-            <Link
-              href="/tasks"
-              className="block bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-5 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0">
-                  <LayoutDashboard className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-inter text-[14px] font-bold text-on-surface dark:text-slate-100 group-hover:text-emerald-600 transition-colors">
-                    Task Manager
-                  </p>
-                  <p className="text-[12px] text-on-surface-variant font-inter">
-                    Quản lý công việc, nhiệm vụ và lọc theo thẻ
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-emerald-500 transition-colors shrink-0" />
-              </div>
-            </Link>
-
-            {/* SEO Tools Card */}
-            <Link
-              href="/seo-tools"
-              className="block bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-5 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all duration-150 group"
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <TrendingUp className="w-5 h-5 text-amber-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-inter text-[14px] font-bold text-on-surface dark:text-slate-100">
-                    SEO Tools
-                  </p>
-                  <p className="text-[12px] text-on-surface-variant font-inter">
-                    Phân tích meta tags và tối ưu SEO
-                  </p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-amber-500 transition-colors shrink-0" />
-              </div>
-            </Link>
           </div>
         </div>
       </div>
