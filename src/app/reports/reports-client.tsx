@@ -263,6 +263,7 @@ export default function ReportsClient({ checkins }: Props) {
                           <img
                             src={item.imageUrl}
                             alt="Check-in"
+                            referrerPolicy="no-referrer"
                             className="w-full h-full object-cover transition-all duration-150"
                             onClick={() => setSelectedImage(item.imageUrl)}
                           />
@@ -398,6 +399,7 @@ export default function ReportsClient({ checkins }: Props) {
             <img
               src={selectedImage}
               alt="Bản xem trước kích thước đầy đủ"
+              referrerPolicy="no-referrer"
               className="w-full h-auto max-h-[80vh] object-contain rounded-xl"
             />
           </div>

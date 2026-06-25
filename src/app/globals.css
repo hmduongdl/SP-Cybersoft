@@ -614,6 +614,8 @@
 
 .task-detail-editor .bn-root {
   --bn-colors-editor-background: transparent;
+  --bn-colors-editor-text: #0f172a;
+  --bn-colors-side-menu: #64748b;
 }
 
 .dark .task-detail-editor .bn-root {

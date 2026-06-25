@@ -2,46 +2,15 @@
 
 import React, { useState, useMemo } from "react";
 import { useTaskStore } from "@/store/useTaskStore";
-import { useSession } from "next-auth/react";
+import { useFilteredTasks } from "@/hooks/useFilteredTasks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { clsx } from "clsx";
 
 export function CalendarView() {
-  const { data: session } = useSession();
-  const allTasks = useTaskStore(s => s.tasks);
-  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
-  const filterStatus = useTaskStore(s => s.filterStatus);
   const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
+  const tasks = useFilteredTasks();
 
-  const currentUserId = session?.user?.id;
-
-  // Memoized filter
-  const tasks = useMemo(() => {
-    const now = new Date();
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-    return allTasks.filter(t => {
-      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-
-      if (filterStatus === 'my_tasks') {
-        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
-        const isCreator = t.creator_id === currentUserId;
-        if (!isAssigned && !isCreator) return false;
-      } else if (filterStatus === 'today') {
-        if (!t.due_date) return false;
-        return t.due_date.startsWith(todayStr);
-      } else if (filterStatus === 'upcoming') {
-        if (!t.due_date) return false;
-        const taskDate = t.due_date.substring(0, 10);
-        return taskDate >= todayStr;
-      }
-
-      return true;
-    });
-  }, [allTasks, currentWorkspaceId, filterStatus, currentUserId]);
-
-  // Build day-to-tasks map once instead of filtering per day cell
   const tasksByDate = useMemo(() => {
     const map: Record<string, typeof tasks> = {};
     for (const t of tasks) {
@@ -58,20 +27,16 @@ export function CalendarView() {
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
-  // Handle month navigation
   const prevMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   const nextMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   const goToToday = () => setCurrentDate(new Date());
 
-  // Generate calendar grid array
   const blanks = Array.from({ length: firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1 }, (_, i) => i);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
   const monthYearStr = `Tháng ${currentDate.getMonth() + 1} Năm ${currentDate.getFullYear()}`;
 
   return (
     <div className="flex flex-col h-full min-h-[600px] font-inter">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-[24px] font-semibold text-on-surface font-manrope">
           {monthYearStr}
@@ -89,7 +54,6 @@ export function CalendarView() {
         </div>
       </div>
 
-      {/* Grid Header */}
       <div className="grid grid-cols-7 mb-2">
         {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => (
           <div key={day} className="text-center text-[11px] font-bold text-on-muted uppercase tracking-wider py-2">
@@ -98,12 +62,11 @@ export function CalendarView() {
         ))}
       </div>
 
-      {/* Grid Body using gap-[1px] bg-surface-mid for borderless grid effect */}
       <div className="grid grid-cols-7 flex-1 bg-surface-mid gap-[1px] overflow-hidden rounded-2xl">
         {blanks.map((blank) => (
           <div key={`blank-${blank}`} className="min-h-[110px] bg-surface-low/40" />
         ))}
-        {days.map((day, index) => {
+        {days.map((day) => {
           const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toISOString().split('T')[0];
           const dayTasks = tasksByDate[dateStr] || [];
           const isToday = new Date().toISOString().split('T')[0] === dateStr;

@@ -343,6 +343,7 @@ export function AccountModal({ isOpen, onClose }: AccountModalProps) {
                     <img
                       src={avatarUrl}
                       alt="Avatar"
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         (e.target as HTMLImageElement).style.display = "none";

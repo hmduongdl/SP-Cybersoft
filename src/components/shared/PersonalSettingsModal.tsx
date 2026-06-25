@@ -210,7 +210,7 @@ const ProfileTab = React.memo(function ProfileTab({ onClose }: { onClose: () => 
         >
           <div className="w-16 h-16 rounded-full overflow-hidden ring-2 ring-indigo-500/10 ring-offset-2 ring-offset-white dark:ring-offset-slate-900 bg-slate-100 dark:bg-slate-800">
             {previewUrl || avatarUrl ? (
-              <img src={previewUrl || avatarUrl || ""} alt="" className="w-full h-full object-cover" />
+              <img src={previewUrl || avatarUrl || ""} alt="" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
             ) : (
               <UserAvatar name={name || null} size="lg" className="w-full h-full" />
             )}

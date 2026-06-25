@@ -18,7 +18,7 @@ export function Sidebar() {
   const router = useRouter();
   const { sidebarOpen, setSidebarOpen, sidebarCollapsed, setSidebarCollapsed, isOpenPersonalSettings, setOpenPersonalSettings } = useLayout();
   const { data: session, status } = useSession();
-  const { filterStatus, setFilter, currentWorkspaceId } = useTaskStore();
+  const { activeFilter, setActiveFilter } = useTaskStore();
   
   // Local profile state to display up-to-date data
   const [profile, setProfile] = useState<any>(null);
@@ -200,16 +200,20 @@ export function Sidebar() {
                               <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Lọc công việc</p>
                               <div className="flex flex-col gap-1.5">
                                 <button 
-                                  onClick={() => setFilter('all')}
-                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'all' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
+                                  onClick={() => setActiveFilter('my_tasks')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'my_tasks' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
+                                >Việc của tôi</button>
+                                <button 
+                                  onClick={() => setActiveFilter('all')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'all' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Tất cả</button>
                                 <button 
-                                  onClick={() => setFilter('today')}
-                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'today' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
+                                  onClick={() => setActiveFilter('today')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'today' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Hôm nay</button>
                                 <button 
-                                  onClick={() => setFilter('upcoming')}
-                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'upcoming' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
+                                  onClick={() => setActiveFilter('upcoming')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'upcoming' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Sắp tới</button>
                               </div>
                             </div>

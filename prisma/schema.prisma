@@ -31,6 +31,9 @@ model User {
   quick_note            String?
   total_auto_approved   Int                     @default(0)
   total_rejected        Int                     @default(0)
+  hope_stars            Int                     @default(0)
+  used_stars_this_month Int                     @default(0)
+  last_star_reset_at    DateTime?
   theme                 String?                 @default("system")
   reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")
   checkins              Checkin[]               @relation("UserCheckins")
@@ -75,6 +78,9 @@ model Checkin {
   ai_analysis_reason    String?
   ai_extracted_title    String?
   ai_extracted_username String?
+  image_phash           String?
+  ai_is_facebook_ui     Boolean?
+  ai_is_public_mode     Boolean?
   post                  Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
   reviewer              User?         @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])
   user                  User          @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)

@@ -36,6 +36,13 @@ interface DashboardPost {
   url: string;
 }
 
+export interface DashboardTask {
+  id: string;
+  title: string;
+  due_date: string;
+  status: string;
+}
+
 interface DashboardOverviewProps {
   userName: string;
   pendingCount: number;
@@ -44,6 +51,7 @@ interface DashboardOverviewProps {
   trustScore: number;
   activityFeed: ActivityFeedItem[];
   dashboardPosts: DashboardPost[];
+  dashboardTasks?: DashboardTask[];
 }
 
 function timeAgo(dateString: string) {
@@ -139,6 +147,7 @@ function DashboardPostThumbnail({ src, alt }: { src: string | null; alt: string 
     <img
       src={src}
       alt={alt}
+      referrerPolicy="no-referrer"
       className="w-full h-full object-cover"
       onError={() => setFailed(true)}
     />
@@ -154,6 +163,7 @@ export function DashboardOverview({
   trustScore,
   activityFeed,
   dashboardPosts,
+  dashboardTasks = [],
 }: DashboardOverviewProps) {
   const now = new Date();
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
@@ -395,8 +405,33 @@ export function DashboardOverview({
               </Link>
             </div>
 
-            {monthlyDashboardPosts.length > 0 ? (
+            {(monthlyDashboardPosts.length > 0 || (dashboardTasks && dashboardTasks.length > 0)) ? (
               <div className="space-y-3">
+                {dashboardTasks && dashboardTasks.map(task => (
+                  <Link
+                    key={task.id}
+                    href={`/tasks?taskId=${task.id}`}
+                    className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-4 flex items-center gap-4 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all cursor-pointer group"
+                  >
+                    <div className="w-14 h-14 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 overflow-hidden shrink-0 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-indigo-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-inter text-[15px] font-bold text-on-surface dark:text-white truncate group-hover:text-primary transition-colors">
+                        {task.title}
+                      </p>
+                      <p className="text-[13px] text-on-surface-variant mt-0.5">
+                        {task.status === 'TODO' ? 'Cần làm' : 'Đang làm'}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 text-[11px] font-bold rounded-full">
+                        <Clock className="w-3 h-3" />
+                        {new Date(task.due_date) < new Date() ? 'Quá hạn' : 'Hôm nay'}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
                 {monthlyDashboardPosts.map((post) => (
                   <Link
                     key={post.id}

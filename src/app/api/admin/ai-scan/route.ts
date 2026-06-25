@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import fs from "fs";
 import path from "path";
 import { aibox, MODEL_VISION_ONLY } from "@/lib/aibox";
+import { runVisionCheck } from "@/lib/ai-vision-check";
 
 export const dynamic = "force-dynamic";
 
@@ -91,79 +92,50 @@ export async function POST(request: Request) {
 
     if (base64Image) {
       try {
-        // BƯỚC 1: Gemini đọc ảnh và trích xuất thông tin
-        const geminiResponse = await aibox.chat.completions.create({
-          model: MODEL_VISION_ONLY,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Hãy đọc hình ảnh screenshot này và trích xuất các thông tin sau:
-1. Tên của người dùng đã chia sẻ bài viết (tên hiển thị trên Facebook/Mạng xã hội).
-2. Tiêu đề hoặc nội dung của bài viết được chia sẻ trong ảnh.
-Trả về JSON định dạng: { "extracted_username": "tên người chia sẻ", "extracted_title": "tiêu đề bài viết" }`
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mimeType};base64,${base64Image}`
-                  }
-                }
-              ]
-            }
-          ],
-          response_format: { type: "json_object" }
-        });
-
-        const extractedText = geminiResponse.choices[0]?.message?.content || "{}";
-        const extractedData = JSON.parse(extractedText);
-
-        extractedUsername = extractedData.extracted_username || null;
-        extractedTitle = extractedData.extracted_title || null;
-
-        console.log("AI Scan - Extracted Data from Gemini:", extractedData);
-
-        // BƯỚC 2: Model khác đánh giá dữ liệu trích xuất
+        // Dùng module dùng chung runVisionCheck (2-bước: Gemini + Flash)
+        // Bao gồm validation: tên, tiêu đề, chế độ công khai, giao diện FB thật
         const expectedName = checkin.user.name || checkin.user.username;
         const expectedTitle = checkin.post.title;
         const expectedUrl = checkin.post.url;
 
-        // Import MODEL_CHAT_FLASH
-        const { MODEL_CHAT_FLASH } = await import("@/lib/aibox");
-
-        const decisionResponse = await aibox.chat.completions.create({
-          model: MODEL_CHAT_FLASH,
-          messages: [
-            {
-              role: "system",
-              content: `Bạn là trợ lý ảo kiểm duyệt minh chứng bài viết mạng xã hội.
-Thông tin dự kiến (Expected):
-- Tên nhân viên: '${expectedName}'
-- Tiêu đề bài viết cần share: '${expectedTitle}'
-- Link bài viết: '${expectedUrl}'
-
-Thông tin AI đọc được từ ảnh (Extracted by Vision Model):
-- Tên người chia sẻ bài trong ảnh: '${extractedData.extracted_username || "Không rõ"}'
-- Tiêu đề/Nội dung bài viết trong ảnh: '${extractedData.extracted_title || "Không rõ"}'
-
-Nhiệm vụ:
-Hãy đánh giá xem thông tin trích xuất từ ảnh có ĐỦ khớp với thông tin dự kiến hay không. 
-(Ghi chú: Tên người chia sẻ trên ảnh không nhất thiết phải giống hệt 100% tên nhân viên, nhưng phải có nét tương đồng hoặc hợp lý. Tiêu đề bài viết trong ảnh phải giống hoặc liên quan chặt chẽ đến bài viết cần share).
-Trả về JSON định dạng: { "isValid": boolean, "confidence": number (0-100), "reason": "Lý do chi tiết" }`
-            }
-          ],
-          response_format: { type: "json_object" }
+        const visionResult = await runVisionCheck({
+          base64Image,
+          mimeType,
+          expectedName,
+          expectedTitle,
+          expectedUrl,
         });
 
-        const decisionText = decisionResponse.choices[0]?.message?.content || "{}";
-        const decisionData = JSON.parse(decisionText);
-        
-        isValid = decisionData.isValid;
-        confidence = decisionData.confidence;
-        reason = decisionData.reason || decisionData.analysisReason || "";
-        
+        isValid = visionResult.isValid;
+        confidence = Math.round(visionResult.confidence * 100);
+        reason = visionResult.reason;
+        extractedUsername = visionResult.extractedUsername;
+        extractedTitle = visionResult.extractedTitle;
+
+        console.log("AI Scan - Vision Result:", {
+          isValid, confidence, reason,
+          isFacebookUI: visionResult.isFacebookUI,
+          isPublicMode: visionResult.isPublicMode,
+        });
+
+        // Nếu không công khai hoặc giao diện nghi ngờ → đánh dấu thêm vào reason
+        if (!visionResult.isPublicMode && isValid) {
+          reason = `[Cảnh báo: Không hiển thị chế độ Công khai] ${reason}`;
+        }
+        if (!visionResult.isFacebookUI) {
+          isValid = false;
+          reason = `[Cảnh báo: Giao diện nghi ngờ giả mạo] ${reason}`;
+        }
+
+        // Lưu thêm 2 field mới
+        await db.checkin.update({
+          where: { id: checkin.id },
+          data: {
+            ai_is_facebook_ui: visionResult.isFacebookUI,
+            ai_is_public_mode: visionResult.isPublicMode,
+          },
+        });
+
       } catch (apiError) {
         console.error("AI Workflow failed, falling back to mock:", apiError);
       }
@@ -189,7 +161,8 @@ Trả về JSON định dạng: { "isValid": boolean, "confidence": number (0-10
         ai_extracted_username: extractedUsername,
         ai_extracted_title: extractedTitle,
         ai_analysis_reason: reason,
-        reject_reason: !isValid ? `[AI Scan] ${reason}` : null
+        reject_reason: !isValid ? `[AI Scan] ${reason}` : null,
+        // Các field mới từ vision check (chỉ update nếu chưa có từ inline scan)
       },
     });
 

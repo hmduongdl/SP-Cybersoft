@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useTaskStore, Workspace, Tag, FilterStatus } from "@/store/useTaskStore";
+import { useTaskStore, TaskFilter } from "@/store/useTaskStore";
 import { useSession, signOut } from "next-auth/react";
 import { ChevronDown, LogOut, CalendarDays, CheckSquare, Plus, Clock, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,12 +12,10 @@ export function Sidebar() {
     workspaces,
     currentWorkspace,
     tags,
-    filterStatus,
-    timeFilter,
+    activeFilter,
     selectedTagId,
     isTasksLoading,
-    setFilter,
-    setTimeFilter,
+    setActiveFilter,
     setSelectedTagId,
     switchWorkspace,
   } = useTaskStore();
@@ -49,9 +47,9 @@ export function Sidebar() {
 
   const logout = () => signOut({ callbackUrl: "/login" });
 
-  const filterItems = [
+  const filterItems: { id: TaskFilter; label: string; icon: typeof CheckSquare }[] = [
     { id: "all", label: "Tất cả", icon: CheckSquare },
-    { id: "my_tasks", label: "Cá nhân", icon: UserIcon },
+    { id: "my_tasks", label: "Việc của tôi", icon: UserIcon },
     { id: "today", label: "Hôm nay", icon: Clock },
     { id: "upcoming", label: "Sắp tới", icon: CalendarDays },
   ];
@@ -125,36 +123,12 @@ export function Sidebar() {
           </p>
           <div className="space-y-0.5 px-2">
             {filterItems.map((item) => {
-              const isTimeFilterItem = ["today", "upcoming"].includes(item.id);
-              const isAllItem = item.id === "all";
-              
-              let active = false;
-              if (isTimeFilterItem) {
-                active = timeFilter === item.id;
-              } else if (isAllItem) {
-                active = filterStatus === "all" && timeFilter === "all";
-              } else {
-                active = filterStatus === item.id;
-              }
-
-              const handleClick = () => {
-                if (isTimeFilterItem) {
-                  setTimeFilter(item.id as any);
-                  setFilter("all"); // reset normal filter when switching to time
-                } else if (isAllItem) {
-                  setTimeFilter("all");
-                  setFilter("all");
-                } else {
-                  setFilter(item.id as any);
-                  setTimeFilter("all"); // reset time filter when switching to normal
-                }
-              };
-
+              const active = activeFilter === item.id;
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
-                  onClick={handleClick}
+                  onClick={() => setActiveFilter(item.id)}
                   className={cn(
                     "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-on-muted hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer [&.active]:bg-[#e0e4ff] [&.active]:text-[#0050cb] [&.active]:font-semibold",
                     active && "active"

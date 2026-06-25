@@ -1,30 +1,33 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useEffect, useRef, useMemo, useState } from "react";
 import { List, Columns, Calendar, User as UserIcon } from "lucide-react";
 import { useTaskStore } from "@/store/useTaskStore";
-import { useSession } from "next-auth/react";
+import { useWorkspaceTasks, useMyTasks } from "@/hooks/useFilteredTasks";
 import { KanbanView } from "./views/KanbanView";
 import { ListView } from "./views/ListView";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export function MainContent() {
-  const { data: session } = useSession();
-  const currentUserId = session?.user?.id;
-  const tasks = useTaskStore(s => s.tasks);
+  const workspaceTasks = useWorkspaceTasks();
+  const myTasks = useMyTasks();
   const isTasksLoading = useTaskStore(s => s.isTasksLoading);
   const currentWorkspace = useTaskStore(s => s.currentWorkspace);
   const workspaces = useTaskStore(s => s.workspaces);
   const currentView = useTaskStore(s => s.currentView);
   const setCurrentView = useTaskStore(s => s.setCurrentView);
-  const setFilter = useTaskStore(s => s.setFilter);
+  const ensureAllTasksLoaded = useTaskStore(s => s.ensureAllTasksLoaded);
 
   const [quickNote, setQuickNote] = useState("");
   const [isNoteLoading, setIsNoteLoading] = useState(true);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const saveNoteTimeoutRef = useRef<NodeJS.Timeout>();
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    void ensureAllTasksLoaded();
+  }, [ensureAllTasksLoaded]);
 
   useEffect(() => {
     fetch('/api/user/quick-note')
@@ -85,10 +88,10 @@ export function MainContent() {
 
   // Single pass: compute all stat counts in one useMemo
   const stats = useMemo(() => {
-    let todo = 0, inProg = 0, done = 0, overdue = 0, myTasks = 0;
+    let todo = 0, inProg = 0, done = 0, overdue = 0;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
-    for (const t of tasks) {
+    for (const t of workspaceTasks) {
       if (t.status === "TODO") todo++;
       else if (t.status === "IN_PROGRESS") inProg++;
       else if (t.status === "DONE") done++;
@@ -96,10 +99,9 @@ export function MainContent() {
       if (t.status !== "DONE" && t.due_date && new Date(t.due_date) < todayStart) {
         overdue++;
       }
-      if (t.assignees?.some(a => a.id === currentUserId) || t.creator_id === currentUserId) myTasks++;
     }
-    return { todoCount: todo, inProgressCount: inProg, doneCount: done, overdueCount: overdue, myTasksCount: myTasks };
-  }, [tasks, currentUserId]);
+    return { todoCount: todo, inProgressCount: inProg, doneCount: done, overdueCount: overdue, myTasksCount: myTasks.length };
+  }, [workspaceTasks, myTasks]);
 
   const { todoCount, inProgressCount, doneCount, overdueCount, myTasksCount } = stats;
 
@@ -114,7 +116,6 @@ export function MainContent() {
 
   const activeView = currentView;
   const setView = setCurrentView;
-  const setFilterStatus = setFilter;
 
   return (
     <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-50/50 dark:bg-slate-950 p-3 sm:p-6 md:p-8 w-full pb-20 sm:pb-8">
@@ -142,7 +143,7 @@ export function MainContent() {
           { label: 'Đang làm', bg: '#fff3cd', color: '#b45309', value: inProgressCount },
           { label: 'Hoàn thành', bg: '#d5f8e8', color: '#0d5c34', value: doneCount },
           { label: 'Quá hạn', bg: '#ffdad6', color: '#a10000', value: overdueCount },
-          { label: 'Cá nhân', bg: '#e8eaff', color: '#0050cb', value: myTasksCount },
+          { label: 'Việc của tôi', bg: '#e8eaff', color: '#0050cb', value: myTasksCount },
         ].map(s => (
           <div key={s.label} className="col-span-1 bg-surface-mid dark:bg-[#131b2e] rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2" style={{ background: s.bg, color: s.color }}>
@@ -150,7 +151,7 @@ export function MainContent() {
               {s.label === 'Đang làm' && <Columns size={16} />}
               {s.label === 'Hoàn thành' && <Calendar size={16} />}
               {s.label === 'Quá hạn' && <Calendar size={16} />}
-              {s.label === 'Cá nhân' && <UserIcon size={16} />}
+              {s.label === 'Việc của tôi' && <UserIcon size={16} />}
             </div>
             <p className="text-[9px] font-inter font-medium tracking-[.08em] uppercase text-on-muted dark:text-slate-400 mb-1">{s.label}</p>
             <p className="text-[22px] sm:text-[22px] font-manrope font-bold text-on-surface dark:text-slate-100">{s.value}</p>
@@ -171,13 +172,31 @@ export function MainContent() {
               </div>
             </div>
           )}
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             {activeView === 'list' && (
-              <div className="flex-1 overflow-y-auto min-h-0" key="list">
+              <motion.div
+                key="list"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="flex-1 overflow-y-auto min-h-0"
+              >
                 <ListView />
-              </div>
+              </motion.div>
             )}
-            {activeView === 'kanban' && <KanbanView key="kanban" />}
+            {activeView === 'kanban' && (
+              <motion.div
+                key="kanban"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                className="flex-1 min-h-0 h-full"
+              >
+                <KanbanView />
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
 
