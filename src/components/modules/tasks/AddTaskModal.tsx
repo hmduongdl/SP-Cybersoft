@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Loader2, Search, X } from "lucide-react";
+import { Loader2, Search, X, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
 
 export function AddTaskModal() {
@@ -28,7 +28,7 @@ export function AddTaskModal() {
   const [dueDate, setDueDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedWsId, setSelectedWsId] = useState("");
-  const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
   const [showUserPicker, setShowUserPicker] = useState(false);
   const userPickerRef = useRef<HTMLDivElement>(null);
@@ -36,7 +36,9 @@ export function AddTaskModal() {
   useEffect(() => {
     if (isAddTaskModalOpen) {
       fetchUsers();
-      setAssigneeId(session?.user?.id || null);
+      if (session?.user?.id) {
+        setAssigneeIds([session.user.id]);
+      }
     }
   }, [isAddTaskModalOpen]);
 
@@ -66,16 +68,22 @@ export function AddTaskModal() {
     setTagId("");
     setDueDate("");
     setSelectedWsId("");
-    setAssigneeId(null);
+    setAssigneeIds([]);
     setUserSearch("");
     setShowUserPicker(false);
   };
 
-  const selectedUser = users.find(u => u.id === assigneeId);
+  const selectedUsers = users.filter(u => assigneeIds.includes(u.id));
   const filteredUsers = users.filter(u =>
     u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
     u.email.toLowerCase().includes(userSearch.toLowerCase())
   );
+
+  const toggleAssignee = (uid: string) => {
+    setAssigneeIds(prev =>
+      prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
+    );
+  };
 
   const handleSubmit = async () => {
     if (!title.trim() || loading) return;
@@ -99,7 +107,7 @@ export function AddTaskModal() {
         due_date: dueDate ? new Date(dueDate).toISOString() : null,
         workspace_id: actualWsId,
         creator_id: session?.user?.id || "user-1",
-        assignee_id: assigneeId || undefined,
+        assignee_ids: assigneeIds.length > 0 ? assigneeIds : undefined,
         is_archived: false,
         tags: selectedTag ? [selectedTag] : [],
       };
@@ -163,27 +171,40 @@ export function AddTaskModal() {
 
               <div className="flex items-center">
                 <span className="w-24 text-xs font-semibold text-slate-400 tracking-wide uppercase shrink-0">Người làm</span>
-                <div className="relative" ref={userPickerRef}>
+                <div className="relative flex items-center gap-1" ref={userPickerRef}>
                   <button
                     type="button"
                     onClick={() => setShowUserPicker(!showUserPicker)}
                     disabled={loading}
-                    className="flex items-center gap-2 text-[13px] text-slate-700 bg-transparent hover:bg-slate-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 text-[13px] text-slate-700 bg-transparent hover:bg-slate-50 px-2 py-1 rounded-md transition-colors cursor-pointer max-w-[260px]"
                   >
-                    {selectedUser ? (
-                      <>
-                        {selectedUser.avatar_url ? (
-                          <img src={selectedUser.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                        ) : (
-                          <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
-                            {selectedUser.name.substring(0, 2).toUpperCase()}
-                          </div>
+                    {selectedUsers.length > 0 ? (
+                      <div className="flex items-center -space-x-1.5">
+                        {selectedUsers.slice(0, 3).map(u => (
+                          u.avatar_url ? (
+                            <img key={u.id} src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border-2 border-white" />
+                          ) : (
+                            <div key={u.id} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600 border-2 border-white">
+                              {u.name.substring(0, 2).toUpperCase()}
+                            </div>
+                          )
+                        ))}
+                        {selectedUsers.length > 3 && (
+                          <span className="text-[11px] text-slate-500 ml-1">+{selectedUsers.length - 3}</span>
                         )}
-                        <span>{selectedUser.name}</span>
-                      </>
+                      </div>
                     ) : (
                       <span className="text-slate-400">Chưa gán</span>
                     )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowUserPicker(true)}
+                    disabled={loading}
+                    className="w-5 h-5 rounded-full border border-dashed border-slate-300 flex items-center justify-center hover:bg-slate-100 hover:border-indigo-400 hover:text-indigo-600 transition-colors text-slate-400 shrink-0"
+                    title="Thêm người làm"
+                  >
+                    <Plus size={11} />
                   </button>
                   {showUserPicker && (
                     <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
@@ -198,36 +219,32 @@ export function AddTaskModal() {
                         />
                       </div>
                       <div className="max-h-48 overflow-y-auto">
-                        <button
-                          type="button"
-                          onClick={() => { setAssigneeId(null); setShowUserPicker(false); setUserSearch(""); }}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-slate-400 hover:bg-slate-50 transition-colors"
-                        >
-                          <div className="w-5 h-5 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center">
-                            <X size={10} />
-                          </div>
-                          Bỏ gán
-                        </button>
-                        {filteredUsers.map(u => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            onClick={() => { setAssigneeId(u.id); setShowUserPicker(false); setUserSearch(""); }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-slate-50 transition-colors ${assigneeId === u.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
-                          >
-                            {u.avatar_url ? (
-                              <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                            ) : (
-                              <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
-                                {u.name.substring(0, 2).toUpperCase()}
+                        {filteredUsers.map(u => {
+                          const isSelected = assigneeIds.includes(u.id);
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => toggleAssignee(u.id)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-slate-50 transition-colors ${isSelected ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
+                            >
+                              <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
+                                {isSelected && <span className="text-white text-[9px]">✓</span>}
                               </div>
-                            )}
-                            <div className="text-left leading-tight">
-                              <div className="font-medium">{u.name}</div>
-                              <div className="text-[10px] text-slate-400">{u.email}</div>
-                            </div>
-                          </button>
-                        ))}
+                              {u.avatar_url ? (
+                                <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
+                                  {u.name.substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="text-left leading-tight">
+                                <div className="font-medium">{u.name}</div>
+                                <div className="text-[10px] text-slate-400">{u.email}</div>
+                              </div>
+                            </button>
+                          );
+                        })}
                         {filteredUsers.length === 0 && (
                           <p className="text-xs text-slate-400 text-center py-3">Không tìm thấy</p>
                         )}

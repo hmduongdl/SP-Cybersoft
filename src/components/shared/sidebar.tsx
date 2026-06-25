@@ -12,18 +12,17 @@ import { CheckSquare, Settings } from "lucide-react";
 import { useTaskStore, FilterStatus } from "@/store/useTaskStore";
 
 import { UserAvatar } from "./user-avatar";
-import { CreateTagModal } from "@/components/modules/tasks/CreateTagModal";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { sidebarOpen, setSidebarOpen, sidebarCollapsed, setSidebarCollapsed, isOpenPersonalSettings, setOpenPersonalSettings } = useLayout();
   const { data: session, status } = useSession();
-  const { filterStatus, setFilter, selectedTagId, setSelectedTagId, tags, currentWorkspaceId } = useTaskStore();
+  const { filterStatus, setFilter, currentWorkspaceId } = useTaskStore();
   
   // Local profile state to display up-to-date data
   const [profile, setProfile] = useState<any>(null);
-  const [isCreateTagModalOpen, setCreateTagModalOpen] = useState(false);
+
 
   const fetchProfile = () => {
     fetch("/api/user/profile", { cache: "no-store" })
@@ -64,7 +63,7 @@ export function Sidebar() {
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
         { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
-        { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false, devOnly: true },
+        { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false },
       ]
     },
     {
@@ -199,8 +198,8 @@ export function Sidebar() {
                               <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Lọc công việc</p>
                               <div className="flex flex-col gap-1.5">
                                 <button 
-                                  onClick={() => { setFilter('all'); setSelectedTagId(null); }}
-                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'all' && !selectedTagId ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
+                                  onClick={() => setFilter('all')}
+                                  className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", filterStatus === 'all' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Tất cả</button>
                                 <button 
                                   onClick={() => setFilter('today')}
@@ -212,22 +211,7 @@ export function Sidebar() {
                                 >Sắp tới</button>
                               </div>
                             </div>
-                            {/* NHÓM 2: THẺ TAGS */}
-                            <div className="space-y-1.5">
-                              <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Thẻ tags</p>
-                              <div className="flex flex-col gap-1.5">
-                                {tags.map(tag => (
-                                  <button
-                                    key={tag.id}
-                                    onClick={() => setSelectedTagId(selectedTagId === tag.id ? null : tag.id)}
-                                    className={clsx("flex items-center gap-2 text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", selectedTagId === tag.id ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
-                                  >
-                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: tag.color || '#3b82f6' }}></span>
-                                    {tag.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
+
                           </div>
                         )}
                       </div>
@@ -390,12 +374,6 @@ export function Sidebar() {
           {renderSidebarContent(false, true)}
         </aside>
       </div>
-
-      <CreateTagModal
-        isOpen={isCreateTagModalOpen}
-        onClose={() => setCreateTagModalOpen(false)}
-        workspaceId={currentWorkspaceId || ""}
-      />
       <PersonalSettingsModal
         isOpen={isOpenPersonalSettings}
         onClose={() => setOpenPersonalSettings(false)}

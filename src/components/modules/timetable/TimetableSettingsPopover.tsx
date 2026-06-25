@@ -15,11 +15,13 @@ export const ALL_COLUMNS = [
   { key: "wed",     label: "Thứ 4",                    alwaysOn: false },
   { key: "thu",     label: "Thứ 5",                    alwaysOn: false },
   { key: "fri",     label: "Thứ 6",                    alwaysOn: false },
-  // T7 + CN are merged into one "weekend" column in the UI
-  { key: "weekend", label: "Cuối tuần (T7 · CN)",      alwaysOn: false, hint: "Gộp T7 & CN thành 1 cột" },
+  { key: "sat",     label: "Thứ 7",                    alwaysOn: false, hint: "Mặc định hiển thị" },
+  { key: "sun",     label: "Chủ nhật",                 alwaysOn: false },
 ];
 
-export const DEFAULT_VISIBLE = ALL_COLUMNS.map((c) => c.key);
+export const DEFAULT_VISIBLE = ALL_COLUMNS
+  .map((c) => c.key)
+  .filter((k) => k !== "sun");
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Props {
@@ -92,6 +94,20 @@ export default function TimetableSettingsPopover({
   onSyncChange,
   onSyncToggle,
 }: Props) {
+  const normalizeVisibleColumns = (cols: string[]) => {
+    const sanitized = cols.filter((c) => c !== "weekend");
+    const set = new Set<string>(sanitized);
+    set.add("order");
+    set.add("time");
+    set.add("title");
+    if (!set.has("sat") && !set.has("sun")) {
+      set.add("sat");
+    }
+    return ALL_COLUMNS
+      .map((c) => c.key)
+      .filter((k) => set.has(k));
+  };
+
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -126,9 +142,10 @@ export default function TimetableSettingsPopover({
 
   // ── Column toggle ───────────────────────────────────────────────────────
   const toggleColumn = (key: string, on: boolean) => {
-    const next = on
+    const nextRaw = on
       ? [...visibleCols, key]
       : visibleCols.filter((k) => k !== key);
+    const next = normalizeVisibleColumns(nextRaw);
     onColumnsChange(next);
     persist({ visible_columns: next });
   };
@@ -252,7 +269,7 @@ export default function TimetableSettingsPopover({
               <div className="mx-2 mt-1.5 pt-1.5 border-t border-slate-800">
                 <button
                   onClick={() => {
-                    const allKeys = DEFAULT_VISIBLE;
+                    const allKeys = normalizeVisibleColumns(DEFAULT_VISIBLE);
                     onColumnsChange(allKeys);
                     persist({ visible_columns: allKeys });
                   }}

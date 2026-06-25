@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, KeyboardEvent } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ChevronRight, Calendar, RefreshCw,
-  Lock, GripVertical, Trash2, Plus, AlertCircle, FileSpreadsheet,
-  Coffee, X, AlertTriangle, ArrowUpDown,
+  Lock, GripVertical, Plus, AlertCircle, FileSpreadsheet,
+  Coffee, AlertTriangle, ArrowUpDown, MoreHorizontal,
+  Sun, Sunset, Clock, Sparkles,
 } from "lucide-react";
 import {
   DragDropContext, Droppable, Draggable,
@@ -27,6 +28,46 @@ const WEEKDAY_COLS = [
   { key: "thu", label: "T5", fullLabel: "Thứ 5" },
   { key: "fri", label: "T6", fullLabel: "Thứ 6" },
 ] as const;
+
+const STICKY_SHADOW = "shadow-[4px_0_12px_-4px_rgba(19,27,46,0.08)] dark:shadow-[4px_0_12px_-4px_rgba(0,0,0,0.35)]";
+const WEEKEND_COLS = [
+  { key: "sat", label: "T7", fullLabel: "Thứ 7" },
+  { key: "sun", label: "CN", fullLabel: "Chủ nhật" },
+] as const;
+const COLUMN_ORDER = ["order", "time", "title", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "notes"];
+
+function getTodayColKey(): string | null {
+  const day = new Date().getDay();
+  const map: Record<number, string> = {
+    0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat",
+  };
+  return map[day] ?? null;
+}
+
+function normalizeVisibleColumns(cols: unknown): string[] {
+  const source = Array.isArray(cols) ? (cols as string[]) : DEFAULT_VISIBLE;
+  const normalized = source.includes("weekend")
+    ? [...source.filter((c) => c !== "weekend"), "sat", "sun"]
+    : source;
+  const set = new Set(normalized);
+  if (!set.has("sat") && !set.has("sun")) {
+    set.add("sat");
+  }
+  return COLUMN_ORDER.filter((k) => set.has(k));
+}
+
+function getCurrentWeekDateRangeLabel(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const format = (d: Date) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  return `${format(monday)} - ${format(sunday)}/${sunday.getFullYear()}`;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface TimetableConfig {
@@ -84,43 +125,56 @@ function WeekendCell({
   satCell: TimetableCell | undefined;
   sunCell: TimetableCell | undefined;
 }) {
+  const DEADLINE_PREFIX = "[DEADLINE] ";
   const satItems = Array.isArray(satCell?.content) ? (satCell!.content as string[]) : [];
   const sunItems = Array.isArray(sunCell?.content) ? (sunCell!.content as string[]) : [];
   const satDeadline = satCell?.is_deadline ?? false;
   const sunDeadline = sunCell?.is_deadline ?? false;
 
   const renderHalf = (label: string, items: string[], isDeadline: boolean) => {
-    if (items.length === 0) return null;
+    const hasItemDeadline = items.some((item) => item.startsWith(DEADLINE_PREFIX));
+    if (items.length === 0) {
+      return (
+        <span className="text-[10px] text-on-surface-variant/35 italic">—</span>
+      );
+    }
 
     return (
-      <div className="flex flex-col gap-1 pr-0.5">
-        <div className={`flex items-center gap-1 mb-0.5 shrink-0 ${isDeadline ? "text-red-500" : "text-slate-500 dark:text-slate-400"}`}>
-          {isDeadline && <AlertTriangle className="w-2 h-2 shrink-0" />}
-          <span className="text-[9px] font-bold uppercase tracking-wide">{label}</span>
-          {isDeadline && <span className="text-[9px] font-bold uppercase tracking-wide ml-1">Deadline</span>}
-        </div>
+      <div className="flex flex-col gap-1.5">
         <ul className="flex flex-col gap-1">
-          {items.map((item, i) => (
-            <li
-              key={i}
-              className={`flex items-start gap-1.5 text-[10.5px] leading-snug shrink-0 whitespace-normal break-words ${isDeadline ? "text-red-700 dark:text-red-300 font-semibold" : "text-slate-700 dark:text-slate-300"}`}
-            >
-              <span className={`mt-1.5 w-1 h-1 rounded-full shrink-0 ${isDeadline ? "bg-red-500" : "bg-slate-400 dark:bg-slate-500"}`} />
-              <span className="flex-1 min-w-0">{item}</span>
-            </li>
-          ))}
+          {items.map((item, i) => {
+            const markedDeadline = item.startsWith(DEADLINE_PREFIX);
+            const isItemDeadline = markedDeadline || (isDeadline && !hasItemDeadline);
+            const displayItem = markedDeadline ? item.slice(DEADLINE_PREFIX.length) : item;
+            return (
+              <li
+                key={i}
+                className={[
+                  "text-[10.5px] leading-snug break-words rounded-md px-1.5 py-0.5",
+                  isItemDeadline
+                    ? "bg-error-bg/80 text-error-text font-medium"
+                    : "bg-surface-container-low text-on-surface",
+                ].join(" ")}
+              >
+                {displayItem}
+              </li>
+            );
+          })}
         </ul>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-col gap-3 min-h-[24px]">
-      {satItems.length === 0 && sunItems.length === 0 && (
-        <span className="text-[10px] text-slate-300 dark:text-slate-700 italic flex items-center h-full">—</span>
-      )}
-      {renderHalf("T7", satItems, satDeadline)}
-      {renderHalf("CN", sunItems, sunDeadline)}
+    <div className="grid grid-cols-2 divide-x divide-outline/30 min-h-[28px] -mx-1.5">
+      <div className="px-2 py-1">
+        <span className="text-[9px] font-bold uppercase tracking-wide text-on-surface-variant/60 mb-1 block">T7</span>
+        {renderHalf("T7", satItems, satDeadline)}
+      </div>
+      <div className="px-2 py-1">
+        <span className="text-[9px] font-bold uppercase tracking-wide text-on-surface-variant/60 mb-1 block">CN</span>
+        {renderHalf("CN", sunItems, sunDeadline)}
+      </div>
     </div>
   );
 }
@@ -188,24 +242,24 @@ function BreakRow({
       {...provided.dragHandleProps}
       id={`timetable-row-${row.id}`}
       className={[
-        "border-b border-slate-100 dark:border-slate-800/60 transition-all duration-1000",
+        "border-b border-outline/40 transition-all duration-700",
         isFlashing
-          ? "bg-green-100 ring-2 ring-inset ring-green-500 dark:bg-green-900/40 dark:ring-green-500"
+          ? "bg-success-bg ring-2 ring-inset ring-emerald-400 dark:ring-emerald-500"
           : isOverlapping
-            ? "overlap-pulse ring-2 ring-inset ring-amber-400 dark:ring-amber-500 bg-amber-50/70 dark:bg-amber-900/20"
+            ? "overlap-pulse ring-2 ring-inset ring-amber-400 dark:ring-amber-500 bg-warn-bg/40"
             : isGroupHighlighted
-              ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20"
-              : "",
+              ? "ring-2 ring-inset ring-primary/40 bg-primary-container/30"
+              : "bg-surface-container-low/50",
       ].join(" ")}
     >
-      <td colSpan={colCount} className="px-3 py-1 bg-slate-50/80 dark:bg-slate-800/30">
-        <div className="flex items-center gap-2">
-          <Coffee className="w-2.5 h-2.5 text-slate-400 dark:text-slate-600 shrink-0" />
-          <span className="text-[10px] text-slate-400 dark:text-slate-600 italic">{row.title || "Giải lao"}</span>
-          <span className={`text-[10px] font-mono ${isOverlapping ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-300 dark:text-slate-700"}`}>
+      <td colSpan={colCount} className="px-4 py-1.5">
+        <div className="flex items-center gap-2.5">
+          <Coffee className="w-3 h-3 text-on-surface-variant/50 shrink-0" />
+          <span className="text-[11px] text-on-surface-variant italic">{row.title || "Giải lao"}</span>
+          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-md ${isOverlapping ? "bg-warn-bg text-warn-text font-semibold" : "bg-surface-container text-on-surface-variant"}`}>
             {row.start_time} – {row.end_time}
           </span>
-          <span className="text-[10px] text-slate-300 dark:text-slate-700">({rowDuration(row)} phút)</span>
+          <span className="text-[10px] text-on-surface-variant/60">({rowDuration(row)} phút)</span>
           {isOverlapping && (
             <span className="ml-auto text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wide flex items-center gap-1">
               <AlertTriangle className="w-2.5 h-2.5" /> Trùng giờ
@@ -219,7 +273,7 @@ function BreakRow({
 
 // ─── Main TimetableTableRow ───────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, showWeekend, isGroupHighlighted, isOverlapping, isFlashing,
+  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, shouldMergeWeekend, singleWeekendDays, isGroupHighlighted, isOverlapping, isFlashing, todayColKey,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
@@ -229,26 +283,18 @@ function TimetableTableRow({
   onTitleChange: (rowId: string, title: string) => void;
   onTimeChange: (rowId: string, start_time: string, end_time: string) => void;
   visibleCols: string[];
-  showWeekend: boolean;
+  shouldMergeWeekend: boolean;
+  singleWeekendDays: readonly { key: "sat" | "sun"; label: string; fullLabel: string }[];
   isGroupHighlighted?: boolean;
   isOverlapping?: boolean;
   isFlashing?: boolean;
+  todayColKey?: string | null;
 }) {
   const isLocked = row.is_locked;
   const isDragging = snapshot.isDragging;
-  const [hovered, setHovered] = useState(false);
+  const duration = rowDuration(row);
 
   const getCell = (colKey: string) => row.cells.find((c) => c.column_name === colKey);
-
-  // No inline title editing
-  const titleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-
-  const autoResizeTitle = useCallback(() => {
-    // No-op
-  }, []);
-
-  // No inline time editing
 
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
@@ -261,76 +307,77 @@ function TimetableTableRow({
       ref={provided.innerRef}
       id={`timetable-row-${row.id}`}
       {...provided.draggableProps}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       onClick={() => {
         window.dispatchEvent(new CustomEvent('openEditRowModal', { detail: row }));
       }}
-      title={noteText ? `Ghi chú: ${noteText}` : undefined}
+      title={noteText ? `Ghi chú: ${noteText}` : "Nhấn để chỉnh sửa hàng"}
       className={[
-        "border-b border-slate-100 dark:border-slate-800 group transition-all duration-1000 cursor-pointer",
+        "border-b border-outline/30 group transition-all duration-700 cursor-pointer",
         isFlashing
-          ? "bg-green-100 ring-2 ring-inset ring-green-500 dark:bg-green-900/40 dark:ring-green-500"
+          ? "bg-success-bg ring-2 ring-inset ring-emerald-400 dark:ring-emerald-500"
           : isDragging
-            ? "shadow-xl ring-2 ring-indigo-400 dark:ring-indigo-600 opacity-95 bg-white dark:bg-slate-900 scale-[1.01]"
+            ? "shadow-xl ring-2 ring-primary/50 opacity-95 bg-surface-container-lowest scale-[1.005] z-20"
             : isOverlapping
-              ? "overlap-pulse bg-white dark:bg-slate-900"
-              : "bg-white dark:bg-slate-900",
+              ? "overlap-pulse bg-surface-container-lowest"
+              : "bg-surface-container-lowest",
         !isDragging && !isFlashing && isOverlapping
           ? "ring-2 ring-inset ring-amber-400 dark:ring-amber-500"
           : "",
         !isDragging && !isFlashing && !isOverlapping && isGroupHighlighted
-          ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/40 dark:bg-indigo-900/20"
+          ? "ring-2 ring-inset ring-primary/40 bg-primary-container/20"
           : "",
         !isDragging && !isFlashing && !isLocked && !isGroupHighlighted && !isOverlapping
-          ? "hover:bg-slate-50/70 dark:hover:bg-slate-800/20" : "",
+          ? "hover:bg-surface-container-low/80" : "",
       ].join(" ")}
     >
       {/* Drag handle (sticky) */}
-      <td className="sticky left-0 z-10 bg-inherit border-r border-slate-100 dark:border-slate-800 w-7 px-0 text-center align-middle">
+      <td className={`sticky left-0 z-10 bg-inherit border-r border-outline/30 w-7 px-0 text-center align-middle ${STICKY_SHADOW}`}>
         {isLocked ? (
-          <Lock className="w-3 h-3 text-slate-300 dark:text-slate-700 mx-auto" />
+          <Lock className="w-3.5 h-3.5 text-on-surface-variant/40 mx-auto" />
         ) : (
           <div
             {...provided.dragHandleProps}
-            className="h-full w-full flex items-center justify-center cursor-grab active:cursor-grabbing py-2"
+            onClick={(e) => e.stopPropagation()}
+            className="h-full w-full flex items-center justify-center cursor-grab active:cursor-grabbing py-2.5"
           >
-            <GripVertical className="w-3 h-3 text-slate-300 dark:text-slate-700 group-hover:text-slate-400 transition-colors" />
+            <GripVertical className="w-3.5 h-3.5 text-on-surface-variant/30 group-hover:text-primary/60 transition-colors" />
           </div>
         )}
       </td>
 
-      {/* Time (sticky) — highlights amber when overlapping */}
-      <td className="sticky left-7 z-10 bg-inherit border-r border-slate-100 dark:border-slate-800 w-[88px] px-2 py-2 align-middle">
-        <div className="flex flex-col gap-0.5 font-mono text-[10px]">
+      {/* Time (sticky) */}
+      <td className={`sticky left-7 z-10 bg-inherit border-r border-outline/30 w-[92px] px-2.5 py-2 align-middle ${STICKY_SHADOW}`}>
+        <div className="flex flex-col gap-1">
           {isOverlapping && (
-            <span className="text-[8px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wide flex items-center gap-0.5 mb-0.5">
-              <AlertTriangle className="w-2 h-2 shrink-0" /> Trùng giờ
+            <span className="text-[8px] font-bold text-warn-text uppercase tracking-wide flex items-center gap-0.5">
+              <AlertTriangle className="w-2.5 h-2.5 shrink-0" /> Trùng giờ
             </span>
           )}
-          <div className={isOverlapping ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-500 dark:text-slate-400"}>
+          <div className={`font-mono text-[11px] font-semibold leading-none ${isOverlapping ? "text-warn-text" : "text-on-surface"}`}>
             {row.start_time}
           </div>
-          <div className="h-px w-full bg-slate-100 dark:bg-slate-800 my-0.5" />
-          <div className={isOverlapping ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-500 dark:text-slate-400"}>
+          <div className="h-px w-full bg-outline/40" />
+          <div className={`font-mono text-[11px] leading-none ${isOverlapping ? "text-warn-text" : "text-on-surface-variant"}`}>
             {row.end_time}
           </div>
+          <span className="inline-flex items-center gap-0.5 self-start mt-0.5 px-1.5 py-0.5 rounded-full bg-surface-container-low text-[9px] font-medium text-on-surface-variant">
+            <Clock className="w-2.5 h-2.5" />
+            {duration}p
+          </span>
         </div>
       </td>
 
       {/* Title (sticky) */}
-      <td className="sticky left-[95px] z-10 bg-inherit border-r border-slate-100 dark:border-slate-800 w-32 px-2 py-1.5 align-middle">
-        <div className="flex items-start gap-1">
-          <div
-            className={[
-              "w-full text-[11px] leading-snug break-words whitespace-pre-wrap",
-              isLocked
-                ? "font-semibold text-slate-700 dark:text-slate-200"
-                : "font-medium text-slate-600 dark:text-slate-300",
-            ].join(" ")}
-          >
-            {row.title}
-          </div>
+      <td className={`sticky left-[99px] z-10 bg-inherit border-r border-outline/30 w-36 px-2.5 py-2 align-middle ${STICKY_SHADOW}`}>
+        <div
+          className={[
+            "text-[12px] leading-snug break-words whitespace-pre-wrap",
+            isLocked
+              ? "font-semibold text-on-surface"
+              : "font-medium text-on-surface-variant",
+          ].join(" ")}
+        >
+          {row.title}
         </div>
       </td>
 
@@ -338,10 +385,15 @@ function TimetableTableRow({
       {activeWeekdays.map((d) => {
         const cell = getCell(d.key);
         const items = Array.isArray(cell?.content) ? (cell!.content as string[]) : [];
+        const isToday = todayColKey === d.key;
         return (
           <td
             key={d.key}
-            className="border-r border-slate-100 dark:border-slate-800 px-1.5 py-1.5 align-top"
+            onClick={(e) => e.stopPropagation()}
+            className={[
+              "border-r border-outline/30 px-2 py-2 align-top transition-colors",
+              isToday ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+            ].join(" ")}
             style={{ minWidth: 0 }}
           >
             <CellEditor
@@ -355,10 +407,14 @@ function TimetableTableRow({
         );
       })}
 
-      {/* Merged weekend column (T7 + CN) */}
-      {showWeekend && (
+      {/* Weekend columns */}
+      {shouldMergeWeekend ? (
         <td
-          className="border-r border-slate-100 dark:border-slate-800 px-1.5 py-1.5 align-top last:border-r-0"
+          onClick={(e) => e.stopPropagation()}
+          className={[
+            "border-r border-outline/30 px-2 py-2 align-top last:border-r-0 transition-colors",
+            (todayColKey === "sat" || todayColKey === "sun") ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+          ].join(" ")}
           style={{ minWidth: 0 }}
         >
           <WeekendCell
@@ -366,6 +422,31 @@ function TimetableTableRow({
             sunCell={getCell("sun")}
           />
         </td>
+      ) : (
+        singleWeekendDays.map((d) => {
+          const cell = getCell(d.key);
+          const items = Array.isArray(cell?.content) ? (cell!.content as string[]) : [];
+          const isToday = todayColKey === d.key;
+          return (
+            <td
+              key={d.key}
+              onClick={(e) => e.stopPropagation()}
+              className={[
+                "border-r border-outline/30 px-2 py-2 align-top transition-colors last:border-r-0",
+                isToday ? "bg-primary-container/25 dark:bg-primary-container/15" : "",
+              ].join(" ")}
+              style={{ minWidth: 0 }}
+            >
+              <CellEditor
+                cellId={cell?.id}
+                items={items}
+                isDeadline={cell?.is_deadline ?? false}
+                colLabel={d.fullLabel}
+                onChange={(next) => onCellChange(row.id, d.key, next)}
+              />
+            </td>
+          );
+        })
       )}
 
     </tr>
@@ -458,14 +539,7 @@ export default function TimetablePage() {
         if (!config || !config.is_onboarded) { setShowOnboarding(true); }
         else {
           setConfig(config);
-          if (Array.isArray(config.visible_columns) && config.visible_columns.length > 0) {
-            // Migrate old sat/sun → weekend
-            let cols = config.visible_columns as string[];
-            if ((cols.includes("sat") || cols.includes("sun")) && !cols.includes("weekend")) {
-              cols = [...cols.filter((c: string) => c !== "sat" && c !== "sun"), "weekend"];
-            }
-            setVisibleCols(cols);
-          }
+          setVisibleCols(normalizeVisibleColumns(config.visible_columns));
           fetchRows();
         }
       })
@@ -849,7 +923,10 @@ export default function TimetablePage() {
   // Detect rows whose time intervals overlap with at least one other row
   const overlapIds = useMemo(() => computeOverlapIds(rows), [rows]);
 
-  const showWeekend = visibleCols.includes("weekend") || visibleCols.includes("sat") || visibleCols.includes("sun");
+  const showSat = visibleCols.includes("sat");
+  const showSun = visibleCols.includes("sun");
+  const shouldMergeWeekend = showSat && showSun;
+  const singleWeekendDays = WEEKEND_COLS.filter((d) => visibleCols.includes(d.key));
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
   // Total col count: drag + time + title + notes? + weekdays + weekend? + delete
@@ -857,11 +934,30 @@ export default function TimetablePage() {
     1 + 1 + 1 +
     (visibleCols.includes("notes") ? 1 : 0) +
     activeWeekdays.length +
-    (showWeekend ? 1 : 0);
+    (shouldMergeWeekend ? 1 : singleWeekendDays.length);
+
+  const todayColKey = useMemo(() => getTodayColKey(), []);
+  const weekDateRangeLabel = useMemo(() => getCurrentWeekDateRangeLabel(), []);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [moreOpen]);
+
+  const workRowCount = useMemo(
+    () => rows.filter((r) => r.row_type !== "break" && !ANCHOR_TYPES.has(r.row_type)).length,
+    [rows],
+  );
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-950">
+    <div className="h-full flex flex-col bg-surface-mid dark:bg-[#131b2e] font-inter">
       {/* Overlap pulse animation — injected globally */}
       <style>{`
         @keyframes overlap-pulse {
@@ -886,134 +982,226 @@ export default function TimetablePage() {
 
       {/* ── Header ───────────────────────────────────────────── */}
       {isDirty && (
-        <div className="sticky top-0 z-40 bg-amber-400/95 dark:bg-amber-600/95 backdrop-blur-sm px-4 py-1.5 flex items-center gap-2 text-amber-950 dark:text-amber-50 text-[11px] font-medium shrink-0">
+        <div className="sticky top-0 z-40 bg-warn-bg/95 backdrop-blur-sm px-5 py-2 flex items-center gap-2 text-warn-text text-xs font-medium shrink-0 border-b border-warn-text/10">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          <span>Bạn có thay đổi chưa được lưu. Hãy nhấn <strong>“Lưu thời khóa biểu”</strong> trước khi rời trang.</span>
+          <span>Bạn có thay đổi chưa lưu — nhấn <strong>Lưu thời khóa biểu</strong> trước khi rời trang.</span>
           <button
             onClick={() => validateAndSave()}
-            className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md bg-amber-900/20 hover:bg-amber-900/30 text-amber-950 dark:text-amber-50 font-semibold transition-colors"
+            className="ml-auto shrink-0 px-3 py-1 rounded-lg bg-warn-text/10 hover:bg-warn-text/20 font-semibold transition-colors"
           >
             Lưu ngay
           </button>
         </div>
       )}
-      <header className="sticky top-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-5 py-3 flex items-center justify-between gap-4 shrink-0">
+      <header className={`sticky ${isDirty ? "top-[37px]" : "top-0"} z-30 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline/40 px-5 py-3 flex items-center justify-between gap-4 shrink-0`}>
         <div className="min-w-0">
-          <nav className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-600 mb-0.5">
-            <span className="hover:text-slate-600 dark:hover:text-slate-400 cursor-pointer transition-colors">Dashboard</span>
+          <nav className="flex items-center gap-1.5 text-xs text-on-surface-variant/70 mb-1">
+            <span className="hover:text-on-surface cursor-pointer transition-colors">Dashboard</span>
             <ChevronRight className="w-3 h-3" />
-            <span className="text-indigo-600 dark:text-indigo-400 font-semibold">Thời gian biểu</span>
+            <span className="text-primary font-semibold">Thời khóa biểu</span>
           </nav>
-          <h1 className="font-bold text-[15px] text-slate-900 dark:text-slate-100 leading-tight truncate">
-            Thời khóa biểu tuần làm việc
-          </h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="font-manrope font-bold text-lg text-on-surface leading-tight truncate">
+              Thời khóa biểu tuần
+            </h1>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] font-medium text-on-surface-variant">
+              {weekDateRangeLabel}
+            </span>
+            {rows.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-low text-[10px] font-medium text-on-surface-variant">
+                  <Sparkles className="w-3 h-3 text-primary" />
+                  {workRowCount} khung việc
+                </span>
+                {overlapIds.size > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warn-bg text-[10px] font-semibold text-warn-text">
+                    <AlertTriangle className="w-3 h-3" />
+                    {overlapIds.size} trùng giờ
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          {config?.sync_task_manager && (
-            <button onClick={handleSync} disabled={syncing}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all disabled:opacity-50">
-              <RefreshCw className={`w-3 h-3 ${syncing ? "animate-spin" : ""}`} />
-              {syncing ? "Đang đồng bộ..." : "Đồng bộ"}
-            </button>
-          )}
-          {rows.length > 0 && (
-            <button onClick={handleExport} disabled={exporting}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-all disabled:opacity-50">
-              {exporting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <FileSpreadsheet className="w-3 h-3" />}
-              {exporting ? "Xuất..." : "Excel"}
-            </button>
-          )}
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setShowAddRowModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-outline/50 text-on-surface hover:bg-surface-container-low transition-all">
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Thêm việc</span>
+          </button>
+
           {config && (
             <TimetableSettingsPopover
               visibleCols={visibleCols}
               syncTaskManager={config.sync_task_manager}
               syncing={syncing}
-              onColumnsChange={(cols) => setVisibleCols(cols)}
+              onColumnsChange={(cols) => setVisibleCols(normalizeVisibleColumns(cols))}
               onSyncChange={(enabled) => setConfig((c) => c ? { ...c, sync_task_manager: enabled } : c)}
               onSyncToggle={handleSyncToggle}
             />
           )}
-          <button onClick={() => setShowAddRowModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-            <Plus className="w-3 h-3" />
-            Thêm việc
-          </button>
-          <button onClick={handleSortByTime}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-            <ArrowUpDown className="w-3 h-3" />
-            Sắp xếp
-          </button>
-          <button onClick={handleRegenerate}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-            <RefreshCw className="w-3 h-3" />
-            Tạo lại
-          </button>
+
+          <div ref={moreRef} className="relative">
+            <button
+              onClick={() => setMoreOpen((v) => !v)}
+              className={[
+                "w-9 h-9 flex items-center justify-center rounded-xl border transition-all",
+                moreOpen
+                  ? "border-primary/40 bg-primary-container text-primary"
+                  : "border-outline/50 text-on-surface-variant hover:bg-surface-container-low",
+              ].join(" ")}
+              title="Thêm thao tác"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+            {moreOpen && (
+              <div className="absolute right-0 top-11 z-50 w-48 py-1.5 bg-surface-container-lowest border border-outline/40 rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-150">
+                {config?.sync_task_manager && (
+                  <button onClick={() => { handleSync(); setMoreOpen(false); }} disabled={syncing}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-50">
+                    <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+                    {syncing ? "Đang đồng bộ..." : "Đồng bộ Task Manager"}
+                  </button>
+                )}
+                {rows.length > 0 && (
+                  <button onClick={() => { handleExport(); setMoreOpen(false); }} disabled={exporting}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors disabled:opacity-50">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                    {exporting ? "Đang xuất..." : "Xuất Excel"}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    toast.info("Chức năng đang phát triển");
+                    setMoreOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-on-surface-variant" />
+                  Xuất Báo Cáo Tuần
+                </button>
+                <button onClick={() => { handleSortByTime(); setMoreOpen(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface hover:bg-surface-container-low transition-colors">
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                  Sắp xếp theo giờ
+                </button>
+                <div className="my-1 border-t border-outline/30" />
+                <button onClick={() => { handleRegenerate(); setMoreOpen(false); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Tạo lại từ khảo sát
+                </button>
+              </div>
+            )}
+          </div>
+
           <button onClick={() => validateAndSave()}
             className={[
-              "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold shadow-sm transition-all relative",
+              "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all relative",
               isDirty
-                ? "bg-amber-500 hover:bg-amber-600 text-white ring-2 ring-amber-300 dark:ring-amber-700 animate-pulse"
-                : "bg-indigo-600 hover:bg-indigo-700 text-white",
+                ? "gradient-primary text-white ring-2 ring-primary/30 animate-pulse"
+                : "gradient-primary text-white hover:opacity-90",
             ].join(" ")}
           >
-            {isDirty && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-950" />}
-            Lưu thời khóa biểu
+            {isDirty && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error-text ring-2 ring-surface-container-lowest" />}
+            <span className="hidden sm:inline">Lưu thời khóa biểu</span>
+            <span className="sm:hidden">Lưu</span>
           </button>
         </div>
       </header>
 
       {/* ── Table ──────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto p-4">
         {loadingConfig || loadingRows ? (
-          <div className="flex items-center justify-center h-64 text-slate-400 text-sm gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin" /> Đang tải...
+          <div className="flex flex-col items-center justify-center h-64 text-on-surface-variant gap-3">
+            <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+            <p className="text-sm">Đang tải thời khóa biểu...</p>
           </div>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-3">
-            <Calendar className="w-10 h-10 opacity-30" />
-            <p className="text-sm">Chưa có thời khóa biểu nào.</p>
+          <div className="flex flex-col items-center justify-center h-64 gap-4 rounded-2xl border border-dashed border-outline/40 bg-surface-container-lowest/50">
+            <div className="w-14 h-14 rounded-2xl bg-primary-container flex items-center justify-center">
+              <Calendar className="w-7 h-7 text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-on-surface">Chưa có thời khóa biểu</p>
+              <p className="text-xs text-on-surface-variant mt-1">Hoàn thành khảo sát để AI tạo lịch tuần cho bạn.</p>
+            </div>
+            <button onClick={() => setShowOnboarding(true)}
+              className="px-4 py-2 rounded-xl text-xs font-bold gradient-primary text-white">
+              Bắt đầu khảo sát
+            </button>
           </div>
         ) : (
+          <div className="rounded-2xl border border-outline/40 bg-surface-container-lowest shadow-sm overflow-hidden">
           <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
             <table
-              className="border-collapse text-sm bg-white dark:bg-slate-900"
-              style={{ width: "100%", tableLayout: "fixed" }}
+              className="border-collapse text-sm w-full"
+              style={{ tableLayout: "fixed" }}
             >
               {/* colgroup: pin meta widths, weekdays + weekend share the rest */}
               <colgroup>
                 <col style={{ width: 28 }} />
-                <col style={{ width: 88 }} />
-                <col style={{ width: 128 }} />
+                <col style={{ width: 92 }} />
+                <col style={{ width: 144 }} />
                 {activeWeekdays.map((d) => <col key={d.key} />)}
-                {showWeekend && <col style={{ width: "13%" }} />}
+                {shouldMergeWeekend
+                  ? <col style={{ width: "14%" }} />
+                  : singleWeekendDays.map((d) => <col key={d.key} />)}
               </colgroup>
 
               {/* ── THEAD ─────────────────────────────────────────────── */}
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-700 text-[10px] font-semibold text-slate-400 uppercase tracking-wide">
-                  <th className="sticky top-0 left-0 z-30 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 w-7 px-1 py-2.5 text-center">#</th>
-                  <th className="sticky top-0 left-7 z-30 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Khung giờ</th>
-                  <th className="sticky top-0 left-[95px] z-30 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-left">Công việc</th>
-                  {activeWeekdays.map((d) => (
-                    <th key={d.key} className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-2 py-2.5 text-center">
-                      <span className="hidden sm:inline">{d.fullLabel}</span>
-                      <span className="sm:hidden">{d.label}</span>
-                    </th>
-                  ))}
-                  {/* Weekend merged header */}
-                  {showWeekend && (
-                    <th className="sticky top-0 z-20 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 px-0 py-0 text-center last:border-r-0">
-                      {/* Outer label */}
-                      <div className="py-1.5 border-b border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                <tr className="border-b border-outline/40 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">
+                  <th className={`sticky top-0 left-0 z-30 bg-surface-container-low border-r border-outline/40 w-7 px-1 py-3 text-center ${STICKY_SHADOW}`}>#</th>
+                  <th className={`sticky top-0 left-7 z-30 bg-surface-container-low border-r border-outline/40 px-2.5 py-3 text-left ${STICKY_SHADOW}`}>Khung giờ</th>
+                  <th className={`sticky top-0 left-[99px] z-30 bg-surface-container-low border-r border-outline/40 px-2.5 py-3 text-left ${STICKY_SHADOW}`}>Công việc</th>
+                  {activeWeekdays.map((d) => {
+                    const isToday = todayColKey === d.key;
+                    return (
+                      <th key={d.key} className={[
+                        "sticky top-0 z-20 border-r border-outline/40 px-2 py-3 text-center transition-colors",
+                        isToday ? "bg-primary-container/50 text-primary" : "bg-surface-container-low",
+                      ].join(" ")}>
+                        <span className="hidden sm:inline">{d.fullLabel}</span>
+                        <span className="sm:hidden">{d.label}</span>
+                        {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>}
+                      </th>
+                    );
+                  })}
+                  {shouldMergeWeekend ? (
+                    <th className={[
+                      "sticky top-0 z-20 border-r border-outline/40 px-0 py-0 text-center last:border-r-0",
+                      (todayColKey === "sat" || todayColKey === "sun") ? "bg-primary-container/50" : "bg-surface-container-low",
+                    ].join(" ")}>
+                      <div className="py-2 border-b border-outline/40 text-[10px] font-bold text-on-surface-variant uppercase tracking-wide">
                         Cuối tuần
+                        {(todayColKey === "sat" || todayColKey === "sun") && (
+                          <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>
+                        )}
                       </div>
-                      {/* Sub-column labels */}
-                      <div className="grid grid-cols-2 divide-x divide-slate-200 dark:divide-slate-700">
-                        <div className="py-1 text-[9px] font-semibold text-slate-400">T7</div>
-                        <div className="py-1 text-[9px] font-semibold text-slate-400">CN</div>
+                      <div className="grid grid-cols-2 divide-x divide-outline/40">
+                        <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sat" ? "text-primary" : "text-on-surface-variant/70"}`}>T7</div>
+                        <div className={`py-1.5 text-[9px] font-semibold ${todayColKey === "sun" ? "text-primary" : "text-on-surface-variant/70"}`}>CN</div>
                       </div>
                     </th>
+                  ) : (
+                    singleWeekendDays.map((d) => {
+                      const isToday = todayColKey === d.key;
+                      return (
+                        <th
+                          key={d.key}
+                          className={[
+                            "sticky top-0 z-20 border-r border-outline/40 px-2 py-3 text-center transition-colors last:border-r-0",
+                            isToday ? "bg-primary-container/50 text-primary" : "bg-surface-container-low",
+                          ].join(" ")}
+                        >
+                          <span className="hidden sm:inline">{d.fullLabel}</span>
+                          <span className="sm:hidden">{d.label}</span>
+                          {isToday && <span className="block text-[8px] font-bold normal-case tracking-normal text-primary/80 mt-0.5">Hôm nay</span>}
+                        </th>
+                      );
+                    })
                   )}
                 </tr>
               </thead>
@@ -1022,12 +1210,14 @@ export default function TimetablePage() {
               <Droppable droppableId="morning" type="ROW">
                 {(drop) => (
                   <tbody ref={drop.innerRef} {...drop.droppableProps}>
-                    <tr className="bg-gradient-to-r from-amber-50 to-orange-50/50 dark:from-amber-950/30 dark:to-orange-950/10 border-b border-amber-200/60 dark:border-amber-800/40">
-                      <td colSpan={totalColCount} className="px-3 py-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 dark:bg-amber-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400">☀️ Buổi Sáng</span>
-                          <span className="text-[10px] text-amber-700 dark:text-amber-400 opacity-60 font-mono">08:00 – 12:00</span>
+                    <tr className="bg-gradient-to-r from-amber-50/80 via-orange-50/40 to-transparent dark:from-amber-950/20 dark:via-orange-950/10 dark:to-transparent border-b border-amber-200/40 dark:border-amber-800/30">
+                      <td colSpan={totalColCount} className="px-4 py-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
+                            <Sun className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-400">Buổi sáng</span>
+                          <span className="text-[10px] text-amber-600/70 dark:text-amber-400/60 font-mono px-2 py-0.5 rounded-full bg-amber-100/60 dark:bg-amber-900/30">08:00 – 12:00</span>
                         </div>
                       </td>
                     </tr>
@@ -1058,10 +1248,12 @@ export default function TimetablePage() {
                                 onTitleChange={handleTitleChange}
                                 onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
-                                showWeekend={showWeekend}
+                                shouldMergeWeekend={shouldMergeWeekend}
+                                singleWeekendDays={singleWeekendDays}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
                                 isFlashing={flashingRowId === row.id}
+                                todayColKey={todayColKey}
                               />
                             )
                           )}
@@ -1077,12 +1269,14 @@ export default function TimetablePage() {
               <Droppable droppableId="afternoon" type="ROW">
                 {(drop) => (
                   <tbody ref={drop.innerRef} {...drop.droppableProps}>
-                    <tr className="bg-gradient-to-r from-sky-50 to-blue-50/50 dark:from-sky-950/30 dark:to-blue-950/10 border-b border-sky-200/60 dark:border-sky-800/40">
-                      <td colSpan={totalColCount} className="px-3 py-1.5">
-                        <div className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-sky-400 dark:bg-sky-500" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-400">🌤️ Buổi Chiều</span>
-                          <span className="text-[10px] text-sky-700 dark:text-sky-400 opacity-60 font-mono">13:30 – 18:30</span>
+                    <tr className="bg-gradient-to-r from-sky-50/80 via-blue-50/40 to-transparent dark:from-sky-950/20 dark:via-blue-950/10 dark:to-transparent border-b border-sky-200/40 dark:border-sky-800/30">
+                      <td colSpan={totalColCount} className="px-4 py-2">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-900/40 flex items-center justify-center">
+                            <Sunset className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                          </div>
+                          <span className="text-[11px] font-bold uppercase tracking-widest text-sky-700 dark:text-sky-400">Buổi chiều</span>
+                          <span className="text-[10px] text-sky-600/70 dark:text-sky-400/60 font-mono px-2 py-0.5 rounded-full bg-sky-100/60 dark:bg-sky-900/30">13:30 – 18:30</span>
                         </div>
                       </td>
                     </tr>
@@ -1112,10 +1306,12 @@ export default function TimetablePage() {
                                 onTitleChange={handleTitleChange}
                                 onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
-                                showWeekend={showWeekend}
+                                shouldMergeWeekend={shouldMergeWeekend}
+                                singleWeekendDays={singleWeekendDays}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
                                 isFlashing={flashingRowId === row.id}
+                                todayColKey={todayColKey}
                               />
                             )
                           )}
@@ -1128,21 +1324,25 @@ export default function TimetablePage() {
               </Droppable>
             </table>
           </DragDropContext>
+          </div>
         )}
       </div>
 
       {/* ── Legend ─────────────────────────────────────────────────────── */}
       {rows.length > 0 && (
-        <div className="shrink-0 px-4 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-600 bg-white dark:bg-slate-900">
-          <div className="flex items-center gap-1"><Lock className="w-3 h-3" /><span>Hàng cố định</span></div>
-          <div className="flex items-center gap-1"><GripVertical className="w-3 h-3" /><span>Kéo thả</span></div>
-          <div className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-100 border border-red-200 dark:bg-red-950/50 dark:border-red-800 inline-block" /><span>Deadline</span></div>
-          <div className="flex items-center gap-1"><Coffee className="w-3 h-3" /><span>Giải lao (compact)</span></div>
-          <div className="flex items-center gap-1"><span className="italic">double-click</span><span>ô ngày để sửa</span></div>
-          <div className="ml-auto flex items-center gap-1 text-slate-300 dark:text-slate-700">
-            <span className="px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800 text-[9px] font-mono">T7 · CN</span>
-            <span>= Cuối tuần gộp, T7 trái / CN phải</span>
-          </div>
+        <div className="shrink-0 px-5 py-2.5 border-t border-outline/40 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[10px] text-on-surface-variant bg-surface-container-lowest">
+          <span className="inline-flex items-center gap-1.5"><Lock className="w-3 h-3" />Hàng cố định</span>
+          <span className="inline-flex items-center gap-1.5"><GripVertical className="w-3 h-3" />Kéo thả sắp xếp</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-error-bg border border-error-text/20 inline-block" />
+            Việc gấp
+          </span>
+          <span className="inline-flex items-center gap-1.5"><Coffee className="w-3 h-3" />Giải lao</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="px-1.5 py-0.5 rounded-md bg-primary-container/40 text-primary font-medium">Cột sáng</span>
+            = Hôm nay
+          </span>
+          <span className="hidden md:inline text-on-surface-variant/60">· Double-click ô ngày để sửa nhanh · Nhấn hàng để mở chi tiết</span>
         </div>
       )}
 

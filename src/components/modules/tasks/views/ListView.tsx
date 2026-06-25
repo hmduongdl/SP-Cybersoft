@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
 import { useSession } from "next-auth/react";
-import { Check, Pencil } from "lucide-react";
+import { Check, Minus, Pencil } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn } from "@/lib/utils";
 import { isPast, parseISO, format } from "date-fns";
@@ -78,7 +78,9 @@ export function ListView() {
 
       // 3. Status logic
       if (filterStatus === 'my_tasks') {
-        if (t.assignee_id !== currentUserId) return false;
+        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
+        const isCreator = t.creator_id === currentUserId;
+        if (!isAssigned && !isCreator) return false;
       }
 
       if (selectedTagId) {
@@ -199,19 +201,29 @@ export function ListView() {
                 {/* Title */}
                 <div className="flex items-center gap-3 min-w-0">
                   {/* Status toggle circle */}
-                  <button 
+                  <button
                     onClick={e => { e.stopPropagation(); cycleStatus(task); }}
                     className={cn(
                       "w-5 h-5 rounded-full border-[1.5px] flex-shrink-0 flex items-center justify-center transition-colors cursor-pointer",
                       isDone
                         ? "bg-success-bg border-success-text"
+                        : task.status === 'IN_PROGRESS'
+                        ? "bg-amber-100 border-amber-500 dark:bg-amber-900/40 dark:border-amber-500"
                         : "border-outline dark:border-slate-600 hover:border-primary dark:hover:border-indigo-400"
                     )}
                   >
                     {isDone && <Check size={11} className="text-success-text stroke-[3]" />}
+                    {task.status === 'IN_PROGRESS' && <Minus size={11} className="text-amber-600 dark:text-amber-400 stroke-[3]" />}
                   </button>
-                  {task.assignee ? (
-                    <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-6 !h-6 !text-[9px]" />
+                  {task.assignees && task.assignees.length > 0 ? (
+                    <div className="flex items-center -space-x-2">
+                      {task.assignees.slice(0, 2).map(a => (
+                        <UserAvatar key={a.id} src={a.avatar_url} name={a.name} className="!w-6 !h-6 !text-[9px]" />
+                      ))}
+                      {task.assignees.length > 2 && (
+                        <span className="text-[10px] text-slate-500 ml-1 font-medium">+{task.assignees.length - 2}</span>
+                      )}
+                    </div>
                   ) : (
                     <div className="w-6 h-6 rounded-full border border-dashed border-slate-300 dark:border-slate-600 flex-shrink-0" />
                   )}

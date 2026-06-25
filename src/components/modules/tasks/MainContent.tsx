@@ -96,7 +96,7 @@ export function MainContent() {
       if (t.status !== "DONE" && t.due_date && new Date(t.due_date) < todayStart) {
         overdue++;
       }
-      if (t.assignee_id === currentUserId) myTasks++;
+      if (t.assignees?.some(a => a.id === currentUserId) || t.creator_id === currentUserId) myTasks++;
     }
     return { todoCount: todo, inProgressCount: inProg, doneCount: done, overdueCount: overdue, myTasksCount: myTasks };
   }, [tasks, currentUserId]);

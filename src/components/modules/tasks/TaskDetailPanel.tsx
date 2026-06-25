@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { X, Calendar, FileText, CheckCircle, Tag, User, Trash2, Search, Plus, LayoutGrid, Hash, Link as LinkIcon, Mail, Phone as PhoneIcon, List, Layers, ArrowLeft, Check, Loader2 } from "lucide-react";
+import { X, Calendar, CheckCircle, Tag, User, Trash2, Search, Plus, LayoutGrid, ArrowLeft, Check, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { isPast, parseISO, format } from "date-fns";
@@ -10,22 +10,41 @@ import "@blocknote/core/fonts/inter.css";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
-import { CustomPropertyField } from "./CustomPropertyField";
+import { CustomPropertyField, TYPE_ICONS, TYPE_LABELS, CustomPropertyDefinition } from "./CustomPropertyField";
+import { vi } from "@blocknote/core/locales";
 
-const STATUS_MAP = {
-  TODO: { label: 'Cần làm', bg: '#f2f3ff', color: '#44495a' },
-  IN_PROGRESS: { label: 'Đang làm', bg: '#fff3cd', color: '#b45309' },
-  DONE: { label: 'Xong', bg: '#d5f8e8', color: '#0d5c34' },
+const NOTE_PLACEHOLDER = "Nhập nội dung hoặc gõ '/' để mở menu lệnh";
+
+// Helper: convert a user-facing value back to DB column fields for optimistic updates
+function valueToFields(type: string, value: any) {
+  if (type === "NUMBER") return { value_number: value, value_text: null, value_boolean: null, value_date: null };
+  if (type === "CHECKBOX") return { value_boolean: value, value_text: null, value_number: null, value_date: null };
+  if (type === "DATE") return { value_date: value, value_text: null, value_number: null, value_boolean: null };
+  if (type === "MULTI_SELECT" && Array.isArray(value)) return { value_text: JSON.stringify(value), value_number: null, value_boolean: null, value_date: null };
+  return { value_text: value ?? null, value_number: null, value_boolean: null, value_date: null };
+}
+
+const STATUS_STYLES: Record<TaskStatus, string> = {
+  TODO: 'bg-primary-container text-on-muted',
+  IN_PROGRESS: 'bg-warn-bg text-warn-text',
+  DONE: 'bg-success-bg text-success-text',
+};
+
+const STATUS_LABELS: Record<TaskStatus, string> = {
+  TODO: 'Cần làm',
+  IN_PROGRESS: 'Đang làm',
+  DONE: 'Xong',
 };
 
 function StatusBadge({ status }: { status: TaskStatus }) {
-  const s = STATUS_MAP[status] || STATUS_MAP.TODO;
   return (
     <span
-      className="text-[10px] font-semibold px-2.5 py-1 rounded-md inline-block cursor-pointer hover:opacity-80 transition-opacity"
-      style={{ background: s.bg, color: s.color }}
+      className={cn(
+        "text-[10px] font-semibold px-2.5 py-1 rounded-md inline-block cursor-pointer hover:brightness-110 transition-all",
+        STATUS_STYLES[status] || STATUS_STYLES.TODO
+      )}
     >
-      {s.label}
+      {STATUS_LABELS[status] || STATUS_LABELS.TODO}
     </span>
   );
 }
@@ -52,58 +71,56 @@ export function TaskDetailPanel() {
   const pickerRef = useRef<HTMLDivElement>(null);
 
   // ── Custom Properties state ──
-  const [propertyDefs, setPropertyDefs] = useState<any[]>([]);
+  // Property defs are derived from the embedded definition in customProperties — no extra fetch needed
   const [showAddProp, setShowAddProp] = useState(false);
-  const [showTypeMenu, setShowTypeMenu] = useState(false);
-  const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [newPropName, setNewPropName] = useState("");
-  const [creatingProp, setCreatingProp] = useState(false);
-  const propRef = useRef<HTMLDivElement>(null);
+  const [addPropName, setAddPropName] = useState("");
+  const [addPropType, setAddPropType] = useState("TEXT");
+  const addPropInputRef = useRef<HTMLInputElement>(null);
+  const addPropRef = useRef<HTMLDivElement>(null);
 
-  const PROPERTY_TYPES = [
-    { type: "TEXT", label: "Văn bản", icon: FileText },
-    { type: "NUMBER", label: "Số", icon: Hash },
-    { type: "SELECT", label: "Chọn", icon: List },
-    { type: "MULTI_SELECT", label: "Nhiều lựa chọn", icon: Layers },
-    { type: "DATE", label: "Ngày", icon: Calendar },
-    { type: "CHECKBOX", label: "Hộp kiểm", icon: CheckCircle },
-    { type: "URL", label: "URL", icon: LinkIcon },
-    { type: "EMAIL", label: "Email", icon: Mail },
-    { type: "PHONE", label: "Điện thoại", icon: PhoneIcon },
-  ];
+  const [noteSaveStatus, setNoteSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const noteDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const skipNoteSaveRef = useRef(false);
+  const selectedTaskIdRef = useRef<string | null>(selectedTaskId);
 
-  const fetchPropertyDefs = useCallback(async () => {
-    if (!task?.workspace_id) return;
-    try {
-      const res = await fetch(`/api/workspaces/${task.workspace_id}/properties`);
-      if (res.ok) {
-        const d = await res.json();
-        setPropertyDefs(d.properties || []);
-      }
-    } catch { }
-  }, [task?.workspace_id]);
+  // Cache workspace defs to avoid redundant fetches
+  const wsDefsCache = useRef<Record<string, CustomPropertyDefinition[]>>({});
 
-  useEffect(() => {
-    if (task) fetchPropertyDefs();
-  }, [task?.workspace_id, fetchPropertyDefs]);
+  const PROPERTY_TYPES = Object.entries(TYPE_LABELS).map(([type, label]) => ({
+    type, label, icon: TYPE_ICONS[type],
+  }));
 
+  // Close add-prop form when clicking outside
   useEffect(() => {
     const h = (e: MouseEvent) => {
-      if (propRef.current && !propRef.current.contains(e.target as Node)) {
+      if (addPropRef.current && !addPropRef.current.contains(e.target as Node)) {
         setShowAddProp(false);
-        setShowTypeMenu(false);
-        setSelectedType(null);
-        setNewPropName("");
+        setAddPropName("");
+        setAddPropType("TEXT");
       }
     };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, []);
 
+  // Focus name input when add-prop opens
+  useEffect(() => {
+    if (showAddProp) {
+      requestAnimationFrame(() => addPropInputRef.current?.focus());
+    }
+  }, [showAddProp]);
+
   const debounceTimers = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
-  const handleSaveProperty = (defId: string, newValue: any) => {
+  const handleSaveProperty = useCallback((defId: string, newValue: any) => {
     if (!task) return;
+    // Optimistic update in local store immediately
+    const currentProps = (task.customProperties || []) as any[];
+    const optimistic = currentProps.map((cp: any) =>
+      cp.definition_id === defId ? { ...cp, _pending: true, ...valueToFields(cp.definition?.type, newValue) } : cp
+    );
+    useTaskStore.getState().updateTask(task.id, { customProperties: optimistic } as any);
+
     const existing = debounceTimers.current.get(defId);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(async () => {
@@ -116,16 +133,19 @@ export function TaskDetailPanel() {
         if (res.ok) {
           const updated = await res.json();
           useTaskStore.getState().updateTask(task.id, {
-            customProperties: [...(task.customProperties || []).filter(cp => cp.definition_id !== defId), updated],
+            customProperties: [
+              ...(useTaskStore.getState().tasks.find(t => t.id === task.id)?.customProperties || []).filter((cp: any) => cp.definition_id !== defId),
+              updated,
+            ],
           } as any);
         }
       } catch (err) {
         console.error("Failed to save property", err);
       }
       debounceTimers.current.delete(defId);
-    }, 500);
+    }, 600);
     debounceTimers.current.set(defId, timer);
-  };
+  }, [task]);
 
   // Cleanup debounce timers on unmount
   useEffect(() => {
@@ -135,50 +155,89 @@ export function TaskDetailPanel() {
     };
   }, []);
 
-  const handleCreateProperty = async (type: string) => {
-    if (!task || !newPropName.trim()) return;
-    setCreatingProp(true);
+  const handleCreateProperty = useCallback(async () => {
+    if (!task || !addPropName.trim()) return;
+
+    const name = addPropName.trim();
+    const type = addPropType;
+    const tempId = `temp_${Date.now()}`;
+
+    // Close form immediately — feels instant
+    setShowAddProp(false);
+    setAddPropName("");
+    setAddPropType("TEXT");
+
+    // Optimistic add: inject a placeholder property into the task
+    const optimisticProp: any = {
+      id: tempId,
+      task_id: task.id,
+      definition_id: tempId,
+      definition: { id: tempId, name, type, options: [] },
+      value_text: null, value_number: null, value_boolean: null, value_date: null,
+      _isOptimistic: true,
+    };
+    useTaskStore.getState().updateTask(task.id, {
+      customProperties: [...(task.customProperties || []), optimisticProp],
+    } as any);
+
     try {
-      const res = await fetch(`/api/workspaces/${task.workspace_id}/properties`, {
+      // 1. Create the definition
+      const defRes = await fetch(`/api/workspaces/${task.workspace_id}/properties`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newPropName.trim(), type }),
+        body: JSON.stringify({ name, type }),
       });
-      if (res.ok) {
-        const def = await res.json();
-        // Save immediately (not debounced) for the initial value
-        const initRes = await fetch(`/api/tasks/${task.id}/properties`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ definition_id: def.id, value: null }),
-        });
-        if (initRes.ok) {
-          const updated = await initRes.json();
-          useTaskStore.getState().updateTask(task.id, {
-            customProperties: [...(task.customProperties || []).filter(cp => cp.definition_id !== def.id), updated],
-          } as any);
-        }
-        await fetchPropertyDefs();
-        setSelectedType(null);
-        setNewPropName("");
-        setShowTypeMenu(false);
-        setShowAddProp(false);
+      if (!defRes.ok) {
+        // Rollback optimistic
+        useTaskStore.getState().updateTask(task.id, {
+          customProperties: (task.customProperties || []).filter((cp: any) => cp.definition_id !== tempId),
+        } as any);
+        return;
+      }
+      const def = await defRes.json();
+      // Invalidate cache for this workspace
+      delete wsDefsCache.current[task.workspace_id];
+
+      // 2. Create the initial value (fire-and-forget style; replace optimistic with real)
+      const valRes = await fetch(`/api/tasks/${task.id}/properties`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ definition_id: def.id, value: null }),
+      });
+
+      const currentProps = useTaskStore.getState().tasks.find(t => t.id === task.id)?.customProperties || [];
+      if (valRes.ok) {
+        const val = await valRes.json();
+        useTaskStore.getState().updateTask(task.id, {
+          customProperties: [
+            ...(currentProps as any[]).filter((cp: any) => cp.definition_id !== tempId),
+            val,
+          ],
+        } as any);
       } else {
-        const err = await res.json();
-        console.error(err);
+        // Replace optimistic with a real-def version (value empty)
+        useTaskStore.getState().updateTask(task.id, {
+          customProperties: [
+            ...(currentProps as any[]).filter((cp: any) => cp.definition_id !== tempId),
+            { ...optimisticProp, id: def.id, definition_id: def.id, definition: def, _isOptimistic: false },
+          ],
+        } as any);
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setCreatingProp(false);
+      console.error("Failed to create property", err);
     }
-  };
-
-  const existingDefIds = new Set((task?.customProperties || []).map(cp => cp.definition_id));
-  const availableProps = propertyDefs.filter((p: any) => !existingDefIds.has(p.id));
+  }, [task, addPropName, addPropType]);
 
   const editor = useCreateBlockNote({
     initialContent: task?.note?.content ? task.note.content : undefined,
+    dictionary: {
+      ...vi,
+      placeholders: {
+        ...vi.placeholders,
+        default: NOTE_PLACEHOLDER,
+        emptyDocument: NOTE_PLACEHOLDER,
+      },
+    },
   });
 
   useEffect(() => {
@@ -196,15 +255,53 @@ export function TaskDetailPanel() {
   }, []);
 
   useEffect(() => {
+    selectedTaskIdRef.current = selectedTaskId;
+  }, [selectedTaskId]);
+
+  useEffect(() => {
     if (editor && task) {
+      skipNoteSaveRef.current = true;
       const currentContent = task.note?.content;
       if (currentContent) {
         editor.replaceBlocks(editor.document, currentContent);
       } else {
         editor.replaceBlocks(editor.document, [{ type: "paragraph", content: [] }]);
       }
+      requestAnimationFrame(() => {
+        skipNoteSaveRef.current = false;
+      });
+      setNoteSaveStatus("idle");
     }
   }, [selectedTaskId, editor]);
+
+  useEffect(() => {
+    if (!editor || !selectedTaskId) return;
+
+    const unsubscribe = editor.onChange(() => {
+      if (skipNoteSaveRef.current) return;
+
+      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+      setNoteSaveStatus("idle");
+
+      noteDebounceRef.current = setTimeout(async () => {
+        const taskId = selectedTaskIdRef.current;
+        if (!taskId) return;
+        setNoteSaveStatus("saving");
+        try {
+          await updateTaskNote(taskId, editor.document);
+          setNoteSaveStatus("saved");
+        } catch {
+          setNoteSaveStatus("error");
+        }
+        noteDebounceRef.current = null;
+      }, 800);
+    });
+
+    return () => {
+      unsubscribe();
+      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+    };
+  }, [editor, selectedTaskId, updateTaskNote]);
 
   // Detect dark mode for BlockNote theme
   useEffect(() => {
@@ -220,18 +317,18 @@ export function TaskDetailPanel() {
     return () => observer.disconnect();
   }, []);
 
-  const handleClose = () => {
-    setSelectedTaskId(null);
-  };
-
-  const handleSaveNote = async () => {
-    if (editor && selectedTaskId) {
-      const content = editor.document;
-      await updateTaskNote(selectedTaskId, content);
-      alert("Lưu thành công!");
-      handleClose();
+  const handleClose = useCallback(async () => {
+    if (editor && selectedTaskIdRef.current && noteDebounceRef.current) {
+      clearTimeout(noteDebounceRef.current);
+      noteDebounceRef.current = null;
+      try {
+        await updateTaskNote(selectedTaskIdRef.current, editor.document);
+      } catch (err) {
+        console.error("Failed to flush note save on close", err);
+      }
     }
-  };
+    setSelectedTaskId(null);
+  }, [editor, updateTaskNote, setSelectedTaskId]);
 
   const handleDelete = async () => {
     if (confirm("Bạn có chắc chắn muốn xóa công việc này không?")) {
@@ -268,11 +365,9 @@ export function TaskDetailPanel() {
     if (task) updateTask(task.id, { workspace_id: newWsId });
   };
 
-  const updateTaskAssignee = (newUserId: string | null) => {
-    if (task) updateTask(task.id, { assignee_id: newUserId });
+  const updateTaskAssignee = (newUserIds: string[]) => {
+    if (task) updateTask(task.id, { assignee_ids: newUserIds } as any);
   };
-
-  const saveTask = () => { };
 
   if (!selectedTaskId || !task) return null;
 
@@ -301,18 +396,18 @@ export function TaskDetailPanel() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-screen w-full sm:w-[600px] md:w-[650px] bg-surface-mid border-l border-slate-100 shadow-2xl z-50 flex flex-col font-inter"
+            className="fixed top-0 right-0 h-screen w-full sm:w-[600px] md:w-[650px] bg-surface-mid dark:bg-surface-mid border-l border-outline dark:border-slate-800/80 shadow-2xl z-50 flex flex-col font-inter"
           >
             <div className="flex-1 overflow-y-auto pt-6 pb-24 px-6 md:px-10">
 
               {/* Header Navigation */}
-              <div className="flex items-center justify-between mb-6 text-sm text-slate-500">
+              <div className="flex items-center justify-between mb-6 text-sm text-on-muted">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">🚀</span>
                   <select
                     value={task.workspace_id}
                     onChange={e => updateTaskWorkspace(e.target.value)}
-                    className="font-semibold text-slate-700 bg-transparent outline-none cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded-md transition-colors"
+                    className="font-semibold text-on-surface bg-transparent outline-none cursor-pointer hover:bg-surface-high px-1 py-0.5 rounded-md transition-colors"
                   >
                     {workspaces.map(ws => (
                       <option key={ws.id} value={ws.id}>{ws.name}</option>
@@ -321,7 +416,7 @@ export function TaskDetailPanel() {
                 </div>
                 <button
                   onClick={handleClose}
-                  className="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  className="w-8 h-8 rounded-md flex items-center justify-center text-on-muted hover:text-on-surface hover:bg-surface-high transition-colors"
                 >
                   <X size={18} />
                 </button>
@@ -331,8 +426,7 @@ export function TaskDetailPanel() {
               <input
                 value={task.title}
                 onChange={e => updateTaskTitle(e.target.value)}
-                onBlur={saveTask}
-                className="w-full text-2xl font-bold text-slate-900 border-none outline-none focus:ring-0 p-0 mb-2 bg-transparent placeholder:text-slate-300"
+                className="w-full text-2xl font-bold text-on-surface border-none outline-none focus:ring-0 p-0 mb-2 bg-transparent placeholder:text-on-muted/60"
                 placeholder="Nhập tiêu đề công việc..."
               />
 
@@ -340,17 +434,16 @@ export function TaskDetailPanel() {
               <textarea
                 value={task.description || ""}
                 onChange={e => updateTaskDescription(e.target.value)}
-                onBlur={saveTask}
-                className="w-full text-sm text-slate-600 border-none outline-none focus:ring-0 p-0 mb-4 bg-transparent placeholder:text-slate-400 resize-none min-h-[40px]"
+                className="w-full text-sm text-on-muted border-none outline-none focus:ring-0 p-0 mb-4 bg-transparent placeholder:text-on-muted/70 resize-none min-h-[40px]"
                 placeholder="Thêm mô tả công việc (tùy chọn)..."
                 rows={2}
               />
 
               {/* Properties Grid */}
-              <div className="border-y border-slate-100 py-3 my-4 space-y-1">
+              <div className="border-y border-outline dark:border-slate-800/60 py-3 my-4 space-y-1">
                 {/* Status */}
                 <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
-                  <div className="flex items-center gap-2 text-slate-500">
+                  <div className="flex items-center gap-2 text-on-muted">
                     <CheckCircle size={14} /> Trạng thái
                   </div>
                   <div onClick={() => cycleStatus(task)}>
@@ -360,102 +453,132 @@ export function TaskDetailPanel() {
 
                 {/* Due Date */}
                 <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
-                  <div className="flex items-center gap-2 text-slate-500">
+                  <div className="flex items-center gap-2 text-on-muted">
                     <Calendar size={14} /> Ngày hết hạn
                   </div>
-                  <div className={cn("text-slate-700 flex items-center gap-2 hover:bg-slate-50 px-2 py-1 rounded-md w-fit cursor-pointer", isOverdue && "text-red-600 font-semibold")}>
+                  <div className={cn("text-on-surface flex items-center gap-2 hover:bg-surface-high px-2 py-1 rounded-md w-fit cursor-pointer", isOverdue && "text-error-text font-semibold")}>
                     {hasDueDate ? format(parseISO(task.due_date!), 'dd/MM/yyyy') : 'Trống'}
                   </div>
                 </div>
 
                 {/* Tags */}
                 <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
-                  <div className="flex items-center gap-2 text-slate-500">
+                  <div className="flex items-center gap-2 text-on-muted">
                     <Tag size={14} /> Nhãn Tags
                   </div>
                   <div className="flex items-center gap-2">
                     {displayTag ? (
-                      <span className="text-[10px] font-semibold px-2.5 py-1 rounded-md" style={{ background: `${displayTag.color}22` || "#f1f5f9", color: displayTag.color || "#475569" }}>
+                      <span
+                        className="text-[10px] font-semibold px-2.5 py-1 rounded-md border border-current/20"
+                        style={{
+                          color: displayTag.color || "#475569",
+                          backgroundColor: `color-mix(in srgb, ${displayTag.color || "#475569"} 20%, transparent)`,
+                        }}
+                      >
                         {displayTag.name}
                       </span>
                     ) : (
-                      <span className="text-slate-400 hover:bg-slate-50 px-2 py-1 rounded-md cursor-pointer">Trống</span>
+                      <span className="text-on-muted/70 hover:bg-surface-high px-2 py-1 rounded-md cursor-pointer">Trống</span>
                     )}
                   </div>
                 </div>
 
                 {/* Assignee */}
                 <div className="grid grid-cols-[120px_1fr] items-center gap-4 py-1 text-xs">
-                  <div className="flex items-center gap-2 text-slate-500">
+                  <div className="flex items-center gap-2 text-on-muted">
                     <User size={14} /> Người làm
                   </div>
-                  <div className="relative" ref={pickerRef}>
+                  <div className="relative flex items-center gap-1" ref={pickerRef}>
                     <button
                       type="button"
                       onClick={() => { setShowAssigneePicker(!showAssigneePicker); setAssigneeSearch(""); }}
-                      className="flex items-center gap-2 text-slate-700 hover:bg-slate-50 px-2 py-1 rounded-md transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 text-on-surface hover:bg-surface-high px-2 py-1 rounded-md transition-colors cursor-pointer"
                     >
-                      {(task as any).assignee ? (
-                        <>
-                          {(task as any).assignee.avatar_url ? (
-                            <img src={(task as any).assignee.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-indigo-600">
-                              {(task as any).assignee.name?.substring(0, 2).toUpperCase() || 'US'}
-                            </div>
+                      {(task as any).assignees && (task as any).assignees.length > 0 ? (
+                        <div className="flex items-center -space-x-1.5">
+                          {(task as any).assignees.slice(0, 3).map((a: any) => (
+                            a.avatar_url ? (
+                              <img key={a.id} src={a.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border-2 border-surface-mid" />
+                            ) : (
+                              <div key={a.id} className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-primary border-2 border-surface-mid">
+                                {a.name?.substring(0, 2).toUpperCase() || 'US'}
+                              </div>
+                            )
+                          ))}
+                          {(task as any).assignees.length > 3 && (
+                            <span className="text-[11px] text-on-muted ml-1">+{(task as any).assignees.length - 3}</span>
                           )}
-                          <span>{(task as any).assignee.name}</span>
-                        </>
+                        </div>
                       ) : (
-                        <span className="text-slate-400">Chưa gán</span>
+                        <span className="text-on-muted/70">Chưa gán</span>
                       )}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => { setShowAssigneePicker(true); setAssigneeSearch(""); }}
+                      className="w-5 h-5 rounded-full border border-dashed border-outline flex items-center justify-center hover:bg-surface-high hover:border-primary hover:text-primary transition-colors text-on-muted shrink-0"
+                      title="Thêm người làm"
+                    >
+                      <Plus size={11} />
+                    </button>
                     {showAssigneePicker && (
-                      <div className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-100">
-                          <Search size={14} className="text-slate-400 shrink-0" />
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-surface-bright dark:bg-surface-high rounded-xl shadow-xl border border-outline z-50 overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2 border-b border-outline">
+                          <Search size={14} className="text-on-muted shrink-0" />
                           <input
                             autoFocus
                             value={assigneeSearch}
                             onChange={e => setAssigneeSearch(e.target.value)}
                             placeholder="Tìm người dùng..."
-                            className="text-[13px] text-slate-700 outline-none flex-1 bg-transparent"
+                            className="text-[13px] text-on-surface outline-none flex-1 bg-transparent"
                           />
                         </div>
                         <div className="max-h-48 overflow-y-auto">
-                          <button
-                            type="button"
-                            onClick={() => { updateTaskAssignee(null); setShowAssigneePicker(false); }}
-                            className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-slate-400 hover:bg-slate-50 transition-colors"
-                          >
-                            <div className="w-5 h-5 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center">
-                              <X size={10} />
-                            </div>
-                            Bỏ gán
-                          </button>
                           {users.filter(u =>
                             u.name.toLowerCase().includes(assigneeSearch.toLowerCase()) ||
                             u.email.toLowerCase().includes(assigneeSearch.toLowerCase())
-                          ).map(u => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => { updateTaskAssignee(u.id); setShowAssigneePicker(false); }}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-slate-50 transition-colors ${(task as any).assignee?.id === u.id ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700'}`}
-                            >
-                              {u.avatar_url ? (
-                                <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-indigo-600">
-                                  {u.name.substring(0, 2).toUpperCase()}
+                          ).map(u => {
+                            const taskAssignees: any[] = (task as any).assignees || [];
+                            const isAssigned = taskAssignees.some((a: any) => a.id === u.id);
+                            return (
+                              <button
+                                key={u.id}
+                                type="button"
+                                onClick={() => {
+                                  const currentIds = taskAssignees.map((a: any) => a.id);
+                                  let newIds: string[];
+                                  if (isAssigned) {
+                                    newIds = currentIds.filter((id: string) => id !== u.id);
+                                  } else {
+                                    newIds = [...currentIds, u.id];
+                                  }
+                                  if (task) updateTask(task.id, { assignee_ids: newIds } as any);
+                                }}
+                                className={cn(
+                                  "w-full flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-surface-high transition-colors",
+                                  isAssigned ? "bg-primary-container text-primary" : "text-on-surface"
+                                )}
+                              >
+                                <div className={cn(
+                                  "w-4 h-4 rounded border-2 flex items-center justify-center shrink-0",
+                                  isAssigned ? "bg-primary border-primary" : "border-outline"
+                                )}>
+                                  {isAssigned && <span className="text-white text-[9px]">✓</span>}
                                 </div>
-                              )}
-                              <div className="text-left leading-tight">
-                                <div className="font-medium">{u.name}</div>
-                                <div className="text-[10px] text-slate-400">{u.email}</div>
-                              </div>
-                            </button>
-                          ))}
+                                {u.avatar_url ? (
+                                  <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-primary">
+                                    {u.name.substring(0, 2).toUpperCase()}
+                                  </div>
+                                )}
+                                <div className="text-left leading-tight">
+                                  <div className="font-medium">{u.name}</div>
+                                  <div className="text-[10px] text-on-muted">{u.email}</div>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -465,14 +588,14 @@ export function TaskDetailPanel() {
               </div>
 
               {/* ── Custom Properties ── */}
-              <div className="border-y border-slate-100 dark:border-slate-800 py-3 my-4 space-y-1">
-                <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 pb-1">
-                  <LayoutGrid size={12} /> Thuộc tính
+              <div className="border-y border-outline dark:border-slate-800/60 py-2 my-4">
+                <h3 className="text-[10px] font-bold text-on-muted uppercase tracking-wider flex items-center gap-1 px-2 py-1 mb-1">
+                  <LayoutGrid size={11} /> Thuộc tính
                 </h3>
 
-                {/* Existing properties */}
-                {(task?.customProperties || []).map((cp) => {
-                  const def = propertyDefs.find((d: any) => d.id === cp.definition_id);
+                {/* Existing properties — derived from embedded definition */}
+                {(task?.customProperties || []).map((cp: any) => {
+                  const def = cp.definition;
                   if (!def) return null;
                   return (
                     <CustomPropertyField
@@ -484,107 +607,71 @@ export function TaskDetailPanel() {
                   );
                 })}
 
-                {propertyDefs.length === 0 && (task?.customProperties || []).length === 0 && (
-                  <p className="text-xs text-slate-400 px-2 py-1">Chưa có thuộc tính</p>
-                )}
-
-                {/* Add property button */}
-                <div className="relative" ref={propRef}>
-                  {selectedType ? (
-                    // Naming input for new property
-                    <div className="flex items-center gap-2 px-2 py-1.5 animate-fade-in">
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedType(null); setNewPropName(""); }}
-                        className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded transition-colors"
-                      >
-                        <ArrowLeft size={14} />
-                      </button>
+                {/* Add property — Notion-style inline form */}
+                <div ref={addPropRef} className="mt-1">
+                  {showAddProp ? (
+                    <div className="flex items-center gap-2 px-2 py-1.5 bg-surface-high rounded-lg">
+                      {/* Type selector */}
+                      <div className="relative group/type">
+                        <select
+                          value={addPropType}
+                          onChange={e => setAddPropType(e.target.value)}
+                          className="appearance-none bg-transparent outline-none text-xs text-on-muted cursor-pointer pr-4 pl-1"
+                        >
+                          {PROPERTY_TYPES.map(pt => (
+                            <option key={pt.type} value={pt.type}>{pt.label}</option>
+                          ))}
+                        </select>
+                        <ChevronDown size={10} className="absolute right-0 top-1/2 -translate-y-1/2 text-on-muted pointer-events-none" />
+                      </div>
+                      <div className="w-px h-3 bg-outline/60 shrink-0" />
+                      {/* Name input */}
                       <input
-                        autoFocus
-                        value={newPropName}
-                        onChange={e => setNewPropName(e.target.value)}
+                        ref={addPropInputRef}
+                        value={addPropName}
+                        onChange={e => setAddPropName(e.target.value)}
                         onKeyDown={e => {
-                          if (e.key === "Enter") handleCreateProperty(selectedType);
-                          if (e.key === "Escape") { setSelectedType(null); setNewPropName(""); }
+                          if (e.key === "Enter" && addPropName.trim()) handleCreateProperty();
+                          if (e.key === "Escape") { setShowAddProp(false); setAddPropName(""); setAddPropType("TEXT"); }
                         }}
                         placeholder="Tên thuộc tính..."
-                        className="flex-1 text-xs bg-transparent outline-none text-slate-700 dark:text-slate-200 placeholder:text-slate-400"
-                        disabled={creatingProp}
+                        className="flex-1 text-xs bg-transparent outline-none text-on-surface placeholder:text-on-muted/60 min-w-0"
                       />
                       <button
                         type="button"
-                        onClick={() => handleCreateProperty(selectedType)}
-                        disabled={creatingProp || !newPropName.trim()}
-                        className="p-1 text-indigo-600 hover:bg-indigo-50 rounded transition-colors disabled:opacity-40"
+                        onClick={handleCreateProperty}
+                        disabled={!addPropName.trim()}
+                        className="p-1 text-primary hover:bg-primary-container rounded transition-colors disabled:opacity-30 shrink-0"
                       >
-                        {creatingProp ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        <Check size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowAddProp(false); setAddPropName(""); setAddPropType("TEXT"); }}
+                        className="p-1 text-on-muted hover:bg-surface-container rounded transition-colors shrink-0"
+                      >
+                        <X size={13} />
                       </button>
                     </div>
                   ) : (
                     <button
                       type="button"
-                      onClick={() => setShowTypeMenu(!showTypeMenu)}
-                      className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-1.5 rounded-md transition-colors w-full"
+                      onClick={() => setShowAddProp(true)}
+                      className="flex items-center gap-1.5 text-xs text-on-muted hover:text-primary hover:bg-surface-high px-2 py-1.5 rounded-md transition-colors w-full mt-0.5"
                     >
-                      <Plus size={13} />
+                      <Plus size={12} />
                       <span>Thêm thuộc tính</span>
                     </button>
-                  )}
-
-                  {/* Type picker popover */}
-                  {showTypeMenu && !selectedType && (
-                    <div className="absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl py-2 rounded-xl w-56">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 pb-1.5">Loại thuộc tính</p>
-                      {PROPERTY_TYPES.map((pt) => {
-                        const PTIcon = pt.icon;
-                        return (
-                          <button
-                            key={pt.type}
-                            type="button"
-                            onClick={() => {
-                              setSelectedType(pt.type);
-                              setNewPropName("");
-                            }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                          >
-                            <PTIcon size={15} className="text-slate-400 dark:text-slate-500 shrink-0" />
-                            <span>{pt.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Existing definitions shortcut (reuse prop) */}
-                  {showAddProp && availableProps.length > 0 && (
-                    <div className="absolute left-0 bottom-full mb-1 z-50 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 shadow-xl py-2 rounded-xl w-56">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider px-3 pb-1.5">Đã có sẵn</p>
-                      {availableProps.map((p: any) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={async () => {
-                            await handleSaveProperty(p.id, null);
-                            setShowAddProp(false);
-                          }}
-                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <Plus size={14} className="text-slate-400" />
-                          <span>{p.name}</span>
-                        </button>
-                      ))}
-                    </div>
                   )}
                 </div>
               </div>
 
               {/* BlockNote Editor Area */}
               <div className="mt-8">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                <h3 className="text-xs font-bold text-on-muted uppercase tracking-wider mb-2 flex items-center gap-1">
                   📝 Ghi chú & Nội dung
                 </h3>
-                <div className="flex-1 min-h-[300px] text-sm text-slate-800 focus:outline-none -mx-10 mt-2">
+                <div className="task-detail-editor flex-1 min-h-[300px] text-sm text-on-surface focus:outline-none mt-2">
                   <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} />
                 </div>
               </div>
@@ -592,27 +679,33 @@ export function TaskDetailPanel() {
             </div>
 
             {/* Bottom Sticky Action Bar */}
-            <div className="border-t border-slate-100 p-4 bg-slate-50/80 backdrop-blur-sm shrink-0 flex items-center justify-between gap-3">
+            <div className="border-t border-outline dark:border-slate-800/60 p-4 bg-surface-low/95 dark:bg-surface-high/90 backdrop-blur-sm shrink-0 flex items-center justify-between gap-3">
               <button
                 onClick={handleDelete}
-                className="px-4 py-2 flex items-center gap-2 text-xs font-semibold text-red-600 hover:bg-red-50 hover:text-red-700 bg-transparent rounded-lg transition-colors"
+                className="px-4 py-2 flex items-center gap-2 text-xs font-semibold text-error-text hover:bg-error-bg/40 bg-transparent rounded-lg transition-colors"
                 title="Xóa công việc này"
               >
                 <Trash2 size={16} />
                 <span className="hidden sm:inline">Xóa</span>
               </button>
               <div className="flex items-center gap-3">
+                {noteSaveStatus === "saving" && (
+                  <span className="text-[11px] text-on-muted flex items-center gap-1.5">
+                    <Loader2 size={12} className="animate-spin" />
+                    Đang lưu...
+                  </span>
+                )}
+                {noteSaveStatus === "saved" && (
+                  <span className="text-[11px] text-success-text">Đã lưu</span>
+                )}
+                {noteSaveStatus === "error" && (
+                  <span className="text-[11px] text-error-text">Lỗi khi lưu</span>
+                )}
                 <button
                   onClick={handleClose}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-lg transition-colors"
+                  className="px-4 py-2 text-xs font-semibold text-on-muted hover:bg-surface-container bg-surface-container-high rounded-lg transition-colors"
                 >
-                  Hủy
-                </button>
-                <button
-                  onClick={handleSaveNote}
-                  className="px-5 py-2 text-xs font-semibold bg-blue-600 text-white rounded-lg shadow-sm hover:bg-blue-700 hover:shadow transition-all"
-                >
-                  Lưu & Đóng
+                  Đóng
                 </button>
               </div>
             </div>

@@ -9,7 +9,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const { id } = await params;
     const body = await req.json();
-    const { title, description, status, due_date, workspace_id, creator_id, assignee_id, tags } = body;
+    const { title, description, status, due_date, workspace_id, creator_id, assignee_ids, tags } = body;
 
     const task = await db.task.findUnique({
       where: { id },
@@ -58,22 +58,35 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(due_date !== undefined && { due_date: due_date ? new Date(due_date) : null }),
         ...(workspace_id && { workspace_id }),
         ...(creator_id && { creator_id }),
-        ...(assignee_id !== undefined && { assignee_id: assignee_id || null }),
-        tags: { set: finalTags }
+        tags: { set: finalTags },
+        ...(assignee_ids !== undefined && {
+          assignees: {
+            deleteMany: {},
+            create: assignee_ids.filter((id: string) => id).map((uid: string) => ({ user_id: uid }))
+          }
+        })
       },
       include: {
         creator: { select: { name: true, avatar_url: true } },
-        assignee: { select: { id: true, name: true, avatar_url: true } },
+        assignees: {
+          include: {
+            user: { select: { id: true, name: true, avatar_url: true } }
+          }
+        },
         customProperties: {
           include: {
             definition: { select: { id: true, name: true, type: true, options: true } },
           },
         },
-        tags: true
+        tags: true,
+        note: true,
       }
     });
 
-    return NextResponse.json(updatedTask);
+    // Flatten assignees for response
+    const result = { ...updatedTask, assignees: updatedTask.assignees.map(a => a.user) };
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error(error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

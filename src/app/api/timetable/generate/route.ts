@@ -246,7 +246,7 @@ function buildRows(answers: {
   if (best_energy_time !== "morning") {
     rows.push({
       title: "Cập nhật tin tức sản phẩm",
-      row_type: "custom",
+      row_type: "learning",
       start_time: toTime(cursor),
       end_time: toTime(cursor + 45),
       is_locked: false,
@@ -278,7 +278,7 @@ function buildRows(answers: {
         );
         rows.push(...result.rows);
         order = result.nextOrder;
-        cursor = result.endMin;
+        cursor = result.endMin + 5;
       } else {
         const result = buildFlexBlock(
           cursor,
@@ -287,7 +287,7 @@ function buildRows(answers: {
         );
         rows.push(...result.rows);
         order = result.nextOrder;
-        cursor = result.endMin;
+        cursor = result.endMin + 5;
       }
     }
   }
@@ -363,7 +363,7 @@ function buildRows(answers: {
   if (best_energy_time !== "afternoon") {
     rows.push({
       title: "Cập nhật tin tức sản phẩm",
-      row_type: "custom",
+      row_type: "learning",
       start_time: toTime(cursor),
       end_time: toTime(cursor + 45),
       is_locked: false,
@@ -395,7 +395,7 @@ function buildRows(answers: {
         );
         rows.push(...result.rows);
         order = result.nextOrder;
-        cursor = result.endMin;
+        cursor = result.endMin + 5;
       } else {
         const result = buildFlexBlock(
           cursor,
@@ -404,7 +404,7 @@ function buildRows(answers: {
         );
         rows.push(...result.rows);
         order = result.nextOrder;
-        cursor = result.endMin;
+        cursor = result.endMin + 5;
       }
     }
   }
@@ -465,13 +465,21 @@ const ALL_COLUMNS = [...DAY_COLUMNS, "notes", "tasks"];
 
 function seedCells(
   description?: string,
+  rowType?: string,
 ): { column_name: string; content: Prisma.InputJsonValue; task_ids: Prisma.InputJsonValue; is_deadline: boolean }[] {
-  return ALL_COLUMNS.map((col) => ({
-    column_name: col,
-    content: (col === "notes" && description ? [description] : []) as Prisma.InputJsonValue,
-    task_ids: [] as Prisma.InputJsonValue,
-    is_deadline: false,
-  }));
+  return ALL_COLUMNS.map((col) => {
+    let content: string[] = [];
+    if (col === "notes" && description) content = [description];
+    if (DAY_COLUMNS.includes(col) && rowType === "anchor_mid") {
+      content = ["Note lại các công việc đã làm buổi sáng."];
+    }
+    return {
+      column_name: col,
+      content: content as Prisma.InputJsonValue,
+      task_ids: [] as Prisma.InputJsonValue,
+      is_deadline: false,
+    };
+  });
 }
 
 // ─── Route Handler ────────────────────────────────────────────────────────────
@@ -570,7 +578,7 @@ export async function POST(req: Request) {
 
       const cellData: any[] = [];
       for (const row of rowData) {
-        const cells = seedCells(row.description);
+        const cells = seedCells(row.description, row.row_type);
         for (const c of cells) {
           cellData.push({
             id: randomUUID(),

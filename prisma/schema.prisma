@@ -35,7 +35,7 @@ model User {
   reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")
   checkins              Checkin[]               @relation("UserCheckins")
   tags                  Tag[]
-  assigned_tasks        Task[]                  @relation("UserAssignedTasks")
+  task_assignments      TaskAssignee[]
   created_tasks         Task[]                  @relation("UserCreatedTasks")
   timetable_rows        TimetableRow[]
   timetable_config      UserTimetableConfig?
@@ -149,13 +149,21 @@ model Task {
   is_archived      Boolean               @default(false)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
-  assignee_id      String?
   customProperties CustomPropertyValue[]
-  assignee         User?                 @relation("UserAssignedTasks", fields: [assignee_id], references: [id])
   creator          User                  @relation("UserCreatedTasks", fields: [creator_id], references: [id], onDelete: Cascade)
   workspace        Workspace             @relation("WorkspaceTasks", fields: [workspace_id], references: [id], onDelete: Cascade)
   note             TaskNote?
   tags             Tag[]                 @relation("TaskTags")
+  assignees        TaskAssignee[]
+}
+
+model TaskAssignee {
+  task_id String
+  user_id String
+  task   Task @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  user   User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@id([task_id, user_id])
 }
 
 model TaskNote {
