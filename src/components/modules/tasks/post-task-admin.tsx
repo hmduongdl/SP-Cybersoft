@@ -89,6 +89,7 @@ function PostThumbnail({ src, alt }: { src: string | null; alt: string }) {
     <img
       src={imgSrc}
       alt={alt}
+      referrerPolicy="no-referrer"
       className="w-full h-full object-cover"
       onError={() => setFailed(true)}
     />

@@ -183,7 +183,7 @@ export default function TimetableSettingsPopover({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: -4 }}
             transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="absolute right-0 top-10 z-50 w-64 bg-surface-container-lowest/95 backdrop-blur-xl border border-outline/40 rounded-2xl shadow-xl shadow-ambient text-on-surface overflow-hidden"
+            className="absolute right-0 top-10 z-50 w-64 bg-surface-container-lowest border border-outline/40 rounded-2xl shadow-xl shadow-ambient text-on-surface overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-outline/40">

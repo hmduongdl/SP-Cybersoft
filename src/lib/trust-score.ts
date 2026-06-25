@@ -84,7 +84,7 @@ export async function updateUserTrustScore(userId: string, action: TrustScoreAct
       autoApprovedIncrement = 1;
     }
   } else if (action === 'MISSED') {
-    change = -10;
+    change = -15;
   } else if (action === 'REJECTED') {
     change = -5;
     rejectedIncrement = 1;

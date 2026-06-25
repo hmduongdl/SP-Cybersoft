@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
+import { MotionConfig } from "framer-motion";
 import { useTaskStore } from "@/store/useTaskStore";
 import { TaskDetailPanel } from "./TaskDetailPanel";
 import { AIChatSidebar } from "./AIChatSidebar";
@@ -15,21 +16,23 @@ export default function TaskManagerMain() {
     selectedTaskId,
     fetchWorkspaces,
     switchWorkspace,
-    currentWorkspaceId
   } = useTaskStore();
 
-  useEffect(() => {
-    fetchWorkspaces();
-  }, [fetchWorkspaces]);
+  const initializedRef = useRef(false);
 
+  // Khởi tạo một lần — tránh gọi switchWorkspace lặp khi currentWorkspaceId đổi.
   useEffect(() => {
-    if (currentWorkspaceId) {
-      switchWorkspace(currentWorkspaceId);
-    }
-  }, [currentWorkspaceId, switchWorkspace]);
+    if (initializedRef.current) return;
+    initializedRef.current = true;
+
+    fetchWorkspaces().then(() => {
+      const wsId = useTaskStore.getState().currentWorkspaceId ?? "ALL";
+      switchWorkspace(wsId);
+    });
+  }, [fetchWorkspaces, switchWorkspace]);
 
   return (
-    <>
+    <MotionConfig reducedMotion="user">
       {/* ── 3-Column Shell ── */}
       <div className="flex h-full w-full overflow-hidden bg-surface">
 
@@ -49,6 +52,6 @@ export default function TaskManagerMain() {
 
       {/* Add Task Modal */}
       <AddTaskModal />
-    </>
+    </MotionConfig>
   );
 }

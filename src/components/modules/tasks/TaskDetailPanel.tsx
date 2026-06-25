@@ -498,7 +498,7 @@ export function TaskDetailPanel() {
                         <div className="flex items-center -space-x-1.5">
                           {(task as any).assignees.slice(0, 3).map((a: any) => (
                             a.avatar_url ? (
-                              <img key={a.id} src={a.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border-2 border-surface-mid" />
+                              <img key={a.id} src={a.avatar_url} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover border-2 border-surface-mid" />
                             ) : (
                               <div key={a.id} className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-primary border-2 border-surface-mid">
                                 {a.name?.substring(0, 2).toUpperCase() || 'US'}
@@ -566,7 +566,7 @@ export function TaskDetailPanel() {
                                   {isAssigned && <span className="text-white text-[9px]">✓</span>}
                                 </div>
                                 {u.avatar_url ? (
-                                  <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                  <img src={u.avatar_url} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover" />
                                 ) : (
                                   <div className="w-5 h-5 rounded-full bg-primary-container flex items-center justify-center text-[9px] font-semibold text-primary">
                                     {u.name.substring(0, 2).toUpperCase()}

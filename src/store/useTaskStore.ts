@@ -55,7 +55,11 @@ export interface Task {
   };
 }
 
-export type FilterStatus = 'all' | 'todo' | 'in_progress' | 'done' | 'today' | 'upcoming' | 'my_tasks';
+/** Một filter duy nhất — không tách timeFilter / filterStatus. */
+export type TaskFilter = 'all' | 'my_tasks' | 'today' | 'upcoming';
+
+/** @deprecated Dùng TaskFilter */
+export type FilterStatus = TaskFilter;
 
 export interface User {
   id: string;
@@ -68,35 +72,112 @@ export interface User {
 const PAGE_SIZE = 100;
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+function toCacheKey(workspaceId: string) {
+  return workspaceId === 'ALL' ? 'ALL' : workspaceId;
+}
+
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+// --- Pure filtering helpers ---
+export interface TaskFilterParams {
+  activeFilter: TaskFilter;
+  currentWorkspaceId: string | null;
+  selectedTagId: string | null;
+  tags: Tag[];
+  currentUserId?: string;
+}
+
+/** Lọc theo workspace — luôn chạy trước các filter khác. */
+export function filterTasksByWorkspace(tasks: Task[], workspaceId: string | null): Task[] {
+  if (!workspaceId || workspaceId === 'ALL') return tasks;
+  return tasks.filter((t) => t.workspace_id === workspaceId);
+}
+
+/** Task thuộc về user (được assign hoặc là người tạo). */
+export function isMyTask(task: Task, currentUserId?: string): boolean {
+  if (!currentUserId) return false;
+  const isAssigned = task.assignees?.some((a) => a.id === currentUserId) ?? false;
+  const isCreator = task.creator_id === currentUserId;
+  return isAssigned || isCreator;
+}
+
+export function filterTasks(tasks: Task[], params: TaskFilterParams): Task[] {
+  const { activeFilter, currentWorkspaceId, selectedTagId, tags, currentUserId } = params;
+  const today = startOfDay(new Date());
+
+  let result: Task[];
+
+  if (activeFilter === 'my_tasks') {
+    // Việc của tôi: hiện mọi task user được assign / tạo — bỏ qua workspace đang chọn
+    result = tasks.filter((t) => isMyTask(t, currentUserId));
+  } else {
+    result = filterTasksByWorkspace(tasks, currentWorkspaceId);
+
+    switch (activeFilter) {
+      case 'today':
+        result = result.filter((t) => {
+          if (!t.due_date) return t.status !== 'DONE';
+          return startOfDay(new Date(t.due_date)).getTime() === today.getTime();
+        });
+        break;
+      case 'upcoming':
+        result = result.filter((t) => {
+          if (!t.due_date) return t.status !== 'DONE';
+          return startOfDay(new Date(t.due_date)).getTime() >= today.getTime();
+        });
+        break;
+      case 'all':
+      default:
+        break;
+    }
+  }
+
+  if (selectedTagId) {
+    const selectedTag = tags.find((tag) => tag.id === selectedTagId);
+    if (selectedTag) {
+      const matchName = selectedTag.name.toLowerCase().trim();
+      result = result.filter(
+        (t) =>
+          t.tags?.some((tag) => tag.name?.toLowerCase().trim() === matchName) ||
+          (t as any).tag?.name?.toLowerCase().trim() === matchName
+      );
+    }
+  }
+
+  return result;
+}
+
 interface WorkspaceCache {
   tasks: Task[];
   tags: Tag[];
   total: number;
-  fetchedAt: number; // timestamp
+  fetchedAt: number;
 }
 
 interface TaskStoreState {
-  // State
   workspaces: Workspace[];
   currentWorkspaceId: string | null;
   currentWorkspace: Workspace | null;
+  /** Workspace mà mảng `tasks` hiện tại thuộc về — chặn hiển thị nhầm khi race fetch. */
+  tasksWorkspaceId: string | null;
   tasks: Task[];
   tags: Tag[];
-  taskTotal: number; // total count from server (for pagination)
+  taskTotal: number;
   users: User[];
   currentView: 'list' | 'kanban' | 'calendar';
   isAIChatOpen: boolean;
   selectedTaskId: string | null;
   isAddTaskModalOpen: boolean;
-  filterStatus: FilterStatus;
+  activeFilter: TaskFilter;
   selectedTagId: string | null;
   isTasksLoading: boolean;
-  isLoadingMore: boolean; // loading state for "load more"
-  timeFilter: 'all' | 'today' | 'upcoming';
-  // Cache
+  isLoadingMore: boolean;
   workspaceCache: Record<string, WorkspaceCache>;
 
-  // UI Actions
   setCurrentWorkspaceId: (id: string | null) => void;
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   setCurrentView: (view: 'list' | 'kanban' | 'calendar') => void;
@@ -104,30 +185,51 @@ interface TaskStoreState {
   setAIChatOpen: (isOpen: boolean) => void;
   setSelectedTaskId: (id: string | null) => void;
   setAddTaskModalOpen: (isOpen: boolean) => void;
-  setFilter: (filter: FilterStatus) => void;
+  setActiveFilter: (filter: TaskFilter) => void;
+  /** @deprecated Dùng setActiveFilter */
+  setFilter: (filter: TaskFilter) => void;
   setSelectedTagId: (tagId: string | null) => void;
-  setTimeFilter: (filter: 'all' | 'today' | 'upcoming') => void;
   getFilteredTasks: (currentUserId?: string) => Task[];
 
-  // Data Fetching Actions
   fetchWorkspaces: () => Promise<void>;
   switchWorkspace: (workspaceId: string) => Promise<void>;
   fetchTasks: (workspaceId: string, page?: number) => Promise<void>;
   fetchTags: (workspaceId: string) => Promise<void>;
   loadMoreTasks: () => Promise<void>;
   fetchUsers: () => Promise<void>;
+  /** Tải cache ALL (assignee/creator cross-workspace) — dùng cho filter Việc của tôi. */
+  ensureAllTasksLoaded: () => Promise<void>;
 
-  // CRUD Actions
   addTask: (taskData: Partial<Task>) => Promise<void>;
   updateTask: (taskId: string, taskData: Partial<Task>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   updateTaskNote: (taskId: string, noteContent: any) => Promise<void>;
 }
 
+function resolveWorkspace(workspaces: Workspace[], workspaceId: string | null) {
+  if (!workspaceId || workspaceId === 'ALL') return null;
+  return workspaces.find((w) => w.id === workspaceId) || null;
+}
+
+function taskBelongsToView(task: Task, workspaceId: string | null) {
+  if (!workspaceId || workspaceId === 'ALL') return true;
+  return task.workspace_id === workspaceId;
+}
+
+function invalidateWorkspaceCaches(cache: Record<string, WorkspaceCache>, ...keys: (string | undefined)[]) {
+  const next = { ...cache };
+  for (const key of keys) {
+    if (key && next[key]) delete next[key];
+  }
+  if (next.ALL) delete next.ALL;
+  return next;
+}
+
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
   workspaces: [],
-  currentWorkspaceId: "ALL",
+  currentWorkspaceId: 'ALL',
   currentWorkspace: null,
+  tasksWorkspaceId: null,
   tasks: [],
   tags: [],
   users: [],
@@ -139,95 +241,73 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   isLoadingMore: false,
   taskTotal: 0,
   workspaceCache: {},
-  filterStatus: 'all',
+  activeFilter: 'all',
   selectedTagId: null,
-  timeFilter: 'all',
 
-  setCurrentWorkspaceId: (id) => set((state) => ({ 
-    currentWorkspaceId: id,
-    currentWorkspace: state.workspaces.find(w => w.id === id) || null,
-    filterStatus: 'all',
-    selectedTagId: null
-  })),
-  setCurrentWorkspace: (workspace) => set({ 
-    currentWorkspace: workspace,
-    currentWorkspaceId: workspace ? workspace.id : null,
-    filterStatus: 'all',
-    selectedTagId: null
-  }),
+  setCurrentWorkspaceId: (id) =>
+    set((state) => ({
+      currentWorkspaceId: id,
+      currentWorkspace: resolveWorkspace(state.workspaces, id),
+      activeFilter: 'all',
+      selectedTagId: null,
+    })),
+
+  setCurrentWorkspace: (workspace) =>
+    set({
+      currentWorkspace: workspace,
+      currentWorkspaceId: workspace ? workspace.id : null,
+      activeFilter: 'all',
+      selectedTagId: null,
+    }),
+
   setCurrentView: (view) => set({ currentView: view }),
   toggleAIChat: () => set((state) => ({ isAIChatOpen: !state.isAIChatOpen })),
   setAIChatOpen: (isOpen) => set({ isAIChatOpen: isOpen }),
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),
   setAddTaskModalOpen: (isOpen) => set({ isAddTaskModalOpen: isOpen }),
-  setFilter: (filter) => set({ filterStatus: filter }),
+  setActiveFilter: (filter) => {
+    set({ activeFilter: filter });
+    if (filter === 'my_tasks') {
+      void get().ensureAllTasksLoaded();
+    }
+  },
+  setFilter: (filter) => {
+    set({ activeFilter: filter });
+    if (filter === 'my_tasks') {
+      void get().ensureAllTasksLoaded();
+    }
+  },
   setSelectedTagId: (tagId) => set({ selectedTagId: tagId }),
-  setTimeFilter: (filter) => set({ timeFilter: filter }),
+
   getFilteredTasks: (currentUserId?: string) => {
-    const { tasks, timeFilter, currentWorkspaceId, filterStatus, selectedTagId, tags } = get();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    return tasks.filter(t => {
-      // 1. Time filter logic
-      if (timeFilter !== "all") {
-        if (timeFilter === "today") {
-          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
-          if (!t.due_date) {
-            if (t.status === 'DONE') return false;
-            return true;
-          }
-          const dueDate = new Date(t.due_date);
-          dueDate.setHours(0, 0, 0, 0);
-          if (dueDate.getTime() !== today.getTime()) return false;
-        } else if (timeFilter === "upcoming") {
-          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
-          if (!t.due_date) {
-            if (t.status === 'DONE') return false;
-            return true;
-          }
-          const dueDate = new Date(t.due_date);
-          dueDate.setHours(0, 0, 0, 0);
-          if (dueDate.getTime() < today.getTime()) return false;
-        }
-      }
-
-      // 2. Workspace logic
-      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-
-      // 3. Status / My tasks logic
-      if (filterStatus === 'my_tasks') {
-        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
-        const isCreator = t.creator_id === currentUserId;
-        if (!isAssigned && !isCreator) return false;
-      }
-
-      // 4. Tag filter
-      if (selectedTagId) {
-        const selectedTag = tags.find(tag => tag.id === selectedTagId);
-        if (selectedTag) {
-          const matchName = selectedTag.name.toLowerCase().trim();
-          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
-          if (!hasTag) return false;
-        }
-      }
-
-      return true;
+    const { tasks, tasksWorkspaceId, currentWorkspaceId, activeFilter, selectedTagId, tags, workspaceCache } = get();
+    const workspaceTasks = tasksWorkspaceId === currentWorkspaceId ? tasks : [];
+    const allTasks = workspaceCache['ALL']?.tasks ?? [];
+    const sourceTasks =
+      activeFilter === 'my_tasks'
+        ? allTasks.length > 0
+          ? allTasks
+          : workspaceTasks
+        : workspaceTasks;
+    return filterTasks(sourceTasks, {
+      activeFilter,
+      currentWorkspaceId,
+      selectedTagId,
+      tags,
+      currentUserId,
     });
   },
 
   fetchWorkspaces: async () => {
     try {
       const res = await fetch('/api/tasks/workspaces');
-      if (res.ok) {
-        const data = await res.json();
-        set({ workspaces: data.workspaces || [] });
-        if (data.workspaces?.length > 0 && !get().currentWorkspaceId) {
-          set({ currentWorkspaceId: data.workspaces[0].id });
-        }
-      }
+      if (!res.ok) return;
+      const data = await res.json();
+      const workspaces: Workspace[] = data.workspaces || [];
+      set((state) => ({
+        workspaces,
+        currentWorkspace: resolveWorkspace(workspaces, state.currentWorkspaceId),
+      }));
     } catch (error) {
       console.error('Failed to fetch workspaces', error);
     }
@@ -235,99 +315,112 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   switchWorkspace: async (workspaceId: string) => {
     const state = get();
-    const cacheKey = workspaceId === "ALL" ? "ALL" : workspaceId;
+    const cacheKey = toCacheKey(workspaceId);
     const cached = state.workspaceCache[cacheKey];
-    
-    // Prevent redundant switches only if we already have the data cached for this exact workspace
-    if (state.currentWorkspaceId === workspaceId && cached) return;
-
     const now = Date.now();
+    const isSameWorkspace = state.currentWorkspaceId === workspaceId;
+    const hasFreshCache = cached && now - cached.fetchedAt < CACHE_TTL;
 
-    if (cached && (now - cached.fetchedAt) < CACHE_TTL) {
-      // Fresh cache — use immediately, no loading state
-      set({
-        currentWorkspaceId: workspaceId,
-        currentWorkspace: state.workspaces.find(w => w.id === workspaceId) || null,
-        tasks: cached.tasks,
-        tags: cached.tags,
-        taskTotal: cached.total,
-        filterStatus: 'all',
-        selectedTagId: null,
-      });
+    if (isSameWorkspace && hasFreshCache && state.tasksWorkspaceId === workspaceId) {
       return;
     }
 
+    const basePatch = {
+      currentWorkspaceId: workspaceId,
+      currentWorkspace: resolveWorkspace(state.workspaces, workspaceId),
+      activeFilter: 'all' as TaskFilter,
+      selectedTagId: null,
+    };
+
     if (cached) {
-      // Stale cache — show cached data, refetch in background
       set({
-        currentWorkspaceId: workspaceId,
-        currentWorkspace: state.workspaces.find(w => w.id === workspaceId) || null,
+        ...basePatch,
         tasks: cached.tasks,
         tags: cached.tags,
         taskTotal: cached.total,
-        isTasksLoading: true,
-        filterStatus: 'all',
-        selectedTagId: null,
+        tasksWorkspaceId: workspaceId,
+        isTasksLoading: !hasFreshCache,
       });
-      await Promise.all([
-        state.fetchTasks(workspaceId),
-        state.fetchTags(workspaceId),
-      ]);
+
+      if (hasFreshCache) return;
+
+      await Promise.all([get().fetchTasks(workspaceId), get().fetchTags(workspaceId)]);
       set({ isTasksLoading: false });
-    } else {
-      // No cache — show loading
-      set({
-        currentWorkspaceId: workspaceId,
-        currentWorkspace: state.workspaces.find(w => w.id === workspaceId) || null,
-        isTasksLoading: true,
-        filterStatus: 'all',
-        selectedTagId: null,
-        tasks: [],
-        tags: [],
-        taskTotal: 0,
-      });
-      await Promise.all([
-        state.fetchTasks(workspaceId),
-        state.fetchTags(workspaceId),
-      ]);
-      set({ isTasksLoading: false });
+      return;
     }
+
+    set({
+      ...basePatch,
+      tasks: [],
+      tags: [],
+      taskTotal: 0,
+      tasksWorkspaceId: workspaceId,
+      isTasksLoading: true,
+    });
+
+    await Promise.all([get().fetchTasks(workspaceId), get().fetchTags(workspaceId)]);
+    set({ isTasksLoading: false });
   },
 
   fetchTasks: async (workspaceId: string, page: number = 1) => {
+    const cacheKey = toCacheKey(workspaceId);
     try {
-      const cacheKey = workspaceId === "ALL" ? "ALL" : workspaceId;
-      const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&page=${page}&limit=${PAGE_SIZE}`);
-      if (res.ok) {
-        const data = await res.json();
-        const tasks = data.tasks || [];
-        const total = data.total || 0;
+      const res = await fetch(
+        `/api/tasks?workspaceId=${workspaceId}&page=${page}&limit=${PAGE_SIZE}`
+      );
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const fetchedTasks: Task[] = data.tasks || [];
+      const total = data.total || 0;
+
+      set((state) => {
+        const newCache = { ...state.workspaceCache };
+        const cachedTags = newCache[cacheKey]?.tags ?? state.tags;
 
         if (page === 1) {
-          // First page — replace tasks
-          set((state) => {
-            const newCache = { ...state.workspaceCache };
-            newCache[cacheKey] = { tasks, tags: state.tags, total, fetchedAt: Date.now() };
-            return { tasks, taskTotal: total, workspaceCache: newCache };
-          });
+          newCache[cacheKey] = {
+            tasks: fetchedTasks,
+            tags: cachedTags,
+            total,
+            fetchedAt: Date.now(),
+          };
         } else {
-          // Subsequent pages — append
-          set((state) => {
-            const merged = [...state.tasks];
-            for (const t of tasks) {
-              if (!merged.some(existing => existing.id === t.id)) {
-                merged.push(t);
-              }
+          const existing = newCache[cacheKey];
+          if (existing) {
+            const merged = [...existing.tasks];
+            for (const t of fetchedTasks) {
+              if (!merged.some((item) => item.id === t.id)) merged.push(t);
             }
-            const newCache = { ...state.workspaceCache };
-            const existing = newCache[cacheKey];
-            if (existing) {
-              newCache[cacheKey] = { ...existing, tasks: merged, total };
-            }
-            return { tasks: merged, taskTotal: total, workspaceCache: newCache };
-          });
+            newCache[cacheKey] = { ...existing, tasks: merged, total, fetchedAt: Date.now() };
+          }
         }
-      }
+
+        // Race guard: chỉ cập nhật UI khi vẫn đang xem đúng workspace
+        if (state.currentWorkspaceId !== workspaceId) {
+          return { workspaceCache: newCache };
+        }
+
+        if (page === 1) {
+          return {
+            tasks: fetchedTasks,
+            taskTotal: total,
+            tasksWorkspaceId: workspaceId,
+            workspaceCache: newCache,
+          };
+        }
+
+        const merged = [...state.tasks];
+        for (const t of fetchedTasks) {
+          if (!merged.some((item) => item.id === t.id)) merged.push(t);
+        }
+        return {
+          tasks: merged,
+          taskTotal: total,
+          tasksWorkspaceId: workspaceId,
+          workspaceCache: newCache,
+        };
+      });
     } catch (error) {
       console.error('Failed to fetch tasks', error);
     }
@@ -335,29 +428,45 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   loadMoreTasks: async () => {
     const state = get();
-    if (state.isLoadingMore || state.tasks.length >= state.taskTotal) return;
+    const workspaceId = state.currentWorkspaceId;
+    if (!workspaceId || state.isLoadingMore || state.tasks.length >= state.taskTotal) return;
+    if (state.tasksWorkspaceId !== workspaceId) return;
+
     set({ isLoadingMore: true });
     const currentPage = Math.ceil(state.tasks.length / PAGE_SIZE) + 1;
-    await state.fetchTasks(state.currentWorkspaceId!, currentPage);
+    await get().fetchTasks(workspaceId, currentPage);
     set({ isLoadingMore: false });
   },
 
   fetchTags: async (workspaceId: string) => {
+    const cacheKey = toCacheKey(workspaceId);
     try {
-      const cacheKey = workspaceId === "ALL" ? "ALL" : workspaceId;
       const res = await fetch(`/api/tasks/tags?workspaceId=${workspaceId}`);
-      if (res.ok) {
-        const data = await res.json();
-        const tags = data.tags || [];
-        set((state) => {
-          const newCache = { ...state.workspaceCache };
-          const existing = newCache[cacheKey];
-          if (existing) {
-            newCache[cacheKey] = { ...existing, tags, fetchedAt: Date.now() };
-          }
-          return { tags, workspaceCache: newCache };
-        });
-      }
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const fetchedTags: Tag[] = data.tags || [];
+
+      set((state) => {
+        const newCache = { ...state.workspaceCache };
+        const existing = newCache[cacheKey];
+        if (existing) {
+          newCache[cacheKey] = { ...existing, tags: fetchedTags, fetchedAt: Date.now() };
+        } else {
+          newCache[cacheKey] = {
+            tasks: [],
+            tags: fetchedTags,
+            total: 0,
+            fetchedAt: Date.now(),
+          };
+        }
+
+        if (state.currentWorkspaceId !== workspaceId) {
+          return { workspaceCache: newCache };
+        }
+
+        return { tags: fetchedTags, workspaceCache: newCache };
+      });
     } catch (error) {
       console.error('Failed to fetch tags', error);
     }
@@ -365,7 +474,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   fetchUsers: async () => {
     try {
-      const res = await fetch(`/api/user/list`);
+      const res = await fetch('/api/user/list');
       if (res.ok) {
         const data = await res.json();
         set({ users: data.users });
@@ -375,6 +484,18 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
   },
 
+  ensureAllTasksLoaded: async () => {
+    const state = get();
+    const cached = state.workspaceCache['ALL'];
+    const now = Date.now();
+    if (cached && now - cached.fetchedAt < CACHE_TTL) return;
+
+    const wasLoading = state.isTasksLoading;
+    if (!wasLoading) set({ isTasksLoading: true });
+    await get().fetchTasks('ALL', 1);
+    if (!wasLoading) set({ isTasksLoading: false });
+  },
+
   addTask: async (taskData) => {
     try {
       const res = await fetch('/api/tasks', {
@@ -382,21 +503,27 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskData),
       });
-      if (res.ok) {
-        const newTask = await res.json();
-        set((state) => {
-          // Invalidate cache for the affected workspace
-          const newCache = { ...state.workspaceCache };
-          const wsId = newTask.workspace_id;
-          if (newCache[wsId]) delete newCache[wsId];
-          if (newCache["ALL"]) delete newCache["ALL"];
-          return { tasks: [newTask, ...state.tasks], taskTotal: state.taskTotal + 1, workspaceCache: newCache };
-        });
-      } else {
+      if (!res.ok) {
         const err = await res.text();
         console.error('Failed to add task on server:', err);
         throw new Error(err);
       }
+
+      const newTask: Task = await res.json();
+      set((state) => {
+        const wsKey = toCacheKey(newTask.workspace_id);
+        const newCache = invalidateWorkspaceCaches(state.workspaceCache, wsKey);
+
+        const inCurrentView =
+          state.tasksWorkspaceId === state.currentWorkspaceId &&
+          taskBelongsToView(newTask, state.currentWorkspaceId);
+
+        return {
+          tasks: inCurrentView ? [newTask, ...state.tasks] : state.tasks,
+          taskTotal: inCurrentView ? state.taskTotal + 1 : state.taskTotal,
+          workspaceCache: newCache,
+        };
+      });
     } catch (error) {
       console.error('Failed to add task', error);
       throw error;
@@ -405,19 +532,16 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   updateTask: async (taskId, taskData) => {
     try {
-      const prevTask = get().tasks.find(t => t.id === taskId);
+      const prevTask = get().tasks.find((t) => t.id === taskId);
 
-      // Optimistic update
       set((state) => ({
         tasks: state.tasks.map((t) => {
           if (t.id !== taskId) return t;
-          // Khi cập nhật assignee_ids, cập nhật luôn assignees array
-          // để tránh race condition khi click liên tiếp nhiều người
           const updated = { ...t, ...taskData };
           if ((taskData as any).assignee_ids) {
             const ids = (taskData as any).assignee_ids as string[];
-            updated.assignees = ids.map(id => {
-              const existing = t.assignees.find(a => a.id === id);
+            updated.assignees = ids.map((id) => {
+              const existing = t.assignees.find((a) => a.id === id);
               return existing || { id, name: '', avatar_url: null };
             });
           }
@@ -431,24 +555,28 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         body: JSON.stringify(taskData),
       });
 
-      if (res.ok) {
-        const updatedServerTask = await res.json();
-        set((state) => {
-          // Invalidate cache
-          const newCache = { ...state.workspaceCache };
-          const oldWsId = prevTask?.workspace_id;
-          const newWsId = updatedServerTask.workspace_id;
-          if (newCache[oldWsId!]) delete newCache[oldWsId!];
-          if (newWsId !== oldWsId && newCache[newWsId]) delete newCache[newWsId];
-          if (newCache["ALL"]) delete newCache["ALL"];
-          return {
-            tasks: state.tasks.map((t) => (t.id === taskId ? updatedServerTask : t)),
-            workspaceCache: newCache
-          };
-        });
-      } else {
+      if (!res.ok) {
         console.error('Failed to update task on server');
+        return;
       }
+
+      const updatedServerTask: Task = await res.json();
+      set((state) => {
+        const oldWsKey = prevTask ? toCacheKey(prevTask.workspace_id) : undefined;
+        const newWsKey = toCacheKey(updatedServerTask.workspace_id);
+        const newCache = invalidateWorkspaceCaches(state.workspaceCache, oldWsKey, newWsKey);
+
+        const inCurrentView =
+          state.tasksWorkspaceId === state.currentWorkspaceId &&
+          taskBelongsToView(updatedServerTask, state.currentWorkspaceId);
+
+        let nextTasks = state.tasks.map((t) => (t.id === taskId ? updatedServerTask : t));
+        if (!inCurrentView) {
+          nextTasks = nextTasks.filter((t) => t.id !== taskId);
+        }
+
+        return { tasks: nextTasks, workspaceCache: newCache };
+      });
     } catch (error) {
       console.error('Failed to update task', error);
     }
@@ -458,16 +586,14 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     let prevTask: Task | null = null;
     try {
       set((state) => {
-        prevTask = state.tasks.find(t => t.id === taskId) || null;
+        prevTask = state.tasks.find((t) => t.id === taskId) || null;
         return {
           tasks: state.tasks.filter((t) => t.id !== taskId),
           taskTotal: Math.max(0, state.taskTotal - 1),
         };
       });
 
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: 'DELETE',
-      });
+      const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -478,19 +604,18 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           }));
         }
         throw new Error(errorData.error || 'Failed to delete task on server');
-      } else {
-        // Invalidate cache on successful delete
-        set((state) => {
-          const newCache = { ...state.workspaceCache };
-          if (prevTask?.workspace_id && newCache[prevTask.workspace_id]) delete newCache[prevTask.workspace_id];
-          if (newCache["ALL"]) delete newCache["ALL"];
-          return { workspaceCache: newCache };
-        });
       }
+
+      set((state) => ({
+        workspaceCache: invalidateWorkspaceCaches(
+          state.workspaceCache,
+          prevTask ? toCacheKey(prevTask.workspace_id) : undefined
+        ),
+      }));
     } catch (error: any) {
       if (prevTask) {
         set((state) => {
-          if (!state.tasks.some(t => t.id === taskId)) {
+          if (!state.tasks.some((t) => t.id === taskId)) {
             return { tasks: [...state.tasks, prevTask!], taskTotal: state.taskTotal + 1 };
           }
           return state;
@@ -512,9 +637,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         const data = await res.json();
         const savedNote = data.note ?? data;
         set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === taskId ? { ...t, note: savedNote } : t
-          ),
+          tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, note: savedNote } : t)),
         }));
       }
     } catch (error) {

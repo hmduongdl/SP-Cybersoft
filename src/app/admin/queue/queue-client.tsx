@@ -487,6 +487,7 @@ export default function QueueClient({
                   <div className="relative w-full aspect-video cursor-zoom-in overflow-hidden"
                     onClick={() => setZoomImageUrl(item.image_url)}>
                     <Image src={item.image_url} alt="Checkin proof" fill
+                      referrerPolicy="no-referrer"
                       className="object-cover rounded-t-[16px]"
                       sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
@@ -806,7 +807,7 @@ export default function QueueClient({
           className="fixed inset-0 z-[100] bg-slate-950/70 flex items-center justify-center p-4 cursor-zoom-out animate-in fade-in duration-300">
           <div className="relative max-w-3xl max-h-[85vh] w-[90vw] h-[85vh] overflow-hidden rounded-2xl animate-in zoom-in-95 duration-200"
             style={{ boxShadow: "0 20px 40px rgba(19, 27, 46, 0.06)" }}>
-            <Image src={zoomImageUrl} alt="Zoomed preview" fill className="object-contain" sizes="90vw" />
+            <Image src={zoomImageUrl} alt="Zoomed preview" fill referrerPolicy="no-referrer" className="object-contain" sizes="90vw" />
             <button onClick={() => setZoomImageUrl(null)}
               className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-950/70 text-white flex items-center justify-center hover:bg-black/60 transition-all duration-150">
               <X className="w-4 h-4" />

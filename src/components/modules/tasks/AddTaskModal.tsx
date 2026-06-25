@@ -182,7 +182,7 @@ export function AddTaskModal() {
                       <div className="flex items-center -space-x-1.5">
                         {selectedUsers.slice(0, 3).map(u => (
                           u.avatar_url ? (
-                            <img key={u.id} src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover border-2 border-white" />
+                            <img key={u.id} src={u.avatar_url} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover border-2 border-white" />
                           ) : (
                             <div key={u.id} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600 border-2 border-white">
                               {u.name.substring(0, 2).toUpperCase()}
@@ -232,7 +232,7 @@ export function AddTaskModal() {
                                 {isSelected && <span className="text-white text-[9px]">✓</span>}
                               </div>
                               {u.avatar_url ? (
-                                <img src={u.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                <img src={u.avatar_url} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover" />
                               ) : (
                                 <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
                                   {u.name.substring(0, 2).toUpperCase()}
