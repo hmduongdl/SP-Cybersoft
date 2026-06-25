@@ -758,7 +758,7 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
       {/* Overlay */}
       <div className="fixed inset-0 z-50 bg-slate-950/70 flex items-center justify-center p-4" onClick={onClose}>
         <div
-          className="bg-surface-mid dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl max-w-4xl w-full h-[85vh] md:h-[80vh] flex flex-col md:flex-row overflow-hidden animate-fade-in"
+          className="bg-surface-mid dark:bg-slate-900 rounded-2xl sm:rounded-3xl border border-slate-100 dark:border-slate-800 shadow-2xl max-w-4xl w-[calc(100vw-1.5rem)] sm:w-full h-[92vh] sm:h-[85vh] md:h-[80vh] flex flex-col md:flex-row overflow-hidden animate-fade-in mx-auto"
           onClick={e => e.stopPropagation()}
         >
           {/* ── Sidebar Tabs ── */}

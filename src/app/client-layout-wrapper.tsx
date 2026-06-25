@@ -16,6 +16,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const isMaintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true";
   const isTasksPage = pathname === "/tasks" || pathname?.startsWith("/tasks/");
   const isTimetablePage = pathname === "/timetable" || pathname?.startsWith("/timetable/");
+  const isSeoToolsPage = pathname === "/seo-tools" || pathname?.startsWith("/seo-tools/");
   const isFullWidthPage = isTasksPage || isTimetablePage;
 
   if (isLoginPage || isLandingPage || isMaintenanceMode || pathname === "/maintenance") {
@@ -37,14 +38,14 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
           {isFullWidthPage ? (
             children
           ) : (
-            <main className="p-4 md:p-6 lg:p-8 pt-6 lg:pt-8 max-w-7xl mx-auto w-full">
+            <main className="p-3 sm:p-4 md:p-6 lg:p-8 pt-4 sm:pt-6 lg:pt-8 max-w-7xl mx-auto w-full pb-safe">
               {children}
             </main>
           )}
         </div>
 
         {/* Global AI Assistant Pop-up Chat */}
-        <AIAssistant />
+        {!isSeoToolsPage && <AIAssistant />}
       </div>
     </div>
   );

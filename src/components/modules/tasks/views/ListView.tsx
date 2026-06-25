@@ -28,74 +28,20 @@ function StatusBadge({ status }: { status: TaskStatus }) {
 
 export function ListView() {
   const { data: session } = useSession();
-  const allTasks = useTaskStore(s => s.tasks);
-  const timeFilter = useTaskStore(s => s.timeFilter);
-  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
-  const filterStatus = useTaskStore(s => s.filterStatus);
   const updateTask = useTaskStore(s => s.updateTask);
   const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
-  const selectedTagId = useTaskStore(s => s.selectedTagId);
-  const tags = useTaskStore(s => s.tags);
+  const timeFilter = useTaskStore(s => s.timeFilter);
   const taskTotal = useTaskStore(s => s.taskTotal);
   const isLoadingMore = useTaskStore(s => s.isLoadingMore);
   const loadMoreTasks = useTaskStore(s => s.loadMoreTasks);
+  const getFilteredTasks = useTaskStore(s => s.getFilteredTasks);
 
   const [sortOption, setSortOption] = useState("newest");
   const currentUserId = session?.user?.id;
 
   const tasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const filtered = allTasks.filter(t => {
-      // 1. Time filter logic
-      if (timeFilter !== "all") {
-        if (timeFilter === "today") {
-          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
-          if (!t.due_date) {
-            if (t.status === 'DONE') return false;
-            return true;
-          }
-          const dueDate = new Date(t.due_date);
-          dueDate.setHours(0, 0, 0, 0);
-          if (dueDate.getTime() !== today.getTime()) return false;
-        } else if (timeFilter === "upcoming") {
-          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
-          if (!t.due_date) {
-            if (t.status === 'DONE') return false;
-            return true;
-          }
-          const dueDate = new Date(t.due_date);
-          dueDate.setHours(0, 0, 0, 0);
-          if (dueDate.getTime() < today.getTime()) return false;
-        }
-      }
-
-      // 2. Workspace logic
-      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-
-      // 3. Status logic
-      if (filterStatus === 'my_tasks') {
-        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
-        const isCreator = t.creator_id === currentUserId;
-        if (!isAssigned && !isCreator) return false;
-      }
-
-      if (selectedTagId) {
-        const selectedTag = tags.find(tag => tag.id === selectedTagId);
-        if (selectedTag) {
-          const matchName = selectedTag.name.toLowerCase().trim();
-          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
-          if (!hasTag) return false;
-        }
-      }
-
-      return true;
-    });
-    return filtered;
-  }, [allTasks, timeFilter, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+    return getFilteredTasks(currentUserId);
+  }, [getFilteredTasks, currentUserId]);
 
   const sortedTasks = useMemo(() => {
     let currentSort = sortOption;

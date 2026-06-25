@@ -4,6 +4,7 @@ import { DAILY_POST_LIMIT, getDayRange, getLocalDateKey, postTaskSchema } from '
 import { auth } from '@/auth';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS, getCachedPostsApi, getCachedTotalEmployees } from '@/lib/cache';
+import { mirrorThumbnail } from '@/lib/thumbnail-mirror';
 
 export async function GET(request: Request) {
     const session = await auth();
@@ -78,15 +79,20 @@ export async function POST(request: Request) {
         },
     });
 
+    const { title, url, thumbnail_url, description, start_at, team, author } = parsed.data;
+
+    // Auto-mirror thumbnail: tải ảnh từ URL ngoài (fbcdn.net...) → nén → Vercel Blob
+    const stableThumbnailUrl = await mirrorThumbnail(thumbnail_url, title);
+
     const post = await db.post.create({
         data: {
-            title: parsed.data.title,
-            url: parsed.data.url,
-            thumbnail_url: parsed.data.thumbnail_url || null,
-            description: parsed.data.description || '',
-            start_at: parsed.data.start_at ?? new Date(),
-            team: (parsed.data.team as any) || 'ALL',
-            author: parsed.data.author || null,
+            title,
+            url,
+            thumbnail_url: stableThumbnailUrl || null,
+            description: description || '',
+            start_at: start_at ?? new Date(),
+            team: (team as any) || 'ALL',
+            author: author || null,
             is_archived: false,
             allow_late_submit: false,
         },

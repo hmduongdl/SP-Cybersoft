@@ -151,11 +151,11 @@ export function SiteHeader() {
       {/* Non-blocking verification banner */}
       <VerificationBanner onOpenProfile={() => setOpenPersonalSettings(true)} />
 
-      <header className="bg-surface-mid border-b border-slate-100 sticky top-0 z-40 h-16 w-full px-6 flex items-center justify-between transition-all duration-200">
+      <header className="bg-surface-mid border-b border-slate-100 sticky top-0 z-40 h-14 sm:h-16 w-full px-3 sm:px-6 flex items-center justify-between gap-2 transition-all duration-200">
         {/* Left side: Hamburger (mobile) + Breadcrumbs */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           <button
-            className="md:hidden p-2 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-all duration-150"
+            className="md:hidden p-2 -ml-1 rounded-xl hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-all duration-150 shrink-0"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open sidebar menu"
           >
@@ -163,20 +163,20 @@ export function SiteHeader() {
           </button>
 
           {/* Breadcrumbs */}
-          <nav className="flex items-center space-x-1.5 text-sm font-medium font-inter" aria-label="Breadcrumb">
-            <Link href="/dashboard" className="text-on-surface-variant hover:text-on-surface transition-all duration-150 hidden md:inline">
+          <nav className="flex items-center space-x-1 text-sm font-medium font-inter min-w-0" aria-label="Breadcrumb">
+            <Link href="/dashboard" className="text-on-surface-variant hover:text-on-surface transition-all duration-150 hidden md:inline shrink-0">
               Trang chủ
             </Link>
             {breadcrumbs.map((crumb, idx) => {
               const isLast = idx === breadcrumbs.length - 1;
               return (
-                <span key={crumb.href} className={`items-center space-x-1.5 ${isLast ? "flex" : "hidden md:flex"}`}>
-                  <span className="text-on-surface-variant/40">/</span>
+                <span key={crumb.href} className={`items-center space-x-1 min-w-0 ${isLast ? "flex" : "hidden md:flex"}`}>
+                  <span className="text-on-surface-variant/40 shrink-0">/</span>
                   <span
                     className={
                       isLast
-                        ? "text-on-surface font-semibold truncate max-w-[120px] sm:max-w-none"
-                        : "text-on-surface-variant hover:text-on-surface transition-all duration-150"
+                        ? "text-on-surface font-semibold truncate max-w-[140px] xs:max-w-[200px] sm:max-w-none"
+                        : "text-on-surface-variant hover:text-on-surface transition-all duration-150 truncate"
                     }
                   >
                     {crumb.label}
@@ -188,7 +188,7 @@ export function SiteHeader() {
         </div>
 
         {/* Right side: Department, Bell, User Dropdown */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Department Badge */}
           {rawDepartment && (
             <div className="hidden xs:flex">
@@ -212,7 +212,7 @@ export function SiteHeader() {
 
             {/* Notification Dropdown */}
             {notifOpen && (
-              <div className="absolute right-0 mt-2 w-80 origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="fixed inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-w-[calc(100vw-1.5rem)] origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="px-4 py-3 border-none">
                   <h4 className="text-sm font-bold text-on-surface font-manrope">Thông báo</h4>
                   <p className="text-xs text-on-surface-variant font-inter">
@@ -289,7 +289,7 @@ export function SiteHeader() {
 
             {/* Dropdown Menu */}
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-64 origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="fixed inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-64 max-w-[calc(100vw-1.5rem)] origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* User Info Header */}
                 <div className="px-4 py-3 border-none flex items-center gap-3">
                   <div className="w-10 h-10 rounded-[10px] overflow-hidden flex items-center justify-center shrink-0">
