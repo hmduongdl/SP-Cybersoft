@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { differenceInSeconds, format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Clock, Star, ImageIcon, Search } from "lucide-react";
+import { Clock, ImageIcon, Search } from "lucide-react";
 import Image from "next/image";
-import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
-import type { UseHopeStarResult } from "@/app/actions/hope-star-actions";
 import { vi } from "date-fns/locale";
 import type { PostParticipant } from "@/lib/cache";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -221,39 +219,11 @@ function ActionCell({
   post,
   postStatus,
   onCheckIn,
-  userHopeStars,
-  userUsedStarsThisMonth,
-  onUseHopeStar,
 }: {
   post: Post;
   postStatus: PostStatus;
   onCheckIn?: (post: Post) => void;
-  userHopeStars?: number;
-  userUsedStarsThisMonth?: number;
-  onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
 }) {
-  const [isUsingHopeStar, setIsUsingHopeStar] = useState(false);
-  const hasStars = (userHopeStars ?? 0) > 0;
-  const canUseStarThisMonth = (userUsedStarsThisMonth ?? 0) < 3;
-  const canUseHopeStar = postStatus === "EXPIRED" && hasStars && canUseStarThisMonth;
-
-  const handleUseHopeStarClick = useCallback(async () => {
-    if (!onUseHopeStar || !canUseHopeStar) return;
-    setIsUsingHopeStar(true);
-    try {
-      const result = await onUseHopeStar(post.id);
-      if (result.success) {
-        toast.success("Đã xóa lỗi check-in bằng Ngôi sao hy vọng!");
-      } else {
-        toast.error(result.error || "Không thể sử dụng Ngôi sao hy vọng.");
-      }
-    } catch {
-      toast.error("Đã xảy ra lỗi, vui lòng thử lại.");
-    } finally {
-      setIsUsingHopeStar(false);
-    }
-  }, [post.id, onUseHopeStar, canUseHopeStar]);
-
   switch (postStatus) {
     case "NOT_SUBMITTED":
       return (
@@ -265,22 +235,6 @@ function ActionCell({
         </button>
       );
     case "EXPIRED":
-      if (canUseHopeStar) {
-        return (
-          <button
-            onClick={handleUseHopeStarClick}
-            disabled={isUsingHopeStar}
-            className="whitespace-nowrap px-3 py-1.5 text-xs font-semibold rounded-[8px] bg-amber-500 hover:bg-amber-600 text-white transition-all disabled:opacity-60 inline-flex items-center gap-1 font-inter animate-pulse"
-          >
-            {isUsingHopeStar ? (
-              <span className="w-3 h-3 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-            ) : (
-              <Star className="w-3.5 h-3.5 fill-white/30" />
-            )}
-            {isUsingHopeStar ? "Đang xử lý..." : "Dùng sao"}
-          </button>
-        );
-      }
       return (
         <button
           disabled
@@ -331,12 +285,9 @@ function ActionCell({
   }
 }
 
-export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStarsThisMonth = 0, onUseHopeStar, currentPage = 1, totalPages = 1, participantsMap = {} }: {
+export function PostListView({ posts, onCheckIn, currentPage = 1, totalPages = 1, participantsMap = {} }: {
   posts: Post[];
   onCheckIn?: (post: Post) => void;
-  userHopeStars?: number;
-  userUsedStarsThisMonth?: number;
-  onUseHopeStar?: (postId: string) => Promise<UseHopeStarResult>;
   currentPage?: number;
   totalPages?: number;
   participantsMap?: Record<string, PostParticipant[]>;
@@ -382,28 +333,6 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Hope Stars Status Banner */}
-      {(userHopeStars > 0 || userUsedStarsThisMonth > 0) && (
-        <div className="flex items-center gap-3 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 to-amber-500/5 border-none shadow-[0_20px_40px_rgba(245,158,11,0.06)]">
-          <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-600 flex-shrink-0">
-            <Star className="w-5 h-5 fill-amber-500" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-700 font-inter">
-              Ngôi sao hy vọng: {userHopeStars} sao
-            </p>
-            <p className="text-xs text-amber-600 font-inter">
-              Đã sử dụng {userUsedStarsThisMonth}/3 lượt trong tháng này
-              {userUsedStarsThisMonth >= 3
-                ? " (đã đạt giới hạn)"
-                : userHopeStars > 0
-                ? " — Có thể xóa lỗi cho bài quá hạn"
-                : ""}
-            </p>
-          </div>
-        </div>
-      )}
-
       {/* Filter Section - Floating directly on page bg */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center space-x-2 w-fit">
@@ -528,9 +457,6 @@ export function PostListView({ posts, onCheckIn, userHopeStars = 0, userUsedStar
                         post={post}
                         postStatus={postStatus}
                         onCheckIn={onCheckIn}
-                        userHopeStars={userHopeStars}
-                        userUsedStarsThisMonth={userUsedStarsThisMonth}
-                        onUseHopeStar={onUseHopeStar}
                       />
                     </div>
                   </div>

@@ -32,7 +32,6 @@ Model User:
   - password (hashed), role (ADMIN|USER), department
   - avatar_url?, facebook_verified, is_active
   - daily_token_limit, last_token_reset, tokens_used_today
-  - hope_stars, used_stars_this_month, last_star_reset_at
   - Relations: checkins (UserCheckins), reviewed_checkins (AdminReviewedCheckins)
 
 Model Post:
@@ -300,7 +299,6 @@ USER ROUTES:
   POST   /api/user/change-password    — Change password
   POST   /api/user/onboarding         — Complete onboarding
   GET    /api/user/quota-status       — Get token quota
-  POST   /api/user/use-star           — Use hope star (API route)
   POST   /api/upload/avatar           — Upload avatar (separate endpoint)
   POST   /api/upload/checkin          — Upload checkin image to blob
   POST   /api/ai/chat                 — AI chat (streaming)
@@ -322,7 +320,6 @@ ADMIN ROUTES:
   GET    /api/admin/settings          — Get system settings
   POST   /api/admin/upload-avatar     — DUPLICATE: Upload user avatar (admin)
   GET    /api/admin/og-scraper        — Scrape OG tags from URL
-  POST   /api/admin/users/[id]/add-star — Add hope star to user
 ```
 
 ---
@@ -407,7 +404,7 @@ RootLayout
 - **Auth flow**: NextAuth v5 config giữ nguyên — chỉ sửa type errors.
 - **Vercel Blob integration**: Upload/delete functions.
 - **EXIF parsing logic**: Server-side only.
-- **Core business logic**: 24h window, AUTO_APPROVED/PENDING determination, Hope Stars monthly limit (3/month).
+- **Core business logic**: 24h window, AUTO_APPROVED/PENDING determination.
 
 ### 9.2 Cần Real Database
 - Tất cả route handlers dùng `db.*` trực tiếp, không mock.

@@ -5,7 +5,6 @@ import { PostListView } from "@/components/modules/tasks/post-list-view";
 import { PostCalendarView } from "@/components/modules/tasks/post-calendar-view";
 import { SubmitCheckinModal } from "@/components/SubmitCheckinModal";
 import { Toaster } from "sonner";
-import { useHopeStar } from "@/app/actions/hope-star-actions";
 import { cn } from "@/lib/utils";
 import { List, Calendar } from "lucide-react";
 import type { PostParticipant } from "@/lib/cache";
@@ -18,16 +17,12 @@ export default function TasksPageClient({
   posts,
   allPosts = [],
   participantsMap = {},
-  userHopeStars = 0,
-  userUsedStarsThisMonth = 0,
   currentPage = 1,
   totalPages = 1
 }: {
   posts: any[],
   allPosts?: any[],
   participantsMap?: Record<string, PostParticipant[]>,
-  userHopeStars?: number,
-  userUsedStarsThisMonth?: number,
   currentPage?: number,
   totalPages?: number
 }) {
@@ -55,20 +50,6 @@ export default function TasksPageClient({
       setLocalPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, status: "COMPLETED", checkinStatus: "PENDING" } : p));
     }
   };
-
-  const handleUseHopeStar = useCallback(async (postId: string) => {
-    const result = await useHopeStar(postId);
-    if (result.success) {
-      setLocalPosts(prev =>
-        prev.map(p =>
-          p.id === postId
-            ? { ...p, status: "COMPLETED", checkinStatus: "APPROVED" }
-            : p
-        )
-      );
-    }
-    return result;
-  }, []);
 
   // Lọc bài viết theo khoảng ngày dựa vào start_at
   const filteredListPosts = useMemo(() => {
@@ -132,9 +113,6 @@ export default function TasksPageClient({
         <PostListView
           posts={filteredListPosts}
           onCheckIn={handleCheckIn}
-          onUseHopeStar={handleUseHopeStar}
-          userHopeStars={userHopeStars}
-          userUsedStarsThisMonth={userUsedStarsThisMonth}
           currentPage={currentPage}
           totalPages={totalPages}
           participantsMap={participantsMap}

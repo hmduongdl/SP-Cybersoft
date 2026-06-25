@@ -147,7 +147,7 @@ function getSuggestions(pathname: string | null): string[] {
   } else if (pathname.includes("/timetable")) {
     return [
       "Lịch làm việc hôm nay của tôi có gì?",
-      "Tuần này có sự kiện nào quan trọng không?",
+      "Quy tắc tạo bảng tự động là gì thế?",
       "Giúp tôi soạn báo cáo công việc cuối ngày của hôm nay"
     ];
   }

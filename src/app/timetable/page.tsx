@@ -176,23 +176,26 @@ function NoteCell({ row }: { row: TimetableRow }) {
 
 // ─── Break Row (compact inline strip) ────────────────────────────────────────
 function BreakRow({
-  row, provided, colCount, isGroupHighlighted, isOverlapping,
+  row, provided, colCount, isGroupHighlighted, isOverlapping, isFlashing,
 }: {
   row: TimetableRow; provided: DraggableProvided; colCount: number;
-  isGroupHighlighted?: boolean; isOverlapping?: boolean;
+  isGroupHighlighted?: boolean; isOverlapping?: boolean; isFlashing?: boolean;
 }) {
   return (
     <tr
       ref={provided.innerRef}
       {...provided.draggableProps}
       {...provided.dragHandleProps}
+      id={`timetable-row-${row.id}`}
       className={[
-        "border-b border-slate-100 dark:border-slate-800/60 transition-all duration-150",
-        isOverlapping
-          ? "overlap-pulse ring-2 ring-inset ring-amber-400 dark:ring-amber-500 bg-amber-50/70 dark:bg-amber-900/20"
-          : isGroupHighlighted
-            ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20"
-            : "",
+        "border-b border-slate-100 dark:border-slate-800/60 transition-all duration-1000",
+        isFlashing
+          ? "bg-green-100 ring-2 ring-inset ring-green-500 dark:bg-green-900/40 dark:ring-green-500"
+          : isOverlapping
+            ? "overlap-pulse ring-2 ring-inset ring-amber-400 dark:ring-amber-500 bg-amber-50/70 dark:bg-amber-900/20"
+            : isGroupHighlighted
+              ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/60 dark:bg-indigo-900/20"
+              : "",
       ].join(" ")}
     >
       <td colSpan={colCount} className="px-3 py-1 bg-slate-50/80 dark:bg-slate-800/30">
@@ -216,7 +219,7 @@ function BreakRow({
 
 // ─── Main TimetableTableRow ───────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, showWeekend, isGroupHighlighted, isOverlapping,
+  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, showWeekend, isGroupHighlighted, isOverlapping, isFlashing,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
@@ -229,6 +232,7 @@ function TimetableTableRow({
   showWeekend: boolean;
   isGroupHighlighted?: boolean;
   isOverlapping?: boolean;
+  isFlashing?: boolean;
 }) {
   const isLocked = row.is_locked;
   const isDragging = snapshot.isDragging;
@@ -255,6 +259,7 @@ function TimetableTableRow({
   return (
     <tr
       ref={provided.innerRef}
+      id={`timetable-row-${row.id}`}
       {...provided.draggableProps}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -263,19 +268,21 @@ function TimetableTableRow({
       }}
       title={noteText ? `Ghi chú: ${noteText}` : undefined}
       className={[
-        "border-b border-slate-100 dark:border-slate-800 group transition-all duration-150 cursor-pointer",
-        isDragging
-          ? "shadow-xl ring-2 ring-indigo-400 dark:ring-indigo-600 opacity-95 bg-white dark:bg-slate-900 scale-[1.01]"
-          : isOverlapping
-            ? "overlap-pulse bg-white dark:bg-slate-900"
-            : "bg-white dark:bg-slate-900",
-        !isDragging && isOverlapping
+        "border-b border-slate-100 dark:border-slate-800 group transition-all duration-1000 cursor-pointer",
+        isFlashing
+          ? "bg-green-100 ring-2 ring-inset ring-green-500 dark:bg-green-900/40 dark:ring-green-500"
+          : isDragging
+            ? "shadow-xl ring-2 ring-indigo-400 dark:ring-indigo-600 opacity-95 bg-white dark:bg-slate-900 scale-[1.01]"
+            : isOverlapping
+              ? "overlap-pulse bg-white dark:bg-slate-900"
+              : "bg-white dark:bg-slate-900",
+        !isDragging && !isFlashing && isOverlapping
           ? "ring-2 ring-inset ring-amber-400 dark:ring-amber-500"
           : "",
-        !isDragging && !isOverlapping && isGroupHighlighted
+        !isDragging && !isFlashing && !isOverlapping && isGroupHighlighted
           ? "ring-2 ring-inset ring-indigo-300 dark:ring-indigo-600 bg-indigo-50/40 dark:bg-indigo-900/20"
           : "",
-        !isDragging && !isLocked && !isGroupHighlighted && !isOverlapping
+        !isDragging && !isFlashing && !isLocked && !isGroupHighlighted && !isOverlapping
           ? "hover:bg-slate-50/70 dark:hover:bg-slate-800/20" : "",
       ].join(" ")}
     >
@@ -382,6 +389,37 @@ export default function TimetablePage() {
   // Track whether there are unsaved changes
   const [isDirty, setIsDirty] = useState(false);
 
+  const [flashingRowId, setFlashingRowId] = useState<string | null>(null);
+  const scrolledOnceRef = useRef(false);
+
+  useEffect(() => {
+    if (rows.length > 0 && !scrolledOnceRef.current) {
+      scrolledOnceRef.current = true;
+      const now = new Date();
+      const utcMs = now.getTime() + now.getTimezoneOffset() * 60000;
+      const gmt7Ms = utcMs + 7 * 60 * 60 * 1000;
+      const gmt7Date = new Date(gmt7Ms);
+      const currentMins = gmt7Date.getHours() * 60 + gmt7Date.getMinutes();
+
+      const currentRow = rows.find(r => {
+        if (!r.start_time || !r.end_time) return false;
+        const [sh, sm] = r.start_time.split(':').map(Number);
+        const [eh, em] = r.end_time.split(':').map(Number);
+        const startMins = sh * 60 + sm;
+        const endMins = eh * 60 + em;
+        return currentMins >= startMins && currentMins < endMins;
+      });
+
+      if (currentRow) {
+        setTimeout(() => {
+          document.getElementById('timetable-row-' + currentRow.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setFlashingRowId(currentRow.id);
+          setTimeout(() => setFlashingRowId(null), 3000);
+        }, 500);
+      }
+    }
+  }, [rows]);
+
   useEffect(() => {
     const handleOpenEdit = (e: any) => {
       setEditingRow(e.detail);
@@ -390,6 +428,16 @@ export default function TimetablePage() {
     return () => window.removeEventListener('openEditRowModal', handleOpenEdit);
   }, []);
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Auto-save effect ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (isDirty) {
+      const timer = setTimeout(() => {
+        validateAndSave(true);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [rows, isDirty]);
 
   // ── Unsaved-changes guard — warn before closing/navigating away ────────────
   useEffect(() => {
@@ -490,33 +538,37 @@ export default function TimetablePage() {
     finally { setExporting(false); }
   };
 
-  const validateAndSave = async () => {
+  const validateAndSave = async (isAuto = false) => {
     const zeroDur = rows.find((r) => !r.is_locked && rowDuration(r) <= 0);
     if (zeroDur) {
-      toast.error(
-        <div className="flex items-start gap-2">
-          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="font-semibold">Không thể lưu!</p>
-            <p className="text-xs">Hàng "{zeroDur.title || "(Chưa đặt tên)"}" có thời gian thực hiện bằng 0 phút.</p>
-          </div>
-        </div>,
-        { duration: 5000 },
-      );
+      if (!isAuto) {
+        toast.error(
+          <div className="flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Không thể lưu!</p>
+              <p className="text-xs">Hàng "{zeroDur.title || "(Chưa đặt tên)"}" có thời gian thực hiện bằng 0 phút.</p>
+            </div>
+          </div>,
+          { duration: 5000 },
+        );
+      }
       return;
     }
 
-    // Warn about overlapping rows before saving
-    const currentOverlaps = computeOverlapIds(rows);
-    if (currentOverlaps.size > 0) {
-      const overlapTitles = rows
-        .filter(r => currentOverlaps.has(r.id))
-        .map(r => `• ${r.title} (${r.start_time}–${r.end_time})`)
-        .join("\n");
-      const confirmed = window.confirm(
-        `⚠️ Bảng có ${currentOverlaps.size} hàng bị trùng khung giờ:\n\n${overlapTitles}\n\nBạn có muốn tiếp tục lưu không?`
-      );
-      if (!confirmed) return;
+    // Warn about overlapping rows before saving (skip warning if auto-saving)
+    if (!isAuto) {
+      const currentOverlaps = computeOverlapIds(rows);
+      if (currentOverlaps.size > 0) {
+        const overlapTitles = rows
+          .filter(r => currentOverlaps.has(r.id))
+          .map(r => `• ${r.title} (${r.start_time}–${r.end_time})`)
+          .join("\n");
+        const confirmed = window.confirm(
+          `⚠️ Bảng có ${currentOverlaps.size} hàng bị trùng khung giờ:\n\n${overlapTitles}\n\nBạn có muốn tiếp tục lưu không?`
+        );
+        if (!confirmed) return;
+      }
     }
 
     const payload = {
@@ -538,12 +590,18 @@ export default function TimetablePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!res.ok) { const err = await res.json(); toast.error(err.error ?? "Lưu thất bại."); return; }
+      if (!res.ok) { 
+        const err = await res.json(); 
+        if (!isAuto) toast.error(err.error ?? "Lưu thất bại."); 
+        return; 
+      }
       const data = await res.json();
       setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
       setIsDirty(false);
-      toast.success("Đã lưu thời khóa biểu! 💾");
-    } catch { toast.error("Không thể kết nối server. Vui lòng thử lại."); }
+      if (!isAuto) toast.success("Đã lưu thời khóa biểu! 💾");
+    } catch { 
+      if (!isAuto) toast.error("Không thể kết nối server. Vui lòng thử lại."); 
+    }
   };
 
   const handleRegenerate = () => {
@@ -768,15 +826,17 @@ export default function TimetablePage() {
     const withOrder = newRows.map((r, i) => ({ ...r, order: i }));
     setRows(withOrder);
 
-    // Persist new order — debounced, sends ALL row IDs in the final order
+    // Persist new order — debounced, sends ONLY free row IDs in the final order
     if (saveOrderTimer.current) clearTimeout(saveOrderTimer.current);
     saveOrderTimer.current = setTimeout(async () => {
       try {
-        await fetch("/api/timetable/reorder", {
+        const freeIds = withOrder.filter(r => !r.is_locked).map(r => r.id);
+        const res = await fetch("/api/timetable/reorder", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderedIds: withOrder.map(r => r.id) }),
+          body: JSON.stringify({ orderedIds: freeIds }),
         });
+        if (!res.ok) throw new Error();
       } catch { toast.error("Không thể lưu thứ tự."); }
     }, 600);
   }, [rows, getFocusGroup]);
@@ -986,6 +1046,7 @@ export default function TimetablePage() {
                                 colCount={totalColCount}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
+                                isFlashing={flashingRowId === row.id}
                               />
                             ) : (
                               <TimetableTableRow
@@ -1000,6 +1061,7 @@ export default function TimetablePage() {
                                 showWeekend={showWeekend}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
+                                isFlashing={flashingRowId === row.id}
                               />
                             )
                           )}
@@ -1038,6 +1100,7 @@ export default function TimetablePage() {
                                 colCount={totalColCount}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
+                                isFlashing={flashingRowId === row.id}
                               />
                             ) : (
                               <TimetableTableRow
@@ -1052,6 +1115,7 @@ export default function TimetablePage() {
                                 showWeekend={showWeekend}
                                 isGroupHighlighted={isGroupHighlighted && !snap.isDragging}
                                 isOverlapping={isOverlapping}
+                                isFlashing={flashingRowId === row.id}
                               />
                             )
                           )}

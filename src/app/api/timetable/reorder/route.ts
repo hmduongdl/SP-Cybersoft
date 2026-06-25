@@ -37,7 +37,7 @@ export async function PATCH(req: Request) {
   // ── 1. Fetch all rows to verify ownership and extract anchors ────────────
   const allRows = await prisma.timetableRow.findMany({
     where: { user_id: userId },
-    select: { id: true, row_type: true, is_locked: true, order: true },
+    select: { id: true, row_type: true, is_locked: true, order: true, title: true },
   });
 
   const ownedIds = new Set(allRows.map((r: { id: string }) => r.id));
@@ -62,17 +62,19 @@ export async function PATCH(req: Request) {
     );
   }
 
-  // ── 2. Find anchor rows by type ──────────────────────────────────────────
-  const anchorStart = allRows.find((r: { row_type: string }) => r.row_type === "anchor_start");
+  // ── 2. Find anchor rows by type and title ────────────────────────────────
+  const anchorStartWarmup = allRows.find((r: { row_type: string, title: string }) => r.row_type === "anchor_start" && r.title === "Khởi động");
+  const anchorStartRecheck = allRows.find((r: { row_type: string, title: string }) => r.row_type === "anchor_start" && r.title === "Recheck & Nhận công việc");
   const anchorMid   = allRows.find((r: { row_type: string }) => r.row_type === "anchor_mid");
   const anchorEnd   = allRows.find((r: { row_type: string }) => r.row_type === "anchor_end");
 
   // ── 3. Build the full ordered list by re-inserting anchors ───────────────
   //
   // Layout invariant:
-  //   [0]           anchor_start   (Khởi động)
-  //   [1..N-2]      free rows (morning + afternoon mixed, user-defined order)
-  //   [N-1]         anchor_mid     (Tổng kết buổi sáng) — sits between sessions
+  //   [0]           Khởi động
+  //   [1..N-2]      morning free rows
+  //   [N-1]         anchor_mid     (Tổng kết buổi sáng)
+  //   [N]           Recheck & Nhận công việc
   //   ... more free rows ...
   //   [LAST-1]      anchor_end     (Tổng kết cuối ngày)
   //
@@ -94,11 +96,11 @@ export async function PATCH(req: Request) {
   });
 
   // Compose final order:
-  // anchor_start → morning free → anchor_mid → afternoon free → anchor_end
   const finalOrder: string[] = [];
-  if (anchorStart) finalOrder.push(anchorStart.id);
+  if (anchorStartWarmup) finalOrder.push(anchorStartWarmup.id);
   finalOrder.push(...morningFreeRows);
   if (anchorMid) finalOrder.push(anchorMid.id);
+  if (anchorStartRecheck) finalOrder.push(anchorStartRecheck.id);
   finalOrder.push(...afternoonFreeRows);
   if (anchorEnd) finalOrder.push(anchorEnd.id);
 

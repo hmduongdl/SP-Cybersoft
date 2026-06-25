@@ -15,8 +15,6 @@ const USER_SELECT = {
   role:          true,
   department:    true,
   avatar_url:    true,
-  hope_stars:    true,
-  used_stars_this_month: true,
   is_verified:   true,
   is_active:     true,
   facebook_profile_url: true,

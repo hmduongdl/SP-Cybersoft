@@ -41,12 +41,6 @@ async function main() {
       avatar_url: oldAdmin.avatar_url,
       facebook_verified: oldAdmin.facebook_verified,
       is_active: oldAdmin.is_active,
-      daily_token_limit: oldAdmin.daily_token_limit,
-      last_token_reset: oldAdmin.last_token_reset,
-      tokens_used_today: oldAdmin.tokens_used_today,
-      hope_stars: oldAdmin.hope_stars,
-      used_stars_this_month: oldAdmin.used_stars_this_month,
-      last_star_reset_at: oldAdmin.last_star_reset_at,
     }
   });
 

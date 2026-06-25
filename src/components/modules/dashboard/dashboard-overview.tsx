@@ -16,7 +16,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { cn } from "@/lib/utils";
+import { cn, getPostDeadline } from "@/lib/utils";
 import { fetchMonthlyStats } from "@/app/dashboard/actions";
 
 interface ActivityFeedItem {
@@ -66,9 +66,7 @@ function timeAgo(dateString: string) {
 
 function countdownLabel(startAt: string) {
   const now = Date.now();
-  const start = new Date(startAt).getTime();
-  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
-  const deadline = start + THIRTY_HOURS;
+  const deadline = getPostDeadline(startAt).getTime();
   const remaining = deadline - now;
   if (remaining <= 0) return "Đã hết hạn";
   const hours = Math.floor(remaining / (60 * 60 * 1000));

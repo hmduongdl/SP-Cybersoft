@@ -19,7 +19,6 @@ import {
   UserCheck,
   UserPlus,
   User,
-  Star
 } from "lucide-react";
 import { useLayout } from "@/components/shared/layout-context";
 import { useSession } from "next-auth/react";
@@ -36,8 +35,6 @@ interface UserAccount {
   role: "ADMIN" | "USER";
   department: string | null;
   avatar_url: string | null;
-  hope_stars: number;
-  used_stars_this_month: number;
   is_active: boolean;
 }
 
@@ -261,7 +258,7 @@ export default function AdminAccountsPage() {
           </nav>
           <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Quản lý thành viên</h1>
           <p className="mt-1 text-sm text-on-surface-variant font-inter">
-            Quản lý nhân sự, phòng ban và Ngôi sao hy vọng.
+            Quản lý nhân sự và phòng ban.
           </p>
         </div>
         <div>
@@ -412,7 +409,6 @@ export default function AdminAccountsPage() {
                 <tr className="border-none bg-surface-container-low text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
                   <th className="px-6 py-4">Họ và tên</th>
                   <th className="px-6 py-4">Phòng ban</th>
-                  <th className="px-6 py-4 text-center">Ngôi sao hy vọng</th>
                   <th className="px-6 py-4">Trạng thái</th>
                   <th className="px-6 py-4 text-right">Thao tác</th>
                 </tr>
@@ -454,17 +450,6 @@ export default function AdminAccountsPage() {
                           <Briefcase className="h-3 w-3" />
                           {deptLabel(user.department)}
                         </span>
-                      </td>
-
-                      {/* Hope Stars */}
-                      <td className="px-6 py-4 text-center">
-                        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
-                          <Star className={`h-4 w-4 ${user.hope_stars > 0 ? "text-amber-500 fill-amber-400" : "text-amber-300"}`} />
-                          <span className="font-bold text-amber-800 text-sm">{user.hope_stars}</span>
-                          <span className="text-[10px] text-amber-600 ml-1">
-                            (đã dùng {user.used_stars_this_month}/3)
-                          </span>
-                        </div>
                       </td>
 
                       {/* Status */}
