@@ -1,6 +1,7 @@
 "use client";
 
 import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 
@@ -22,8 +23,11 @@ function ThemeSyncer() {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isLandingPage = pathname === "/";
+
   return (
-    <NextThemesProvider attribute="class" defaultTheme="light" enableSystem>
+    <NextThemesProvider attribute="class" defaultTheme="light" enableSystem forcedTheme={isLandingPage ? "light" : undefined}>
       <ThemeSyncer />
       {children}
     </NextThemesProvider>
