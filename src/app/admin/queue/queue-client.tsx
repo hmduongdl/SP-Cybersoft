@@ -98,6 +98,9 @@ export default function QueueClient({
   const [rejectReason, setRejectReason] = useState("");
   const [isBatchRejecting, setIsBatchRejecting] = useState(false);
   const [batchRejectReason, setBatchRejectReason] = useState("");
+  // Revoke (thu hồi tự động duyệt) state
+  const [isRevokingId, setIsRevokingId] = useState<string | null>(null);
+  const [revokeReason, setRevokeReason] = useState("");
 
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [processedIds, setProcessedIds] = useState<Set<string>>(new Set());
@@ -221,6 +224,15 @@ export default function QueueClient({
     executeAction([id], "REJECT", rejectReason.trim());
     setIsRejectingId(null);
     setRejectReason("");
+  };
+  const handleRevokeSubmit = (id: string) => {
+    if (!revokeReason.trim()) {
+      toast.error("Vui lòng nhập lý do thu hồi.");
+      return;
+    }
+    executeAction([id], "REJECT", revokeReason.trim());
+    setIsRevokingId(null);
+    setRevokeReason("");
   };
   const handleBatchApprove = () => {
     const ids = Array.from(selectedIds);
@@ -680,6 +692,69 @@ export default function QueueClient({
                               className="px-3 py-1.5 rounded-[8px] gradient-primary text-white text-xs font-semibold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer border-none flex items-center justify-center gap-1 font-inter">
                               <Check className="w-3.5 h-3.5" />
                               Duyệt
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {/* Revoke action — for AUTO_APPROVED items */}
+                    {item.status === "AUTO_APPROVED" && (
+                      <>
+                        {isRevokingId === item.id ? (
+                          <div className="space-y-2 pt-1 animate-in slide-in-from-bottom-2 duration-200">
+                            <p className="text-[10px] text-on-surface-variant font-inter">
+                              Lý do thu hồi (user sẽ thấy và được nộp lại nếu còn trong hạn):
+                            </p>
+                            <div className="flex flex-wrap gap-1">
+                              {["Chia sẻ sai bài viết", "Ảnh sai nội dung", "Tài khoản sai"].map((r) => (
+                                <button key={r} onClick={() => setRevokeReason(r)}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all duration-150 bg-surface-container-lowest text-on-surface-variant border-outline-variant hover:border-rose-400 font-inter",
+                                    revokeReason === r && "border-rose-500 bg-rose-50 text-rose-700"
+                                  )}>
+                                  {r}
+                                </button>
+                              ))}
+                            </div>
+                            <textarea
+                              placeholder="Mô tả thêm lý do..."
+                              value={revokeReason}
+                              onChange={e => setRevokeReason(e.target.value)}
+                              className="w-full px-3 py-2 bg-surface-container-low rounded-xl text-xs resize-none border-none focus:outline-none focus:ring-2 focus:ring-rose-400/30 font-inter"
+                              rows={2}
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <button
+                                onClick={() => { setIsRevokingId(null); setRevokeReason(""); }}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-all duration-150 font-inter"
+                              >
+                                Hủy
+                              </button>
+                              <button
+                                onClick={() => handleRevokeSubmit(item.id)}
+                                disabled={isActionLoading || !revokeReason.trim()}
+                                className="px-3 py-1.5 rounded-lg text-xs font-bold text-white transition-all bg-rose-600 hover:bg-rose-700 disabled:opacity-50 font-inter"
+                              >
+                                {isActionLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                                Thu hồi duyệt
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 pt-1">
+                            <div className="flex-1 flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold font-inter bg-emerald-50 px-2.5 py-1.5 rounded-lg">
+                              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                              Đã tự động duyệt
+                            </div>
+                            <button
+                              onClick={() => { setIsRevokingId(item.id); setRevokeReason(""); }}
+                              disabled={isActionLoading}
+                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 transition-all active:scale-[0.98] font-inter"
+                              title="Thu hồi và cho phép nộp lại"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              Thu hồi
                             </button>
                           </div>
                         )}

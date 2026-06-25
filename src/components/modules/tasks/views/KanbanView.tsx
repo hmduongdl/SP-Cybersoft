@@ -18,71 +18,17 @@ const COLS = [
 
 export function KanbanView() {
   const { data: session } = useSession();
-  const allTasks = useTaskStore(s => s.tasks);
-  const timeFilter = useTaskStore(s => s.timeFilter);
-  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
-  const filterStatus = useTaskStore(s => s.filterStatus);
   const updateTask = useTaskStore(s => s.updateTask);
   const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
   const setAddTaskModalOpen = useTaskStore(s => s.setAddTaskModalOpen);
-  const selectedTagId = useTaskStore(s => s.selectedTagId);
-  const tags = useTaskStore(s => s.tags);
+  const getFilteredTasks = useTaskStore(s => s.getFilteredTasks);
 
   const currentUserId = session?.user?.id;
 
   const tasks = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const filtered = getFilteredTasks(currentUserId);
 
-    const filtered = allTasks.filter(t => {
-      // 1. Time filter logic
-      if (timeFilter !== "all") {
-        if (timeFilter === "today") {
-          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
-          if (!t.due_date) {
-            if (t.status === 'DONE') return false;
-            return true;
-          }
-          const dueDate = new Date(t.due_date);
-          dueDate.setHours(0, 0, 0, 0);
-          if (dueDate.getTime() !== today.getTime()) return false;
-        } else if (timeFilter === "upcoming") {
-          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
-          if (!t.due_date) {
-            if (t.status === 'DONE') return false;
-            return true;
-          }
-          const dueDate = new Date(t.due_date);
-          dueDate.setHours(0, 0, 0, 0);
-          if (dueDate.getTime() < today.getTime()) return false;
-        }
-      }
-
-      // 2. Workspace logic
-      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-
-      // 3. Status logic
-      if (filterStatus === 'my_tasks') {
-        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
-        const isCreator = t.creator_id === currentUserId;
-        if (!isAssigned && !isCreator) return false;
-      }
-
-      if (selectedTagId) {
-        const selectedTag = tags.find(tag => tag.id === selectedTagId);
-        if (selectedTag) {
-          const matchName = selectedTag.name.toLowerCase().trim();
-          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
-          if (!hasTag) return false;
-        }
-      }
-
-      return true;
-    });
-
-    // Cải thiện logic sắp xếp: ưu tiên task có deadline gần nhất lên trên
+    // Sắp xếp: ưu tiên task có deadline gần nhất lên trên
     return filtered.sort((a, b) => {
       if (a.due_date && b.due_date) {
         return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
@@ -91,7 +37,7 @@ export function KanbanView() {
       if (!a.due_date && b.due_date) return 1;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Fallback mới nhất
     });
-  }, [allTasks, timeFilter, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+  }, [getFilteredTasks, currentUserId]);
 
   // Memoize column groups to avoid 3 filter calls per render
   const columnTasksMap = useMemo(() => {
@@ -112,12 +58,12 @@ export function KanbanView() {
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="w-full h-full flex-1 overflow-y-hidden overflow-x-auto min-h-0">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch font-inter h-full min-w-[700px] min-h-0">
+      <div className="w-full h-full flex-1 overflow-y-auto lg:overflow-y-hidden lg:overflow-x-auto min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-stretch font-inter h-full min-w-0 lg:min-w-[700px] min-h-0">
           {COLS.map((col) => {
             const columnTasks = columnTasksMap[col.key];
             return (
-              <div key={col.key} className={cn("col-span-1 rounded-2xl p-3 flex flex-col gap-2 min-h-0 h-full overflow-hidden transition-colors", col.bgClass)}>
+              <div key={col.key} className={cn("col-span-1 rounded-2xl p-3 flex flex-col gap-2 min-h-[200px] lg:min-h-0 lg:h-full overflow-hidden transition-colors", col.bgClass)}>
               
               {/* Header */}
               <div className="flex items-center justify-between mb-1 flex-shrink-0">

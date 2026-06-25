@@ -117,10 +117,10 @@ export function MainContent() {
   const setFilterStatus = setFilter;
 
   return (
-    <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-50/50 dark:bg-slate-950 p-6 md:p-8 w-full">
+    <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-slate-50/50 dark:bg-slate-950 p-3 sm:p-6 md:p-8 w-full pb-20 sm:pb-8">
       {/* Breadcrumbs */}
-      <div className="mb-6">
-        <nav className="flex items-center gap-1.5 text-xs font-inter mb-3">
+      <div className="mb-4 sm:mb-6">
+        <nav className="hidden sm:flex items-center gap-1.5 text-xs font-inter mb-3">
           <span className="text-on-muted dark:text-slate-300">Dashboard</span>
           <span className="text-[#c4c8da] dark:text-slate-600">/</span>
           <span className="text-on-muted dark:text-slate-300">Trang chủ</span>
@@ -130,13 +130,13 @@ export function MainContent() {
         <p className="text-[9px] font-inter font-semibold tracking-[.1em] uppercase text-[#0050cb] mb-1">
           BẢNG CÔNG VIỆC
         </p>
-        <h1 className="font-manrope font-bold text-[28px] text-on-surface dark:text-slate-100 tracking-[-0.02em]">
+        <h1 className="font-manrope font-bold text-xl sm:text-[28px] text-on-surface dark:text-slate-100 tracking-[-0.02em]">
           Task Manager
         </h1>
       </div>
 
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6 mb-4 sm:mb-6">
         {[
           { label: 'Cần làm', bg: '#f2f3ff', color: '#44495a', value: todoCount },
           { label: 'Đang làm', bg: '#fff3cd', color: '#b45309', value: inProgressCount },
@@ -144,7 +144,7 @@ export function MainContent() {
           { label: 'Quá hạn', bg: '#ffdad6', color: '#a10000', value: overdueCount },
           { label: 'Cá nhân', bg: '#e8eaff', color: '#0050cb', value: myTasksCount },
         ].map(s => (
-          <div key={s.label} className="col-span-1 bg-surface-mid dark:bg-[#131b2e] rounded-2xl p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
+          <div key={s.label} className="col-span-1 bg-surface-mid dark:bg-[#131b2e] rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-100 dark:border-slate-800 shadow-sm">
             <div className="w-8 h-8 rounded-full flex items-center justify-center mb-2" style={{ background: s.bg, color: s.color }}>
               {s.label === 'Cần làm' && <List size={16} />}
               {s.label === 'Đang làm' && <Columns size={16} />}
@@ -153,7 +153,7 @@ export function MainContent() {
               {s.label === 'Cá nhân' && <UserIcon size={16} />}
             </div>
             <p className="text-[9px] font-inter font-medium tracking-[.08em] uppercase text-on-muted dark:text-slate-400 mb-1">{s.label}</p>
-            <p className="text-[22px] font-manrope font-bold text-on-surface dark:text-slate-100">{s.value}</p>
+            <p className="text-[22px] sm:text-[22px] font-manrope font-bold text-on-surface dark:text-slate-100">{s.value}</p>
           </div>
         ))}
       </div>
@@ -181,8 +181,8 @@ export function MainContent() {
           </AnimatePresence>
         </div>
 
-        {/* Right: NOTE PANEL */}
-        <div className="col-span-1 bg-amber-50/40 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-500/35 rounded-2xl p-5 pb-20 shadow-sm h-full flex flex-col min-h-0 relative">
+        {/* Right: NOTE PANEL — hidden on mobile, visible from lg */}
+        <div className="hidden lg:flex col-span-1 bg-amber-50/40 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-500/35 rounded-2xl p-5 shadow-sm h-full flex-col min-h-0 relative">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base">📝</span>
             <h3 className="font-manrope font-bold text-sm text-slate-800 dark:text-slate-300 uppercase tracking-wider">

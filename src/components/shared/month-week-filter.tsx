@@ -40,8 +40,9 @@ export function MonthWeekFilter({
   } = filter;
 
   const monthOptions = buildMonthOptions();
-  const minDate = monthMin(selectedMonth);
-  const maxDate = monthMax(selectedMonth);
+  const isAllTime = selectedMonth === "all";
+  const minDate = isAllTime ? "" : monthMin(selectedMonth);
+  const maxDate = isAllTime ? "" : monthMax(selectedMonth);
 
   const hasCustomRange = !!(dateFrom && dateTo);
   const isDirty = selectedMonth !== currentMonthKey || hasCustomRange;
@@ -75,32 +76,36 @@ export function MonthWeekFilter({
       <span className="text-outline-variant text-xs hidden sm:inline">|</span>
 
       {/* Date from */}
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-on-surface-variant font-inter hidden sm:inline">Từ</span>
-        <input
-          type="date"
-          value={dateFrom}
-          min={minDate}
-          max={dateTo || maxDate}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="px-3 py-2 text-sm bg-surface-container-low hover:bg-surface-container rounded-xl border-none outline-none cursor-pointer text-on-surface transition-all duration-150 font-inter"
-          placeholder="Từ ngày"
-        />
-      </div>
+      {!isAllTime && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-on-surface-variant font-inter hidden sm:inline">Từ</span>
+          <input
+            type="date"
+            value={dateFrom}
+            min={minDate}
+            max={dateTo || maxDate}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-3 py-2 text-sm bg-surface-container-low hover:bg-surface-container rounded-xl border-none outline-none cursor-pointer text-on-surface transition-all duration-150 font-inter"
+            placeholder="Từ ngày"
+          />
+        </div>
+      )}
 
       {/* Date to */}
-      <div className="flex items-center gap-1.5">
-        <span className="text-xs text-on-surface-variant font-inter hidden sm:inline">đến</span>
-        <input
-          type="date"
-          value={dateTo}
-          min={dateFrom || minDate}
-          max={maxDate}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="px-3 py-2 text-sm bg-surface-container-low hover:bg-surface-container rounded-xl border-none outline-none cursor-pointer text-on-surface transition-all duration-150 font-inter"
-          placeholder="Đến ngày"
-        />
-      </div>
+      {!isAllTime && (
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-on-surface-variant font-inter hidden sm:inline">đến</span>
+          <input
+            type="date"
+            value={dateTo}
+            min={dateFrom || minDate}
+            max={maxDate}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-3 py-2 text-sm bg-surface-container-low hover:bg-surface-container rounded-xl border-none outline-none cursor-pointer text-on-surface transition-all duration-150 font-inter"
+            placeholder="Đến ngày"
+          />
+        </div>
+      )}
 
       {/* Nút Clear / Tuần này / Text báo trạng thái */}
       <div className="flex items-center gap-2">

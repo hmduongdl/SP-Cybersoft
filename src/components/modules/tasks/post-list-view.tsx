@@ -377,11 +377,11 @@ export function PostListView({ posts, onCheckIn, currentPage = 1, totalPages = 1
         <>
           <section className="bg-surface-container-lowest rounded-[16px] overflow-hidden shadow-[0_20px_40px_rgba(19,27,46,0.06)] border-none">
             {/* Table Header */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] bg-surface-container-low px-8 py-3.5 text-on-surface-variant tracking-[0.05em] font-semibold font-inter uppercase text-[11px] leading-none">
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr] md:grid-cols-[2fr_1fr_1fr_1fr_1fr] bg-surface-container-low px-8 py-3.5 text-on-surface-variant tracking-[0.05em] font-semibold font-inter uppercase text-[11px] leading-none">
               <div>BÀI VIẾT</div>
               <div>TRẠNG THÁI</div>
               <div>DEADLINE</div>
-              <div>THÀNH VIÊN</div>
+              <div className="hidden md:block">THÀNH VIÊN</div>
               <div className="text-right">HÀNH ĐỘNG</div>
             </div>
 
@@ -396,7 +396,7 @@ export function PostListView({ posts, onCheckIn, currentPage = 1, totalPages = 1
                 return (
                   <div
                     key={post.id}
-                    className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center px-8 py-4 group hover:bg-surface-container transition-all duration-150 border-none"
+                    className="grid grid-cols-[2fr_1fr_1fr_1fr] md:grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center px-8 py-4 group hover:bg-surface-container transition-all duration-150 border-none"
                   >
                     {/* Thumbnail + Title + Author */}
                     <div className="flex items-center space-x-4 min-w-0 pr-3">
@@ -447,7 +447,7 @@ export function PostListView({ posts, onCheckIn, currentPage = 1, totalPages = 1
                     </div>
 
                     {/* Participants */}
-                    <div>
+                    <div className="hidden md:block">
                       <ParticipantsCell participants={participantsMap[post.id] || []} />
                     </div>
 

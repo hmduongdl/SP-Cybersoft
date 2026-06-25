@@ -128,27 +128,29 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
 // ─── Sub-component: EXIF Status Badge ────────────────────────────────────────
 
 function ExifStatusBadge({ status, exifDate }: { status: ExifStatus; exifDate: Date | null }) {
-  if (status === "idle") return null;
+  // Chỉ hiển thị khi đang scan hoặc có kết quả hợp lệ/không hợp lệ
+  // Ẩn hoàn toàn khi không có EXIF (ảnh chụp màn hình) — không cần báo user
+  if (status === "idle" || status === "no_exif") return null;
 
   if (status === "scanning") {
     return (
-      <div className="flex items-center gap-3 p-3.5 rounded-xl bg-indigo-500/10 border-none animate-pulse">
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/10 border-none animate-pulse">
         <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" />
-        <span className="text-xs font-medium text-indigo-700 font-inter">Đang phân tích dữ liệu EXIF từ máy chủ...</span>
+        <span className="text-xs font-medium text-indigo-700 font-inter">Đang xác minh ảnh...</span>
       </div>
     );
   }
 
   if (status === "valid" && exifDate) {
     return (
-      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-emerald-500/10 border-none">
-        <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-          <span className="material-symbols-outlined text-[16px] font-bold">check</span>
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border-none">
+        <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+          <span className="material-symbols-outlined text-[14px] font-bold">check</span>
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-emerald-800 font-manrope">✓ Phát hiện thời gian chụp ảnh hợp lệ</p>
+          <p className="text-xs font-semibold text-emerald-800 font-manrope">✓ Phát hiện thời gian chụp hợp lệ</p>
           <p className="text-[11px] text-emerald-600 mt-0.5 font-mono font-semibold">{formatViDate(exifDate)}</p>
-          <p className="text-[11px] text-emerald-600/80 mt-1 font-inter">Ảnh đủ điều kiện duyệt tự động.</p>
+          <p className="text-[11px] text-emerald-600/80 mt-0.5 font-inter">Ảnh đủ điều kiện duyệt tự động.</p>
         </div>
       </div>
     );
@@ -156,28 +158,18 @@ function ExifStatusBadge({ status, exifDate }: { status: ExifStatus; exifDate: D
 
   if (status === "invalid") {
     return (
-      <div className="flex items-start gap-3 p-3.5 rounded-xl bg-rose-500/10 border-none">
-        <AlertTriangle className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-500/10 border-none">
+        <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-semibold text-rose-800 font-manrope">⚠ Thời gian chụp nằm ngoài cửa sổ 24h</p>
+          <p className="text-xs font-semibold text-rose-800 font-manrope">⚠ Thời gian chụp ngoài cửa sổ 24h</p>
           <p className="text-[11px] text-rose-600 mt-0.5 font-mono">EXIF: {exifDate ? formatViDate(exifDate) : "—"}</p>
-          <p className="text-[11px] text-rose-600/80 mt-1 font-inter">Bài viết sẽ được chuyển sang hàng đợi để Admin duyệt thủ công.</p>
+          <p className="text-[11px] text-rose-600/80 mt-0.5 font-inter">Bài sẽ chờ Admin duyệt thủ công.</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="flex items-start gap-3 p-3.5 rounded-xl bg-amber-500/10 border-none">
-      <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-      <div>
-        <p className="text-xs font-semibold text-amber-800 font-manrope">⚠ Không phát hiện thông tin EXIF</p>
-        <p className="text-[11px] text-amber-600/85 mt-1 font-inter leading-relaxed">
-          Ảnh chụp màn hình máy tính thường không có EXIF. Bài viết sẽ được chuyển sang hàng đợi để Admin duyệt thủ công.
-        </p>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 // ─── File validation ──────────────────────────────────────────────────────────
@@ -450,32 +442,34 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-950/70 animate-in fade-in flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-slate-950/70 animate-in fade-in flex items-end sm:items-center justify-center sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-surface-mid rounded-3xl border border-slate-100 shadow-2xl p-6 md:p-8 max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[92vh]">
+      <div className="bg-surface-mid sm:rounded-3xl rounded-t-3xl border border-slate-100 shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[95svh] sm:max-h-[92vh]">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-4 flex-shrink-0 mb-6">
+        <div className="flex items-start justify-between gap-4 flex-shrink-0 px-5 pt-5 pb-4 border-b border-slate-100">
+          {/* Mobile drag handle */}
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden" />
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-              <UploadCloud className="w-6 h-6 text-indigo-600" />
+            <h2 className="text-base sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+              <UploadCloud className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 flex-shrink-0" />
               Nộp minh chứng
             </h2>
-            <p className="text-sm font-normal text-slate-500 truncate w-full mt-1" title={post.title}>
+            <p className="text-xs sm:text-sm font-normal text-slate-500 truncate w-full mt-0.5" title={post.title}>
               {post.title}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 transition-all"
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 active:bg-slate-200 transition-all touch-manipulation"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* ── Body ── */}
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 overscroll-contain">
           {/* ── Loading existing checkin ── */}
           {checkingExisting && (
             <div className="flex flex-col items-center justify-center px-6 py-16">
@@ -604,7 +598,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                 </button>
               </div>
             ) : (
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            <form onSubmit={handleSubmit} className="px-4 py-4 sm:px-6 sm:py-5 space-y-4">
 
               {/* ── Rejected notice ── */}
               {existingCheckin?.status === "REJECTED" && isWindowOpen && (
@@ -625,9 +619,9 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               )}
 
               {/* Post info + CTA link */}
-              <div className="flex gap-3 bg-slate-50/60 border border-slate-200/50 rounded-2xl p-4">
+              <div className="flex gap-3 bg-slate-50/60 border border-slate-200/50 rounded-2xl p-3 sm:p-4">
                 {postThumb && !thumbError ? (
-                  <div className="w-14 h-14 rounded-lg overflow-hidden border-none flex-shrink-0 relative bg-surface-container">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-none flex-shrink-0 relative bg-surface-container">
                     <Image 
                       src={postThumb} 
                       alt={post.title} 
@@ -638,20 +632,20 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     />
                   </div>
                 ) : (
-                  <div className="w-14 h-14 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
-                    <ImageIcon className="w-6 h-6 text-on-surface-variant" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg bg-surface-container flex items-center justify-center flex-shrink-0">
+                    <ImageIcon className="w-5 h-5 text-on-surface-variant" />
                   </div>
                 )}
-                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
-                  <p className="text-xs text-on-surface-variant font-semibold uppercase tracking-wide font-inter">Bài viết cần chia sẻ</p>
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+                  <p className="text-[10px] sm:text-xs text-on-surface-variant font-semibold uppercase tracking-wide font-inter">Bài viết cần chia sẻ</p>
                   <a
                     href={postUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all text-sm w-fit group"
+                    className="bg-indigo-600 active:bg-indigo-800 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all text-sm touch-manipulation"
                   >
-                    Đi tới bài viết gốc
-                    <ExternalLink className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-all duration-150" />
+                    Mở bài viết gốc
+                    <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>
               </div>
@@ -678,14 +672,14 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     </div>
                   )}
 
-                  {/* Drop zone */}
+                  {/* Drop zone — full-width tap-friendly button on mobile */}
                   <div
                     onClick={handleFileClick}
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={cn(
-                      "border-2 border-dashed border-slate-200 bg-slate-50/40 hover:border-indigo-400 hover:bg-indigo-50/10 transition-all duration-200 rounded-2xl cursor-pointer p-8 flex flex-col items-center justify-center gap-2",
+                      "border-2 border-dashed border-slate-200 bg-slate-50/40 hover:border-indigo-400 hover:bg-indigo-50/10 active:bg-indigo-50/20 transition-all duration-200 rounded-2xl cursor-pointer py-8 sm:py-10 px-4 flex flex-col items-center justify-center gap-3 touch-manipulation",
                       isDragging && "border-indigo-400 bg-indigo-50/10 scale-[1.01]"
                     )}
                   >
@@ -698,22 +692,26 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     />
                     <div
                       className={cn(
-                        "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-150",
+                        "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-150",
                         isDragging ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
                       )}
                     >
-                      <UploadCloud className="w-6 h-6" />
+                      <UploadCloud className="w-7 h-7" />
                     </div>
-                    <div className="text-center">
-                      <p className="text-sm text-slate-600">
-                        Kéo thả ảnh hoặc <span className="text-indigo-600 hover:text-indigo-700 font-medium underline">click để chọn</span>
+                    <div className="text-center space-y-1">
+                      <p className="text-sm font-semibold text-slate-700">
+                        Chọn ảnh minh chứng
                       </p>
-                      <p className="text-xs text-slate-500 mt-1">JPG, PNG, WEBP — Tối đa 10MB</p>
+                      <p className="text-xs text-slate-500">JPG, PNG, WEBP — tối đa 10MB</p>
+                    </div>
+                    {/* Mobile: big tap button */}
+                    <div className="sm:hidden mt-1 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">
+                      Chọn ảnh từ thư viện
                     </div>
                   </div>
 
-                  {/* Paste hint */}
-                  <div className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant/80 font-inter">
+                  {/* Paste hint — desktop only */}
+                  <div className="hidden sm:flex items-center justify-center gap-1.5 text-xs text-on-surface-variant/80 font-inter">
                     <Clipboard className="w-3.5 h-3.5 text-on-surface-variant/60" />
                     <span>
                       Dán từ clipboard bằng <kbd className="px-1.5 py-0.5 rounded-[6px] bg-surface-container text-on-surface-variant text-[10px] font-mono font-semibold">Ctrl+V</kbd>
@@ -723,30 +721,30 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               ) : (
                 /* ── Preview after upload ── */
                 <div className="rounded-[16px] bg-surface-container-low p-2 overflow-hidden transition-all duration-150 border-none">
-                  <div className="relative w-full h-64 rounded-[12px] overflow-hidden group bg-surface-container-low">
+                  <div className="relative w-full rounded-[12px] overflow-hidden bg-surface-container-low" style={{ height: 'clamp(180px, 40vw, 260px)' }}>
                     <Image
                       src={imageUrl}
                       alt="Xem trước ảnh minh chứng"
                       fill
                       className="object-cover rounded-[12px]"
-                      sizes="(max-width: 768px) 100vw, 500px"
+                      sizes="(max-width: 640px) 100vw, 500px"
                     />
-                    {/* Hover overlay with dark gradient CTA */}
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all duration-200">
-                      <span className="text-xs font-semibold text-white font-inter">Ảnh minh chứng đã chọn</span>
+                    {/* Always-visible overlay on mobile, hover on desktop */}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-3 flex items-center justify-between sm:opacity-0 sm:group-hover:opacity-100 sm:transition-all sm:duration-200">
+                      <span className="text-xs font-semibold text-white font-inter">Ảnh đã chọn</span>
                       <button
                         type="button"
                         onClick={() => setImageUrl(null)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-mid/20 hover:bg-white/30 text-white rounded-lg text-xs font-semibold transition-all duration-150"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-white/20 hover:bg-white/30 active:bg-white/40 text-white rounded-xl text-xs font-semibold transition-all duration-150 touch-manipulation"
                       >
                         <RefreshCw className="w-3.5 h-3.5" />
-                        Đổi ảnh khác
+                        Đổi ảnh
                       </button>
                     </div>
                   </div>
                   <div className="mt-2 px-2 pb-1 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs text-emerald-700 truncate font-semibold font-inter">Ảnh đã được tải lên CDN thành công</span>
+                    <span className="text-xs text-emerald-700 truncate font-semibold font-inter">Đã tải lên thành công</span>
                   </div>
                 </div>
               )}
@@ -755,33 +753,33 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               {exifStatus !== "idle" && <ExifStatusBadge status={exifStatus} exifDate={exifDate} />}
 
               {/* Cam kết / Checkboxes */}
-              <div className="space-y-3 pt-1">
+              <div className="space-y-2 pt-1">
                 <p className="text-xs font-semibold text-on-surface-variant/80 uppercase tracking-wider font-inter">Cam kết bắt buộc</p>
                 {[
                   { id: "check1", value: isChecked1, onChange: setIsChecked1, label: "Tôi cam đoan đã chia sẻ bài viết này ở chế độ công khai trên trang cá nhân." },
                   { id: "check2", value: isChecked2, onChange: setIsChecked2, label: "Tôi xác nhận ảnh tải lên là thật và chịu trách nhiệm về nội dung." },
                 ].map(({ id, value, onChange, label }) => (
-                  <label key={id} className="flex items-start gap-3.5 cursor-pointer group select-none">
+                  <label key={id} className="flex items-start gap-3 cursor-pointer group select-none py-1 touch-manipulation">
                     <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} className="sr-only" />
                     <div
                       className={cn(
-                        "w-5 h-5 rounded-lg border-none flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
-                        value ? "bg-primary text-white" : "bg-surface-container hover:bg-surface-container-high"
+                        "w-6 h-6 rounded-lg border-none flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
+                        value ? "bg-indigo-600 text-white" : "bg-surface-container hover:bg-surface-container-high"
                       )}
                     >
-                      {value && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                      {value && <Check className="w-4 h-4 text-white stroke-[3]" />}
                     </div>
                     <span className="text-sm text-on-surface-variant group-hover:text-on-surface leading-relaxed transition-all duration-150 font-inter">{label}</span>
                   </label>
                 ))}
               </div>
 
-              {/* Footer Actions */}
-              <div className="flex gap-3 pt-4">
+              {/* Footer Actions — sticky on mobile */}
+              <div className="flex gap-3 pt-3 pb-2 sticky bottom-0 bg-surface-mid/95 backdrop-blur-sm sm:static sm:bg-transparent sm:backdrop-blur-none">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-medium py-2.5 px-5 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm active:scale-95"
+                  className="flex-1 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm touch-manipulation"
                 >
                   Hủy
                 </button>
@@ -789,9 +787,9 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                   type="submit"
                   disabled={!isFormValid}
                   className={cn(
-                    "flex-[2] py-2.5 px-5 rounded-xl shadow-sm transition-all duration-200 text-sm active:scale-95 flex items-center justify-center gap-2",
+                    "flex-[2] py-3 px-4 rounded-xl shadow-sm transition-all duration-200 text-sm flex items-center justify-center gap-2 touch-manipulation",
                     isFormValid
-                      ? "bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+                      ? "bg-indigo-600 active:bg-indigo-800 hover:bg-indigo-700 text-white font-semibold"
                       : "bg-slate-200 text-slate-400 cursor-not-allowed"
                   )}
                 >

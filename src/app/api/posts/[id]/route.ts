@@ -4,6 +4,7 @@ import { postTaskSchema } from '@/lib/posts';
 import { auth } from '@/auth';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from '@/lib/cache';
+import { mirrorThumbnail } from '@/lib/thumbnail-mirror';
 
 interface RouteContext {
     params: Promise<{
@@ -25,16 +26,21 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
+    const { title, url, thumbnail_url, description, start_at, team, author } = parsed.data;
+
+    // Auto-mirror thumbnail khi edit bài: nếu URL thay đổi → tải về và re-host
+    const stableThumbnailUrl = await mirrorThumbnail(thumbnail_url, title);
+
     const post = await db.post.update({
         where: { id },
         data: {
-            title: parsed.data.title,
-            url: parsed.data.url,
-            thumbnail_url: parsed.data.thumbnail_url || null,
-            description: parsed.data.description,
-            start_at: parsed.data.start_at,
-            team: (parsed.data.team as any) || 'ALL',
-            author: parsed.data.author || null,
+            title,
+            url,
+            thumbnail_url: stableThumbnailUrl || null,
+            description,
+            start_at,
+            team: (team as any) || 'ALL',
+            author: author || null,
         },
     });
 

@@ -3,12 +3,38 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-bottom {
+    bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    @apply font-sans;
+  }
+
   body {
     background: #faf8ff;
     color: #131b2e;
     font-family: 'Inter', sans-serif;
     -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
     @apply font-inter antialiased;
   }
 
@@ -187,10 +213,6 @@
   .dark body {
     background-color: #050711;
     color: #e8eaf6;
-  }
-
-  html {
-    @apply font-sans;
   }
 }
 

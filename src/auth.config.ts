@@ -25,7 +25,7 @@ export const authConfig = {
       }
 
       // Admin routes — yêu cầu role ADMIN
-      if (pathname.startsWith("/admin") || pathname.startsWith("/timetable")) {
+      if (pathname.startsWith("/admin")) {
         if (auth.user?.role === "ADMIN") return true;
         return Response.redirect(new URL("/dashboard", nextUrl));
       }
@@ -34,7 +34,9 @@ export const authConfig = {
       const isProtectedRoute =
         pathname.startsWith("/dashboard") ||
         pathname.startsWith("/like-share") ||
-        pathname.startsWith("/tasks");
+        pathname.startsWith("/tasks") ||
+        pathname.startsWith("/timetable") ||
+	        pathname.startsWith("/seo-tools");
 
       if (isProtectedRoute) {
         return true;

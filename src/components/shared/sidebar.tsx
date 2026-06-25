@@ -63,7 +63,7 @@ export function Sidebar() {
         { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
         { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
-        { label: "SEO Tools", href: "/seo-tools", icon: "trending_up", adminOnly: false },
+        { label: "Công cụ nội dung", href: "/seo-tools", icon: "trending_up", adminOnly: false },
       ]
     },
     {
@@ -366,7 +366,7 @@ export function Sidebar() {
         <aside
           className={twMerge(
             clsx(
-              "absolute top-0 bottom-0 left-0 w-[240px] shadow-[0_32px_64px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out transform bg-slate-50 dark:bg-[#0F172A] border-r border-slate-200 dark:border-slate-800 z-10",
+              "absolute top-0 bottom-0 left-0 w-[min(280px,85vw)] shadow-[0_32px_64px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-in-out transform bg-slate-50 dark:bg-[#0F172A] border-r border-slate-200 dark:border-slate-800 z-[60]",
               sidebarOpen ? "translate-x-0" : "-translate-x-full"
             )
           )}

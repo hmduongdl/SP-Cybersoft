@@ -107,7 +107,7 @@ interface TaskStoreState {
   setFilter: (filter: FilterStatus) => void;
   setSelectedTagId: (tagId: string | null) => void;
   setTimeFilter: (filter: 'all' | 'today' | 'upcoming') => void;
-  getFilteredTasks: () => Task[];
+  getFilteredTasks: (currentUserId?: string) => Task[];
 
   // Data Fetching Actions
   fetchWorkspaces: () => Promise<void>;
@@ -163,29 +163,57 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   setFilter: (filter) => set({ filterStatus: filter }),
   setSelectedTagId: (tagId) => set({ selectedTagId: tagId }),
   setTimeFilter: (filter) => set({ timeFilter: filter }),
-  getFilteredTasks: () => {
-    const { tasks, timeFilter } = get();
+  getFilteredTasks: (currentUserId?: string) => {
+    const { tasks, timeFilter, currentWorkspaceId, filterStatus, selectedTagId, tags } = get();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    return tasks.filter(task => {
-      if (timeFilter === "all") return true;
-      
-      if (!task.due_date) return false;
-      
-      const dueDate = new Date(task.due_date);
-      dueDate.setHours(0, 0, 0, 0);
+    return tasks.filter(t => {
+      // 1. Time filter logic
+      if (timeFilter !== "all") {
+        if (timeFilter === "today") {
+          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() !== today.getTime()) return false;
+        } else if (timeFilter === "upcoming") {
+          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() < today.getTime()) return false;
+        }
+      }
 
-      if (timeFilter === "today") {
-        return dueDate.getTime() === today.getTime();
+      // 2. Workspace logic
+      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
+
+      // 3. Status / My tasks logic
+      if (filterStatus === 'my_tasks') {
+        const isAssigned = t.assignees?.some(a => a.id === currentUserId) ?? false;
+        const isCreator = t.creator_id === currentUserId;
+        if (!isAssigned && !isCreator) return false;
       }
-      if (timeFilter === "upcoming") {
-        return dueDate.getTime() >= tomorrow.getTime();
+
+      // 4. Tag filter
+      if (selectedTagId) {
+        const selectedTag = tags.find(tag => tag.id === selectedTagId);
+        if (selectedTag) {
+          const matchName = selectedTag.name.toLowerCase().trim();
+          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
+          if (!hasTag) return false;
+        }
       }
-      
+
       return true;
     });
   },

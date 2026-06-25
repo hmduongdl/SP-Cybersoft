@@ -218,7 +218,7 @@ export function DashboardOverview({
             <span>/</span>
             <span className="text-primary font-semibold">Tổng quan</span>
           </nav>
-          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">
+          <h1 className="font-manrope font-bold text-2xl sm:text-headline-lg text-on-surface">
             Chào mừng quay lại, {userName}!
           </h1>
           <p className="mt-1 text-sm text-on-surface-variant font-inter">
@@ -244,7 +244,7 @@ export function DashboardOverview({
 
           {/* Dropdown Menu */}
           {showMonthDropdown && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-surface-container-lowest rounded-xl shadow-lg border border-outline/20 z-50 p-2">
+            <div className="absolute top-full right-0 left-0 sm:left-auto mt-2 w-full sm:w-56 bg-surface-container-lowest rounded-xl shadow-lg border border-outline/20 z-50 p-2">
               {monthOptions.map((option) => (
                 <button
                   key={option.value}

@@ -11,6 +11,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("");
   const [formState, setFormState] = useState<"idle" | "loading" | "success">("idle");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -49,6 +50,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
 
   const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>, targetId: string) => {
     e.preventDefault();
+    setMobileMenuOpen(false);
     const target = document.getElementById(targetId);
     if (target) {
       const top = target.getBoundingClientRect().top + window.scrollY;
@@ -92,12 +94,12 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
       <header
         id="top-nav"
         className={`fixed top-0 w-full z-50 nav-blur border-b border-outline-variant transition-all duration-300 ${
-          isScrolled ? "h-16 shadow-md bg-background/80 backdrop-blur-lg" : "h-20 bg-background/50 backdrop-blur-sm"
+          isScrolled ? "h-14 sm:h-16 shadow-md bg-background/80 backdrop-blur-lg" : "h-16 sm:h-20 bg-background/50 backdrop-blur-sm"
         }`}
       >
-        <div className="flex justify-between items-center h-full px-6 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center h-full px-4 sm:px-6 max-w-7xl mx-auto">
           <a href="https://www.sp-cybersoft.com/" target="_blank" rel="noopener noreferrer">
-            <img src="/spcybersoftlogo.png" alt="SP Cybersoft" className="h-[52px] w-auto dark:brightness-0 dark:invert" />
+            <img src="/spcybersoftlogo.png" alt="SP Cybersoft" className="h-9 sm:h-[52px] w-auto dark:brightness-0 dark:invert" />
           </a>
           <nav className="hidden md:flex items-center space-x-6">
             <a
@@ -134,22 +136,72 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
               Studio
             </Link>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href={userName ? "/dashboard" : "/login"}
-              className="bg-primary text-on-primary text-sm font-bold px-6 py-2 rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all"
+              className="bg-primary text-on-primary text-xs sm:text-sm font-bold px-4 sm:px-6 py-2 rounded-full hover:shadow-lg hover:-translate-y-0.5 transition-all truncate max-w-[140px] xs:max-w-none"
             >
               {userName ? `Xin chào, ${userName}` : "Đăng nhập"}
             </Link>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 rounded-xl text-on-surface-variant hover:bg-surface-container-low transition-colors"
+              aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"}
+            >
+              <span className="material-symbols-outlined text-[22px]">
+                {mobileMenuOpen ? "close" : "menu"}
+              </span>
+            </button>
           </div>
         </div>
+
+        {/* Mobile nav drawer */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden overflow-hidden border-t border-outline-variant bg-background/95 backdrop-blur-lg"
+            >
+              <nav className="flex flex-col px-4 py-3 gap-1">
+                {[
+                  { id: "about", label: "Về Chúng Tôi" },
+                  { id: "products", label: "Sản Phẩm" },
+                  { id: "contact", label: "Liên Hệ" },
+                ].map((item) => (
+                  <a
+                    key={item.id}
+                    href={`#${item.id}`}
+                    onClick={(e) => handleSmoothScroll(e, item.id)}
+                    className={`px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                      activeSection === item.id
+                        ? "bg-primary-container text-primary font-bold"
+                        : "text-on-surface-variant hover:bg-surface-container-low"
+                    }`}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant hover:bg-surface-container-low transition-colors"
+                >
+                  Studio
+                </Link>
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
-      <main className="pt-20">
+      <main className="pt-16 sm:pt-20">
         {/* Hero Section */}
-        <section className="relative min-h-[85vh] flex items-center overflow-hidden px-6">
+        <section className="relative min-h-[75vh] sm:min-h-[85vh] flex items-center overflow-hidden px-4 sm:px-6">
           <div className="absolute inset-0 z-0 bg-gradient-to-br from-background to-surface" />
-          <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-20 items-center relative z-10 w-full">
+          <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-10 sm:gap-20 items-center relative z-10 w-full">
             <motion.div 
               initial="hidden" 
               animate="visible" 
@@ -158,17 +210,17 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
               <motion.span variants={fadeInUp} className="text-sm font-medium text-primary tracking-widest uppercase block mb-4">
                 Giải Pháp Số Cho Người Thật, Việc Thật
               </motion.span>
-              <motion.h1 variants={fadeInUp} className="font-manrope font-bold text-4xl md:text-5xl text-on-background mb-6 leading-tight">
+              <motion.h1 variants={fadeInUp} className="font-manrope font-bold text-3xl sm:text-4xl md:text-5xl text-on-background mb-4 sm:mb-6 leading-tight">
                 Chúng Tôi Viết Code Để <span className="text-primary-container">Làm Cho Thế Giới Tốt Hơn</span>.
               </motion.h1>
-              <motion.p variants={fadeInUp} className="text-lg text-on-surface-variant mb-12 max-w-lg">
+              <motion.p variants={fadeInUp} className="text-base sm:text-lg text-on-surface-variant mb-8 sm:mb-12 max-w-lg">
                 Từ những ứng dụng quản lý doanh nghiệp đến hạ tầng đám mây, chúng tôi xây dựng phần mềm thực sự hữu ích — đơn giản, đáng tin cậy và vận hành trơn tru.
               </motion.p>
-              <motion.div variants={fadeInUp} className="flex flex-wrap gap-6">
-                <a href="#contact" onClick={(e) => handleSmoothScroll(e, "contact")} className="bg-primary text-on-primary px-12 py-4 rounded-lg text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition-all">
+              <motion.div variants={fadeInUp} className="flex flex-col xs:flex-row flex-wrap gap-3 sm:gap-6">
+                <a href="#contact" onClick={(e) => handleSmoothScroll(e, "contact")} className="bg-primary text-on-primary px-8 sm:px-12 py-3.5 sm:py-4 rounded-lg text-sm font-medium hover:shadow-lg hover:-translate-y-1 transition-all text-center">
                   Bắt đầu dự án
                 </a>
-                <a href="#products" onClick={(e) => handleSmoothScroll(e, "products")} className="border border-primary text-primary px-12 py-4 rounded-lg text-sm font-medium hover:bg-primary-fixed transition-all cursor-pointer">
+                <a href="#products" onClick={(e) => handleSmoothScroll(e, "products")} className="border border-primary text-primary px-8 sm:px-12 py-3.5 sm:py-4 rounded-lg text-sm font-medium hover:bg-primary-fixed transition-all cursor-pointer text-center">
                   Xem Portfolio
                 </a>
               </motion.div>
@@ -629,7 +681,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={scrollToTop}
-            className="fixed bottom-8 right-8 z-50 w-12 h-12 bg-primary text-white rounded-full shadow-xl flex items-center justify-center hover:bg-primary-container hover:text-primary transition-colors focus:outline-none"
+            className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-4 sm:bottom-8 sm:right-8 z-50 w-11 h-11 sm:w-12 sm:h-12 bg-primary text-white rounded-full shadow-xl flex items-center justify-center hover:bg-primary-container hover:text-primary transition-colors focus:outline-none"
             aria-label="Back to top"
           >
             <span className="material-symbols-outlined">arrow_upward</span>

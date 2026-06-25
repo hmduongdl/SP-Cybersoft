@@ -64,21 +64,21 @@ export interface DateRange {
   to: Date;
 }
 
-/** Danh sách các tháng có thể chọn (từ tháng 6-2026 trở đi) */
+/** Danh sách các tháng có thể chọn (12 tháng gần nhất + "Tất cả") */
 export function buildMonthOptions(): { value: string; label: string }[] {
   const now = new Date();
-  const options: { value: string; label: string }[] = [];
-  const minDate = new Date(2026, 5, 1); // Tháng 6 năm 2026 (0-indexed month)
-  
-  let d = new Date(now.getFullYear(), now.getMonth(), 1);
-  
-  while (d >= minDate) {
+  const options: { value: string; label: string }[] = [
+    { value: "all", label: "Tất cả thời gian" },
+  ];
+
+  // Lùi về tối đa 24 tháng từ hiện tại để bao phủ dữ liệu cũ
+  for (let i = 0; i <= 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const key = toMonthKey(d);
     const label = d.toLocaleString("vi-VN", { month: "long", year: "numeric" });
     options.push({ value: key, label });
-    d = new Date(d.getFullYear(), d.getMonth() - 1, 1);
   }
-  
+
   return options;
 }
 
@@ -111,7 +111,8 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
   const now = new Date();
   const currentMonthKey = toMonthKey(now);
 
-  const [selectedMonth, _setSelectedMonth] = useState(currentMonthKey);
+  // Mặc định "all" để hiện toàn bộ bài — người dùng tự chọn thu hẹp
+  const [selectedMonth, _setSelectedMonth] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -135,7 +136,10 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
   };
 
   const isCurrentMonth = selectedMonth === currentMonthKey;
-  const { year, month } = parseMonthKey(selectedMonth);
+  const isAllTime = selectedMonth === "all";
+  const { year, month } = isAllTime
+    ? { year: 2000, month: 0 } // placeholder, overridden below
+    : parseMonthKey(selectedMonth);
 
   const effectiveRange = useMemo<DateRange>(() => {
     // Nếu người dùng đặt cả 2 mốc thủ công
@@ -147,7 +151,14 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
       }
     }
 
-    // Auto-range: Luôn là toàn bộ tháng nếu không chọn ngày
+    // "Tất cả thời gian" → window rộng 5 năm trước đến 5 năm sau
+    if (isAllTime) {
+      const from = new Date(now.getFullYear() - 5, 0, 1);
+      const to = new Date(now.getFullYear() + 5, 11, 31, 23, 59, 59);
+      return { from, to };
+    }
+
+    // Auto-range: toàn bộ tháng đã chọn
     return {
       from: startOfMonth(year, month),
       to: endOfMonth(year, month),
@@ -162,10 +173,11 @@ export function useMonthWeekFilter(): MonthWeekFilterState {
     if (dateFrom && dateTo) {
       return `${fmtDate(effectiveRange.from)} – ${fmtDate(effectiveRange.to)}`;
     }
+    if (isAllTime) return "Tất cả thời gian";
     const { year: y, month: m } = parseMonthKey(selectedMonth);
     const d = new Date(y, m, 1);
     return `Cả tháng ${d.toLocaleString("vi-VN", { month: "long", year: "numeric" })}`;
-  }, [dateFrom, dateTo, effectiveRange, selectedMonth]);
+  }, [dateFrom, dateTo, effectiveRange, selectedMonth, isAllTime]);
 
   return {
     selectedMonth,
@@ -191,12 +203,14 @@ export function isInRange(isoDateStr: string, range: DateRange): boolean {
 
 /** Format ngày đầu tháng cho input[type=date] min */
 export function monthMin(selectedMonth: string): string {
+  if (selectedMonth === "all") return "";
   const { year, month } = parseMonthKey(selectedMonth);
   return toDateKey(startOfMonth(year, month));
 }
 
 /** Format ngày cuối tháng cho input[type=date] max */
 export function monthMax(selectedMonth: string): string {
+  if (selectedMonth === "all") return "";
   const { year, month } = parseMonthKey(selectedMonth);
   return toDateKey(endOfMonth(year, month));
 }
