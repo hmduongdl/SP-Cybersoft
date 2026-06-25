@@ -30,7 +30,7 @@ export function Sidebar() {
   ];
 
   // Fallbacks in case workspaces are still loading or empty in store
-  const activeWorkspace = currentWorkspaceId === "ALL" 
+  const activeWorkspace = currentWorkspace?.id === "ALL"
     ? displayWorkspaces[0] 
     : (currentWorkspace || workspaces[0] || {
         id: "ws-1",

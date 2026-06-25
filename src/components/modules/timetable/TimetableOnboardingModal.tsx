@@ -14,6 +14,10 @@ import {
   ChevronLeft,
   Sparkles,
   CheckCircle2,
+  CalendarDays,
+  Zap,
+  BrainCircuit,
+  LayoutGrid,
 } from "lucide-react";
 
 interface OnboardingConfig {
@@ -29,7 +33,17 @@ interface Props {
   onComplete: (config: OnboardingConfig, rows: any[]) => void;
 }
 
+// Step 0 is the welcome/intro page; steps 1-6 are config questions
 const STEPS = [
+  {
+    id: 0,
+    icon: CalendarDays,
+    color: "text-indigo-600 dark:text-indigo-400",
+    bg: "bg-indigo-100 dark:bg-indigo-950/40",
+    ring: "ring-indigo-200 dark:ring-indigo-800",
+    title: "Timetable đã ra mắt! 🎉",
+    subtitle: "Công cụ quản lý thời gian thông minh được AI tạo riêng cho bạn.",
+  },
   {
     id: 1,
     icon: Timer,
@@ -175,6 +189,88 @@ function GeneratingAnimation() {
   );
 }
 
+// ─── Welcome Intro Slide ──────────────────────────────────────────────────────
+function WelcomeSlide() {
+  const features = [
+    {
+      icon: BrainCircuit,
+      color: "text-indigo-500",
+      bg: "bg-indigo-50 dark:bg-indigo-950/40",
+      title: "AI tạo lịch cá nhân hóa",
+      desc: "Dựa trên thói quen và năng lượng của bạn để tối ưu từng khung giờ.",
+    },
+    {
+      icon: LayoutGrid,
+      color: "text-violet-500",
+      bg: "bg-violet-50 dark:bg-violet-950/40",
+      title: "Bảng thời khóa biểu trực quan",
+      desc: "Hiển thị đầy đủ T2–CN, kéo thả và chỉnh sửa inline trực tiếp.",
+    },
+    {
+      icon: Zap,
+      color: "text-amber-500",
+      bg: "bg-amber-50 dark:bg-amber-950/40",
+      title: "Tích hợp Task Manager",
+      desc: "Tự động đưa task có deadline vào lịch, tô màu ưu tiên thông minh.",
+    },
+  ];
+
+  return (
+    <div className="space-y-5">
+      {/* Mini timetable preview */}
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        <div className="grid grid-cols-6 text-[10px] font-bold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+          <div className="px-2 py-1.5 border-r border-slate-200 dark:border-slate-800">Khung giờ</div>
+          {["T2", "T3", "T4", "T5", "T6"].map(d => (
+            <div key={d} className="px-2 py-1.5 text-center border-r border-slate-200 dark:border-slate-800 last:border-r-0">{d}</div>
+          ))}
+        </div>
+        {[
+          { time: "08:00–09:30", cells: ["Stand-up", "Code review", "Code review", "Stand-up", "Deploy"], colors: ["bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300", "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300", "bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300", "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300", "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"] },
+          { time: "09:30–11:30", cells: ["Deep work", "Deep work", "Họp team", "Deep work", "Deep work"], colors: ["bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300", "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300", "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300", "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300", "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300"] },
+          { time: "13:30–15:00", cells: ["Học tập", "Task 🔥", "Học tập", "Task 🔥", "Học tập"], colors: ["bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300", "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300", "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300", "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300", "bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300"] },
+        ].map((row, ri) => (
+          <motion.div
+            key={ri}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: ri * 0.12, duration: 0.3 }}
+            className="grid grid-cols-6 border-b border-slate-200 dark:border-slate-800 last:border-b-0"
+          >
+            <div className="px-2 py-2 text-[9px] font-mono text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800 flex items-center">{row.time}</div>
+            {row.cells.map((cell, ci) => (
+              <div key={ci} className={`px-1.5 py-1.5 text-[9px] font-semibold text-center border-r border-slate-200 dark:border-slate-800 last:border-r-0 flex items-center justify-center ${row.colors[ci]}`}>
+                {cell}
+              </div>
+            ))}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Feature list */}
+      <div className="space-y-2">
+        {features.map((f, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 + i * 0.1 }}
+            className="flex items-start gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40"
+          >
+            <div className={`w-8 h-8 rounded-lg ${f.bg} flex items-center justify-center shrink-0`}>
+              <f.icon className={`w-4 h-4 ${f.color}`} />
+            </div>
+            <div>
+              <div className="text-xs font-semibold text-slate-800 dark:text-slate-100">{f.title}</div>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{f.desc}</div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TimetableOnboardingModal({ onComplete }: Props) {
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
@@ -191,6 +287,8 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
 
   const current = STEPS[step];
   const StepIcon = current.icon;
+  // Step 0 is welcome intro, steps 1-6 are config questions
+  const isConfigStep = step > 0;
   const isLast = step === STEPS.length - 1;
 
   const navigate = (delta: number) => {
@@ -235,11 +333,11 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
             </motion.div>
           ) : (
             <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
-              {/* Progress bar */}
+              {/* Progress bar - only show for config steps */}
               <div className="h-1 bg-slate-100 dark:bg-slate-800 shrink-0">
                 <motion.div
-                  className="h-full bg-indigo-500 rounded-full"
-                  animate={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+                  className={`h-full rounded-full ${step === 0 ? "bg-gradient-to-r from-indigo-500 to-violet-500" : "bg-indigo-500"}`}
+                  animate={{ width: step === 0 ? "100%" : `${(step / (STEPS.length - 1)) * 100}%` }}
                   transition={{ duration: 0.35, ease: "easeInOut" }}
                 />
               </div>
@@ -247,12 +345,19 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
               <div className="p-8 flex-1 flex flex-col">
                 {/* Header */}
                 <div className="flex items-center gap-2 mb-6">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Thiết lập thời khóa biểu
-                  </span>
+                  {step === 0 ? (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Tính năng mới
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Thiết lập thời khóa biểu
+                    </span>
+                  )}
                   <span className="ml-auto text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    {step + 1} / {STEPS.length}
+                    {step === 0 ? "Giới thiệu" : `${step} / ${STEPS.length - 1}`}
                   </span>
                 </div>
 
@@ -280,8 +385,11 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       exit="exit"
                       transition={{ duration: 0.22, ease: "easeInOut" }}
                     >
+                      {/* Step 0: Welcome intro */}
+                      {step === 0 && <WelcomeSlide />}
+
                       {/* Q1: Focus time slider */}
-                      {step === 0 && (
+                      {step === 1 && (
                         <div className="space-y-4">
                           <div className="text-center">
                             <span className="text-3xl font-bold text-slate-800 dark:text-slate-100">
@@ -319,7 +427,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       )}
 
                       {/* Q2: Job type */}
-                      {step === 1 && (
+                      {step === 2 && (
                         <div className="space-y-3">
                           {[
                             { value: false, label: "Cố định", desc: "Giờ giấc, đầu việc ổn định hàng ngày" },
@@ -343,7 +451,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       )}
 
                       {/* Q3: Energy peak */}
-                      {step === 2 && (
+                      {step === 3 && (
                         <div className="space-y-3">
                           {[
                             { value: "morning", label: "Buổi Sáng", desc: "Tràn đầy năng lượng, mức độ tập trung cao", emoji: "🌅" },
@@ -368,7 +476,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       )}
 
                       {/* Q4: Best learning time */}
-                      {step === 3 && (
+                      {step === 4 && (
                         <div className="grid grid-cols-2 gap-3">
                           {[
                             { value: "morning", label: "Sáng sớm", emoji: "🌄" },
@@ -389,7 +497,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       )}
 
                       {/* Q5: Max learning time */}
-                      {step === 4 && (
+                      {step === 5 && (
                         <div className="space-y-4">
                           <div className="text-center">
                             <span className="text-3xl font-bold text-slate-800 dark:text-slate-100">
@@ -427,7 +535,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                       )}
 
                       {/* Q6: Sync Task Manager */}
-                      {step === 5 && (
+                      {step === 6 && (
                         <div className="space-y-4">
                           <div
                             className={`flex items-center gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all ${config.sync_task_manager ? OPTION_ACTIVE : OPTION_IDLE}`}
@@ -476,7 +584,13 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                     {STEPS.map((_, i) => (
                       <span
                         key={i}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? "w-5 bg-indigo-500" : i < step ? "w-1.5 bg-indigo-200 dark:bg-indigo-700" : "w-1.5 bg-slate-200 dark:bg-slate-800"}`}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          i === step
+                            ? "w-5 bg-indigo-500"
+                            : i < step
+                            ? "w-1.5 bg-indigo-200 dark:bg-indigo-700"
+                            : "w-1.5 bg-slate-200 dark:bg-slate-800"
+                        }`}
                       />
                     ))}
                   </div>
@@ -488,6 +602,14 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
                     >
                       <Sparkles className="w-4 h-4" />
                       Tạo thời khóa biểu
+                    </button>
+                  ) : step === 0 ? (
+                    <button
+                      onClick={() => navigate(1)}
+                      className="flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white transition-all shadow-sm"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Bắt đầu thiết lập
                     </button>
                   ) : (
                     <button
