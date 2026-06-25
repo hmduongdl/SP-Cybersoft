@@ -890,7 +890,7 @@ export default function TimetablePage() {
           <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
           <span>Bạn có thay đổi chưa được lưu. Hãy nhấn <strong>“Lưu thời khóa biểu”</strong> trước khi rời trang.</span>
           <button
-            onClick={validateAndSave}
+            onClick={() => validateAndSave()}
             className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md bg-amber-900/20 hover:bg-amber-900/30 text-amber-950 dark:text-amber-50 font-semibold transition-colors"
           >
             Lưu ngay
@@ -949,7 +949,7 @@ export default function TimetablePage() {
             <RefreshCw className="w-3 h-3" />
             Tạo lại
           </button>
-          <button onClick={validateAndSave}
+          <button onClick={() => validateAndSave()}
             className={[
               "flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[11px] font-semibold shadow-sm transition-all relative",
               isDirty
