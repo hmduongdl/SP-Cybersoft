@@ -1,235 +1,405 @@
-# SPS AI Check-in Tool
+# SP-CyberSoft - Hệ thống Quản lý Công việc & Check-in
 
-> Hệ thống quản lý check-in & kiểm duyệt minh chứng Like & Share bài viết Facebook nội bộ.
+> Hệ thống nội bộ Song Phương Technology — Quản lý check-in Facebook, Task Manager, Thời gian biểu, và AI Studio.
 
-## Giới thiệu
+## 📋 Mục lục
 
-**SPS AI Check-in Tool** là ứng dụng web xây dựng trên **Next.js (App Router)**, giúp doanh nghiệp quản lý quy trình nhân viên Like & Share bài viết lên Facebook và nộp minh chứng. Hệ thống hỗ trợ trích xuất EXIF ảnh server-side để chống gian lận, kiểm duyệt thủ công kết hợp AI Scan (Gemini Vision), cùng tính năng xuất báo cáo Excel và trợ lý AI chat.
+- [Tổng quan](#tổng-quan)
+- [Bắt đầu](#bắt-đầu)
+- [Hướng dẫn sử dụng — Người dùng](#hướng-dẫn-sử-dụng--người-dùng)
+  - [Dashboard](#1-dashboard)
+  - [Like & Share (Check-in)](#2-like--share-check-in)
+  - [Task Manager](#3-task-manager)
+  - [Thời gian biểu](#4-thời-gian-biểu)
+  - [AI Studio (SEO Tools)](#5-ai-studio-seo-tools)
+  - [Báo cáo cá nhân](#6-báo-cáo-cá-nhân)
+  - [AI Chat](#7-ai-chat)
+- [Hướng dẫn sử dụng — Quản trị viên](#hướng-dẫn-sử-dụng--quản-trị-viên)
+  - [Duyệt bài](#1-duyệt-bài)
+  - [Quản lý Post](#2-quản-lý-post)
+  - [Quản lý Account](#3-quản-lý-account)
+  - [Reports (Analytics)](#4-reports-analytics)
+  - [Cấu hình hệ thống](#5-cấu-hình-hệ-thống)
+- [Cài đặt & Phát triển](#cài-đặt--phát-triển)
+- [Kiến trúc hệ thống](#kiến-trúc-hệ-thống)
 
-### Luồng nghiệp vụ chính
+---
 
-1. **Quản trị viên** tạo bài viết (Post) lên lịch — mỗi bài viết là một đường dẫn Facebook cần được Like & Share.
-2. **Nhân viên** chụp ảnh màn hình sau khi share bài viết và nộp lên hệ thống.
-3. **Hệ thống** trích xuất thời gian chụp từ EXIF ảnh server-side — nếu thời gian chụp nằm trong cửa sổ 24h so với `start_at`, bài nộp được **tự động duyệt** (AUTO_APPROVED).
-4. **Quản trị viên** duyệt/từ chối bài nộp PENDING qua giao diện queue, kết hợp **AI Scan** (Gemini Vision) đọc ảnh và đối chiếu nội dung.
-5. **Báo cáo** xuất file Excel với tỷ lệ hoàn thành, số bài tự động/thủ công, số bài bỏ lỡ.
+## Tổng quan
 
-## Tính năng
+**SP-CyberSoft** là nền tảng quản lý công việc nội bộ, bao gồm:
 
-### Người dùng (Nhân viên)
-- Đăng nhập qua NextAuth (credentials)
-- Dashboard tổng quan: số bài chưa check-in, đã hoàn thành, điểm tích lũy
-- Xem danh sách bài viết cần Like & Share (dạng bảng hoặc lịch — chuyển đổi linh hoạt)
-- Nộp ảnh chụp màn hình — drag & drop, paste từ clipboard, hoặc chọn file
-- Check-in tự động duyệt nếu EXIF ảnh hợp lệ
-- Xem lịch sử check-in & trạng thái duyệt
-- Onboarding lần đầu đăng nhập (điền thông tin cá nhân)
-- Trợ lý AI chat hỏi đáp về nhiệm vụ, tình hình share bài
+| Module | Mô tả |
+|--------|-------|
+| **Check-in Facebook** | Nhân viên Like & Share bài viết, chụp ảnh màn hình nộp minh chứng |
+| **Task Manager** | Quản lý công việc Kanban/Calendar/List, gán người phụ trách, ghi chú AI |
+| **Thời gian biểu** | Lập lịch làm việc tuần trực quan, kéo thả, tự động lưu |
+| **AI Studio** | Viết bài SEO, tạo bảng spec, tóm tắt nội dung bằng AI |
+| **Báo cáo** | Thống kê cá nhân và Admin với biểu đồ, xuất Excel |
 
-### Quản trị viên
-- Dashboard thống kê tổng quan với biểu đồ (Recharts)
-- **Quản lý bài viết**: CRUD, bulk archive/unarchive, kiểm tra mật độ ngày đăng
-- **Kiểm duyệt hàng đợi**: Approve/Reject kèm lý do (batch hoặc single), xem ảnh zoom
-- **AI Scan**: Quét ảnh check-in với Gemini Vision → đối chiếu tên + nội dung
-- **Quản lý tài khoản**: Tạo/sửa/xoá user
-- **Báo cáo & phân tích**: Hiệu suất phòng ban, xu hướng tuần, bảng xếp hạng nhân sự
-- **Xuất Excel**: Báo cáo Like & Share chi tiết theo khoảng thời gian
-- **Cấu hình hệ thống**: Quản lý phòng ban, cài đặt AI
-- **OG Scraper**: Lấy thông tin meta từ URL bài viết khi tạo post
+---
 
-### Chống gian lận
-- Trích xuất EXIF (`DateTimeOriginal`) server-side từ ảnh — **không tin kết quả client**
-- Kiểm tra thời gian chụp thực tế trong cửa sổ 24h so với mốc bài viết
-- Phân quyền Admin / User qua middleware
-- Xoá ảnh trên Vercel Blob khi reject để tiết kiệm storage
-- Transaction atomic cho các thao tác nhạy cảm (tạo user)
+## Bắt đầu
 
-## Công nghệ sử dụng
+### Đăng nhập
 
-| Layer | Công nghệ |
-|-------|-----------|
-| **Framework** | Next.js (App Router) |
-| **Ngôn ngữ** | TypeScript |
-| **Auth** | NextAuth v5 (beta 31) — Credentials provider, JWT |
-| **Database** | PostgreSQL |
-| **ORM** | Prisma |
-| **Upload** | Vercel Blob |
-| **UI** | Tailwind CSS, Lucide Icons |
-| **Validation** | Zod |
-| **Biểu đồ** | Recharts (BarChart, LineChart) |
-| **Excel** | ExcelJS + date-fns |
-| **AI Chat** | AI-Box API (DeepSeek Pro / Flash) |
-| **AI Vision** | Gemini (qua AI-Box API) |
-| **EXIF** | exifr (server-side) |
-| **Toast** | Sonner |
+1. Truy cập URL ứng dụng (do Admin cung cấp)
+2. Nhấn **Đăng nhập** ở góc phải
+3. Nhập **tên đăng nhập** (username) hoặc **email** + **mật khẩu**
+4. Nhấn **Đăng nhập**
 
-## Cài đặt
+> Lần đầu đăng nhập? Hệ thống sẽ chuyển đến màn hình dashboard. Bạn có thể cập nhật thông tin cá nhân ở phần **Cài đặt** (góc trái sidebar).
+
+### Giao diện chính
+
+- **Sidebar trái**: Menu điều hướng chính
+- **Header trên**: Breadcrumb, thông báo
+- **Khu vực trung tâm**: Nội dung chính
+
+---
+
+## Hướng dẫn sử dụng — Người dùng
+
+### 1. Dashboard
+
+**Đường dẫn:** `/dashboard`
+
+Tổng quan tình hình công việc của bạn:
+
+- **Bài chưa check-in**: Số bài Like & Share chưa hoàn thành
+- **Đã hoàn thành**: Số bài đã nộp minh chứng
+- **Tỷ lệ hoàn thành tháng**: Vòng tròn tiến độ theo tháng
+- **Nhiệm vụ trọng tâm hôm nay**: Các bài viết cần check-in hoặc task sắp đến hạn
+- **Check-in gần đây**: Lịch sử nộp bài gần nhất
+- **Thông báo**: Banner giới thiệu tính năng mới (Thời gian biểu, AI Studio)
+
+> 💡 Bạn có thể chọn tháng để xem số liệu của từng tháng.
+
+### 2. Like & Share (Check-in)
+
+**Đường dẫn:** `/like-share`
+
+Đây là tính năng chính — quản lý các bài viết Facebook cần Like & Share.
+
+#### Xem danh sách bài viết
+
+- **Chế độ xem**: Chuyển đổi giữa **Danh sách** (bảng) và **Lịch** (Calendar)
+- **Lọc theo tháng/tuần**: Chọn khoảng thời gian ở đầu trang
+- **Trạng thái bài viết**: Thấy rõ bài nào chưa làm, đã nộp, đã duyệt
+
+#### Nộp minh chứng (Check-in)
+
+1. Tìm bài viết cần check-in (có đồng hồ đếm ngược thời hạn)
+2. Nhấn vào bài viết → mở modal check-in
+3. **Like** bài viết gốc trên Facebook
+4. **Share** bài viết đó lên Facebook cá nhân (chế độ **Công khai**)
+5. **Chụp ảnh màn hình** bài viết đã share (phải thấy rõ tên + nội dung)
+6. Upload ảnh lên hệ thống (kéo thả, paste, hoặc chọn file)
+7. Nhấn **Nộp**
+
+#### Tự động duyệt
+
+Hệ thống trích xuất thời gian chụp từ **EXIF** của ảnh:
+- Nếu thời gian chụp trong vòng **24h** so với thời hạn bài viết → **Tự động duyệt**
+- Nếu ảnh không có EXIF hoặc quá hạn → Chuyển vào hàng chờ **PENDING** chờ Admin duyệt
+
+> ⚠️ **Lưu ý**: Chụp ảnh màn hình trực tiếp từ điện thoại (không qua ứng dụng chỉnh sửa) để giữ EXIF gốc.
+
+### 3. Task Manager
+
+**Đường dẫn:** `/tasks`
+
+Công cụ quản lý công việc với nhiều chế độ xem.
+
+#### Workspace (Không gian làm việc)
+
+- Mỗi workspace là một nhóm công việc riêng
+- Bạn có thể tạo workspace cá nhân hoặc tham gia workspace của team
+- Chuyển đổi workspace ở dropdown phía trên
+
+#### Chế độ xem
+
+| Chế độ | Mô tả |
+|--------|-------|
+| **Board (Kanban)** | Kéo thả task giữa các cột TODO → IN_PROGRESS → DONE |
+| **List** | Danh sách task dạng bảng, lọc theo filter |
+| **Calendar** | Xem task trên lịch theo ngày |
+
+#### Bộ lọc
+
+- **Tất cả**: Xem mọi task
+- **Việc của tôi**: Chỉ task bạn được gán
+- **Hôm nay**: Task đến hạn hôm nay
+- **Sắp tới**: Task chưa đến hạn
+
+#### Thao tác với Task
+
+1. **Tạo task**: Nhấn nút **+** → điền tiêu đề, mô tả, hạn chót, gán người
+2. **Gán tag**: Tạo và gán tag màu sắc để phân loại
+3. **Custom properties**: Thêm trường tuỳ chỉnh theo workspace
+4. **Ghi chú (Note)**: Soạn thảo rich text — nội dung được AI embedding để hỗ trợ tìm kiếm
+5. **AI Chat**: Trò chuyện với AI dựa trên nội dung task (RAG)
+
+#### Quick Note
+
+Ô ghi chú nhanh bên phải màn hình — viết và tự động lưu.
+
+### 4. Thời gian biểu
+
+**Đường dẫn:** `/timetable`
+
+Lập lịch làm việc tuần trực quan.
+
+#### Bắt đầu
+
+- Lần đầu: Hệ thống hỏi một số câu hỏi (giờ làm việc, năng lượng cao nhất, công việc chính) → **tự động tạo thời gian biểu** bằng AI
+- Hoặc tạo thủ công từ đầu
+
+#### Thao tác
+
+- **Thêm hàng mới**: Nhấn nút "Thêm hàng" → chọn loại (công việc chính, phụ, nghỉ ngơi...)
+- **Sửa ô**: Click vào ô bất kỳ → nhập nội dung công việc
+- **Kéo thả**: Sắp xếp lại thứ tự các hàng
+- **Đồng bộ Task Manager**: Tự động đồng bộ các task từ Task Manager vào thời gian biểu
+- **Xuất Excel**: Tải xuống thời gian biểu dạng `.xlsx`
+
+> 💡 Hệ thống tự động phát hiện **trùng lịch** (overlap) và đánh dấu cảnh báo.
+
+### 5. AI Studio (SEO Tools)
+
+**Đường dẫn:** `/seo-tools`
+
+Bộ công cụ viết nội dung SEO với AI.
+
+#### Các công cụ
+
+| Công cụ | Mô tả |
+|---------|-------|
+| **Article Writer** | Nhập từ khoá → AI viết bài chuẩn SEO hoàn chỉnh |
+| **Table Generator** | Nhập dữ liệu thô → AI tạo bảng so sánh thông số (specs) |
+| **Spec Summary** | Nhập nội dung → AI tóm tắt thành đoạn ngắn gọn |
+
+#### Cách dùng Article Writer
+
+1. Chọn tab **Article Writer**
+2. Nhập **từ khoá chính** (VD: "dịch vụ SEO")
+3. Tuỳ chọn: thêm mô tả, đối tượng mục tiêu
+4. Nhấn **Generate** → AI viết bài
+5. Copy nội dung hoặc chỉnh sửa trực tiếp
+
+### 6. Báo cáo cá nhân
+
+**Đường dẫn:** `/reports`
+
+Xem lịch sử check-in của bạn:
+
+- Danh sách tất cả bài đã nộp
+- Trạng thái: Tự động duyệt ✅, Đang chờ ⏳, Đã duyệt ✓, Từ chối ❌
+- Lý do từ chối nếu có
+- Ảnh minh chứng đã nộp
+
+### 7. AI Chat
+
+Trợ lý AI xuất hiện dưới dạng **bubble chat** ở góc dưới phải màn hình (trên tất cả các trang trừ AI Studio).
+
+- Hỏi về nhiệm vụ, hướng dẫn sử dụng
+- Trong Task Manager: Chat có ngữ cảnh dựa trên task hiện tại (RAG)
+- Nhấn vào bubble để mở/đóng
+
+---
+
+## Hướng dẫn sử dụng — Quản trị viên
+
+> Các tính năng này chỉ hiển thị với tài khoản có quyền **ADMIN**.
+
+### 1. Duyệt bài
+
+**Đường dẫn:** `/admin/queue`
+
+Kiểm duyệt các bài nộp check-in.
+
+#### Giao diện
+
+- **Tab PENDING**: Các bài chưa duyệt (cần xử lý)
+- **Tab AUTO_APPROVED**: Các bài tự động duyệt
+- **Tab REVIEWED**: Lịch sử đã duyệt/từ chối
+
+#### Thao tác
+
+1. Chọn bài cần duyệt (click vào để xem chi tiết + ảnh)
+2. **Duyệt (Approve)**: Xác nhận bài nộp hợp lệ
+3. **Từ chối (Reject)**: Nhập lý do từ chối
+4. **Thao tác hàng loạt**: Chọn nhiều bài → Duyệt/Từ chối cùng lúc
+5. **AI Scan**: Quét ảnh bằng Gemini Vision để đối chiếu nội dung
+
+> 🔍 Click vào ảnh để xem phóng to.
+
+### 2. Quản lý Post
+
+**Đường dẫn:** `/admin/posts`
+
+Tạo và quản lý bài viết Facebook cần check-in.
+
+#### Tạo bài viết mới
+
+1. Nhấn **Tạo bài viết**
+2. Nhập:
+   - **Tiêu đề** (bắt buộc)
+   - **URL bài viết Facebook** (bắt buộc)
+   - **Mô tả** (tuỳ chọn)
+   - **Ngày đăng** — thời hạn check-in
+   - **Team** — chọn phòng ban được gán (ALL, TECH, SALES, MARKETING)
+3. Hệ thống tự động lấy thumbnail + OG meta từ URL
+4. Nhấn **Lưu**
+
+#### Quản lý
+
+- **Sửa**: Click vào bài viết → chỉnh sửa thông tin
+- **Archive**: Ẩn bài viết khỏi danh sách check-in của nhân viên
+- **Check mật độ**: Xem số bài đã đăng trong ngày (giới hạn số bài/ngày)
+
+### 3. Quản lý Account
+
+**Đường dẫn:** `/admin/accounts`
+
+Quản lý tài khoản người dùng.
+
+#### Danh sách tài khoản
+
+- Tìm kiếm theo tên/email
+- Lọc theo role (ADMIN/USER), phòng ban, trạng thái
+
+#### Thao tác
+
+| Thao tác | Mô tả |
+|----------|-------|
+| **Tạo tài khoản** | Nhập username, email, password, chọn phòng ban và role |
+| **Sửa** | Thay đổi thông tin, role, phòng ban |
+| **Xoá** | Xoá tài khoản (có xác nhận) |
+| **Xác thực Facebook** | Xác nhận liên kết Facebook của user |
+
+### 4. Reports (Analytics)
+
+**Đường dẫn:** `/admin/analytics`
+
+Thống kê và biểu đồ toàn hệ thống.
+
+#### Các chỉ số
+
+- **Hiệu suất bài viết**: Tỷ lệ hoàn thành theo từng bài
+- **Hiệu suất nhân sự**: Mỗi nhân viên đã hoàn thành/bỏ lỡ bao nhiêu bài
+- **Xu hướng ngày**: Biểu đồ số check-in dự kiến vs thực tế theo ngày trong tuần
+- **Phân tích phòng ban**: Hiệu suất theo từng phòng
+
+> 📊 Dữ liệu có thể xuất ra **Excel** để lưu trữ.
+
+### 5. Cấu hình hệ thống
+
+**Đường dẫn:** `/admin/settings`
+
+#### Phòng ban
+
+- Thêm/Sửa/Xoá phòng ban
+- User thuộc phòng ban nào sẽ thấy bài viết tương ứng
+
+#### Workspace (Task Manager)
+
+- Xem tất cả workspace trên hệ thống
+- Xoá workspace khi không còn sử dụng
+
+#### Cấu hình AI
+
+- Chọn **Model AI**: GPT-4o, GPT-4 Turbo, Claude 3 Opus/Sonnet, Gemini 1.5 Pro
+- Nhập **API Key** nếu cần
+
+---
+
+## Cài đặt & Phát triển
 
 ### Yêu cầu
-- Node.js 18+
-- PostgreSQL database
 
-### 1. Clone & cài đặt dependencies
+- Node.js 18+
+- PostgreSQL (có pgvector extension)
+- Vercel Blob account (upload ảnh)
+- AI-Box API key (chat + vision)
+
+### Cài đặt local
 
 ```bash
+# Clone repo
 git clone <repo-url>
 cd teamwork-check-dashboard
+
+# Cài dependencies
 npm install
-```
 
-### 2. Cấu hình biến môi trường
+# Tạo file .env (xem mẫu bên dưới)
+cp .env.example .env
 
-Tạo file `.env` tại thư mục gốc:
-
-```env
-# Database
-DATABASE_URL="postgresql://user:password@host:port/dbname?schema=public"
-
-# NextAuth
-NEXTAUTH_SECRET="random-secret-string"
-NEXTAUTH_URL="http://localhost:3000"
-
-# Vercel Blob (upload ảnh check-in + avatar)
-BLOB_READ_WRITE_TOKEN="..."
-
-# AI-Box API (chat + vision scan)
-AIBOX_API_KEY="..."
-AIBOX_BASE_URL="https://api.ai-box.vn/v1"
-
-# Model overrides (optional)
-MODEL_DEEPSEEK_PRO="deepseek-v4-pro"
-MODEL_DEEPSEEK_FLASH="deepseek-v4-flash"
-MODEL_GEMINI_VISION="gemini-3-flash"
-```
-
-### 3. Khởi tạo database
-
-```bash
+# Khởi tạo database
 npx prisma generate
 npx prisma db push
-npx prisma db seed    # Tạo tài khoản admin mẫu
-```
+npx prisma db seed
 
-### 4. Chạy dev server
-
-```bash
+# Chạy dev server
 npm run dev
 ```
 
-Truy cập [http://localhost:3000](http://localhost:3000) — sẽ redirect đến `/login`.
-
-## Cấu trúc thư mục
-
-```
-├── src/                       # Next.js App Router source
-│   ├── app/                   # Pages, API routes, server actions
-│   │   ├── actions/           # Server Actions (auth)
-│   │   ├── admin/             # Admin pages
-│   │   ├── api/               # API Route Handlers
-│   │   ├── dashboard/         # User dashboard
-│   │   ├── login/             # Login page
-│   │   ├── onboarding/        # First-time onboarding
-│   │   ├── reports/           # Personal reports
-│   │   └── tasks/             # Task check-in pages
-│   ├── components/            # React components
-│   │   ├── modules/           # Feature modules
-│   │   ├── shared/            # Layout, header, sidebar
-│   │   └── ui/                # UI primitives
-│   ├── hooks/                 # Custom React hooks
-│   ├── lib/                   # Utilities, DB client, config
-│   └── types/                 # TypeScript type definitions
-├── prisma/                    # Database schema, migrations, seed
-├── public/                    # Static assets (images, favicon)
-├── scripts/                   # Utility scripts & tools
-│   ├── fix_rounded.py         # Fix rounded corner styles
-│   ├── replace_styles.py      # Style replacement utilities
-│   └── test-action.js         # Action test script
-├── docs/                      # Documentation
-│   ├── PLAN.md                # Implementation plan
-│   ├── RESTRUCTURE.md         # Restructure notes
-│   └── COLORS.md              # Color scheme reference
-├── .env                       # Environment variables
-├── next.config.js             # Next.js configuration
-├── tailwind.config.js         # Tailwind CSS configuration
-├── tsconfig.json              # TypeScript configuration
-├── vercel.json                # Vercel deployment config
-└── package.json               # Dependencies & scripts
-```
-
-## API Endpoints
-
-### Người dùng
-
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET | `/api/posts` | Danh sách bài viết (phân trang) |
-| GET | `/api/posts/density?date=` | Mật độ bài viết theo ngày |
-| POST | `/api/checkins` | Nộp ảnh check-in (JSON: post_id + image_url) |
-| GET | `/api/checkins?post_id=` | Lịch sử check-in của user |
-| POST | `/api/upload/checkin` | Upload ảnh check-in lên Vercel Blob |
-| POST | `/api/upload/avatar` | Upload ảnh đại diện |
-| GET | `/api/user/profile` | Xem thông tin cá nhân |
-| PUT | `/api/user/profile` | Cập nhật thông tin cá nhân |
-| POST | `/api/user/onboarding` | Hoàn tất onboarding |
-| POST | `/api/user/change-password` | Đổi mật khẩu |
-| GET | `/api/user/quota-status` | Hạn mức AI token |
-| POST | `/api/ai/chat` | Chat AI (streaming) |
-
-### Quản trị
-
-| Method | Path | Mô tả |
-|--------|------|-------|
-| GET/POST/PUT/DELETE | `/api/admin/accounts` | CRUD tài khoản người dùng |
-| PATCH | `/api/admin/accounts/[id]/verify-facebook` | Xác thực Facebook |
-| POST | `/api/admin/checkin/action` | Duyệt/từ chối check-in hàng loạt |
-| POST | `/api/admin/ai-scan` | Quét ảnh bằng AI (Gemini Vision) |
-| GET/POST | `/api/admin/settings` | Xem/cập nhật cấu hình hệ thống |
-| GET/POST/DELETE | `/api/admin/departments` | Quản lý phòng ban |
-| GET | `/api/admin/export-excel` | Xuất Excel (có lọc khoảng ngày) |
-| GET | `/api/admin/og-scraper?url=` | Lấy OG tags từ URL |
-
-## Database Models
-
-- **User**: Tài khoản nhân viên/admin — username, email, password (bcrypt), role, department, avatar, facebook link, daily token quota
-- **Post**: Bài viết cần Like & Share — title, url, thumbnail, description, start_at, team (ALL/TECH/SALES), archive/late-submit flags
-- **Checkin**: Bản ghi nộp minh chứng — user_id, post_id, image_url (Vercel Blob), exif_time, status (AUTO_APPROVED/PENDING/APPROVED/REJECTED), ai_confidence, reject_reason
-- **SystemSetting**: Cấu hình key-value (model AI, API key encrypt)
-- **Department**: Danh sách phòng ban (name unique)
-
-## Scripts
-
-| Lệnh | Mô tả |
-|------|-------|
-| `npm run dev` | Chạy dev server |
-| `npm run build` | Build production (Prisma generate + Next build) |
-| `npm run start` | Chạy production server |
-| `npm run lint` | Kiểm tra lint |
-
-## Deploy lên Vercel
-
-1. Push code lên GitHub/GitLab.
-2. Tạo project mới trên [Vercel](https://vercel.com).
-3. Kết nối repository.
-4. Thêm biến môi trường (giống `.env`) trong **Settings > Environment Variables**.
-5. Deploy — mỗi lần push nhánh chính tự động build lại.
-
-> **Lưu ý:** Không commit `.env` lên Git.
-
-## Biến môi trường yêu cầu khi deploy
+### Biến môi trường
 
 | Biến | Bắt buộc | Mô tả |
 |------|----------|-------|
 | `DATABASE_URL` | ✅ | PostgreSQL connection string |
 | `NEXTAUTH_SECRET` | ✅ | Secret cho JWT |
-| `NEXTAUTH_URL` | ✅ | URL ứng dụng (VD: https://app.vercel.app) |
+| `NEXTAUTH_URL` | ✅ | URL ứng dụng |
 | `BLOB_READ_WRITE_TOKEN` | ✅ | Token Vercel Blob |
 | `AIBOX_API_KEY` | ✅ | API key AI-Box |
 | `AIBOX_BASE_URL` | ❌ | Mặc định: https://api.ai-box.vn/v1 |
+| `ADMIN_USERNAME` | ❌ | Tạo admin mặc định khi login |
+| `ADMIN_PASSWORD` | ❌ | Mật khẩu admin mặc định |
 
-## Thiết kế
+### Scripts
 
-Giao diện **Light Theme** với bảng màu Indigo làm chủ đạo. Sử dụng Tailwind CSS utility classes + Lucide Icons.
+| Lệnh | Mô tả |
+|------|-------|
+| `npm run dev` | Dev server (Next.js) |
+| `npm run build` | Build production |
+| `npm run start` | Chạy production server |
+| `npm run lint` | Kiểm tra lint |
 
 ---
 
-Dự án nội bộ — Song Phương Technology.
+## Kiến trúc hệ thống
+
+### Công nghệ
+
+| Layer | Công nghệ |
+|-------|-----------|
+| **Framework** | Next.js 15 (App Router) |
+| **Ngôn ngữ** | TypeScript |
+| **Auth** | NextAuth v5 (Credentials, JWT) |
+| **Database** | PostgreSQL + Prisma ORM |
+| **Upload** | Vercel Blob |
+| **UI** | Tailwind CSS, Lucide Icons, Framer Motion |
+| **Biểu đồ** | Recharts |
+| **Excel** | ExcelJS |
+| **AI Chat** | AI-Box API (DeepSeek Pro / Flash) |
+| **AI Vision** | Gemini (qua AI-Box API) |
+| **EXIF** | exifr (server-side) |
+
+### Role hệ thống
+
+- **USER**: Nhân viên — truy cập dashboard, like/share, task, timetable, AI Studio
+- **ADMIN**: Quản trị — tất cả quyền USER + duyệt bài, quản lý posts/accounts, analytics, settings
+
+### Bảo mật
+
+- Middleware kiểm tra session mọi request đến trang protected
+- API routes kiểm tra quyền ADMIN cho các thao tác nhạy cảm
+- EXIF trích xuất **server-side** — không tin dữ liệu từ client
+- Ảnh bị từ chối được xoá khỏi Vercel Blob để tiết kiệm storage
+- Transaction atomic cho thao tác nhạy cảm (tạo user, duyệt bài)
+
+---
+
+> Dự án nội bộ — Song Phương Technology (SP-CyberSoft)
