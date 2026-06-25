@@ -20,24 +20,24 @@ type SeoTool = {
 const SEO_TOOLS: SeoTool[] = [
   {
     id: "article-writer",
-    title: "Viết Bài Chuẩn SEO",
-    description: "Tạo mô tả sản phẩm chuẩn SEO (RankMath) cho máy tính, laptop, linh kiện.",
+    title: "Mô tả sản phẩm SEO",
+    description: "Soạn mô tả bán hàng chuẩn RankMath cho máy tính, laptop và linh kiện.",
     icon: <PenLine className="w-5 h-5" />,
     iconBg: "bg-indigo-50",
     iconColor: "text-indigo-600",
   },
   {
     id: "table-generator",
-    title: "Tạo Bảng Thông Số",
-    description: "Chuyển thông số kỹ thuật thô thành bảng HTML đẹp cho WordPress.",
+    title: "Bảng thông số kỹ thuật",
+    description: "Chuẩn hóa thông số thô thành bảng Markdown hai cột, sẵn sàng đăng website.",
     icon: <Table2 className="w-5 h-5" />,
     iconBg: "bg-emerald-50",
     iconColor: "text-emerald-600",
   },
   {
     id: "spec-summary",
-    title: "Mô Tả Ngắn SP",
-    description: "Tóm tắt thông số sản phẩm theo format đồng bộ, gọn gàng cho website & catalog.",
+    title: "Tóm tắt thông số",
+    description: "Rút gọn thông số sản phẩm theo format đồng bộ, phục vụ catalog và trang chi tiết.",
     icon: <AlignLeft className="w-5 h-5" />,
     iconBg: "bg-amber-50",
     iconColor: "text-amber-600",
@@ -49,20 +49,20 @@ const TOOL_HEADERS: Record<
   { title: string; description: string; icon: React.ReactNode; iconBg: string }
 > = {
   "article-writer": {
-    title: "Viết Bài Chuẩn SEO",
-    description: "Dán thông số sản phẩm để AI viết mô tả chuẩn SEO (~80–120 từ) — xem Markdown hoặc preview.",
+    title: "Mô tả sản phẩm SEO",
+    description: "Nhập thông tin sản phẩm để AI soạn mô tả bán hàng ngắn gọn, chuẩn SEO và phù hợp danh mục Song Phương.",
     icon: <FileText className="w-6 h-6 text-indigo-600" />,
     iconBg: "bg-indigo-50",
   },
   "table-generator": {
-    title: "Tạo Bảng Thông Số",
-    description: "Dán dữ liệu sản phẩm thô để sinh bảng thông số Markdown 2 cột, sẵn sàng dán vào WordPress.",
+    title: "Bảng thông số kỹ thuật",
+    description: "Chuyển đổi dữ liệu thô thành bảng thông số Markdown, tối ưu hiển thị trên WordPress.",
     icon: <Table2 className="w-6 h-6 text-emerald-600" />,
     iconBg: "bg-emerald-50",
   },
   "spec-summary": {
-    title: "Mô Tả Ngắn SP",
-    description: "Dán thông số gốc để AI tóm tắt theo format \"Tên thông số: Giá trị\", đồng bộ và dễ đăng website.",
+    title: "Tóm tắt thông số",
+    description: "Tổng hợp thông số theo định dạng \"Tên thông số: Giá trị\", thống nhất trên toàn hệ thống.",
     icon: <AlignLeft className="w-6 h-6 text-amber-600" />,
     iconBg: "bg-amber-50",
   },
@@ -89,29 +89,26 @@ export default function SeoToolsClient() {
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors duration={2000} closeButton />
-      {/* Header */}
+
       <div>
         <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
           <span>Dashboard</span>
           <span>/</span>
-          <span className="text-primary font-semibold">SEO Tools</span>
+          <span className="text-primary font-semibold">Công cụ nội dung</span>
         </nav>
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <p className="text-[9px] font-inter font-semibold tracking-[.1em] uppercase text-primary mb-1">
-              CÔNG CỤ TỐI ƯU
-            </p>
-            <h1 className="font-manrope font-bold text-2xl sm:text-headline-lg text-on-surface">
-              SEO Tools
-            </h1>
-            <p className="mt-1 text-sm text-on-surface-variant font-inter max-w-2xl">
-              Bộ công cụ AI hỗ trợ viết bài chuẩn SEO, tạo bảng thông số và sinh meta tags.
-            </p>
-          </div>
+        <div>
+          <p className="text-[9px] font-inter font-semibold tracking-[.1em] uppercase text-primary mb-1">
+            Song Phương · AI
+          </p>
+          <h1 className="font-manrope font-bold text-2xl sm:text-headline-lg text-on-surface">
+            Công cụ nội dung
+          </h1>
+          <p className="mt-1 text-sm text-on-surface-variant font-inter max-w-2xl">
+            Bộ công cụ AI hỗ trợ các công việc kinh doanh của công ty Song Phương.
+          </p>
         </div>
       </div>
 
-      {/* Tools Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {SEO_TOOLS.map((tool) => {
           const isActive = activeTool === tool.id;
@@ -151,7 +148,6 @@ export default function SeoToolsClient() {
         })}
       </section>
 
-      {/* Active Tool Workspace */}
       {activeHeader && (
         <section className="bg-surface-container-lowest rounded-2xl shadow-ambient p-4 sm:p-6 space-y-6">
           <div className="flex items-start gap-4">

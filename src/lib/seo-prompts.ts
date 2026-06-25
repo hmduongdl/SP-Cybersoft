@@ -6,7 +6,6 @@ NHIỆM VỤ: Viết mô tả sản phẩm chuẩn SEO (RankMath) bằng tiếng
 THÔNG TIN SẢN PHẨM (từ người dùng):
 {topic}
 
-TỪ KHÓA SEO ưu tiên lồng ghép tự nhiên: {keywords}
 GIỌNG VĂN mong muốn: {tone}
 
 ## CẤU TRÚC BẮT BUỘC
@@ -122,10 +121,9 @@ THÔNG SỐ GỐC:
 {inputText}
 `;
 
-export function buildArticlePrompt(topic: string, keywords: string, tone: string): string {
+export function buildArticlePrompt(topic: string, tone: string): string {
   return PROMPT_ARTICLE_WRITER
     .replace('{topic}', topic)
-    .replace('{keywords}', keywords)
     .replace('{tone}', tone);
 }
 

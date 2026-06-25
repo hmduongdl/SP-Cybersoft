@@ -25,8 +25,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 });
     }
 
-    const { topic, keywords, tone } = parsed.data;
-    const prompt = buildArticlePrompt(topic, keywords, tone);
+    const { topic, tone } = parsed.data;
+    const prompt = buildArticlePrompt(topic, tone);
 
     const content = await generateSeoText({
       prompt,

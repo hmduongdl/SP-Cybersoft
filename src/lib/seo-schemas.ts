@@ -3,13 +3,6 @@ import { z } from "zod";
 export const SEO_TEXT_MIN = 5;
 export const SEO_TEXT_MAX = 2000;
 
-const seoTextField = (label: string) =>
-  z
-    .string()
-    .trim()
-    .min(SEO_TEXT_MIN, `${label} phải có ít nhất ${SEO_TEXT_MIN} ký tự.`)
-    .max(SEO_TEXT_MAX, `${label} không được vượt quá ${SEO_TEXT_MAX} ký tự.`);
-
 export const ARTICLE_TONE_VALUES = [
   "Chuyên nghiệp",
   "Thân thiện",
@@ -30,7 +23,6 @@ export const articleRequestSchema = z.object({
     .string()
     .trim()
     .min(SEO_TEXT_MIN, `Thông tin sản phẩm phải có ít nhất ${SEO_TEXT_MIN} ký tự.`),
-  keywords: seoTextField("Keywords"),
   tone: z.enum(ARTICLE_TONE_VALUES, "Tone không hợp lệ."),
 });
 
