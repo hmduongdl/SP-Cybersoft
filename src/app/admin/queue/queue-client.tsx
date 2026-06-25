@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Check,
@@ -92,7 +92,6 @@ export default function QueueClient({
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDept);
   const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
-  const [isTabTransitioning, setIsTabTransitioning] = useState(false);
 
   // Rejection states
   const [isRejectingId, setIsRejectingId] = useState<string | null>(null);
@@ -119,7 +118,6 @@ export default function QueueClient({
     setDeptFilter(initialDept);
     setSelectedIds(new Set());
     setAiScanResults({});
-    setIsTabTransitioning(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams?.toString()]);
 
@@ -136,14 +134,13 @@ export default function QueueClient({
     router.push(qs ? `/admin/queue?${qs}` : "/admin/queue");
   }, [router, searchParams]);
 
-  const handleTabChangeInternal = (tab: string) => {
+  const handleTabChangeInternal = useCallback((tab: string) => {
     if (tab === activeTab) return;
-    setIsTabTransitioning(true);
     setSelectedIds(new Set());
     setAiScanResults({});
     navigateWithParams({ tab, page: "1", search: "", dept: "" });
     router.refresh();
-  };
+  }, [activeTab, navigateWithParams, router]);
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
@@ -286,14 +283,14 @@ export default function QueueClient({
   };
 
   // Client-side filter by tab status so status changes immediately remove items from view
-  const filteredCheckins = checkins.filter(c => {
+  const filteredCheckins = useMemo(() => checkins.filter(c => {
     if (activeTab === "AUTO_APPROVED") return c.status === "AUTO_APPROVED";
     if (activeTab === "REVIEWED") return c.status === "APPROVED" || c.status === "REJECTED";
     return c.status === "PENDING";
-  });
-  const pendingCount = _pendingCount ?? checkins.filter(c => c.status === "PENDING").length;
-  const autoApprovedCount = _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length;
-  const reviewedCount = _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length;
+  }), [checkins, activeTab]);
+  const pendingCount = useMemo(() => _pendingCount ?? checkins.filter(c => c.status === "PENDING").length, [_pendingCount, checkins]);
+  const autoApprovedCount = useMemo(() => _autoApprovedCount ?? checkins.filter(c => c.status === "AUTO_APPROVED").length, [_autoApprovedCount, checkins]);
+  const reviewedCount = useMemo(() => _reviewedCount ?? checkins.filter(c => c.status === "APPROVED" || c.status === "REJECTED").length, [_reviewedCount, checkins]);
 
   // Start/End date for export
   const [startDate, setStartDate] = useState("");
@@ -421,27 +418,8 @@ export default function QueueClient({
         </button>
       )}
 
-      {/* Tab transition loading state */}
-      {isTabTransitioning && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-[16px] bg-surface-container-lowest shadow-[0_20px_40px_rgba(19,27,46,0.06)] overflow-hidden animate-pulse">
-              <div className="w-full aspect-video bg-surface-container-low" />
-              <div className="p-4 space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-surface-container-low" />
-                  <div className="h-3 bg-surface-container-low rounded w-2/3" />
-                </div>
-                <div className="h-2 bg-surface-container-low rounded w-1/3" />
-                <div className="h-2 bg-surface-container-low rounded w-full" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Empty state */}
-      {!isTabTransitioning && filteredCheckins.length === 0 ? (
+      {filteredCheckins.length === 0 ? (
         <div className="bg-surface-container-lowest rounded-[16px] p-16 text-center shadow-[0_20px_40px_rgba(19,27,46,0.06)] border-none">
           <div className="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center mx-auto mb-4 text-on-surface-variant/40">
             <ImageIcon className="w-7 h-7" />
