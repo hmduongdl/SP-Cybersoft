@@ -92,8 +92,8 @@ export interface TaskFilterParams {
 }
 
 /** Lọc theo workspace — luôn chạy trước các filter khác. */
-export function filterTasksByWorkspace(tasks: Task[], workspaceId: string | null): Task[] {
-  if (!workspaceId || workspaceId === 'ALL') return tasks;
+export function filterTasksByWorkspace(tasks: readonly Task[], workspaceId: string | null): Task[] {
+  if (!workspaceId || workspaceId === 'ALL') return tasks as Task[];
   return tasks.filter((t) => t.workspace_id === workspaceId);
 }
 
@@ -105,7 +105,7 @@ export function isMyTask(task: Task, currentUserId?: string): boolean {
   return isAssigned || isCreator;
 }
 
-export function filterTasks(tasks: Task[], params: TaskFilterParams): Task[] {
+export function filterTasks(tasks: readonly Task[], params: TaskFilterParams): Task[] {
   const { activeFilter, currentWorkspaceId, selectedTagId, tags, currentUserId } = params;
   const today = startOfDay(new Date());
 
