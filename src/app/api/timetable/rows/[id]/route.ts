@@ -31,7 +31,7 @@ export async function PATCH(
       await tx.timetableCell.upsert({
         where: { row_id_column_name: { row_id: rowId, column_name: "notes" } },
         update: { content: body.notes },
-        create: { row_id: rowId, column_name: "notes", content: body.notes },
+        create: { row_id: rowId, column_name: "notes", content: body.notes, is_deadline: false, task_ids: [] },
       });
     }
 
@@ -41,7 +41,7 @@ export async function PATCH(
         await tx.timetableCell.upsert({
           where: { row_id_column_name: { row_id: rowId, column_name: col } },
           update: { content: content as any, task_ids: taskIds },
-          create: { row_id: rowId, column_name: col, content: content as any, task_ids: taskIds },
+          create: { row_id: rowId, column_name: col, content: content as any, task_ids: taskIds, is_deadline: false },
         });
       }
     }

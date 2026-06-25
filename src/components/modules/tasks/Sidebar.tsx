@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useTaskStore, Workspace, Tag, FilterStatus } from "@/store/useTaskStore";
 import { useSession, signOut } from "next-auth/react";
-import { ChevronDown, LogOut, CalendarDays, CheckSquare, Plus, Clock, Inbox, Tag as TagIcon } from "lucide-react";
+import { ChevronDown, LogOut, CalendarDays, CheckSquare, Plus, Clock, User as UserIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -13,21 +13,31 @@ export function Sidebar() {
     currentWorkspace,
     tags,
     filterStatus,
+    timeFilter,
+    selectedTagId,
+    isTasksLoading,
     setFilter,
-    setCurrentWorkspace,
+    setTimeFilter,
+    setSelectedTagId,
+    switchWorkspace,
   } = useTaskStore();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  // Fallbacks in case workspaces are still loading or empty in store
-  const activeWorkspace = currentWorkspace || workspaces[0] || {
-    id: "ws-1",
-    name: "Dự án SP-CyberSoft",
-    icon: "🚀",
-    color: "#0050cb",
-  };
+  const displayWorkspaces = [
+    { id: "ALL", name: "Tất cả dự án", icon: "🌐", color: "#6b7280" },
+    ...workspaces
+  ];
 
-  const displayWorkspaces = workspaces.length > 0 ? workspaces : [activeWorkspace];
+  // Fallbacks in case workspaces are still loading or empty in store
+  const activeWorkspace = currentWorkspaceId === "ALL" 
+    ? displayWorkspaces[0] 
+    : (currentWorkspace || workspaces[0] || {
+        id: "ws-1",
+        name: "Dự án SP-CyberSoft",
+        icon: "🚀",
+        color: "#0050cb",
+      });
 
   const userName = session?.user?.name || "Thành viên";
   const initials = userName
@@ -41,6 +51,7 @@ export function Sidebar() {
 
   const filterItems = [
     { id: "all", label: "Tất cả", icon: CheckSquare },
+    { id: "my_tasks", label: "Cá nhân", icon: UserIcon },
     { id: "today", label: "Hôm nay", icon: Clock },
     { id: "upcoming", label: "Sắp tới", icon: CalendarDays },
   ];
@@ -65,8 +76,9 @@ export function Sidebar() {
             {activeWorkspace.icon || "🚀"}
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-[13px] font-semibold text-on-surface truncate">
+            <p className="text-[13px] font-semibold text-on-surface truncate flex items-center gap-2">
               {activeWorkspace.name || "Dự án SP-CyberSoft"}
+              {isTasksLoading && <span className="w-3 h-3 border-[2px] border-primary border-t-transparent rounded-full animate-spin inline-block" />}
             </p>
             <p className="text-[10px] text-on-muted">Workspace</p>
           </div>
@@ -84,7 +96,7 @@ export function Sidebar() {
                 <button
                    key={ws.id}
                    onClick={() => {
-                     setCurrentWorkspace(ws);
+                     switchWorkspace(ws.id);
                      setIsDropdownOpen(false);
                    }}
                    className={cn(
@@ -113,12 +125,36 @@ export function Sidebar() {
           </p>
           <div className="space-y-0.5 px-2">
             {filterItems.map((item) => {
-              const active = filterStatus === item.id;
+              const isTimeFilterItem = ["today", "upcoming"].includes(item.id);
+              const isAllItem = item.id === "all";
+              
+              let active = false;
+              if (isTimeFilterItem) {
+                active = timeFilter === item.id;
+              } else if (isAllItem) {
+                active = filterStatus === "all" && timeFilter === "all";
+              } else {
+                active = filterStatus === item.id;
+              }
+
+              const handleClick = () => {
+                if (isTimeFilterItem) {
+                  setTimeFilter(item.id as any);
+                  setFilter("all"); // reset normal filter when switching to time
+                } else if (isAllItem) {
+                  setTimeFilter("all");
+                  setFilter("all");
+                } else {
+                  setFilter(item.id as any);
+                  setTimeFilter("all"); // reset time filter when switching to normal
+                }
+              };
+
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setFilter(item.id as FilterStatus)}
+                  onClick={handleClick}
                   className={cn(
                     "w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-on-muted hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer [&.active]:bg-[#e0e4ff] [&.active]:text-[#0050cb] [&.active]:font-semibold",
                     active && "active"
@@ -132,30 +168,7 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* THẺ TAG Section */}
-        <div>
-          <p className="text-[10px] font-inter font-semibold tracking-[.08em] uppercase text-on-muted px-2 pt-2 pb-1">
-            THẺ TAG
-          </p>
-          <div className="flex flex-wrap gap-1.5 px-2">
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                className="text-[10px] font-semibold px-2.5 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
-                style={{ background: `${tag.color}25` || "#6b728025", color: tag.color || "#6b7280" }}
-              >
-                {tag.name}
-              </button>
-            ))}
-          </div>
-          <div className="px-2 mt-2">
-            {/* Tạo tag button */}
-            <button className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-[12px] font-inter text-[#0050cb] hover:bg-[#eaedff] transition-colors duration-150 cursor-pointer text-left">
-              <Plus size={14} />
-              <span>Tạo thẻ mới</span>
-            </button>
-          </div>
-        </div>
+
       </div>
 
       {/* User Block & Logout (Bottom) */}

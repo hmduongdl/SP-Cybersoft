@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Star, X, User, Mail, KeyRound, Building2, ShieldCheck } from "lucide-react";
+import { Loader2, X, User, Mail, KeyRound, Building2, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 
 interface UserAccount {
@@ -13,8 +13,6 @@ interface UserAccount {
   role: "ADMIN" | "USER";
   department: string | null;
   avatar_url: string | null;
-  hope_stars: number;
-  used_stars_this_month: number;
   is_active: boolean;
 }
 
@@ -37,7 +35,6 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
   const [isActive, setIsActive] = useState(user.is_active);
   const [role, setRole] = useState<"ADMIN" | "USER">(user.role);
   const [saving, setSaving] = useState(false);
-  const [addingStar, setAddingStar] = useState(false);
 
   // Reset form when user changes
   useEffect(() => {
@@ -51,21 +48,6 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
   }, [user]);
 
 
-
-  const handleAddStar = async () => {
-    setAddingStar(true);
-    try {
-      const res = await fetch(`/api/admin/users/${user.id}/add-star`, { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Lỗi khi tặng sao.");
-      toast.success(data.message || "Đã tặng 1 Ngôi sao hy vọng!");
-      onSaved();
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setAddingStar(false);
-    }
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,35 +250,6 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
                 <span className="text-sm font-semibold text-on-surface">Cho phép hoạt động</span>
                 <p className="text-xs text-on-surface-variant">Tài khoản có thể đăng nhập khi được bật</p>
               </label>
-            </div>
-
-            {/* Hope Stars Section */}
-            <div className="p-4 bg-amber-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-amber-800 flex items-center gap-1.5">
-                    <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
-                    Ngôi sao hy vọng
-                  </p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Hiện có: <strong>{user.hope_stars}</strong> sao &middot;
-                    Đã dùng tháng này: <strong>{user.used_stars_this_month}/3</strong>
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleAddStar}
-                  disabled={addingStar}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all disabled:opacity-50 active:scale-95"
-                >
-                  {addingStar ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Star className="h-3.5 w-3.5 fill-white" />
-                  )}
-                  Tặng 1 sao
-                </button>
-              </div>
             </div>
           </div>
 

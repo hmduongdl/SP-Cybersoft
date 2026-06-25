@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Plus, List, Columns, ChevronDown } from "lucide-react";
+import { Search, Plus, List, Columns, ChevronDown, Calendar } from "lucide-react";
 import { useTaskStore } from "@/store/useTaskStore";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ export function Header() {
     setAddTaskModalOpen,
     currentWorkspace,
     workspaces,
-    setCurrentWorkspaceId,
+    switchWorkspace,
     currentView,
     setCurrentView,
     currentWorkspaceId,
@@ -51,7 +51,7 @@ export function Header() {
         {isDropdownOpen && (
           <div className="absolute left-0 mt-2 w-56 bg-surface-mid dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl shadow-xl py-1 z-50 origin-top-left focus:outline-none animate-slide-down">
             <button
-              onClick={() => { setCurrentWorkspaceId("ALL"); setIsDropdownOpen(false); }}
+              onClick={() => { switchWorkspace("ALL"); setIsDropdownOpen(false); }}
               className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700 mb-1"
             >
               <div className="flex items-center gap-2 font-semibold text-[#0050cb] text-sm">
@@ -62,7 +62,7 @@ export function Header() {
             {workspaces.map(ws => (
               <button
                 key={ws.id}
-                onClick={() => { setCurrentWorkspaceId(ws.id); setIsDropdownOpen(false); }}
+                onClick={() => { switchWorkspace(ws.id); setIsDropdownOpen(false); }}
                 className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               >
                 <div className="flex items-center gap-2 font-medium text-slate-700 dark:text-slate-200 text-sm">

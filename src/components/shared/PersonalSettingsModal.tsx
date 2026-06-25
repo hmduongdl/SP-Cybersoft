@@ -754,13 +754,13 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
     if (!isOpen) setActiveTab("profile");
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const tabTitles = useMemo<Record<string, string>>(() => ({
     profile: "Hồ sơ tài khoản",
     workspaces: "Quản lý Không gian & Thẻ Tag",
     appearance: "Giao diện hiển thị",
   }), []);
+
+  if (!isOpen) return null;
 
   return (
     <>

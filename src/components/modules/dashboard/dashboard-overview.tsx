@@ -16,7 +16,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { cn } from "@/lib/utils";
+import { cn, getPostDeadline } from "@/lib/utils";
 import { fetchMonthlyStats } from "@/app/dashboard/actions";
 
 interface ActivityFeedItem {
@@ -66,9 +66,7 @@ function timeAgo(dateString: string) {
 
 function countdownLabel(startAt: string) {
   const now = Date.now();
-  const start = new Date(startAt).getTime();
-  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
-  const deadline = start + THIRTY_HOURS;
+  const deadline = getPostDeadline(startAt).getTime();
   const remaining = deadline - now;
   if (remaining <= 0) return "Đã hết hạn";
   const hours = Math.floor(remaining / (60 * 60 * 1000));
@@ -285,7 +283,10 @@ export function DashboardOverview({
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
               )}
             </div>
-            <span className="inline-flex items-center px-3 py-1 text-[12px] font-bold rounded-full uppercase tracking-wider bg-primary-container text-primary">
+            <span className={cn(
+              "inline-flex items-center px-3 py-1 text-[12px] font-bold rounded-full uppercase tracking-wider",
+              pendingCount > 0 ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
+            )}>
               {completedCount}/{totalPostsCount}
             </span>
           </div>
@@ -566,10 +567,13 @@ export function DashboardOverview({
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-manrope text-[16px] font-bold text-on-surface">
-                  AI Pop-up Chat Đang Bảo Trì
+                  AI CHAT ĐÃ TRỞ LẠI VÀ LỢI HẠI HƠN XƯA!
                 </h3>
                 <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
-                  Tính năng này sẽ trở lại sau một thời gian ngắn.
+                  Hiện nay, AI Scan Assistant đã được nâng cấp với khả năng phân tích nội dung bài viết, gợi ý cải thiện chất lượng và tối ưu hóa SEO. Hãy trải nghiệm ngay để nâng cao hiệu quả công việc của bạn!
+                </p>
+                <p className="text-[13px] text-on-surface-variant mt-1 leading-relaxed">
+                  Bạn có thể truy cập AI Scan Assistant thông qua trang quản lý bài viết hoặc từ thanh công cụ trên dashboard.
                 </p>
                 <Link
                   href="/admin/queue"

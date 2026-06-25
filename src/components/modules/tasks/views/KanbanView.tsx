@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
+import { useSession } from "next-auth/react";
 import { Calendar, MoreHorizontal, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { isPast, parseISO, format, differenceInDays } from "date-fns";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 const COLS = [
   { key: 'TODO',        label: 'Cần làm',  dot: '#44495a', bgClass: 'bg-[#f1f5f9] dark:bg-slate-800/80' },
@@ -15,40 +17,88 @@ const COLS = [
 ];
 
 export function KanbanView() {
-  const { 
-    tasks: allTasks, 
-    currentWorkspaceId,
-    filterStatus,
-    updateTask, 
-    setSelectedTaskId, 
-    setAddTaskModalOpen,
-    selectedTagId
-  } = useTaskStore();
+  const { data: session } = useSession();
+  const allTasks = useTaskStore(s => s.tasks);
+  const timeFilter = useTaskStore(s => s.timeFilter);
+  const currentWorkspaceId = useTaskStore(s => s.currentWorkspaceId);
+  const filterStatus = useTaskStore(s => s.filterStatus);
+  const updateTask = useTaskStore(s => s.updateTask);
+  const setSelectedTaskId = useTaskStore(s => s.setSelectedTaskId);
+  const setAddTaskModalOpen = useTaskStore(s => s.setAddTaskModalOpen);
+  const selectedTagId = useTaskStore(s => s.selectedTagId);
+  const tags = useTaskStore(s => s.tags);
 
-  // Filter tasks based on current workspace and selected filter
-  const tasks = allTasks.filter(t => {
-    if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
-    
-    if (filterStatus === 'today') {
-      if (!t.due_date) return false;
-      const todayStr = new Date().toISOString().split('T')[0];
-      return t.due_date.startsWith(todayStr);
+  const currentUserId = session?.user?.id;
+
+  const tasks = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const filtered = allTasks.filter(t => {
+      // 1. Time filter logic
+      if (timeFilter !== "all") {
+        if (timeFilter === "today") {
+          // Hôm nay: task có hạn là hôm nay HOẶC task không có hạn nhưng chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() !== today.getTime()) return false;
+        } else if (timeFilter === "upcoming") {
+          // Sắp tới: bao gồm Hôm nay và Tương lai, và các task không có hạn chưa DONE
+          if (!t.due_date) {
+            if (t.status === 'DONE') return false;
+            return true;
+          }
+          const dueDate = new Date(t.due_date);
+          dueDate.setHours(0, 0, 0, 0);
+          if (dueDate.getTime() < today.getTime()) return false;
+        }
+      }
+
+      // 2. Workspace logic
+      if (currentWorkspaceId !== "ALL" && t.workspace_id !== currentWorkspaceId) return false;
+
+      // 3. Status logic
+      if (filterStatus === 'my_tasks') {
+        if (t.assignee_id !== currentUserId) return false;
+      }
+
+      if (selectedTagId) {
+        const selectedTag = tags.find(tag => tag.id === selectedTagId);
+        if (selectedTag) {
+          const matchName = selectedTag.name.toLowerCase().trim();
+          const hasTag = t.tags?.some(tag => tag.name?.toLowerCase().trim() === matchName) || (t as any).tag?.name?.toLowerCase().trim() === matchName;
+          if (!hasTag) return false;
+        }
+      }
+
+      return true;
+    });
+
+    // Cải thiện logic sắp xếp: ưu tiên task có deadline gần nhất lên trên
+    return filtered.sort((a, b) => {
+      if (a.due_date && b.due_date) {
+        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+      }
+      if (a.due_date && !b.due_date) return -1; // Task có hạn lên trước
+      if (!a.due_date && b.due_date) return 1;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Fallback mới nhất
+    });
+  }, [allTasks, timeFilter, currentWorkspaceId, filterStatus, currentUserId, selectedTagId, tags]);
+
+  // Memoize column groups to avoid 3 filter calls per render
+  const columnTasksMap = useMemo(() => {
+    const grouped: Record<string, typeof tasks> = {};
+    for (const col of COLS) {
+      grouped[col.key] = tasks.filter(t => t.status === col.key);
     }
-    
-    if (filterStatus === 'upcoming') {
-      if (!t.due_date) return true;
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      if (new Date(t.due_date) < todayStart) return false;
-    }
-    
-    if (selectedTagId) {
-      const hasTag = t.tags?.some(tag => tag.id === selectedTagId) || (t as any).tag?.id === selectedTagId;
-      if (!hasTag) return false;
-    }
-    
-    return true;
-  });
+    return grouped;
+  }, [tasks]);
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -63,7 +113,7 @@ export function KanbanView() {
       <div className="w-full h-full flex-1 overflow-y-hidden overflow-x-auto min-h-0">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch font-inter h-full min-w-[700px] min-h-0">
           {COLS.map((col) => {
-            const columnTasks = tasks.filter((t) => t.status === col.key);
+            const columnTasks = columnTasksMap[col.key];
             return (
               <div key={col.key} className={cn("col-span-1 rounded-2xl p-3 flex flex-col gap-2 min-h-0 h-full overflow-hidden transition-colors", col.bgClass)}>
               
@@ -153,14 +203,10 @@ export function KanbanView() {
                                   </span>
                                   <div className="flex items-center gap-1.5">
                                     <div className="w-[6px] h-[6px] rounded-full" style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} />
-                                    {task.assignee?.avatar_url ? (
-                                      <img src={task.assignee.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" title={task.assignee.name || ''} />
-                                    ) : task.assignee?.name ? (
-                                      <div className="w-5 h-5 rounded-full bg-primary-container dark:bg-indigo-500/20 flex items-center justify-center text-[8px] font-semibold text-[#0050cb] dark:text-indigo-300" title={task.assignee.name}>
-                                        {task.assignee.name.substring(0, 2).toUpperCase()}
-                                      </div>
+                                    {task.assignee ? (
+                                      <UserAvatar src={task.assignee.avatar_url} name={task.assignee.name} className="!w-5 !h-5 !text-[8px]" />
                                     ) : (
-                                      <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600" />
+                                      <div className="w-5 h-5 rounded-full border border-dashed border-slate-300 dark:border-slate-600 flex-shrink-0" />
                                     )}
                                   </div>
                                 </div>

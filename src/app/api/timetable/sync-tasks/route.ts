@@ -23,6 +23,7 @@ const WEEKDAY_COLS = ["mon", "tue", "wed", "thu", "fri"];
 const FOCUS_ROW_TYPES = new Set([
   "focus_peak",
   "focus_off",
+  "focus_flexible",
   "custom",
 ]);
 

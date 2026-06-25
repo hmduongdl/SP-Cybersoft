@@ -85,7 +85,7 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
     if (!text) return;
     setDayItems(prev => ({
       ...prev,
-      [day]: [...(prev[day] || []), { text, taskId: null }]
+      [day]: [{ text, taskId: null }, ...(prev[day] || [])]
     }));
     setDayInputs(prev => ({ ...prev, [day]: "" }));
   };

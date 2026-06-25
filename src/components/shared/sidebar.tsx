@@ -308,7 +308,7 @@ export function Sidebar() {
               "flex items-center justify-between p-2 rounded-lg group relative border-t border-slate-200 dark:border-slate-800/80",
               collapsed ? "justify-center" : "bg-slate-100/50 dark:bg-slate-800/30"
             )}>
-              <div className="flex items-center gap-3 overflow-hidden">
+              <div className="flex items-center gap-3 min-w-0">
                 <div className="rounded-full p-[2px] bg-slate-50 dark:bg-[#0F172A] ring-2 ring-indigo-500 ring-offset-2 ring-offset-slate-50 dark:ring-offset-[#0F172A] bg-clip-content shrink-0">
                   <UserAvatar 
                     name={userDisplayName} 

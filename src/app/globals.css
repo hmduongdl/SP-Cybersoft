@@ -422,9 +422,9 @@
 }
 
 /* Inputs */
-.dark input,
-.dark select,
-.dark textarea {
+.dark input:not(.bg-transparent):not(.\!bg-transparent),
+.dark select:not(.bg-transparent):not(.\!bg-transparent),
+.dark textarea:not(.bg-transparent):not(.\!bg-transparent) {
   background-color: #131830 !important;
   color: #e8eaf6 !important;
   border-color: rgba(255, 255, 255, 0.06) !important;
@@ -435,9 +435,9 @@
   color: #9496b0 !important;
 }
 
-.dark input:focus,
-.dark select:focus,
-.dark textarea:focus {
+.dark input:focus:not(.focus\:ring-0),
+.dark select:focus:not(.focus\:ring-0),
+.dark textarea:focus:not(.focus\:ring-0) {
   border-color: rgba(79, 125, 232, 0.4) !important;
   outline: none !important;
   box-shadow: 0 0 0 3px rgba(79, 125, 232, 0.15) !important;

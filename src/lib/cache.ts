@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { getPostDeadline } from "./utils";
 
 export const CACHE_TAGS = {
   POSTS_LIST: "posts-list",
@@ -65,12 +66,11 @@ export async function getCachedDashboardPosts(userId: string, monthKey?: string)
     },
   });
 
-  // Only apply 30-hour filter if not filtering by month
+  // Only apply filter if not filtering by month
   if (!monthKey) {
     const now = Date.now();
-    const THIRTY_HOURS = 30 * 60 * 60 * 1000;
     return posts
-      .filter(post => now - (post.start_at as unknown as Date).getTime() <= THIRTY_HOURS)
+      .filter(post => now <= getPostDeadline(post.start_at as unknown as Date).getTime())
       .map(post => ({
         id: post.id,
         title: post.title,
@@ -172,11 +172,11 @@ export async function getCachedPosts(userId?: string) {
   });
 
   const now = Date.now();
-  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
 
   return posts.map(post => {
-    // Nếu post đã quá 30h so với thời điểm start_at VÀ chưa được mở khoá nộp bù
-    if (now - (post.start_at as unknown as Date).getTime() > THIRTY_HOURS && !post.allow_late_submit) {
+    // Nếu post đã quá hạn (sau 12h trưa ngày hôm sau) VÀ chưa được mở khoá nộp bù
+    const deadlineMs = getPostDeadline(post.start_at as unknown as Date).getTime();
+    if (now > deadlineMs && !post.allow_late_submit) {
       return { ...post, is_archived: true };
     }
     return post;
@@ -193,13 +193,6 @@ export async function getCachedApprovedCheckins() {
       user: { select: { id: true, name: true, avatar_url: true } },
       post: { select: { start_at: true } },
     },
-  });
-}
-
-export async function getCachedUserStarData(userId: string) {
-  return db.user.findUnique({
-    where: { id: userId },
-    select: { hope_stars: true, used_stars_this_month: true },
   });
 }
 
@@ -309,10 +302,10 @@ export async function getCachedPostsApi() {
   });
 
   const now = Date.now();
-  const THIRTY_HOURS = 30 * 60 * 60 * 1000;
 
   return posts.map(post => {
-    if (now - (post.start_at as unknown as Date).getTime() > THIRTY_HOURS && !post.allow_late_submit) {
+    const deadlineMs = getPostDeadline(post.start_at as unknown as Date).getTime();
+    if (now > deadlineMs && !post.allow_late_submit) {
       return { ...post, is_archived: true };
     }
     return post;

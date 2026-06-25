@@ -75,7 +75,7 @@ export default function CellEditor({
   const push = (val: string) => {
     const trimmed = val.trim();
     if (!trimmed || localItems.includes(trimmed)) return;
-    const next = [...localItems, trimmed];
+    const next = [trimmed, ...localItems];
     setLocalItems(next);
     onChange(next);
     persistToApi(next);
@@ -92,7 +92,7 @@ export default function CellEditor({
   const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && inputVal.trim()) { e.preventDefault(); push(inputVal); }
     if (e.key === "Escape") setOpen(false);
-    if (e.key === "Backspace" && !inputVal && localItems.length > 0) remove(localItems.length - 1);
+    if (e.key === "Backspace" && !inputVal && localItems.length > 0) remove(0);
   };
 
   // ── Closed state: compact chip/pill preview ──────────────────────────────
