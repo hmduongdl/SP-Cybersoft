@@ -74,7 +74,7 @@ export function TaskDetailPanel() {
   const addPropRef = useRef<HTMLDivElement>(null);
 
   const [noteSaveStatus, setNoteSaveStatus] = useState<
-    "idle" | "saving" | "saved" | "error" | "synced"
+    "idle" | "saving" | "saved" | "error"
   >("idle");
   const [editingDueDate, setEditingDueDate] = useState(false);
 
@@ -282,6 +282,10 @@ export function TaskDetailPanel() {
   // Reset editing state when switching tasks
   useEffect(() => {
     setEditingDueDate(false);
+  }, [selectedTaskId]);
+
+  useEffect(() => {
+    setNoteSaveStatus("idle");
   }, [selectedTaskId]);
 
   const handleClose = useCallback(() => {
@@ -681,9 +685,6 @@ export function TaskDetailPanel() {
                 <span className="hidden sm:inline">Xóa</span>
               </button>
               <div className="flex items-center gap-3">
-                {noteSaveStatus === "synced" && (
-                  <span className="text-[11px] text-success-text">Đồng bộ live</span>
-                )}
                 {noteSaveStatus === "saving" && (
                   <span className="text-[11px] text-on-muted flex items-center gap-1.5">
                     <Loader2 size={12} className="animate-spin" />

@@ -274,7 +274,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   getFilteredTasks: (currentUserId?: string) => {
     const { tasks, tasksWorkspaceId, currentWorkspaceId, activeFilter, selectedTagId, tags, workspaceCache } = get();
-    const workspaceTasks = tasksWorkspaceId === currentWorkspaceId ? tasks : [];
+    const wsId = currentWorkspaceId ?? 'ALL';
+    const workspaceTasks =
+      tasksWorkspaceId === wsId
+        ? tasks
+        : workspaceCache[toCacheKey(wsId)]?.tasks ?? [];
     const allTasks = workspaceCache['ALL']?.tasks ?? [];
     const sourceTasks =
       activeFilter === 'my_tasks'
@@ -315,6 +319,14 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     const hasFreshCache = cached && now - cached.fetchedAt < CACHE_TTL;
 
     if (isSameWorkspace && hasFreshCache && state.tasksWorkspaceId === workspaceId) {
+      if (state.tasks.length === 0 && cached.tasks.length > 0) {
+        set({
+          tasks: cached.tasks,
+          taskTotal: cached.total,
+          tags: cached.tags,
+          isTasksLoading: false,
+        });
+      }
       return;
     }
 
@@ -483,10 +495,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     const now = Date.now();
     if (cached && now - cached.fetchedAt < CACHE_TTL) return;
 
-    const wasLoading = state.isTasksLoading;
-    if (!wasLoading) set({ isTasksLoading: true });
+    // Nền — không đụng isTasksLoading để tránh race với switchWorkspace
     await get().fetchTasks('ALL', 1);
-    if (!wasLoading) set({ isTasksLoading: false });
   },
 
   addTask: async (taskData) => {
@@ -626,8 +636,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       body: JSON.stringify({ content: noteContent }),
     });
     if (!res.ok) {
-      console.error("Failed to update task note");
-      throw new Error("Failed to update task note");
+      const err = await res.json().catch(() => ({}));
+      console.error("Failed to update task note:", err);
+      throw new Error(
+        typeof err?.error === "string" ? err.error : "Failed to update task note"
+      );
     }
     const data = await res.json();
     const savedNote = data.note ?? data;

@@ -141,8 +141,6 @@ export function useTaskNoteLiveSync(
         if (note) {
           handleRemoteNote(note);
         }
-
-        onStatusRef.current?.("synced");
       } catch {
         onStatusRef.current?.("error");
       }

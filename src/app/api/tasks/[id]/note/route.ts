@@ -25,23 +25,30 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    await cleanupExpiredCollabState(taskId);
+    let locks: Awaited<ReturnType<typeof getActiveLocks>> = [];
+    let viewers: Awaited<ReturnType<typeof getActiveViewers>> = [];
 
-    const [note, locks, viewers] = await Promise.all([
-      db.taskNote.findUnique({
-        where: { task_id: taskId },
-        select: {
-          id: true,
-          content: true,
-          revision: true,
-          updatedAt: true,
-          last_edited_by_id: true,
-          last_edited_by_name: true,
-        },
-      }),
-      getActiveLocks(taskId),
-      getActiveViewers(taskId),
-    ]);
+    try {
+      await cleanupExpiredCollabState(taskId);
+      [locks, viewers] = await Promise.all([
+        getActiveLocks(taskId),
+        getActiveViewers(taskId),
+      ]);
+    } catch (collabErr) {
+      console.warn("[GET note] collab state skipped:", collabErr);
+    }
+
+    const note = await db.taskNote.findUnique({
+      where: { task_id: taskId },
+      select: {
+        id: true,
+        content: true,
+        revision: true,
+        updatedAt: true,
+        last_edited_by_id: true,
+        last_edited_by_name: true,
+      },
+    });
 
     return NextResponse.json({ note, locks, viewers });
   } catch (error) {

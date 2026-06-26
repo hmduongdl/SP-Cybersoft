@@ -5,9 +5,9 @@ import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
 import { useFilteredTasks } from "@/hooks/useFilteredTasks";
 import { Calendar, MoreHorizontal, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeParseISO } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { isPast, parseISO, format, differenceInDays } from "date-fns";
+import { isPast, format, differenceInDays } from "date-fns";
 import { UserAvatar } from "@/components/shared/user-avatar";
 
 const COLS = [
@@ -83,9 +83,10 @@ export function KanbanView() {
                     >
                       {columnTasks.map((task, index) => {
                         const isDone = task.status === 'DONE';
-                        const hasDueDate = !!task.due_date;
-                        const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
-                        const isNearingDeadline = task.status === 'IN_PROGRESS' && hasDueDate && !isDone && !isOverdue && differenceInDays(parseISO(task.due_date!), new Date()) <= 1;
+                        const dueDate = safeParseISO(task.due_date);
+                        const hasDueDate = !!dueDate;
+                        const isOverdue = hasDueDate && isPast(dueDate) && !isDone;
+                        const isNearingDeadline = task.status === 'IN_PROGRESS' && hasDueDate && !isDone && !isOverdue && differenceInDays(dueDate, new Date()) <= 1;
                         const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
 
                         return (
@@ -131,7 +132,7 @@ export function KanbanView() {
 
                                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                     <span className="text-[10px] text-on-muted dark:text-slate-400 flex items-center gap-1">
-                                      <Clock size={10} /> {hasDueDate ? format(parseISO(task.due_date!), 'dd/MM/yyyy') : 'No date'}
+                                      <Clock size={10} /> {dueDate ? format(dueDate, 'dd/MM/yyyy') : 'No date'}
                                     </span>
                                     <div className="flex items-center gap-1.5">
                                       <div className="w-[6px] h-[6px] rounded-full" style={{ background: COLS.find(c => c.key === task.status)?.dot || "#6b7280" }} />
