@@ -5,7 +5,7 @@ import type { BlockNoteEditor } from "@blocknote/core";
 import type { BlockLockInfo, ViewerInfo } from "@/lib/task-note-collab";
 
 const LOCK_RENEW_MS = 3000;
-const PRESENCE_HEARTBEAT_MS = 5000;
+const PRESENCE_HEARTBEAT_MS = 3000;
 
 export function useTaskNoteBlockLock(
   taskId: string,
@@ -34,7 +34,6 @@ export function useTaskNoteBlockLock(
     async (blockId: string | null) => {
       if (!taskId || !blockId || !currentUserId) return;
 
-      if (blockId === activeBlockIdRef.current) return;
       activeBlockIdRef.current = blockId;
 
       try {

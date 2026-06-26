@@ -19,7 +19,7 @@ const NOTE_PLACEHOLDER = "Nhập nội dung hoặc gõ '/' để mở menu lện
 type TaskNoteEditorProps = {
   taskId: string;
   initialContent?: unknown;
-  initialUpdatedAt?: string | Date | null;
+  initialRevision?: number;
   isDarkMode: boolean;
   onSaveStatusChange?: (
     status: "idle" | "saving" | "saved" | "error" | "synced"
@@ -29,7 +29,7 @@ type TaskNoteEditorProps = {
 export function TaskNoteEditor({
   taskId,
   initialContent,
-  initialUpdatedAt,
+  initialRevision = 0,
   isDarkMode,
   onSaveStatusChange,
 }: TaskNoteEditorProps) {
@@ -38,8 +38,10 @@ export function TaskNoteEditor({
 
   const noteDebounceRef = useRef<NodeJS.Timeout | null>(null);
   const skipSaveRef = useRef(false);
-  const lastKnownUpdatedAtRef = useRef(0);
+  const lastKnownRevisionRef = useRef(initialRevision);
   const isTypingRef = useRef(false);
+  const canApplyRemoteRef = useRef(true);
+  const otherViewerCountRef = useRef(0);
   const blockWarnedRef = useRef<string | null>(null);
   const { markTyping, clearTyping } = useTypingGuard(isTypingRef);
 
@@ -63,6 +65,11 @@ export function TaskNoteEditor({
     [taskId]
   );
 
+  const syncCanApplyRemote = () => {
+    canApplyRemoteRef.current =
+      !isTypingRef.current && noteDebounceRef.current === null;
+  };
+
   const { getRemoteLocks, otherViewers } = useTaskNoteBlockLock(
     taskId,
     editor,
@@ -70,16 +77,28 @@ export function TaskNoteEditor({
     collabState
   );
 
+  useEffect(() => {
+    otherViewerCountRef.current = otherViewers.length;
+  }, [otherViewers.length]);
+
   useTaskNoteLiveSync(taskId, editor, {
-    initialUpdatedAt,
+    initialRevision,
     skipSaveRef,
-    lastKnownUpdatedAtRef,
-    isTypingRef,
+    lastKnownRevisionRef,
+    canApplyRemoteRef,
+    otherViewerCountRef,
     onStatusChange: (status) => {
       if (status === "synced") onSaveStatusChange?.("synced");
       else onSaveStatusChange?.("error");
     },
     onCollabStateChange: setCollabState,
+    onRemoteApplied: ({ editorName }) => {
+      if (editorName) {
+        toast.info(`Đã đồng bộ bản mới từ ${editorName}`, { duration: 2500 });
+      } else {
+        toast.info("Đã đồng bộ bản mới", { duration: 2000 });
+      }
+    },
   });
 
   useEffect(() => {
@@ -125,27 +144,34 @@ export function TaskNoteEditor({
       if (skipSaveRef.current) return;
 
       markTyping();
+      syncCanApplyRemote();
       if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
       onSaveStatusChange?.("saving");
 
       noteDebounceRef.current = setTimeout(async () => {
+        noteDebounceRef.current = null;
+        syncCanApplyRemote();
         try {
           const saved = await updateTaskNote(taskId, editor.document);
-          if (saved?.updatedAt) {
-            lastKnownUpdatedAtRef.current = new Date(saved.updatedAt).getTime();
+          if (saved?.revision != null) {
+            lastKnownRevisionRef.current = saved.revision;
           }
           clearTyping();
+          syncCanApplyRemote();
           onSaveStatusChange?.("saved");
         } catch {
           onSaveStatusChange?.("error");
         }
-        noteDebounceRef.current = null;
-      }, 800);
+      }, 600);
     });
 
     return () => {
       unsubscribe();
-      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
+      if (noteDebounceRef.current) {
+        clearTimeout(noteDebounceRef.current);
+        noteDebounceRef.current = null;
+      }
+      syncCanApplyRemote();
     };
   }, [editor, taskId, updateTaskNote, onSaveStatusChange, markTyping, clearTyping]);
 
@@ -155,14 +181,47 @@ export function TaskNoteEditor({
 
   return (
     <div className="relative">
+      {remoteLocks.size > 0 && (
+        <style dangerouslySetInnerHTML={{
+          __html: Array.from(remoteLocks.entries()).map(([blockId, lock]) => {
+            const escapedName = (lock.userName || "Ai đó").replace(/"/g, '\\"');
+            return `
+              .bn-editor [data-id="${blockId}"] {
+                position: relative !important;
+                background-color: ${isDarkMode ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.04)'} !important;
+                border-left: 3px solid #ef4444 !important;
+                border-top-left-radius: 2px;
+                border-bottom-left-radius: 2px;
+                padding-left: 4px !important;
+              }
+              .bn-editor [data-id="${blockId}"]::before {
+                content: "${escapedName} đang sửa";
+                position: absolute;
+                right: 8px;
+                top: 2px;
+                font-size: 9px;
+                font-family: sans-serif;
+                color: #ef4444;
+                background-color: ${isDarkMode ? '#2d1a1a' : '#fef2f2'};
+                padding: 1px 4px;
+                border-radius: 3px;
+                border: 1px solid rgba(239, 68, 68, 0.2);
+                z-index: 10;
+                pointer-events: none;
+                opacity: 0.8;
+              }
+            `;
+          }).join('\n')
+        }} />
+      )}
       {(otherViewers.length > 0 || remoteLocks.size > 0) && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {otherViewers.map((v) => (
             <span
               key={v.userId}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container text-on-muted"
+              className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container text-on-muted animate-pulse"
             >
-              {v.userName || "Ai đó"} đang xem
+              🟢 {v.userName || "Ai đó"} đang xem
             </span>
           ))}
           {Array.from(remoteLocks.entries()).map(([blockId, lock]) => (
@@ -170,7 +229,7 @@ export function TaskNoteEditor({
               key={blockId}
               className="text-[10px] px-2 py-0.5 rounded-full bg-warn-bg text-warn-text"
             >
-              {lock.userName || "Ai đó"} đang sửa một dòng
+              🔒 {lock.userName || "Ai đó"} đang sửa dòng
             </span>
           ))}
         </div>

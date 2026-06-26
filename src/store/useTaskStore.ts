@@ -52,7 +52,9 @@ export interface Task {
   note?: {
     id: string;
     content: any;
+    revision?: number;
     updatedAt?: string | Date;
+    last_edited_by_name?: string | null;
   };
 }
 

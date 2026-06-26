@@ -660,7 +660,7 @@ export function TaskDetailPanel() {
                       key={selectedTaskId}
                       taskId={selectedTaskId}
                       initialContent={task?.note?.content}
-                      initialUpdatedAt={task?.note?.updatedAt}
+                      initialRevision={task?.note?.revision ?? 0}
                       isDarkMode={isDarkMode}
                       onSaveStatusChange={setNoteSaveStatus}
                     />
@@ -682,7 +682,7 @@ export function TaskDetailPanel() {
               </button>
               <div className="flex items-center gap-3">
                 {noteSaveStatus === "synced" && (
-                  <span className="text-[11px] text-success-text">Đồng bộ live (~1.5s)</span>
+                  <span className="text-[11px] text-success-text">Đồng bộ live</span>
                 )}
                 {noteSaveStatus === "saving" && (
                   <span className="text-[11px] text-on-muted flex items-center gap-1.5">

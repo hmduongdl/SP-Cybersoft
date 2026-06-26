@@ -4,7 +4,8 @@ import { useEffect, useRef, type MutableRefObject } from "react";
 import type { BlockNoteEditor } from "@blocknote/core";
 import type { BlockLockInfo, ViewerInfo } from "@/lib/task-note-collab";
 
-const DEFAULT_POLL_MS = 1500;
+const POLL_IDLE_MS = 1200;
+const POLL_ACTIVE_MS = 600;
 const TYPING_IDLE_MS = 1200;
 
 type LiveSyncStatus = "synced" | "error";
@@ -14,46 +15,58 @@ export type NoteCollabState = {
   viewers: ViewerInfo[];
 };
 
+type PendingRemote = {
+  revision: number;
+  content: unknown;
+  editorName: string | null;
+};
+
 export function useTaskNoteLiveSync(
   taskId: string,
   editor: BlockNoteEditor | null,
   options: {
-    initialUpdatedAt?: string | Date | null;
+    initialRevision?: number;
+    canApplyRemoteRef: MutableRefObject<boolean>;
+    lastKnownRevisionRef: MutableRefObject<number>;
+    otherViewerCountRef: MutableRefObject<number>;
     onStatusChange?: (status: LiveSyncStatus) => void;
     onCollabStateChange?: (state: NoteCollabState) => void;
+    onRemoteApplied?: (info: { editorName: string | null }) => void;
     skipSaveRef: MutableRefObject<boolean>;
-    lastKnownUpdatedAtRef: MutableRefObject<number>;
-    isTypingRef: MutableRefObject<boolean>;
-    pollIntervalMs?: number;
   }
 ) {
   const {
-    initialUpdatedAt,
+    initialRevision = 0,
+    canApplyRemoteRef,
+    lastKnownRevisionRef,
+    otherViewerCountRef,
     onStatusChange,
     onCollabStateChange,
+    onRemoteApplied,
     skipSaveRef,
-    lastKnownUpdatedAtRef,
-    isTypingRef,
-    pollIntervalMs = DEFAULT_POLL_MS,
   } = options;
 
   const onStatusRef = useRef(onStatusChange);
   const onCollabRef = useRef(onCollabStateChange);
+  const onRemoteAppliedRef = useRef(onRemoteApplied);
+  const pendingRemoteRef = useRef<PendingRemote | null>(null);
+
   onStatusRef.current = onStatusChange;
   onCollabRef.current = onCollabStateChange;
+  onRemoteAppliedRef.current = onRemoteApplied;
 
   useEffect(() => {
-    if (initialUpdatedAt) {
-      lastKnownUpdatedAtRef.current = new Date(initialUpdatedAt).getTime();
-    }
-  }, [taskId, initialUpdatedAt, lastKnownUpdatedAtRef]);
+    lastKnownRevisionRef.current = initialRevision;
+    pendingRemoteRef.current = null;
+  }, [taskId, initialRevision, lastKnownRevisionRef]);
 
   useEffect(() => {
     if (!editor || !taskId) return;
 
     let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    const applyRemoteContent = (content: unknown) => {
+    const applyRemoteContent = (content: unknown, editorName: string | null) => {
       skipSaveRef.current = true;
       const blocks =
         content && Array.isArray(content) && content.length > 0
@@ -64,62 +77,111 @@ export function useTaskNoteLiveSync(
       requestAnimationFrame(() => {
         skipSaveRef.current = false;
       });
+      onRemoteAppliedRef.current?.({ editorName });
+    };
+
+    const tryApplyPending = () => {
+      const pending = pendingRemoteRef.current;
+      if (!pending || !canApplyRemoteRef.current) return false;
+      if (pending.revision <= lastKnownRevisionRef.current) {
+        pendingRemoteRef.current = null;
+        return false;
+      }
+
+      lastKnownRevisionRef.current = pending.revision;
+      pendingRemoteRef.current = null;
+      applyRemoteContent(pending.content, pending.editorName);
+      return true;
+    };
+
+    const handleRemoteNote = (note: {
+      revision?: number;
+      content: unknown;
+      last_edited_by_name?: string | null;
+    }) => {
+      const remoteRevision = note.revision ?? 0;
+      if (remoteRevision <= lastKnownRevisionRef.current) return;
+
+      if (!canApplyRemoteRef.current) {
+        pendingRemoteRef.current = {
+          revision: remoteRevision,
+          content: note.content,
+          editorName: note.last_edited_by_name ?? null,
+        };
+        return;
+      }
+
+      lastKnownRevisionRef.current = remoteRevision;
+      applyRemoteContent(note.content, note.last_edited_by_name ?? null);
     };
 
     const poll = async () => {
-      if (cancelled || document.hidden || isTypingRef.current) return;
+      if (cancelled) return;
+
+      if (canApplyRemoteRef.current) {
+        tryApplyPending();
+      }
 
       try {
-        const res = await fetch(`/api/tasks/${taskId}/note`, { cache: "no-store" });
+        const res = await fetch(`/api/tasks/${taskId}/note`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        });
         if (!res.ok) throw new Error("poll failed");
 
         const data = await res.json();
         const note = data.note;
 
+        const viewers: ViewerInfo[] = data.viewers ?? [];
         onCollabRef.current?.({
           locks: data.locks ?? [],
-          viewers: data.viewers ?? [],
+          viewers,
         });
 
-        if (!note?.updatedAt) {
-          onStatusRef.current?.("synced");
-          return;
+        if (note) {
+          handleRemoteNote(note);
         }
 
-        const remoteTs = new Date(note.updatedAt).getTime();
-        if (remoteTs <= lastKnownUpdatedAtRef.current) {
-          onStatusRef.current?.("synced");
-          return;
-        }
-
-        lastKnownUpdatedAtRef.current = remoteTs;
-        applyRemoteContent(note.content);
         onStatusRef.current?.("synced");
       } catch {
         onStatusRef.current?.("error");
       }
     };
 
-    poll();
-    const intervalId = setInterval(poll, pollIntervalMs);
+    const scheduleNext = () => {
+      if (cancelled) return;
+      const ms =
+        otherViewerCountRef.current > 0 ? POLL_ACTIVE_MS : POLL_IDLE_MS;
+      timeoutId = setTimeout(() => {
+        void poll().finally(scheduleNext);
+      }, ms);
+    };
+
+    void poll().finally(scheduleNext);
 
     const onVisibility = () => {
-      if (!document.hidden) poll();
+      if (!document.hidden) void poll();
     };
+    const onFocus = () => {
+      void poll();
+    };
+
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
 
     return () => {
       cancelled = true;
-      clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
     };
   }, [
     editor,
     taskId,
-    pollIntervalMs,
+    canApplyRemoteRef,
+    lastKnownRevisionRef,
+    otherViewerCountRef,
     skipSaveRef,
-    lastKnownUpdatedAtRef,
-    isTypingRef,
   ]);
 }
 

@@ -55,7 +55,6 @@ export async function GET(req: Request) {
               definition: { select: { id: true, name: true, type: true, options: true } },
             },
           },
-          note: true,
         },
         orderBy: { createdAt: 'desc' }
       }),
@@ -70,6 +69,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ tasks: flattened, total, page, limit });
   } catch (error) {
+    console.error("[GET /api/tasks] error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

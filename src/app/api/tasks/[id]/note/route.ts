@@ -30,7 +30,14 @@ export async function GET(
     const [note, locks, viewers] = await Promise.all([
       db.taskNote.findUnique({
         where: { task_id: taskId },
-        select: { id: true, content: true, updatedAt: true },
+        select: {
+          id: true,
+          content: true,
+          revision: true,
+          updatedAt: true,
+          last_edited_by_id: true,
+          last_edited_by_name: true,
+        },
       }),
       getActiveLocks(taskId),
       getActiveViewers(taskId),
@@ -66,7 +73,10 @@ export async function POST(
       return NextResponse.json({ error: "Invalid content" }, { status: 400 });
     }
 
-    const taskNote = await persistTaskNoteFromBlocks(taskId, content);
+    const taskNote = await persistTaskNoteFromBlocks(taskId, content, {
+      id: session.user.id,
+      name: session.user.name || session.user.email || null,
+    });
 
     return NextResponse.json({ success: true, note: taskNote });
   } catch (error) {
