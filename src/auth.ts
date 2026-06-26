@@ -9,39 +9,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, user, trigger, session }) {
-      // On session update, query DB for fresh data
-      if (trigger === "update") {
-        try {
-          const dbUser = await db.user.findUnique({
-            where: { id: token.id as string },
-            select: {
-              name: true,
-              username: true,
-              avatar_url: true,
-              role: true,
-              department: true,
-              facebook_profile_url: true,
-              is_verified: true,
-            },
-          });
-          if (dbUser) {
-            token.name = dbUser.name;
-            token.picture = dbUser.avatar_url;
-            token.role = dbUser.role ? dbUser.role : "USER";
-            token.department = dbUser.department ?? "";
-            token.avatar_url = dbUser.avatar_url;
-            token.username = dbUser.username ?? null;
-            token.phone = null;
-            token.facebook_link = dbUser.facebook_profile_url ?? null;
-            token.is_verified = dbUser.is_verified;
-          }
-        } catch {
-          console.warn("jwt update: không thể query DB, giữ nguyên token.");
-        }
+      // On session update trigger
+      if (trigger === "update" && session) {
         if (session?.is_verified !== undefined) {
           token.is_verified = session.is_verified;
         }
-        return token;
+        if (session?.avatar_url !== undefined) {
+          token.avatar_url = session.avatar_url;
+          token.picture = session.avatar_url;
+        }
       }
 
       // Initial login — copy user data to token
@@ -61,6 +37,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       if (token.id && token.hasFacebook === undefined) {
         token.hasFacebook = false;
+      }
+
+      // Fetch fresh data from database on every request to avoid cached stale data
+      if (token.id) {
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: token.id as string },
+            select: {
+              name: true,
+              username: true,
+              email: true,
+              avatar_url: true,
+              role: true,
+              department: true,
+              facebook_profile_url: true,
+              is_verified: true,
+            },
+          });
+          if (dbUser) {
+            token.name = dbUser.name;
+            token.picture = dbUser.avatar_url;
+            token.role = dbUser.role ? dbUser.role : "USER";
+            token.department = dbUser.department ?? "";
+            token.avatar_url = dbUser.avatar_url;
+            token.username = dbUser.username ?? null;
+            token.email = dbUser.email;
+            token.facebook_link = dbUser.facebook_profile_url ?? null;
+            token.is_verified = dbUser.is_verified;
+          }
+        } catch {
+          console.warn("jwt: không thể query DB, giữ nguyên token.");
+        }
       }
 
       return token;

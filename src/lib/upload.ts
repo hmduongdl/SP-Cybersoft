@@ -32,22 +32,25 @@ export async function uploadImage(
 }
 
 /**
- * Upload avatar with fixed filename (userId-based), overwrites old one.
- * Deletes previous avatar before uploading to save storage.
+ * Upload avatar with unique timestamped filename (userId-based).
+ * Deletes previous avatar if oldAvatarUrl is provided to save storage.
  */
 export async function uploadAvatar(
   fileData: Buffer | ArrayBuffer | File,
   userId: string,
-  mimeType: string
+  mimeType: string,
+  oldAvatarUrl?: string | null
 ): Promise<UploadResult> {
   const ext = mimeType === "image/png" ? ".png" : ".jpg";
-  const filename = `avatar_${userId}${ext}`;
+  const filename = `avatar_${userId}_${Date.now()}${ext}`;
 
-  // Xoá ảnh cũ trước (nếu có)
-  try {
-    await del(`avatars/${filename}`);
-  } catch {
-    // File chưa tồn tại — bỏ qua
+  // Xoá ảnh cũ (nếu có)
+  if (oldAvatarUrl) {
+    try {
+      await del(oldAvatarUrl);
+    } catch (e) {
+      console.warn("Lỗi khi xóa ảnh cũ từ Vercel Blob:", e);
+    }
   }
 
   const blob = await put(`avatars/${filename}`, fileData, {
