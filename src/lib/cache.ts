@@ -298,6 +298,11 @@ export async function getCachedPostsApi() {
       team: true,
       author: true,
       _count: { select: { checkins: true } },
+      checkins: {
+        orderBy: { submitted_at: "desc" },
+        take: 1,
+        select: { submitted_at: true },
+      },
     },
   });
 

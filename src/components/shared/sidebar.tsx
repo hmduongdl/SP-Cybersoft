@@ -191,7 +191,7 @@ export function Sidebar() {
                           )}
                           {!collapsed && <span className="text-sm font-medium font-inter">{label}</span>}
                         </button>
-                        
+
                         {/* Task Manager Dynamic Submenu */}
                         {isTasksActive && label === "Task Manager" && !collapsed && (
                           <div className="pl-8 space-y-3 mt-2 font-inter">
@@ -199,19 +199,19 @@ export function Sidebar() {
                             <div className="space-y-1.5">
                               <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">Lọc công việc</p>
                               <div className="flex flex-col gap-1.5">
-                                <button 
+                                <button
                                   onClick={() => setActiveFilter('my_tasks')}
                                   className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'my_tasks' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Việc của tôi</button>
-                                <button 
+                                <button
                                   onClick={() => setActiveFilter('all')}
                                   className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'all' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Tất cả</button>
-                                <button 
+                                <button
                                   onClick={() => setActiveFilter('today')}
                                   className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'today' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Hôm nay</button>
-                                <button 
+                                <button
                                   onClick={() => setActiveFilter('upcoming')}
                                   className={clsx("text-[12px] text-left transition-colors px-2 py-1.5 rounded-md", activeFilter === 'upcoming' ? "bg-slate-200/60 dark:bg-slate-800/60 text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200")}
                                 >Sắp tới</button>
@@ -226,63 +226,83 @@ export function Sidebar() {
                 </div>
               </div>
             ))}
-          </nav>
-        </div>
 
-        {/* Lower section */}
-        <div className="flex flex-col gap-4">
-          {/* Cài đặt */}
-          <div className="space-y-1">
-            {!collapsed && (
-              <p className="text-[11px] font-semibold tracking-[0.05em] font-inter uppercase text-slate-500 px-3 py-1">
-                Cài đặt
-              </p>
-            )}
-            <button
-              onClick={() => setOpenPersonalSettings(true)}
-              className={twMerge(
-                clsx(
-                  "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
-                  collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
-                  "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
-                )
+            {/* Cài đặt (in-scroll) */}
+            <div className="space-y-1">
+              {!collapsed && (
+                <p className="text-[11px] font-semibold tracking-[0.05em] font-inter uppercase text-slate-500 px-3 py-1">
+                  Cài đặt
+                </p>
               )}
-              title={collapsed ? "Cài đặt" : undefined}
-            >
-              <div className={clsx(
-                "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
-              )}>
-                <Settings size={22} className="stroke-[1.5]" />
-              </div>
-              {!collapsed && <span className="text-sm font-medium font-inter">Cài đặt</span>}
-            </button>
-
-            {(session?.user?.role === "ADMIN" || profile?.role === "ADMIN") && (
-              <Link
-                href="/admin/settings"
+              <button
+                onClick={() => setOpenPersonalSettings(true)}
                 className={twMerge(
                   clsx(
                     "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
                     collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
-                    pathname === "/admin/settings"
-                      ? "bg-slate-200/50 dark:bg-slate-800/40 text-slate-900 dark:text-slate-200"
-                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
+                    "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
                   )
                 )}
-                title={collapsed ? "Cấu hình hệ thống" : undefined}
+                title={collapsed ? "Cài đặt" : undefined}
               >
                 <div className={clsx(
-                  "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200",
-                  pathname === "/admin/settings" ? "text-slate-600 dark:text-slate-200" : ""
+                  "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
                 )}>
-                  <span className="material-symbols-outlined text-[22px]">settings_applications</span>
+                  <Settings size={22} className="stroke-[1.5]" />
                 </div>
-                {!collapsed && <span className="text-sm font-medium font-inter">Cấu hình hệ thống</span>}
-              </Link>
-            )}
-          </div>
+                {!collapsed && <span className="text-sm font-medium font-inter">Cài đặt</span>}
+              </button>
+
+              {(session?.user?.role === "ADMIN" || profile?.role === "ADMIN") && (
+                <>
+                  <button
+                    onClick={() => toast.info("Chức năng đang trong tiến trình cập nhật")}
+                    className={twMerge(
+                      clsx(
+                        "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
+                        collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
+                        "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
+                      )
+                    )}
+                    title={collapsed ? "Plans" : undefined}
+                  >
+                    <div className={clsx(
+                      "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+                    )}>
+                      <span className="material-symbols-outlined text-[22px]">account_tree</span>
+                    </div>
+                    {!collapsed && <span className="text-sm font-medium font-inter">Plans</span>}
+                  </button>
+
+                  <Link
+                    href="/admin/settings"
+                    className={twMerge(
+                      clsx(
+                        "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
+                        collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
+                        pathname === "/admin/settings"
+                          ? "bg-slate-200/50 dark:bg-slate-800/40 text-slate-900 dark:text-slate-200"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
+                      )
+                    )}
+                    title={collapsed ? "Cấu hình hệ thống" : undefined}
+                  >
+                    <div className={clsx(
+                      "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200",
+                      pathname === "/admin/settings" ? "text-slate-600 dark:text-slate-200" : ""
+                    )}>
+                      <span className="material-symbols-outlined text-[22px]">settings_applications</span>
+                    </div>
+                    {!collapsed && <span className="text-sm font-medium font-inter">Cấu hình hệ thống</span>}
+                  </Link>
+                </>
+              )}
+            </div>
+          </nav>
+        </div>
 
           {/* User Block */}
+          <div className="flex flex-col gap-4">
           {status === "loading" ? (
             <div className="flex items-center gap-3 p-2 bg-slate-200/50 dark:bg-slate-800/20 animate-pulse justify-center rounded-lg">
               <div className="w-10 h-10 rounded-full bg-slate-300 dark:bg-slate-800" />
