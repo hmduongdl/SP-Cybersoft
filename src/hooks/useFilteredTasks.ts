@@ -10,12 +10,28 @@ import {
 // Stable empty array ref để tránh Zustand re-render vô hạn
 const EMPTY_TASKS: readonly Task[] = [];
 
+function toCacheKey(workspaceId: string | null) {
+  return !workspaceId || workspaceId === "ALL" ? "ALL" : workspaceId;
+}
+
+/** Tasks của workspace đang xem — fallback cache khi state race sau fetch/switch. */
+function selectWorkspaceTasks(state: {
+  tasks: Task[];
+  tasksWorkspaceId: string | null;
+  currentWorkspaceId: string | null;
+  workspaceCache: Record<string, { tasks: Task[] } | undefined>;
+}): readonly Task[] {
+  const wsId = state.currentWorkspaceId ?? "ALL";
+  if (state.tasksWorkspaceId === wsId) {
+    return state.tasks;
+  }
+  return state.workspaceCache[toCacheKey(wsId)]?.tasks ?? EMPTY_TASKS;
+}
+
 /** Tasks đã lọc theo workspace + filter sidebar (dùng cho List/Kanban/Calendar). */
 export function useFilteredTasks() {
   const { data: session } = useSession();
-  const workspaceTasks = useTaskStore((s) =>
-    s.tasksWorkspaceId === s.currentWorkspaceId ? s.tasks : EMPTY_TASKS
-  );
+  const workspaceTasks = useTaskStore(selectWorkspaceTasks);
   const allTasks = useTaskStore((s) => s.workspaceCache["ALL"]?.tasks ?? EMPTY_TASKS);
   const currentWorkspaceId = useTaskStore((s) => s.currentWorkspaceId);
   const activeFilter = useTaskStore((s) => s.activeFilter);
@@ -45,9 +61,7 @@ export function useFilteredTasks() {
 
 /** Tasks thuộc workspace hiện tại, chưa áp filter sidebar (dùng cho thẻ thống kê). */
 export function useWorkspaceTasks() {
-  const tasks = useTaskStore((s) =>
-    s.tasksWorkspaceId === s.currentWorkspaceId ? s.tasks : EMPTY_TASKS
-  );
+  const tasks = useTaskStore(selectWorkspaceTasks);
   const currentWorkspaceId = useTaskStore((s) => s.currentWorkspaceId);
 
   return useMemo(
@@ -60,9 +74,7 @@ export function useWorkspaceTasks() {
 export function useMyTasks() {
   const { data: session } = useSession();
   const allTasks = useTaskStore((s) => s.workspaceCache["ALL"]?.tasks ?? EMPTY_TASKS);
-  const workspaceTasks = useTaskStore((s) =>
-    s.tasksWorkspaceId === s.currentWorkspaceId ? s.tasks : EMPTY_TASKS
-  );
+  const workspaceTasks = useTaskStore(selectWorkspaceTasks);
   const currentUserId = session?.user?.id;
 
   const sourceTasks = allTasks.length > 0 ? allTasks : workspaceTasks;

@@ -5,8 +5,8 @@ import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
 import { useFilteredTasks } from "@/hooks/useFilteredTasks";
 import { Check, Minus, Pencil } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { cn } from "@/lib/utils";
-import { isPast, parseISO, format } from "date-fns";
+import { cn, safeParseISO } from "@/lib/utils";
+import { isPast, format } from "date-fns";
 
 const STATUS_MAP = {
   TODO:        { label: 'Cần làm',  bg: '#f2f3ff', color: '#44495a' },
@@ -115,8 +115,9 @@ export function ListView() {
         <div className="flex flex-col">
           {sortedTasks.map(task => {
             const isDone = task.status === 'DONE';
-            const hasDueDate = !!task.due_date;
-            const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
+            const dueDate = safeParseISO(task.due_date);
+            const hasDueDate = !!dueDate;
+            const isOverdue = hasDueDate && isPast(dueDate) && !isDone;
             const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
             const rowBgClass = 
               task.status === 'IN_PROGRESS' ? 'bg-amber-50/30 hover:bg-amber-50/60 dark:bg-amber-900/10 dark:hover:bg-amber-900/20' :
@@ -179,7 +180,7 @@ export function ListView() {
                   "text-[12px]",
                   hasDueDate && isOverdue ? "text-error-text dark:text-red-400" : "text-on-muted dark:text-slate-400"
                 )}>
-                  {task.due_date ? format(parseISO(task.due_date), 'dd/MM/yyyy') : '—'}
+                  {dueDate ? format(dueDate, 'dd/MM/yyyy') : '—'}
                 </span>
 
                 <div>

@@ -77,7 +77,11 @@ export async function persistTaskNoteFromBlocks(
   });
 
   const plainText = extractTextFromBlockNote(content);
-  await upsertEmbedding(taskNote.id, plainText);
+  try {
+    await upsertEmbedding(taskNote.id, plainText);
+  } catch (err) {
+    console.error("[task-note-persist] embedding failed (note still saved):", err);
+  }
 
   return taskNote;
 }

@@ -1,8 +1,13 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
+import {
+  getDefaultReactSlashMenuItems,
+  SuggestionMenuController,
+} from "@blocknote/react";
+import { filterSuggestionItems } from "@blocknote/core/extensions";
 import { vi } from "@blocknote/core/locales";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -13,17 +18,23 @@ import {
 } from "@/hooks/useTaskNoteLiveSync";
 import { useTaskNoteBlockLock } from "@/hooks/useTaskNoteBlockLock";
 import { useTaskStore } from "@/store/useTaskStore";
+import { stripSlashCommandSuffix } from "@/lib/task-note-slash";
+import { getTaskNoteSlashMenuItems } from "./task-note-slash-items";
 
-const NOTE_PLACEHOLDER = "Nhập nội dung hoặc gõ '/' để mở menu lệnh";
+const SAVE_DEBOUNCE_MS = 600;
+const SAVED_STATUS_MS = 2500;
+
+type NoteSaveStatus = "idle" | "saving" | "saved" | "error";
+
+const NOTE_PLACEHOLDER =
+  "Nhập nội dung hoặc gõ '/' — thử /sync (gộp AI) hoặc /rewrite (soạn lại)";
 
 type TaskNoteEditorProps = {
   taskId: string;
   initialContent?: unknown;
   initialRevision?: number;
   isDarkMode: boolean;
-  onSaveStatusChange?: (
-    status: "idle" | "saving" | "saved" | "error" | "synced"
-  ) => void;
+  onSaveStatusChange?: (status: NoteSaveStatus) => void;
 };
 
 export function TaskNoteEditor({
@@ -40,10 +51,35 @@ export function TaskNoteEditor({
   const skipSaveRef = useRef(false);
   const lastKnownRevisionRef = useRef(initialRevision);
   const isTypingRef = useRef(false);
+  const isSavingRef = useRef(false);
   const canApplyRemoteRef = useRef(true);
   const otherViewerCountRef = useRef(0);
   const blockWarnedRef = useRef<string | null>(null);
+  const statusRef = useRef<NoteSaveStatus>("idle");
+  const savedTimerRef = useRef<NodeJS.Timeout | null>(null);
   const { markTyping, clearTyping } = useTypingGuard(isTypingRef);
+
+  const publishStatus = (status: NoteSaveStatus) => {
+    statusRef.current = status;
+    onSaveStatusChange?.(status);
+  };
+
+  const scheduleSavedFade = () => {
+    if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+    savedTimerRef.current = setTimeout(() => {
+      savedTimerRef.current = null;
+      if (statusRef.current === "saved") {
+        publishStatus("idle");
+      }
+    }, SAVED_STATUS_MS);
+  };
+
+  const syncCanApplyRemote = () => {
+    canApplyRemoteRef.current =
+      !isTypingRef.current &&
+      noteDebounceRef.current === null &&
+      !isSavingRef.current;
+  };
 
   const [collabState, setCollabState] = useState<NoteCollabState>({
     locks: [],
@@ -65,17 +101,109 @@ export function TaskNoteEditor({
     [taskId]
   );
 
-  const syncCanApplyRemote = () => {
-    canApplyRemoteRef.current =
-      !isTypingRef.current && noteDebounceRef.current === null;
-  };
-
   const { getRemoteLocks, otherViewers } = useTaskNoteBlockLock(
     taskId,
     editor,
     session?.user?.id,
     collabState
   );
+
+  const runNoteAiAction = useCallback(
+    async (action: "sync" | "rewrite") => {
+      if (!editor) return;
+
+      stripSlashCommandSuffix(editor);
+
+      if (noteDebounceRef.current) {
+        clearTimeout(noteDebounceRef.current);
+        noteDebounceRef.current = null;
+      }
+      if (savedTimerRef.current) {
+        clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = null;
+      }
+
+      isSavingRef.current = true;
+      syncCanApplyRemote();
+      publishStatus("saving");
+
+      const toastId = toast.loading(
+        action === "sync"
+          ? "AI đang gộp ghi chú từ mọi nguồn..."
+          : "AI đang soạn lại ghi chú..."
+      );
+
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/note/ai`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            localContent: editor.document,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(
+            typeof data?.error === "string" ? data.error : "AI xử lý thất bại"
+          );
+        }
+
+        const blocks =
+          data.content && Array.isArray(data.content)
+            ? data.content
+            : [{ type: "paragraph", content: [] }];
+
+        skipSaveRef.current = true;
+        editor.replaceBlocks(editor.document, blocks as any);
+        requestAnimationFrame(() => {
+          skipSaveRef.current = false;
+        });
+
+        if (data.note?.revision != null) {
+          lastKnownRevisionRef.current = data.note.revision;
+        }
+
+        useTaskStore.setState((state) => ({
+          tasks: state.tasks.map((t) =>
+            t.id === taskId ? { ...t, note: data.note } : t
+          ),
+        }));
+
+        clearTyping();
+        publishStatus("saved");
+        scheduleSavedFade();
+
+        toast.success(
+          action === "sync"
+            ? "Đã gộp và lưu toàn cục"
+            : "Đã soạn lại và lưu ghi chú",
+          { id: toastId }
+        );
+      } catch (err) {
+        console.error("[TaskNoteEditor] AI action failed:", err);
+        publishStatus("error");
+        toast.error(
+          err instanceof Error ? err.message : "AI không xử lý được",
+          { id: toastId }
+        );
+      } finally {
+        isSavingRef.current = false;
+        syncCanApplyRemote();
+      }
+    },
+    [editor, taskId, clearTyping]
+  );
+
+  const aiHandlersRef = useRef({
+    onSync: () => runNoteAiAction("sync"),
+    onRewrite: () => runNoteAiAction("rewrite"),
+  });
+  aiHandlersRef.current = {
+    onSync: () => runNoteAiAction("sync"),
+    onRewrite: () => runNoteAiAction("rewrite"),
+  };
 
   useEffect(() => {
     otherViewerCountRef.current = otherViewers.length;
@@ -87,10 +215,6 @@ export function TaskNoteEditor({
     lastKnownRevisionRef,
     canApplyRemoteRef,
     otherViewerCountRef,
-    onStatusChange: (status) => {
-      if (status === "synced") onSaveStatusChange?.("synced");
-      else onSaveStatusChange?.("error");
-    },
     onCollabStateChange: setCollabState,
     onRemoteApplied: ({ editorName }) => {
       if (editorName) {
@@ -146,10 +270,15 @@ export function TaskNoteEditor({
       markTyping();
       syncCanApplyRemote();
       if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
-      onSaveStatusChange?.("saving");
+      if (savedTimerRef.current) {
+        clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = null;
+      }
+      publishStatus("saving");
 
       noteDebounceRef.current = setTimeout(async () => {
         noteDebounceRef.current = null;
+        isSavingRef.current = true;
         syncCanApplyRemote();
         try {
           const saved = await updateTaskNote(taskId, editor.document);
@@ -157,12 +286,17 @@ export function TaskNoteEditor({
             lastKnownRevisionRef.current = saved.revision;
           }
           clearTyping();
+          publishStatus("saved");
+          scheduleSavedFade();
+        } catch (err) {
+          console.error("[TaskNoteEditor] save failed:", err);
+          publishStatus("error");
+          toast.error("Không lưu được ghi chú — thử lại sau vài giây");
+        } finally {
+          isSavingRef.current = false;
           syncCanApplyRemote();
-          onSaveStatusChange?.("saved");
-        } catch {
-          onSaveStatusChange?.("error");
         }
-      }, 600);
+      }, SAVE_DEBOUNCE_MS);
     });
 
     return () => {
@@ -171,9 +305,14 @@ export function TaskNoteEditor({
         clearTimeout(noteDebounceRef.current);
         noteDebounceRef.current = null;
       }
+      if (savedTimerRef.current) {
+        clearTimeout(savedTimerRef.current);
+        savedTimerRef.current = null;
+      }
+      isSavingRef.current = false;
       syncCanApplyRemote();
     };
-  }, [editor, taskId, updateTaskNote, onSaveStatusChange, markTyping, clearTyping]);
+  }, [editor, taskId, updateTaskNote, markTyping, clearTyping]);
 
   const remoteLocks = getRemoteLocks();
 
@@ -234,7 +373,23 @@ export function TaskNoteEditor({
           ))}
         </div>
       )}
-      <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} />
+      <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} slashMenu={false}>
+        <SuggestionMenuController
+          triggerCharacter="/"
+          getItems={async (query) =>
+            filterSuggestionItems(
+              [
+                ...getTaskNoteSlashMenuItems(editor, {
+                  onSync: () => aiHandlersRef.current.onSync(),
+                  onRewrite: () => aiHandlersRef.current.onRewrite(),
+                }),
+                ...getDefaultReactSlashMenuItems(editor),
+              ],
+              query
+            )
+          }
+        />
+      </BlockNoteView>
     </div>
   );
 }

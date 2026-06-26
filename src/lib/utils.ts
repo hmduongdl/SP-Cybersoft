@@ -1,8 +1,20 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { parseISO } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+/** parseISO an toàn — tránh crash render khi due_date không hợp lệ. */
+export function safeParseISO(value?: string | null): Date | null {
+  if (!value) return null;
+  try {
+    const d = parseISO(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  } catch {
+    return null;
+  }
 }
 
 /**
