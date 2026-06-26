@@ -32,7 +32,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
               data: { name: "Tech", color: "#3b82f6", workspace_id: ws.id, user_id: session.user.id }
             });
           }
-          if (!finalTags.some((t: any) => t.id === techTag!.id)) {
+          const hasTechTag = tags?.some((t: any) => t.name === "Tech");
+          if (!hasTechTag && !finalTags.some((t: any) => t.id === techTag!.id)) {
             finalTags.push({ id: techTag.id });
           }
         } else if (ws.name === "Website" || ws.name === "Web") {
@@ -42,7 +43,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
               data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
             });
           }
-          if (!finalTags.some((t: any) => t.id === webTag!.id)) {
+          const hasWebTag = tags?.some((t: any) => t.name === "Web");
+          if (!hasWebTag && !finalTags.some((t: any) => t.id === webTag!.id)) {
             finalTags.push({ id: webTag.id });
           }
         }

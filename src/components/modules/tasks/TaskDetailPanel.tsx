@@ -1,19 +1,16 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useTaskStore, TaskStatus } from "@/store/useTaskStore";
-import { X, Calendar, CheckCircle, Tag, User, Trash2, Search, Plus, LayoutGrid, ArrowLeft, Check, Loader2, ChevronDown } from "lucide-react";
+import { X, Calendar, CheckCircle, Tag, User, Trash2, Search, Plus, LayoutGrid, Check, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { isPast, parseISO, format } from "date-fns";
+import { toast } from "sonner";
 import "@blocknote/core/fonts/inter.css";
-import { useCreateBlockNote } from "@blocknote/react";
-import { BlockNoteView } from "@blocknote/mantine";
 import "@blocknote/mantine/style.css";
 import { CustomPropertyField, TYPE_ICONS, TYPE_LABELS, CustomPropertyDefinition } from "./CustomPropertyField";
-import { vi } from "@blocknote/core/locales";
-
-const NOTE_PLACEHOLDER = "Nhập nội dung hoặc gõ '/' để mở menu lệnh";
+import { TaskNoteEditor } from "./TaskNoteEditor";
 
 // Helper: convert a user-facing value back to DB column fields for optimistic updates
 function valueToFields(type: string, value: any) {
@@ -55,9 +52,7 @@ export function TaskDetailPanel() {
     setSelectedTaskId,
     tasks,
     updateTask,
-    updateTaskNote,
     deleteTask,
-    currentWorkspace,
     users,
     fetchUsers,
     workspaces
@@ -78,10 +73,10 @@ export function TaskDetailPanel() {
   const addPropInputRef = useRef<HTMLInputElement>(null);
   const addPropRef = useRef<HTMLDivElement>(null);
 
-  const [noteSaveStatus, setNoteSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const noteDebounceRef = useRef<NodeJS.Timeout | null>(null);
-  const skipNoteSaveRef = useRef(false);
-  const selectedTaskIdRef = useRef<string | null>(selectedTaskId);
+  const [noteSaveStatus, setNoteSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error" | "synced"
+  >("idle");
+  const [editingDueDate, setEditingDueDate] = useState(false);
 
   // Cache workspace defs to avoid redundant fetches
   const wsDefsCache = useRef<Record<string, CustomPropertyDefinition[]>>({});
@@ -154,6 +149,30 @@ export function TaskDetailPanel() {
       debounceTimers.current.clear();
     };
   }, []);
+
+  const handleDeleteProperty = useCallback(async (defId: string) => {
+    if (!task) return;
+    if (!confirm(`Xóa thuộc tính này khỏi workspace?`)) return;
+
+    try {
+      const res = await fetch(`/api/workspaces/${task.workspace_id}/properties/${defId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "Không thể xóa thuộc tính");
+        return;
+      }
+      // Remove from local state
+      useTaskStore.getState().updateTask(task.id, {
+        customProperties: (task.customProperties || []).filter((cp: any) => cp.definition_id !== defId),
+      } as any);
+      toast.success("Đã xóa thuộc tính");
+    } catch (err) {
+      console.error("Failed to delete property", err);
+      toast.error("Có lỗi xảy ra");
+    }
+  }, [task]);
 
   const handleCreateProperty = useCallback(async () => {
     if (!task || !addPropName.trim()) return;
@@ -228,18 +247,6 @@ export function TaskDetailPanel() {
     }
   }, [task, addPropName, addPropType]);
 
-  const editor = useCreateBlockNote({
-    initialContent: task?.note?.content ? task.note.content : undefined,
-    dictionary: {
-      ...vi,
-      placeholders: {
-        ...vi.placeholders,
-        default: NOTE_PLACEHOLDER,
-        emptyDocument: NOTE_PLACEHOLDER,
-      },
-    },
-  });
-
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -255,53 +262,8 @@ export function TaskDetailPanel() {
   }, []);
 
   useEffect(() => {
-    selectedTaskIdRef.current = selectedTaskId;
+    setNoteSaveStatus("idle");
   }, [selectedTaskId]);
-
-  useEffect(() => {
-    if (editor && task) {
-      skipNoteSaveRef.current = true;
-      const currentContent = task.note?.content;
-      if (currentContent) {
-        editor.replaceBlocks(editor.document, currentContent);
-      } else {
-        editor.replaceBlocks(editor.document, [{ type: "paragraph", content: [] }]);
-      }
-      requestAnimationFrame(() => {
-        skipNoteSaveRef.current = false;
-      });
-      setNoteSaveStatus("idle");
-    }
-  }, [selectedTaskId, editor]);
-
-  useEffect(() => {
-    if (!editor || !selectedTaskId) return;
-
-    const unsubscribe = editor.onChange(() => {
-      if (skipNoteSaveRef.current) return;
-
-      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
-      setNoteSaveStatus("idle");
-
-      noteDebounceRef.current = setTimeout(async () => {
-        const taskId = selectedTaskIdRef.current;
-        if (!taskId) return;
-        setNoteSaveStatus("saving");
-        try {
-          await updateTaskNote(taskId, editor.document);
-          setNoteSaveStatus("saved");
-        } catch {
-          setNoteSaveStatus("error");
-        }
-        noteDebounceRef.current = null;
-      }, 800);
-    });
-
-    return () => {
-      unsubscribe();
-      if (noteDebounceRef.current) clearTimeout(noteDebounceRef.current);
-    };
-  }, [editor, selectedTaskId, updateTaskNote]);
 
   // Detect dark mode for BlockNote theme
   useEffect(() => {
@@ -317,18 +279,14 @@ export function TaskDetailPanel() {
     return () => observer.disconnect();
   }, []);
 
-  const handleClose = useCallback(async () => {
-    if (editor && selectedTaskIdRef.current && noteDebounceRef.current) {
-      clearTimeout(noteDebounceRef.current);
-      noteDebounceRef.current = null;
-      try {
-        await updateTaskNote(selectedTaskIdRef.current, editor.document);
-      } catch (err) {
-        console.error("Failed to flush note save on close", err);
-      }
-    }
+  // Reset editing state when switching tasks
+  useEffect(() => {
+    setEditingDueDate(false);
+  }, [selectedTaskId]);
+
+  const handleClose = useCallback(() => {
     setSelectedTaskId(null);
-  }, [editor, updateTaskNote, setSelectedTaskId]);
+  }, [setSelectedTaskId]);
 
   const handleDelete = async () => {
     if (confirm("Bạn có chắc chắn muốn xóa công việc này không?")) {
@@ -365,17 +323,12 @@ export function TaskDetailPanel() {
     if (task) updateTask(task.id, { workspace_id: newWsId });
   };
 
-  const updateTaskAssignee = (newUserIds: string[]) => {
-    if (task) updateTask(task.id, { assignee_ids: newUserIds } as any);
-  };
-
   if (!selectedTaskId || !task) return null;
 
   const isDone = task.status === 'DONE';
   const hasDueDate = !!task.due_date;
   const isOverdue = hasDueDate && isPast(parseISO(task.due_date!)) && !isDone;
   const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
-  const taskWorkspaceName = useTaskStore.getState().workspaces.find(w => w.id === task.workspace_id)?.name || "Dự án chung";
 
   return (
     <AnimatePresence>
@@ -456,9 +409,38 @@ export function TaskDetailPanel() {
                   <div className="flex items-center gap-2 text-on-muted">
                     <Calendar size={14} /> Ngày hết hạn
                   </div>
-                  <div className={cn("text-on-surface flex items-center gap-2 hover:bg-surface-high px-2 py-1 rounded-md w-fit cursor-pointer", isOverdue && "text-error-text font-semibold")}>
-                    {hasDueDate ? format(parseISO(task.due_date!), 'dd/MM/yyyy') : 'Trống'}
-                  </div>
+                  {editingDueDate ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="date"
+                        value={task.due_date ? format(parseISO(task.due_date!), 'yyyy-MM-dd') : ''}
+                        onChange={e => {
+                          const val = e.target.value;
+                          updateTask(task.id, { due_date: val ? new Date(val).toISOString() : null });
+                        }}
+                        onBlur={() => setEditingDueDate(false)}
+                        className="text-[13px] text-on-surface bg-surface-high outline-none px-2 py-1 rounded-md w-auto"
+                        autoFocus
+                      />
+                      {task.due_date && (
+                        <button
+                          type="button"
+                          onClick={() => { updateTask(task.id, { due_date: null }); setEditingDueDate(false); }}
+                          className="p-1 text-on-muted hover:text-error-text rounded transition-colors"
+                          title="Xóa ngày hết hạn"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => setEditingDueDate(true)}
+                      className={cn("text-on-surface flex items-center gap-2 hover:bg-surface-high px-2 py-1 rounded-md w-fit cursor-pointer", isOverdue && "text-error-text font-semibold")}
+                    >
+                      {hasDueDate ? format(parseISO(task.due_date!), 'dd/MM/yyyy') : 'Trống'}
+                    </div>
+                  )}
                 </div>
 
                 {/* Tags */}
@@ -603,6 +585,7 @@ export function TaskDetailPanel() {
                       property={def}
                       value={cp}
                       onChange={(newVal: any) => handleSaveProperty(cp.definition_id, newVal)}
+                      onDelete={() => handleDeleteProperty(cp.definition_id)}
                     />
                   );
                 })}
@@ -672,7 +655,16 @@ export function TaskDetailPanel() {
                   📝 Ghi chú & Nội dung
                 </h3>
                 <div className="task-detail-editor flex-1 min-h-[300px] text-sm text-on-surface focus:outline-none mt-2">
-                  <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} />
+                  {selectedTaskId && (
+                    <TaskNoteEditor
+                      key={selectedTaskId}
+                      taskId={selectedTaskId}
+                      initialContent={task?.note?.content}
+                      initialUpdatedAt={task?.note?.updatedAt}
+                      isDarkMode={isDarkMode}
+                      onSaveStatusChange={setNoteSaveStatus}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -689,6 +681,9 @@ export function TaskDetailPanel() {
                 <span className="hidden sm:inline">Xóa</span>
               </button>
               <div className="flex items-center gap-3">
+                {noteSaveStatus === "synced" && (
+                  <span className="text-[11px] text-success-text">Đồng bộ live (~1.5s)</span>
+                )}
                 {noteSaveStatus === "saving" && (
                   <span className="text-[11px] text-on-muted flex items-center gap-1.5">
                     <Loader2 size={12} className="animate-spin" />

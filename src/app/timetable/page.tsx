@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ChevronRight, Calendar, RefreshCw,
-  Lock, GripVertical, Plus, AlertCircle, FileSpreadsheet,
+  Lock, GripVertical, Plus, FileSpreadsheet,
   Coffee, AlertTriangle, ArrowUpDown, MoreHorizontal,
   Sun, Sunset, Clock, Sparkles,
 } from "lucide-react";
@@ -34,7 +34,7 @@ const WEEKEND_COLS = [
   { key: "sat", label: "T7", fullLabel: "Thứ 7" },
   { key: "sun", label: "CN", fullLabel: "Chủ nhật" },
 ] as const;
-const COLUMN_ORDER = ["order", "time", "title", "mon", "tue", "wed", "thu", "fri", "sat", "sun", "notes"];
+const COLUMN_ORDER = ["order", "time", "title", "mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 function getTodayColKey(): string | null {
   const day = new Date().getDay();
@@ -179,55 +179,6 @@ function WeekendCell({
   );
 }
 
-// ─── NoteCell (debounced textarea) ───────────────────────────────────────────
-function NoteCell({ row }: { row: TimetableRow }) {
-  const noteCell = row.cells.find((c) => c.column_name === "notes");
-  const initialVal = Array.isArray(noteCell?.content)
-    ? (noteCell!.content as string[]).join(", ") : "";
-  const [val, setVal] = useState(initialVal);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const taRef = useRef<HTMLTextAreaElement>(null);
-
-  const autoResize = () => {
-    const el = taRef.current; if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
-
-  // Auto-resize on initial mount and when content changes externally
-  useEffect(() => {
-    autoResize();
-  }, [val]);
-
-  const handleChange = (v: string) => {
-    setVal(v);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(async () => {
-      if (!noteCell?.id) return;
-      try {
-        await fetch(`/api/timetable/cells/${noteCell.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: v ? [v] : [] }),
-        });
-      } catch { }
-    }, 1000);
-  };
-
-  return (
-    <textarea
-      ref={taRef}
-      value={val}
-      onChange={(e) => { handleChange(e.target.value); autoResize(); }}
-      onInput={autoResize}
-      placeholder="Ghi chú..."
-      rows={1}
-      className="w-full bg-transparent border-none outline-none focus:ring-0 text-[11px] text-slate-500 dark:text-slate-400 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-700 leading-snug overflow-hidden"
-      style={{ minHeight: 22, maxHeight: 120 }}
-    />
-  );
-}
-
 // ─── Break Row (compact inline strip) ────────────────────────────────────────
 function BreakRow({
   row, provided, colCount, isGroupHighlighted, isOverlapping, isFlashing,
@@ -273,15 +224,13 @@ function BreakRow({
 
 // ─── Main TimetableTableRow ───────────────────────────────────────────────────
 function TimetableTableRow({
-  row, provided, snapshot, onDelete, onCellChange, onTitleChange, onTimeChange, visibleCols, shouldMergeWeekend, singleWeekendDays, isGroupHighlighted, isOverlapping, isFlashing, todayColKey,
+  row, provided, snapshot, onDelete, onCellChange, visibleCols, shouldMergeWeekend, singleWeekendDays, isGroupHighlighted, isOverlapping, isFlashing, todayColKey,
 }: {
   row: TimetableRow;
   provided: DraggableProvided;
   snapshot: DraggableStateSnapshot;
   onDelete: (id: string) => void;
   onCellChange: (rowId: string, colKey: string, items: string[]) => void;
-  onTitleChange: (rowId: string, title: string) => void;
-  onTimeChange: (rowId: string, start_time: string, end_time: string) => void;
   visibleCols: string[];
   shouldMergeWeekend: boolean;
   singleWeekendDays: readonly { key: "sat" | "sun"; label: string; fullLabel: string }[];
@@ -467,8 +416,6 @@ export default function TimetablePage() {
   const [editingRow, setEditingRow] = useState<TimetableRow | null>(null);
   // Track group IDs being dragged for visual highlight on companion rows
   const [draggedGroupIds, setDraggedGroupIds] = useState<Set<string>>(new Set());
-  // Track whether there are unsaved changes
-  const [isDirty, setIsDirty] = useState(false);
 
   const [flashingRowId, setFlashingRowId] = useState<string | null>(null);
   const scrolledOnceRef = useRef(false);
@@ -510,27 +457,6 @@ export default function TimetablePage() {
   }, []);
   const saveOrderTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Auto-save effect ────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (isDirty) {
-      const timer = setTimeout(() => {
-        validateAndSave(true);
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [rows, isDirty]);
-
-  // ── Unsaved-changes guard — warn before closing/navigating away ────────────
-  useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (!isDirty) return;
-      e.preventDefault();
-      e.returnValue = "Bạn có thay đổi chưa được lưu. Bạn có chắc chắn muốn rời trang?";
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [isDirty]);
-
   // ── Bootstrap ────────────────────────────────────────────────────────────
   useEffect(() => {
     fetch("/api/timetable/config")
@@ -561,7 +487,6 @@ export default function TimetablePage() {
     setConfig(newConfig);
     setRows([...generatedRows].sort((a, b) => a.order - b.order));
     setShowOnboarding(false);
-    setIsDirty(false); // Fresh generation is already saved
     toast.success("Khởi tạo thời khóa biểu thành công! 🎉", {
       description: "Bản kế hoạch gợi ý từ AI đã được thiết lập. Lưu ý: Lịch trình này chỉ mang tính chất tham khảo, bạn có thể tự do điều chỉnh và tùy biến để phù hợp nhất với nhu cầu sử dụng thực tế.",
       duration: 6000,
@@ -612,69 +537,23 @@ export default function TimetablePage() {
     finally { setExporting(false); }
   };
 
-  const validateAndSave = async (isAuto = false) => {
-    const zeroDur = rows.find((r) => !r.is_locked && rowDuration(r) <= 0);
-    if (zeroDur) {
-      if (!isAuto) {
-        toast.error(
-          <div className="flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-semibold">Không thể lưu!</p>
-              <p className="text-xs">Hàng "{zeroDur.title || "(Chưa đặt tên)"}" có thời gian thực hiện bằng 0 phút.</p>
-            </div>
-          </div>,
-          { duration: 5000 },
-        );
-      }
-      return;
-    }
-
-    // Warn about overlapping rows before saving (skip warning if auto-saving)
-    if (!isAuto) {
-      const currentOverlaps = computeOverlapIds(rows);
-      if (currentOverlaps.size > 0) {
-        const overlapTitles = rows
-          .filter(r => currentOverlaps.has(r.id))
-          .map(r => `• ${r.title} (${r.start_time}–${r.end_time})`)
-          .join("\n");
-        const confirmed = window.confirm(
-          `⚠️ Bảng có ${currentOverlaps.size} hàng bị trùng khung giờ:\n\n${overlapTitles}\n\nBạn có muốn tiếp tục lưu không?`
-        );
-        if (!confirmed) return;
-      }
-    }
-
-    const payload = {
-      rows: rows.map((r) => ({
-        id: r.id, title: r.title, row_type: r.row_type,
-        start_time: r.start_time, end_time: r.end_time,
-        is_locked: r.is_locked, order: r.order,
-        description: r.description,
-        cells: r.cells.map((c) => ({
-          column_name: c.column_name, content: c.content,
-          task_ids: c.task_ids, is_deadline: c.is_deadline,
-        })),
-      })),
-    };
-
+  const handleEditRowSave = async (
+    rowId: string,
+    data: Record<string, unknown>,
+    options?: { silent?: boolean }
+  ) => {
     try {
-      const res = await fetch("/api/timetable", {
-        method: "POST",
+      const res = await fetch(`/api/timetable/rows/${rowId}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(data),
       });
-      if (!res.ok) { 
-        const err = await res.json(); 
-        if (!isAuto) toast.error(err.error ?? "Lưu thất bại."); 
-        return; 
-      }
-      const data = await res.json();
-      setRows([...data.rows].sort((a: TimetableRow, b: TimetableRow) => a.order - b.order));
-      setIsDirty(false);
-      if (!isAuto) toast.success("Đã lưu thời khóa biểu! 💾");
-    } catch { 
-      if (!isAuto) toast.error("Không thể kết nối server. Vui lòng thử lại."); 
+      if (!res.ok) throw new Error();
+      if (!options?.silent) toast.success("Cập nhật công việc thành công!");
+      fetchRows();
+    } catch {
+      if (!options?.silent) toast.error("Không thể cập nhật công việc.");
+      throw new Error("save_failed");
     }
   };
 
@@ -712,26 +591,9 @@ export default function TimetablePage() {
         return next.sort((a, b) => a.order - b.order);
       });
       toast.success("Thêm công việc thành công!");
-      setIsDirty(true);
       fetchRows(); // Ensure exact order sync
     } catch (e: any) { 
       toast.error(e.message ?? "Không thể thêm công việc."); 
-    }
-  };
-
-  const handleEditRowSave = async (rowId: string, data: any) => {
-    try {
-      const res = await fetch(`/api/timetable/rows/${rowId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error();
-      toast.success("Cập nhật công việc thành công!");
-      setIsDirty(true);
-      fetchRows();
-    } catch {
-      toast.error("Không thể cập nhật công việc.");
     }
   };
 
@@ -739,7 +601,6 @@ export default function TimetablePage() {
     const row = rows.find((r) => r.id === id);
     if (row?.is_locked) return;
     setRows((prev) => prev.filter((r) => r.id !== id));
-    setIsDirty(true);
     try {
       const res = await fetch(`/api/timetable/rows/${id}`, { method: "DELETE" });
       if (!res.ok) { fetchRows(); toast.error("Xóa thất bại."); }
@@ -747,7 +608,6 @@ export default function TimetablePage() {
   };
 
   const handleCellChange = (rowId: string, colKey: string, items: string[]) => {
-    setIsDirty(true);
     setRows((prev) =>
       prev.map((r) =>
         r.id !== rowId ? r : {
@@ -756,16 +616,6 @@ export default function TimetablePage() {
         },
       ),
     );
-  };
-
-  const handleTitleChange = (rowId: string, title: string) => {
-    setIsDirty(true);
-    setRows((prev) => prev.map((r) => r.id !== rowId ? r : { ...r, title }));
-  };
-
-  const handleTimeChange = (rowId: string, start_time: string, end_time: string) => {
-    setIsDirty(true);
-    setRows((prev) => prev.map((r) => r.id !== rowId ? r : { ...r, start_time, end_time }));
   };
 
   const handleSortByTime = () => {
@@ -788,7 +638,7 @@ export default function TimetablePage() {
             body: JSON.stringify({ orderedIds: freeIds }),
           });
         } catch { }
-      }, 600);
+      }, 500);
 
       return withOrder;
     });
@@ -929,10 +779,9 @@ export default function TimetablePage() {
   const singleWeekendDays = WEEKEND_COLS.filter((d) => visibleCols.includes(d.key));
   const activeWeekdays = WEEKDAY_COLS.filter((d) => visibleCols.includes(d.key));
 
-  // Total col count: drag + time + title + notes? + weekdays + weekend? + delete
+  // Total col count: drag + time + title + weekdays + weekend
   const totalColCount =
     1 + 1 + 1 +
-    (visibleCols.includes("notes") ? 1 : 0) +
     activeWeekdays.length +
     (shouldMergeWeekend ? 1 : singleWeekendDays.length);
 
@@ -981,19 +830,7 @@ export default function TimetablePage() {
       />
 
       {/* ── Header ───────────────────────────────────────────── */}
-      {isDirty && (
-        <div className="sticky top-0 z-40 bg-warn-bg/95 backdrop-blur-sm px-5 py-2 flex items-center gap-2 text-warn-text text-xs font-medium shrink-0 border-b border-warn-text/10">
-          <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-          <span>Bạn có thay đổi chưa lưu — nhấn <strong>Lưu thời khóa biểu</strong> trước khi rời trang.</span>
-          <button
-            onClick={() => validateAndSave()}
-            className="ml-auto shrink-0 px-3 py-1 rounded-lg bg-warn-text/10 hover:bg-warn-text/20 font-semibold transition-colors"
-          >
-            Lưu ngay
-          </button>
-        </div>
-      )}
-      <header className={`sticky ${isDirty ? "top-[37px]" : "top-0"} z-30 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline/40 px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0`}>
+      <header className="sticky top-0 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline/40 px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="min-w-0">
           <nav className="hidden sm:flex items-center gap-1.5 text-xs text-on-surface-variant/70 mb-1">
             <span className="hover:text-on-surface cursor-pointer transition-colors">Dashboard</span>
@@ -1095,19 +932,6 @@ export default function TimetablePage() {
               </div>
             )}
           </div>
-
-          <button onClick={() => validateAndSave()}
-            className={[
-              "flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all relative",
-              isDirty
-                ? "gradient-primary text-white ring-2 ring-primary/30 animate-pulse"
-                : "gradient-primary text-white hover:opacity-90",
-            ].join(" ")}
-          >
-            {isDirty && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-error-text ring-2 ring-surface-container-lowest" />}
-            <span className="hidden sm:inline">Lưu thời khóa biểu</span>
-            <span className="sm:hidden">Lưu</span>
-          </button>
         </div>
       </header>
 
@@ -1245,8 +1069,6 @@ export default function TimetablePage() {
                                 snapshot={snap}
                                 onDelete={handleDeleteRow}
                                 onCellChange={handleCellChange}
-                                onTitleChange={handleTitleChange}
-                                onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
                                 shouldMergeWeekend={shouldMergeWeekend}
                                 singleWeekendDays={singleWeekendDays}
@@ -1303,8 +1125,6 @@ export default function TimetablePage() {
                                 snapshot={snap}
                                 onDelete={handleDeleteRow}
                                 onCellChange={handleCellChange}
-                                onTitleChange={handleTitleChange}
-                                onTimeChange={handleTimeChange}
                                 visibleCols={visibleCols}
                                 shouldMergeWeekend={shouldMergeWeekend}
                                 singleWeekendDays={singleWeekendDays}

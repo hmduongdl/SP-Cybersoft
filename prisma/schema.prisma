@@ -181,6 +181,29 @@ model TaskNote {
   task      Task           @relation(fields: [task_id], references: [id], onDelete: Cascade)
 }
 
+model TaskNoteBlockLock {
+  task_id    String
+  block_id   String
+  user_id    String
+  user_name  String?
+  expires_at DateTime
+
+  @@id([task_id, block_id])
+  @@index([task_id])
+  @@index([expires_at])
+}
+
+model TaskNotePresence {
+  task_id    String
+  user_id    String
+  user_name  String?
+  expires_at DateTime
+
+  @@id([task_id, user_id])
+  @@index([task_id])
+  @@index([expires_at])
+}
+
 model NoteEmbedding {
   id        String                 @id @default(uuid())
   note_id   String                 @unique

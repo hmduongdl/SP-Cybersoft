@@ -52,14 +52,12 @@ export interface Task {
   note?: {
     id: string;
     content: any;
+    updatedAt?: string | Date;
   };
 }
 
 /** Một filter duy nhất — không tách timeFilter / filterStatus. */
 export type TaskFilter = 'all' | 'my_tasks' | 'today' | 'upcoming';
-
-/** @deprecated Dùng TaskFilter */
-export type FilterStatus = TaskFilter;
 
 export interface User {
   id: string;
@@ -187,7 +185,6 @@ interface TaskStoreState {
   setAddTaskModalOpen: (isOpen: boolean) => void;
   setActiveFilter: (filter: TaskFilter) => void;
   /** @deprecated Dùng setActiveFilter */
-  setFilter: (filter: TaskFilter) => void;
   setSelectedTagId: (tagId: string | null) => void;
   getFilteredTasks: (currentUserId?: string) => Task[];
 
@@ -203,7 +200,7 @@ interface TaskStoreState {
   addTask: (taskData: Partial<Task>) => Promise<void>;
   updateTask: (taskId: string, taskData: Partial<Task>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
-  updateTaskNote: (taskId: string, noteContent: any) => Promise<void>;
+  updateTaskNote: (taskId: string, noteContent: any) => Promise<any>;
 }
 
 function resolveWorkspace(workspaces: Workspace[], workspaceId: string | null) {
@@ -266,12 +263,6 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),
   setAddTaskModalOpen: (isOpen) => set({ isAddTaskModalOpen: isOpen }),
   setActiveFilter: (filter) => {
-    set({ activeFilter: filter });
-    if (filter === 'my_tasks') {
-      void get().ensureAllTasksLoaded();
-    }
-  },
-  setFilter: (filter) => {
     set({ activeFilter: filter });
     if (filter === 'my_tasks') {
       void get().ensureAllTasksLoaded();
@@ -627,21 +618,20 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   },
 
   updateTaskNote: async (taskId, noteContent) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}/note`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: noteContent }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const savedNote = data.note ?? data;
-        set((state) => ({
-          tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, note: savedNote } : t)),
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to update task note', error);
+    const res = await fetch(`/api/tasks/${taskId}/note`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: noteContent }),
+    });
+    if (!res.ok) {
+      console.error("Failed to update task note");
+      throw new Error("Failed to update task note");
     }
+    const data = await res.json();
+    const savedNote = data.note ?? data;
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === taskId ? { ...t, note: savedNote } : t)),
+    }));
+    return savedNote;
   },
 }));
