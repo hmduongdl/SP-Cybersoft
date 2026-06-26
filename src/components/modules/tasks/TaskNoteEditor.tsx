@@ -181,14 +181,47 @@ export function TaskNoteEditor({
 
   return (
     <div className="relative">
+      {remoteLocks.size > 0 && (
+        <style dangerouslySetInnerHTML={{
+          __html: Array.from(remoteLocks.entries()).map(([blockId, lock]) => {
+            const escapedName = (lock.userName || "Ai đó").replace(/"/g, '\\"');
+            return `
+              .bn-editor [data-id="${blockId}"] {
+                position: relative !important;
+                background-color: ${isDarkMode ? 'rgba(239, 68, 68, 0.08)' : 'rgba(239, 68, 68, 0.04)'} !important;
+                border-left: 3px solid #ef4444 !important;
+                border-top-left-radius: 2px;
+                border-bottom-left-radius: 2px;
+                padding-left: 4px !important;
+              }
+              .bn-editor [data-id="${blockId}"]::before {
+                content: "${escapedName} đang sửa";
+                position: absolute;
+                right: 8px;
+                top: 2px;
+                font-size: 9px;
+                font-family: sans-serif;
+                color: #ef4444;
+                background-color: ${isDarkMode ? '#2d1a1a' : '#fef2f2'};
+                padding: 1px 4px;
+                border-radius: 3px;
+                border: 1px solid rgba(239, 68, 68, 0.2);
+                z-index: 10;
+                pointer-events: none;
+                opacity: 0.8;
+              }
+            `;
+          }).join('\n')
+        }} />
+      )}
       {(otherViewers.length > 0 || remoteLocks.size > 0) && (
         <div className="mb-2 flex flex-wrap gap-1.5">
           {otherViewers.map((v) => (
             <span
               key={v.userId}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container text-on-muted"
+              className="text-[10px] px-2 py-0.5 rounded-full bg-primary-container text-on-muted animate-pulse"
             >
-              {v.userName || "Ai đó"} đang xem
+              🟢 {v.userName || "Ai đó"} đang xem
             </span>
           ))}
           {Array.from(remoteLocks.entries()).map(([blockId, lock]) => (
@@ -196,7 +229,7 @@ export function TaskNoteEditor({
               key={blockId}
               className="text-[10px] px-2 py-0.5 rounded-full bg-warn-bg text-warn-text"
             >
-              {lock.userName || "Ai đó"} đang sửa một dòng
+              🔒 {lock.userName || "Ai đó"} đang sửa dòng
             </span>
           ))}
         </div>
