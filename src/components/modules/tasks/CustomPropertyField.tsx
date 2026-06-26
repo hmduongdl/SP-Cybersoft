@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Hash, Link, Mail, Phone, Calendar, CheckSquare, ChevronDown, X, Type, AlignLeft } from "lucide-react";
+import { Hash, Link, Mail, Phone, Calendar, CheckSquare, ChevronDown, X, Type, AlignLeft, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 // ── Types ──
@@ -25,6 +25,7 @@ interface Props {
   property: CustomPropertyDefinition;
   value?: CustomPropertyValue | null;
   onChange: (newValue: any) => void;
+  onDelete?: () => void;
 }
 
 export const TYPE_ICONS: Record<string, React.ElementType> = {
@@ -270,7 +271,7 @@ function MultiSelectValue({ options, selected, onChange }: { options: string[]; 
 }
 
 // ── Main Component ──
-export function CustomPropertyField({ property, value, onChange }: Props) {
+export function CustomPropertyField({ property, value, onChange, onDelete }: Props) {
   const Icon = TYPE_ICONS[property.type] || Type;
 
   const renderValue = () => {
@@ -312,6 +313,16 @@ export function CustomPropertyField({ property, value, onChange }: Props) {
       <div className="flex items-center gap-1.5 text-on-muted text-xs px-2 py-1 rounded hover:bg-surface-high transition-colors cursor-default">
         <Icon size={12} className="shrink-0 opacity-60" />
         <span className="truncate">{property.name}</span>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="ml-auto opacity-0 group-hover:opacity-100 p-0.5 hover:text-error-text rounded transition-all shrink-0"
+            title="Xóa thuộc tính"
+          >
+            <Trash2 size={10} />
+          </button>
+        )}
       </div>
       <div className="min-w-0">
         {renderValue()}

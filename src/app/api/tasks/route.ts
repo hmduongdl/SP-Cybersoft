@@ -96,7 +96,9 @@ export async function POST(req: Request) {
             data: { name: "Tech", color: "#3b82f6", workspace_id: ws.id, user_id: session.user.id }
           });
         }
-        if (!finalTags.some((t: any) => t.id === techTag!.id)) {
+        // Check by name to avoid duplicate when multiple "Tech" tags exist (different user_ids)
+        const hasTechTag = tags?.some((t: any) => t.name === "Tech");
+        if (!hasTechTag && !finalTags.some((t: any) => t.id === techTag!.id)) {
           finalTags.push({ id: techTag.id });
         }
       } else if (ws.name === "Website" || ws.name === "Web") {
@@ -106,7 +108,9 @@ export async function POST(req: Request) {
             data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
           });
         }
-        if (!finalTags.some((t: any) => t.id === webTag!.id)) {
+        // Check by name to avoid duplicate when multiple "Web" tags exist (different user_ids)
+        const hasWebTag = tags?.some((t: any) => t.name === "Web");
+        if (!hasWebTag && !finalTags.some((t: any) => t.id === webTag!.id)) {
           finalTags.push({ id: webTag.id });
         }
       }

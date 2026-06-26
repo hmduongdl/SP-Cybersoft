@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, Check, Trash2, Plus, ArrowRight, Link as LinkIcon } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { X, Trash2, Plus, ArrowRight, Link as LinkIcon, Loader2, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TimetableRow } from "@/app/timetable/page";
 import { useRouter } from "next/navigation";
@@ -13,9 +13,11 @@ interface EditRowModalProps {
   isOpen: boolean;
   onClose: () => void;
   row: TimetableRow | null;
-  onSave: (rowId: string, data: any) => Promise<void>;
+  onSave: (rowId: string, data: Record<string, unknown>, options?: { silent?: boolean }) => Promise<void>;
   onDelete: (rowId: string) => Promise<void>;
 }
+
+const AUTO_SAVE_MS = 800;
 
 export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }: EditRowModalProps) {
   const router = useRouter();
@@ -23,18 +25,21 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [notes, setNotes] = useState("");
-  
+
   const [dayItems, setDayItems] = useState<Record<string, TaskItem[]>>({});
   const [dayInputs, setDayInputs] = useState<Record<string, string>>({});
-  
-  const [submitting, setSubmitting] = useState(false);
+
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const skipAutoSave = useRef(true);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (isOpen && row) {
       setTitle(row.title || "");
       setStartTime(row.start_time || "");
       setEndTime(row.end_time || "");
-      
+
       const notesCell = row.cells?.find(c => c.column_name === "notes");
       setNotes(Array.isArray(notesCell?.content) ? notesCell.content.join("\n") : "");
 
@@ -47,37 +52,77 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
       });
       setDayItems(newDayItems);
       setDayInputs({});
-      
-      setSubmitting(false);
+      setSaveStatus("idle");
+      skipAutoSave.current = true;
+      setTimeout(() => { skipAutoSave.current = false; }, 150);
     }
   }, [isOpen, row]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!row || !title.trim() || !startTime || !endTime) return;
-    
-    setSubmitting(true);
-    try {
-      const parsedDayContents: Record<string, string[]> = {};
-      const parsedDayTaskIds: Record<string, string[]> = {};
-      
-      Object.entries(dayItems).forEach(([day, items]) => {
-        parsedDayContents[day] = items.map(i => i.text);
-        parsedDayTaskIds[day] = items.map(i => i.taskId || "");
-      });
+  const buildPayload = useCallback(() => {
+    const parsedDayContents: Record<string, string[]> = {};
+    const parsedDayTaskIds: Record<string, string[]> = {};
 
-      await onSave(row.id, {
-        title,
-        start_time: startTime,
-        end_time: endTime,
-        notes: notes.split("\n").map(t => t.trim()).filter(t => t),
-        cells: parsedDayContents,
-        taskIds: parsedDayTaskIds
-      });
-      onClose();
+    Object.entries(dayItems).forEach(([day, items]) => {
+      parsedDayContents[day] = items.map(i => i.text);
+      parsedDayTaskIds[day] = items.map(i => i.taskId || "");
+    });
+
+    return {
+      title,
+      start_time: startTime,
+      end_time: endTime,
+      notes: notes.split("\n").map(t => t.trim()).filter(t => t),
+      cells: parsedDayContents,
+      taskIds: parsedDayTaskIds,
+    };
+  }, [title, startTime, endTime, notes, dayItems]);
+
+  const persist = useCallback(async (silent = true) => {
+    if (!row || !title.trim() || !startTime || !endTime) return;
+
+    setSaveStatus("saving");
+    try {
+      const promise = onSave(row.id, buildPayload(), { silent });
+      pendingSave.current = promise;
+      await promise;
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch {
+      setSaveStatus("error");
     } finally {
-      setSubmitting(false);
+      pendingSave.current = null;
     }
+  }, [row, title, startTime, endTime, buildPayload, onSave]);
+
+  // Debounced auto-save
+  useEffect(() => {
+    if (!isOpen || !row || skipAutoSave.current) return;
+    if (!title.trim() || !startTime || !endTime) return;
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      persist(true);
+    }, AUTO_SAVE_MS);
+
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [title, startTime, endTime, notes, dayItems, isOpen, row, persist]);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
+  const handleClose = async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (pendingSave.current) {
+      await pendingSave.current.catch(() => {});
+    } else if (isOpen && row && !skipAutoSave.current && title.trim() && startTime && endTime) {
+      await persist(true).catch(() => {});
+    }
+    onClose();
   };
 
   const handleAddItem = (day: string) => {
@@ -105,10 +150,9 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
   };
 
   const handleOpenTask = (taskId: string) => {
-    // Navigate to Task Manager and select the task
     useTaskStore.getState().setSelectedTaskId(taskId);
     router.push("/tasks");
-    onClose();
+    handleClose();
   };
 
   if (!row) return null;
@@ -122,7 +166,7 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-40 bg-slate-950/40 backdrop-blur-sm"
-            onClick={onClose}
+            onClick={handleClose}
           />
 
           <motion.div
@@ -133,20 +177,35 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
             className="fixed top-0 right-0 h-screen w-full sm:w-[500px] bg-white dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col"
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 shrink-0">
-              <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
-                Chỉnh sửa Công Việc
-              </h2>
+              <div className="flex items-center gap-3 min-w-0">
+                <h2 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide truncate">
+                  Chỉnh sửa Công Việc
+                </h2>
+                {saveStatus === "saving" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 shrink-0">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Đang lưu...
+                  </span>
+                )}
+                {saveStatus === "saved" && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600 shrink-0">
+                    <Check className="w-3 h-3" /> Đã lưu
+                  </span>
+                )}
+                {saveStatus === "error" && (
+                  <span className="text-[10px] text-red-500 shrink-0">Lưu thất bại</span>
+                )}
+              </div>
               <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors"
+                onClick={handleClose}
+                className="w-8 h-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800 transition-colors shrink-0"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-              <form id="edit-row-form" onSubmit={handleSubmit} className="space-y-6">
-                
+              <div className="space-y-6">
+
                 <div className="space-y-2">
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     Tên công việc <span className="text-red-500">*</span>
@@ -206,7 +265,7 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                   <h3 className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
                     Danh sách công việc trong tuần
                   </h3>
-                  
+
                   {Object.entries({ mon: "Thứ 2", tue: "Thứ 3", wed: "Thứ 4", thu: "Thứ 5", fri: "Thứ 6", sat: "Thứ 7", sun: "Chủ nhật" }).map(([dayKey, label]) => {
                     const items = dayItems[dayKey] || [];
                     return (
@@ -214,13 +273,11 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                         <label className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
                           {label}
                         </label>
-                        
-                        {/* List of cards */}
+
                         <div className="flex flex-col gap-1.5">
                           {items.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2 group">
                               {item.taskId ? (
-                                /* Task Manager Item (Read-only redirect card) */
                                 <div
                                   onClick={() => handleOpenTask(item.taskId!)}
                                   className="flex-1 flex items-center justify-between bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
@@ -235,7 +292,6 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                                   <ArrowRight className="w-3 h-3 text-indigo-400 shrink-0 opacity-50 group-hover:opacity-100" />
                                 </div>
                               ) : (
-                                /* Manual Task Item (Editable input) */
                                 <div className="flex-1 flex items-center gap-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2 py-1 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
                                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 shrink-0 mx-1" />
                                   <input
@@ -245,8 +301,7 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                                   />
                                 </div>
                               )}
-                              
-                              {/* Delete button (only for manual items or to remove it from timetable) */}
+
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(dayKey, idx)}
@@ -259,7 +314,6 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                           ))}
                         </div>
 
-                        {/* Add new manual item */}
                         <div className="flex items-center gap-2 mt-2">
                           <input
                             value={dayInputs[dayKey] || ""}
@@ -288,7 +342,7 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                   })}
                 </div>
 
-              </form>
+              </div>
             </div>
 
             <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 shrink-0 flex items-center justify-between">
@@ -308,23 +362,13 @@ export default function EditRowModal({ isOpen, onClose, row, onSave, onDelete }:
                   </button>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 bg-slate-100 dark:bg-slate-800/80 rounded-lg transition-colors"
-                >
-                  Hủy bỏ
-                </button>
               <button
-                type="submit"
-                form="edit-row-form"
-                disabled={submitting || (!row.is_locked && !title.trim())}
-                className="px-5 py-2 flex items-center gap-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                type="button"
+                onClick={handleClose}
+                className="px-5 py-2 text-xs font-semibold bg-indigo-600 text-white rounded-lg shadow-sm hover:bg-indigo-700 transition-all"
               >
-                {submitting ? "Đang lưu..." : <><Check size={14} /> Lưu thay đổi</>}
+                Đóng
               </button>
-              </div>
             </div>
           </motion.div>
         </>

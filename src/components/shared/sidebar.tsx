@@ -9,7 +9,7 @@ import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useState, useEffect } from "react";
 import { CheckSquare, Settings } from "lucide-react";
-import { useTaskStore, FilterStatus } from "@/store/useTaskStore";
+import { useTaskStore } from "@/store/useTaskStore";
 
 import { UserAvatar } from "./user-avatar";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";

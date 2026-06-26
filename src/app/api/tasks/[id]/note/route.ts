@@ -1,31 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { GoogleGenerativeAI, TaskType } from "@google/generative-ai";
+import { auth } from "@/auth";
+import { db } from "@/lib/db";
+import { canAccessTask } from "@/lib/task-access";
+import { persistTaskNoteFromBlocks } from "@/lib/task-note-persist";
+import {
+  cleanupExpiredCollabState,
+  getActiveLocks,
+  getActiveViewers,
+} from "@/lib/task-note-collab";
 
-const prisma = new PrismaClient();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-// Hàm đệ quy trích xuất text từ JSON của BlockNote
-function extractTextFromBlockNote(blocks: any[]): string {
-  let text = "";
-  for (const block of blocks) {
-    if (block.content) {
-      if (Array.isArray(block.content)) {
-        for (const inline of block.content) {
-          if (inline.type === "text") {
-            text += inline.text + " ";
-          }
-        }
-      } else if (typeof block.content === "string") {
-        text += block.content + " ";
-      }
+    const { id: taskId } = await params;
+    const allowed = await canAccessTask(session.user.id, taskId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-    if (block.children && Array.isArray(block.children)) {
-      text += extractTextFromBlockNote(block.children) + " ";
-    }
-    text += "\n";
+
+    await cleanupExpiredCollabState(taskId);
+
+    const [note, locks, viewers] = await Promise.all([
+      db.taskNote.findUnique({
+        where: { task_id: taskId },
+        select: { id: true, content: true, updatedAt: true },
+      }),
+      getActiveLocks(taskId),
+      getActiveViewers(taskId),
+    ]);
+
+    return NextResponse.json({ note, locks, viewers });
+  } catch (error) {
+    console.error("Error fetching task note:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
-  return text.trim();
 }
 
 export async function POST(
@@ -33,43 +48,25 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const taskId = id;
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id: taskId } = await params;
+    const allowed = await canAccessTask(session.user.id, taskId);
+    if (!allowed) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
-    const { content } = body; // Array of BlockNote blocks
+    const { content } = body;
 
     if (!content || !Array.isArray(content)) {
       return NextResponse.json({ error: "Invalid content" }, { status: 400 });
     }
 
-    // 1. Lưu nội dung JSONB vào TaskNote
-    const taskNote = await prisma.taskNote.upsert({
-      where: { task_id: taskId },
-      update: { content },
-      create: { task_id: taskId, content },
-    });
-
-    // 2. Trích xuất plain text
-    const plainText = extractTextFromBlockNote(content);
-
-    // 3. Tạo Vector Embeddings bằng Gemini
-    if (plainText.length > 5 && process.env.GEMINI_API_KEY) {
-      const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-      const result = await model.embedContent({
-        content: { role: "user", parts: [{ text: plainText }] },
-        taskType: TaskType.RETRIEVAL_DOCUMENT,
-      });
-      
-      const embedding = result.embedding.values;
-      const embeddingArrayStr = `[${embedding.join(",")}]`;
-
-      // 4. Lưu/Upsert vào pgvector table NoteEmbedding
-      await prisma.$executeRawUnsafe(`
-        INSERT INTO "NoteEmbedding" (id, note_id, embedding)
-        VALUES (gen_random_uuid(), $1, $2::vector)
-        ON CONFLICT (note_id) DO UPDATE SET embedding = $2::vector;
-      `, taskNote.id, embeddingArrayStr);
-    }
+    const taskNote = await persistTaskNoteFromBlocks(taskId, content);
 
     return NextResponse.json({ success: true, note: taskNote });
   } catch (error) {

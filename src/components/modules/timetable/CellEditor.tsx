@@ -62,7 +62,7 @@ export default function CellEditor({
           body: JSON.stringify({ content: nextItems }),
         });
       } catch { }
-    }, 700);
+    }, 500);
   };
 
   const push = (val: string) => {
