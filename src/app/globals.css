@@ -614,13 +614,31 @@
 
 .task-detail-editor .bn-root {
   --bn-colors-editor-background: transparent;
-  --bn-colors-editor-text: #0f172a;
-  --bn-colors-side-menu: #64748b;
+  --bn-colors-editor-text: #0f172a !important;
+  --bn-colors-side-menu: #475569;
+}
+
+/* Force crisp charcoal text color for light theme note content */
+.task-detail-editor .bn-editor .bn-block-content {
+  color: #0f172a !important;
+}
+
+/* Light Theme Placeholder color (higher contrast) */
+.task-detail-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
+  color: #64748b !important;
+  font-style: italic;
+  opacity: 0.85;
+}
+
+/* Light Theme link color */
+.task-detail-editor .bn-editor a {
+  color: #2e308a !important;
+  text-decoration: underline;
 }
 
 .dark .task-detail-editor .bn-root {
   --bn-colors-editor-background: transparent;
-  --bn-colors-editor-text: #e8eaf6;
+  --bn-colors-editor-text: #e8eaf6 !important;
   --bn-colors-menu-text: #9496b0;
   --bn-colors-hovered-background: rgba(255, 255, 255, 0.05);
   --bn-colors-selected-background: rgba(79, 125, 232, 0.15);
@@ -630,14 +648,16 @@
   --bn-colors-side-menu: #9496b0;
 }
 
-.task-detail-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
-  color: #9496b0;
-  font-style: italic;
-  opacity: 0.9;
+/* Force crisp lavender/white text color for dark theme note content */
+.dark .task-detail-editor .bn-editor .bn-block-content {
+  color: #e8eaf6 !important;
 }
 
+/* Dark Theme Placeholder color */
 .dark .task-detail-editor .bn-block-content:has(.ProseMirror-trailingBreak:only-child)::after {
-  color: #9496b0;
+  color: #9496b0 !important;
+  font-style: italic;
+  opacity: 0.85;
 }
 
 .dark .task-detail-editor .bn-editor {
@@ -658,10 +678,10 @@
 }
 
 .dark .task-detail-editor .bn-editor a {
-  color: #588cf0;
+  color: #588cf0 !important;
 }
 
 .dark .task-detail-editor .bn-editor::selection {
   background-color: rgba(79, 125, 232, 0.35);
-  color: #e8eaf6;
+  color: #e8eaf6 !important;
 }

@@ -4,6 +4,14 @@ import { auth } from "@/auth";
 import { checkAndResetQuota, recordTokenUsage } from "@/lib/ai-quota";
 import { db } from "@/lib/db";
 
+import { getActiveViewers } from "@/lib/task-note-collab";
+import { persistTaskNoteFromBlocks } from "@/lib/task-note-persist";
+import {
+  markdownToBlockNoteBlocks,
+  mergeTaskNoteWithAI,
+  rewriteTaskNoteWithAI,
+} from "@/lib/task-note-ai";
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CHARACTER_LIMIT = 16000;
 
@@ -75,7 +83,66 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Parse request body
-    const { messages, usePro, currentPath } = await req.json();
+    const body = await req.json();
+    const { messages, usePro, currentPath, action, localContent, taskId } = body;
+
+    // ─── Note AI actions (Sync / Rewrite) ───
+    if (action === "sync" || action === "rewrite") {
+      if (!taskId) {
+        return NextResponse.json({ error: "Missing taskId" }, { status: 400 });
+      }
+      if (!localContent || !Array.isArray(localContent)) {
+        return NextResponse.json({ error: "Invalid localContent" }, { status: 400 });
+      }
+
+      const [task, serverNote, viewers] = await Promise.all([
+        db.task.findUnique({
+          where: { id: taskId },
+          select: { title: true },
+        }),
+        db.taskNote.findUnique({
+          where: { task_id: taskId },
+          select: {
+            content: true,
+            last_edited_by_name: true,
+          },
+        }),
+        getActiveViewers(taskId).catch(() => []),
+      ]);
+
+      const otherViewerNames = viewers
+        .filter((v) => v.userId !== session.user!.id)
+        .map((v) => v.userName || "Ai đó");
+
+      let markdown: string;
+
+      if (action === "sync") {
+        markdown = await mergeTaskNoteWithAI({
+          taskTitle: task?.title,
+          serverContent: (serverNote?.content as unknown[]) ?? null,
+          localContent,
+          serverEditedBy: serverNote?.last_edited_by_name,
+          otherViewerNames,
+        });
+      } else {
+        markdown = await rewriteTaskNoteWithAI({
+          taskTitle: task?.title,
+          content: localContent,
+        });
+      }
+
+      const blocks = markdownToBlockNoteBlocks(markdown);
+      const savedNote = await persistTaskNoteFromBlocks(taskId, blocks as any[], {
+        id: session.user.id,
+        name: session.user.name || session.user.email || null,
+      });
+
+      return NextResponse.json({
+        success: true,
+        content: blocks,
+        note: savedNote,
+      });
+    }
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
