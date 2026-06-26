@@ -201,30 +201,30 @@ export function MainContent() {
         </div>
 
         {/* Right: NOTE PANEL — hidden on mobile, visible from lg */}
-        <div className="hidden lg:flex col-span-1 bg-amber-50/40 dark:bg-amber-500/10 border border-amber-200/50 dark:border-amber-500/35 rounded-2xl p-5 shadow-sm h-full flex-col min-h-0 relative">
+        <div className="hidden lg:flex col-span-1 bg-warn-bg/60 dark:bg-warn-bg/25 border border-warn-text/20 rounded-2xl p-5 shadow-sm h-full flex-col min-h-0 relative">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base">📝</span>
-            <h3 className="font-manrope font-bold text-sm text-slate-800 dark:text-slate-300 uppercase tracking-wider">
+            <h3 className="font-manrope font-bold text-sm text-on-surface uppercase tracking-wider">
               Ghi chú nhanh
             </h3>
           </div>
           {isNoteLoading ? (
             <div className="w-full h-full flex-1 flex items-center justify-center">
-              <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
+              <div className="w-4 h-4 rounded-full border-2 border-warn-text border-t-transparent animate-spin" />
             </div>
           ) : (
             <textarea
               placeholder="Viết ý tưởng hoặc ghi chú công việc tại đây..."
-              className="w-full flex-1 !bg-transparent border-none outline-none focus:ring-0 text-sm text-slate-200 placeholder:text-slate-500 resize-none"
+              className="w-full flex-1 !bg-transparent border-none outline-none focus:ring-0 text-sm text-on-surface placeholder:text-on-muted resize-none caret-primary"
               value={quickNote}
               onChange={handleNoteChange}
             />
           )}
-          <div className="mt-auto pt-2 text-[10px] text-amber-600/70 dark:text-amber-400/60 text-right font-medium shrink-0 transition-opacity duration-300">
+          <div className="mt-auto pt-2 text-[10px] text-warn-text/80 text-right font-medium shrink-0 transition-opacity duration-300">
             {saveStatus === 'idle' && "* Tự động lưu bản nháp"}
             {saveStatus === 'saving' && "Đang lưu..."}
             {saveStatus === 'saved' && "✓ Đã lưu bản nháp"}
-            {saveStatus === 'error' && <span className="text-red-500">⚠ Lỗi khi lưu</span>}
+            {saveStatus === 'error' && <span className="text-error-text">⚠ Lỗi khi lưu</span>}
           </div>
         </div>
 
