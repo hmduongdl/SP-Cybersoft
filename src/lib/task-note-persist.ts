@@ -48,11 +48,32 @@ async function upsertEmbedding(noteId: string, plainText: string) {
   );
 }
 
-export async function persistTaskNoteFromBlocks(taskId: string, content: any[]) {
+export async function persistTaskNoteFromBlocks(
+  taskId: string,
+  content: any[],
+  editor?: { id: string; name: string | null }
+) {
+  const existing = await db.taskNote.findUnique({
+    where: { task_id: taskId },
+    select: { revision: true },
+  });
+  const nextRevision = (existing?.revision ?? 0) + 1;
+
   const taskNote = await db.taskNote.upsert({
     where: { task_id: taskId },
-    update: { content },
-    create: { task_id: taskId, content },
+    update: {
+      content,
+      revision: nextRevision,
+      last_edited_by_id: editor?.id ?? null,
+      last_edited_by_name: editor?.name ?? null,
+    },
+    create: {
+      task_id: taskId,
+      content,
+      revision: 1,
+      last_edited_by_id: editor?.id ?? null,
+      last_edited_by_name: editor?.name ?? null,
+    },
   });
 
   const plainText = extractTextFromBlockNote(content);

@@ -8,6 +8,7 @@ import { LayoutProvider } from "@/components/shared/layout-context";
 import { ThemeProvider } from "@/components/shared/ThemeProvider";
 import SessionProviderWrapper from "@/components/SessionProviderWrapper";
 import ClientLayoutWrapper from "./client-layout-wrapper";
+import { DeployHotReload } from "@/components/shared/DeployHotReload";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className={`${inter.variable} ${manrope.variable} h-full antialiased overflow-hidden`}>
         <ThemeProvider>
           <SessionProviderWrapper>
+            <DeployHotReload />
             <LayoutProvider>
               <ClientLayoutWrapper>
                 {children}

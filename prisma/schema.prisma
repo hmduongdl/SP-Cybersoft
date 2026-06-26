@@ -173,12 +173,15 @@ model TaskAssignee {
 }
 
 model TaskNote {
-  id        String         @id @default(uuid())
-  task_id   String         @unique
-  content   Json?
-  updatedAt DateTime       @updatedAt
-  embedding NoteEmbedding?
-  task      Task           @relation(fields: [task_id], references: [id], onDelete: Cascade)
+  id                  String         @id @default(uuid())
+  task_id             String         @unique
+  content             Json?
+  revision            Int            @default(0)
+  last_edited_by_id   String?
+  last_edited_by_name String?
+  updatedAt           DateTime       @updatedAt
+  embedding           NoteEmbedding?
+  task                Task           @relation(fields: [task_id], references: [id], onDelete: Cascade)
 }
 
 model TaskNoteBlockLock {
