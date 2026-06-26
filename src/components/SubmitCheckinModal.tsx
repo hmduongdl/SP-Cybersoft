@@ -89,7 +89,7 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
 
   if (countdown.expired && !allowLateSubmit) {
     return (
-      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-red-500/10 text-red-600 text-sm font-medium border-none">
+      <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-error-bg text-error-text text-sm font-medium border border-error-text/20">
         <XCircle className="w-4 h-4 flex-shrink-0" />
         <span className="font-inter text-xs">Cửa sổ 24h đã hết — không thể nộp thêm</span>
       </div>
@@ -102,11 +102,9 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
     return Math.max(0, Math.min(100, (elapsed / total) * 100));
   })();
 
-  const urgency = pct > 83;
-
   return (
-    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex flex-col gap-2">
-      <div className="flex items-center justify-between text-xs text-amber-800">
+    <div className="bg-warn-bg border border-warn-text/25 rounded-xl p-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between text-xs text-warn-text">
         <div className="flex items-center gap-2 font-medium">
           <Clock className="w-4 h-4" />
           Cửa sổ nộp bài còn lại
@@ -115,9 +113,9 @@ function CountdownTimer({ startAt, allowLateSubmit }: { startAt: string; allowLa
           {countdown.hours}:{countdown.mins}:{countdown.secs}
         </div>
       </div>
-      <div className="h-1 bg-amber-200/50 rounded-full overflow-hidden">
+      <div className="h-1 bg-warn-text/20 rounded-full overflow-hidden">
         <div
-          className="h-full bg-amber-500 rounded-full transition-all duration-1000"
+          className="h-full bg-warn-text rounded-full transition-all duration-1000"
           style={{ width: `${100 - pct}%` }}
         />
       </div>
@@ -134,23 +132,23 @@ function ExifStatusBadge({ status, exifDate }: { status: ExifStatus; exifDate: D
 
   if (status === "scanning") {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-500/10 border-none animate-pulse">
-        <Loader2 className="w-4 h-4 text-indigo-500 animate-spin flex-shrink-0" />
-        <span className="text-xs font-medium text-indigo-700 font-inter">Đang xác minh ảnh...</span>
+      <div className="flex items-center gap-3 p-3 rounded-xl bg-primary-container/40 border border-outline animate-pulse">
+        <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+        <span className="text-xs font-medium text-on-surface font-inter">Đang xác minh ảnh...</span>
       </div>
     );
   }
 
   if (status === "valid" && exifDate) {
     return (
-      <div className="flex items-start gap-3 p-3 rounded-xl bg-emerald-500/10 border-none">
-        <div className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-success-bg border border-success-text/20">
+        <div className="w-5 h-5 rounded-full bg-success-text/15 text-success-text flex items-center justify-center shrink-0 mt-0.5">
           <span className="material-symbols-outlined text-[14px] font-bold">check</span>
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-emerald-800 font-manrope">✓ Phát hiện thời gian chụp hợp lệ</p>
-          <p className="text-[11px] text-emerald-600 mt-0.5 font-mono font-semibold">{formatViDate(exifDate)}</p>
-          <p className="text-[11px] text-emerald-600/80 mt-0.5 font-inter">Ảnh đủ điều kiện duyệt tự động.</p>
+          <p className="text-xs font-semibold text-success-text font-manrope">✓ Phát hiện thời gian chụp hợp lệ</p>
+          <p className="text-[11px] text-success-text/90 mt-0.5 font-mono font-semibold">{formatViDate(exifDate)}</p>
+          <p className="text-[11px] text-on-muted mt-0.5 font-inter">Ảnh đủ điều kiện duyệt tự động.</p>
         </div>
       </div>
     );
@@ -158,12 +156,12 @@ function ExifStatusBadge({ status, exifDate }: { status: ExifStatus; exifDate: D
 
   if (status === "invalid") {
     return (
-      <div className="flex items-start gap-3 p-3 rounded-xl bg-rose-500/10 border-none">
-        <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-3 rounded-xl bg-error-bg border border-error-text/20">
+        <AlertTriangle className="w-4 h-4 text-error-text flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-xs font-semibold text-rose-800 font-manrope">⚠ Thời gian chụp ngoài cửa sổ 24h</p>
-          <p className="text-[11px] text-rose-600 mt-0.5 font-mono">EXIF: {exifDate ? formatViDate(exifDate) : "—"}</p>
-          <p className="text-[11px] text-rose-600/80 mt-0.5 font-inter">Bài sẽ chờ Admin duyệt thủ công.</p>
+          <p className="text-xs font-semibold text-error-text font-manrope">⚠ Thời gian chụp ngoài cửa sổ 24h</p>
+          <p className="text-[11px] text-error-text/90 mt-0.5 font-mono">EXIF: {exifDate ? formatViDate(exifDate) : "—"}</p>
+          <p className="text-[11px] text-on-muted mt-0.5 font-inter">Bài sẽ chờ Admin duyệt thủ công.</p>
         </div>
       </div>
     );
@@ -445,24 +443,24 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
       className="fixed inset-0 z-50 bg-slate-950/70 animate-in fade-in flex items-end sm:items-center justify-center sm:p-4"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-surface-mid sm:rounded-3xl rounded-t-3xl border border-slate-100 shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[95svh] sm:max-h-[92vh]">
+      <div className="bg-surface-mid sm:rounded-3xl rounded-t-3xl border border-outline shadow-2xl max-w-2xl w-full flex flex-col overflow-hidden animate-in zoom-in-95 fade-in duration-200 max-h-[95svh] sm:max-h-[92vh]">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-4 flex-shrink-0 px-5 pt-5 pb-4 border-b border-slate-100">
+        <div className="flex items-start justify-between gap-4 flex-shrink-0 px-5 pt-5 pb-4 border-b border-outline">
           {/* Mobile drag handle */}
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-slate-200 sm:hidden" />
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-outline sm:hidden" />
           <div className="min-w-0 flex-1">
-            <h2 className="text-base sm:text-xl font-bold text-slate-900 flex items-center gap-2">
-              <UploadCloud className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 flex-shrink-0" />
+            <h2 className="text-base sm:text-xl font-bold text-on-surface flex items-center gap-2">
+              <UploadCloud className="w-5 h-5 sm:w-6 sm:h-6 text-primary flex-shrink-0" />
               Nộp minh chứng
             </h2>
-            <p className="text-xs sm:text-sm font-normal text-slate-500 truncate w-full mt-0.5" title={post.title}>
+            <p className="text-xs sm:text-sm font-normal text-on-muted truncate w-full mt-0.5" title={post.title}>
               {post.title}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 active:bg-slate-200 transition-all touch-manipulation"
+            className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container text-on-muted hover:text-on-surface hover:bg-surface-container-high active:bg-surface-container-highest transition-all touch-manipulation"
           >
             <X className="w-5 h-5" />
           </button>
@@ -619,7 +617,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               )}
 
               {/* Post info + CTA link */}
-              <div className="flex gap-3 bg-slate-50/60 border border-slate-200/50 rounded-2xl p-3 sm:p-4">
+              <div className="flex gap-3 bg-surface-container-low border border-outline rounded-2xl p-3 sm:p-4">
                 {postThumb && !thumbError ? (
                   <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-none flex-shrink-0 relative bg-surface-container">
                     <Image 
@@ -637,12 +635,12 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                   </div>
                 )}
                 <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
-                  <p className="text-[10px] sm:text-xs text-on-surface-variant font-semibold uppercase tracking-wide font-inter">Bài viết cần chia sẻ</p>
+                  <p className="text-[10px] sm:text-xs text-on-muted font-semibold uppercase tracking-wide font-inter">Bài viết cần chia sẻ</p>
                   <a
                     href={postUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-indigo-600 active:bg-indigo-800 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all text-sm touch-manipulation"
+                    className="bg-primary active:opacity-80 hover:opacity-90 text-on-primary font-semibold py-2.5 px-4 rounded-xl flex items-center justify-center gap-1.5 transition-all text-sm touch-manipulation"
                   >
                     Mở bài viết gốc
                     <ExternalLink className="w-4 h-4" />
@@ -679,8 +677,8 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     onDragLeave={handleDragLeave}
                     onDrop={handleDrop}
                     className={cn(
-                      "border-2 border-dashed border-slate-200 bg-slate-50/40 hover:border-indigo-400 hover:bg-indigo-50/10 active:bg-indigo-50/20 transition-all duration-200 rounded-2xl cursor-pointer py-8 sm:py-10 px-4 flex flex-col items-center justify-center gap-3 touch-manipulation",
-                      isDragging && "border-indigo-400 bg-indigo-50/10 scale-[1.01]"
+                      "border-2 border-dashed border-outline bg-surface-low hover:border-primary/40 hover:bg-primary-container/25 active:bg-primary-container/35 transition-all duration-200 rounded-2xl cursor-pointer py-8 sm:py-10 px-4 flex flex-col items-center justify-center gap-3 touch-manipulation",
+                      isDragging && "border-primary bg-primary-container/35 scale-[1.01]"
                     )}
                   >
                     <input
@@ -693,19 +691,19 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     <div
                       className={cn(
                         "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-150",
-                        isDragging ? "bg-indigo-600 text-white" : "bg-indigo-100 text-indigo-600"
+                        isDragging ? "bg-primary text-on-primary" : "bg-primary-container text-primary"
                       )}
                     >
                       <UploadCloud className="w-7 h-7" />
                     </div>
                     <div className="text-center space-y-1">
-                      <p className="text-sm font-semibold text-slate-700">
+                      <p className="text-sm font-semibold text-on-surface">
                         Chọn ảnh minh chứng
                       </p>
-                      <p className="text-xs text-slate-500">JPG, PNG, WEBP — tối đa 10MB</p>
+                      <p className="text-xs text-on-muted">JPG, PNG, WEBP — tối đa 10MB</p>
                     </div>
                     {/* Mobile: big tap button */}
-                    <div className="sm:hidden mt-1 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold">
+                    <div className="sm:hidden mt-1 px-6 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-semibold">
                       Chọn ảnh từ thư viện
                     </div>
                   </div>
@@ -743,8 +741,8 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     </div>
                   </div>
                   <div className="mt-2 px-2 pb-1 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-xs text-emerald-700 truncate font-semibold font-inter">Đã tải lên thành công</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-success-text animate-pulse" />
+                    <span className="text-xs text-success-text truncate font-semibold font-inter">Đã tải lên thành công</span>
                   </div>
                 </div>
               )}
@@ -754,7 +752,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
               {/* Cam kết / Checkboxes */}
               <div className="space-y-2 pt-1">
-                <p className="text-xs font-semibold text-on-surface-variant/80 uppercase tracking-wider font-inter">Cam kết bắt buộc</p>
+                <p className="text-xs font-semibold text-on-muted uppercase tracking-wider font-inter">Cam kết bắt buộc</p>
                 {[
                   { id: "check1", value: isChecked1, onChange: setIsChecked1, label: "Tôi cam đoan đã chia sẻ bài viết này ở chế độ công khai trên trang cá nhân." },
                   { id: "check2", value: isChecked2, onChange: setIsChecked2, label: "Tôi xác nhận ảnh tải lên là thật và chịu trách nhiệm về nội dung." },
@@ -763,11 +761,13 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                     <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} className="sr-only" />
                     <div
                       className={cn(
-                        "w-6 h-6 rounded-lg border-none flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
-                        value ? "bg-indigo-600 text-white" : "bg-surface-container hover:bg-surface-container-high"
+                        "w-6 h-6 rounded-lg border flex items-center justify-center flex-shrink-0 transition-all duration-150 mt-0.5",
+                        value
+                          ? "bg-primary border-primary text-on-primary"
+                          : "bg-surface-container-high border-outline hover:border-primary/40"
                       )}
                     >
-                      {value && <Check className="w-4 h-4 text-white stroke-[3]" />}
+                      {value && <Check className="w-4 h-4 text-on-primary stroke-[3]" />}
                     </div>
                     <span className="text-sm text-on-surface-variant group-hover:text-on-surface leading-relaxed transition-all duration-150 font-inter">{label}</span>
                   </label>
@@ -775,11 +775,11 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               </div>
 
               {/* Footer Actions — sticky on mobile */}
-              <div className="flex gap-3 pt-3 pb-2 sticky bottom-0 bg-surface-mid/95 backdrop-blur-sm sm:static sm:bg-transparent sm:backdrop-blur-none">
+              <div className="flex gap-3 pt-3 pb-2 sticky bottom-0 bg-surface-mid/95 backdrop-blur-sm sm:static sm:bg-transparent sm:backdrop-blur-none border-t border-outline sm:border-t-0 mt-1">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 bg-slate-100 hover:bg-slate-200/80 active:bg-slate-200 text-slate-700 font-medium py-3 px-4 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm touch-manipulation"
+                  className="flex-1 bg-surface-container hover:bg-surface-container-high active:bg-surface-container-highest text-on-surface font-medium py-3 px-4 rounded-xl border border-outline transition-all duration-200 text-sm touch-manipulation"
                 >
                   Hủy
                 </button>
@@ -789,8 +789,8 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
                   className={cn(
                     "flex-[2] py-3 px-4 rounded-xl shadow-sm transition-all duration-200 text-sm flex items-center justify-center gap-2 touch-manipulation",
                     isFormValid
-                      ? "bg-indigo-600 active:bg-indigo-800 hover:bg-indigo-700 text-white font-semibold"
-                      : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                      ? "bg-primary active:opacity-80 hover:opacity-90 text-on-primary font-semibold"
+                      : "bg-surface-container-high text-on-muted border border-outline cursor-not-allowed"
                   )}
                 >
                   {submitStatus === "loading" ? (

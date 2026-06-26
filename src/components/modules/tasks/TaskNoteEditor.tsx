@@ -134,11 +134,12 @@ export function TaskNoteEditor({
       );
 
       try {
-        const res = await fetch(`/api/tasks/${taskId}/note/ai`, {
+        const res = await fetch(`/api/ai/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action,
+            taskId,
             localContent: editor.document,
           }),
         });
