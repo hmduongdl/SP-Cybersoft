@@ -48,6 +48,9 @@ export async function GET(request: Request) {
             author: post.author,
             successfulCheckins: post._count.checkins,
             totalEmployees,
+            latestCheckinAt: (post as any).checkins && (post as any).checkins[0]
+                ? (post as any).checkins[0].submitted_at.toISOString()
+                : null,
         })),
         total: totalPosts,
         totalPages,

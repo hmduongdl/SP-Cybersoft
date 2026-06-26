@@ -131,7 +131,7 @@ const ProfileTab = React.memo(function ProfileTab({ onClose }: { onClose: () => 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Upload thất bại.");
       setAvatarUrl(data.url);
-      if (update) await update();
+      if (update) await update({ avatar_url: data.url });
       window.dispatchEvent(new CustomEvent("profile-updated"));
       toast.success("Cập nhật ảnh đại diện thành công!");
     } catch (err: any) {

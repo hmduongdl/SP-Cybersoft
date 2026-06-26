@@ -48,8 +48,14 @@ export async function POST(request: Request) {
   const buf = Buffer.from(await file.arrayBuffer());
 
   try {
-    // Upload với fixed filename = avatar_{userId} — tự động ghi đè lên ảnh cũ
-    const result = await uploadAvatar(buf, userId, file.type);
+    // Lấy thông tin user hiện tại để xóa ảnh cũ
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { avatar_url: true },
+    });
+
+    // Upload với unique filename và xóa ảnh cũ
+    const result = await uploadAvatar(buf, userId, file.type, user?.avatar_url);
 
     await db.user.update({
       where: { id: userId },

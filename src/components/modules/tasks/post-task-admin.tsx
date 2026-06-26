@@ -20,7 +20,7 @@ import {
   User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
+import { formatDateTime, formatDateTimeWithTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
 import { toast, Toaster } from "sonner";
@@ -40,6 +40,7 @@ interface ManagedPost {
   author: string | null;
   successfulCheckins: number;
   totalEmployees: number;
+  latestCheckinAt: string | null;
 }
 
 interface UserAccount {
@@ -786,9 +787,16 @@ export function PostTaskAdmin() {
 
                     {/* Description */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-desc">
-                        Mô tả chi tiết / Yêu cầu checkin
-                      </label>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-desc">
+                          Mô tả chi tiết / Yêu cầu checkin
+                        </label>
+                        {editingPost && editingPost.latestCheckinAt && (
+                          <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md">
+                            Bản ghi mới nhất: {formatDateTimeWithTime(editingPost.latestCheckinAt)}
+                          </span>
+                        )}
+                      </div>
                       <textarea 
                         id="form-desc"
                         rows={4}
