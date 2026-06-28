@@ -65,7 +65,6 @@ export function Sidebar() {
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "AI Studio", href: "/seo-tools", icon: "trending_up", adminOnly: false },
         { label: "AI Chat", href: "/ai-chat", icon: "forum", adminOnly: false, devOnly: true },
-        { label: "Lessons", href: "/lessons", icon: "school", adminOnly: false, devOnly: true },
       ]
     },
     {

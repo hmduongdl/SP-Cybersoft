@@ -7,6 +7,7 @@ import { Check, Minus, Pencil } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn, safeParseISO } from "@/lib/utils";
 import { isPast, format } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 const STATUS_MAP = {
   TODO:        { label: 'Cần làm',  bg: '#f2f3ff', color: '#44495a' },
@@ -35,39 +36,41 @@ export function ListView() {
   const loadMoreTasks = useTaskStore(s => s.loadMoreTasks);
 
   const tasks = useFilteredTasks();
-  const [sortOption, setSortOption] = useState("newest");
 
   const sortedTasks = useMemo(() => {
-    let currentSort = sortOption;
-    if ((activeFilter === 'upcoming' || activeFilter === 'today') && sortOption === 'newest') {
-      currentSort = 'due_date';
-    }
-
-    return [...tasks].sort((a, b) => {
-      if (currentSort === 'due_date') {
-        if (a.due_date && b.due_date) {
-          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
-        }
-        if (a.due_date && !b.due_date) return -1;
-        if (!a.due_date && b.due_date) return 1;
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (currentSort === 'newest') {
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      }
-      if (currentSort === 'oldest') {
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-      }
-      if (currentSort === 'az') {
-        return a.title.localeCompare(b.title);
-      }
-      if (currentSort === 'status') {
-        const order = { "TODO": 1, "IN_PROGRESS": 2, "DONE": 3 };
-        return (order[a.status as keyof typeof order] || 0) - (order[b.status as keyof typeof order] || 0);
-      }
-      return 0;
+    // Schwartzian transform: pre-compute values to avoid expensive Date parsing in the sort loop
+    const mapped = tasks.map(task => {
+      const createdTime = task.createdAt ? new Date(task.createdAt).getTime() : 0;
+      // Using toDateString() as a cache key for the day of creation
+      const createdDay = task.createdAt ? new Date(task.createdAt).toDateString() : "";
+      const dueTime = task.due_date ? new Date(task.due_date).getTime() : Infinity;
+      return {
+        task,
+        isDone: task.status === 'DONE',
+        createdTime,
+        createdDay,
+        dueTime,
+      };
     });
-  }, [tasks, sortOption, activeFilter]);
+
+    mapped.sort((a, b) => {
+      // 1. DONE task goes to bottom
+      if (a.isDone && !b.isDone) return 1;
+      if (!a.isDone && b.isDone) return -1;
+
+      // 2. Same day -> closest due date first
+      if (a.createdDay === b.createdDay) {
+        if (a.dueTime !== b.dueTime) {
+          return a.dueTime - b.dueTime;
+        }
+      }
+
+      // 3. Newest added first
+      return b.createdTime - a.createdTime;
+    });
+
+    return mapped.map(item => item.task);
+  }, [tasks]);
 
   const cycleStatus = (task: any) => {
     let nextStatus: TaskStatus = "TODO";
@@ -83,24 +86,7 @@ export function ListView() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <div className="flex items-center justify-end px-2">
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-semibold uppercase tracking-wider text-[10px]">Sắp xếp:</span>
-          <select 
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value)}
-            className="bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 outline-none focus:ring-0 text-slate-700 dark:text-slate-200 cursor-pointer"
-          >
-            <option value="newest">Thứ tự thêm (Mới nhất lên trên)</option>
-            <option value="due_date">Ngày đến hạn (Gần nhất lên trên)</option>
-            <option value="oldest">Thứ tự thêm (Cũ nhất lên trên)</option>
-            <option value="az">Theo tên (A-Z)</option>
-            <option value="status">Trạng thái (Cần làm - Đang làm - Xong)</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="bg-surface-mid dark:bg-slate-900 rounded-2xl overflow-y-auto flex-1 min-h-0 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 font-inter">
+      <div className="bg-surface-mid dark:bg-slate-900 rounded-2xl overflow-y-auto flex-1 min-h-0 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 font-inter mt-2">
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_40px] px-5 py-3 bg-surface-low dark:bg-slate-900 border-b border-transparent dark:border-slate-800 select-none items-center">
           {['TIÊU ĐỀ', 'THẺ TAG', 'HẠN CHÓT', 'TRẠNG THÁI', ''].map(h => (
             <span 
@@ -113,28 +99,43 @@ export function ListView() {
         </div>
 
         <div className="flex flex-col">
-          {sortedTasks.map(task => {
-            const isDone = task.status === 'DONE';
-            const dueDate = safeParseISO(task.due_date);
-            const hasDueDate = !!dueDate;
-            const isOverdue = hasDueDate && isPast(dueDate) && !isDone;
-            const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
-            const rowBgClass = 
-              task.status === 'IN_PROGRESS' ? 'bg-amber-50/30 hover:bg-amber-50/60 dark:bg-amber-900/10 dark:hover:bg-amber-900/20' :
-              task.status === 'DONE' ? 'bg-emerald-50/30 hover:bg-emerald-50/60 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20' :
-              'hover:bg-surface-low dark:hover:bg-slate-800/50';
+          <AnimatePresence mode="popLayout">
+            {sortedTasks.map(task => {
+              const isDone = task.status === 'DONE';
+              const dueDate = safeParseISO(task.due_date);
+              const hasDueDate = !!dueDate;
+              const isOverdue = hasDueDate && isPast(dueDate) && !isDone;
+              const displayTag = (task as any).tag || (task.tags && task.tags.length > 0 ? task.tags[0] : null);
+              const rowBgClass = 
+                task.status === 'IN_PROGRESS' ? 'bg-amber-50/30 hover:bg-amber-50/60 dark:bg-amber-900/10 dark:hover:bg-amber-900/20' :
+                task.status === 'DONE' ? 'bg-emerald-50/30 hover:bg-emerald-50/60 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20' :
+                'hover:bg-surface-low dark:hover:bg-slate-800/50';
 
-            return (
-              <div 
-                key={task.id}
-                onClick={() => setSelectedTaskId(task.id)}
-                className={cn("grid grid-cols-[2fr_1fr_1fr_1fr_40px] px-5 py-4 transition-colors duration-150 cursor-pointer items-center group", rowBgClass)}
-              >
-                <div className="flex items-center gap-3 min-w-0">
+              return (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={task.status}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  variants={{
+                    TODO: { scale: [1, 1.015, 1], opacity: 1 },
+                    IN_PROGRESS: { scale: [1, 1.015, 1], opacity: 1 },
+                    DONE: { scale: [1, 1.015, 1], opacity: 1 }
+                  }}
+                  transition={{ 
+                    layout: { type: "spring", bounce: 0.35, duration: 0.6 },
+                    opacity: { duration: 0.2 },
+                    scale: { duration: 0.3, ease: "easeInOut" }
+                  }}
+                  key={task.id}
+                  onClick={() => setSelectedTaskId(task.id)}
+                  className={cn("grid grid-cols-[2fr_1fr_1fr_1fr_40px] px-5 py-4 transition-colors duration-300 cursor-pointer items-center group", rowBgClass)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
                   <button
                     onClick={e => { e.stopPropagation(); cycleStatus(task); }}
                     className={cn(
-                      "w-5 h-5 rounded-full border-[1.5px] flex-shrink-0 flex items-center justify-center transition-colors cursor-pointer",
+                      "w-5 h-5 rounded-full border-[1.5px] flex-shrink-0 flex items-center justify-center transition-colors duration-300 cursor-pointer",
                       isDone
                         ? "bg-success-bg border-success-text"
                         : task.status === 'IN_PROGRESS'
@@ -142,8 +143,31 @@ export function ListView() {
                         : "border-outline dark:border-slate-600 hover:border-primary dark:hover:border-indigo-400"
                     )}
                   >
-                    {isDone && <Check size={11} className="text-success-text stroke-[3]" />}
-                    {task.status === 'IN_PROGRESS' && <Minus size={11} className="text-amber-600 dark:text-amber-400 stroke-[3]" />}
+                    <AnimatePresence mode="wait">
+                      {isDone ? (
+                        <motion.div
+                          key="done"
+                          initial={{ scale: 0, rotate: -45 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          exit={{ scale: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center justify-center"
+                        >
+                          <Check size={11} className="text-success-text stroke-[3]" />
+                        </motion.div>
+                      ) : task.status === 'IN_PROGRESS' ? (
+                        <motion.div
+                          key="progress"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          exit={{ scale: 0 }}
+                          transition={{ duration: 0.15 }}
+                          className="flex items-center justify-center"
+                        >
+                          <Minus size={11} className="text-amber-600 dark:text-amber-400 stroke-[3]" />
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
                   </button>
                   {task.assignees && task.assignees.length > 0 ? (
                     <div className="flex items-center -space-x-2">
@@ -193,9 +217,10 @@ export function ListView() {
                 >
                   <Pencil size={13} />
                 </button>
-              </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
         </div>
 
         {sortedTasks.length > 0 && sortedTasks.length < taskTotal && (

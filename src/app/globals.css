@@ -129,6 +129,11 @@
     --color-success-text: #0d5c34;
     --color-warn-bg: #fff3cd;
     --color-warn-text: #b45309;
+    /* Sticky note — same yellow in light & dark */
+    --color-sticky-note-bg: #fff3cd;
+    --color-sticky-note-text: #3d3200;
+    --color-sticky-note-muted: #92700a;
+    --color-sticky-note-border: rgba(180, 83, 9, 0.25);
     --color-error-bg: #ffdad6;
     --color-error-text: #a10000;
     --color-tertiary-fixed: #d5f8e8;
@@ -564,6 +569,15 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+/* Quick note panel — always sticky-note yellow, both themes */
+.quick-note-panel textarea {
+  color: var(--color-sticky-note-text);
+}
+
+.dark .quick-note-panel textarea::placeholder {
+  color: rgba(146, 112, 10, 0.7) !important;
 }
 
 /* ================================================
