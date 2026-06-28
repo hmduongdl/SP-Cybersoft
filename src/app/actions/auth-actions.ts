@@ -26,7 +26,7 @@ export async function authenticate(
     await signIn("credentials", {
       username: username.trim(),
       password: password,
-      redirectTo: "/dashboard",
+      redirectTo: "/",
     });
 
     return { success: true };

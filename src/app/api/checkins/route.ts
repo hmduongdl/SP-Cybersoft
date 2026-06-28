@@ -117,6 +117,7 @@ async function parseExifFromBuffer(buffer: Buffer): Promise<ExifResult> {
 // ─── Composite scoring — quyết định trạng thái ───────────────────────────────
 
 type ApprovalReason =
+  | "high_trust_score"
   | "exif_valid"
   | "exif_out_of_window"
   | "no_exif"
@@ -165,6 +166,11 @@ async function determineStatus(
   // ── Hard block: ảnh trùng lặp ─────────────────────────────────────────
   if (isDuplicate) {
     return { status: "PENDING", aiConfidence: 0.1, reason: "duplicate_image" };
+  }
+
+  // ── Điểm uy tín cao (Trust Score > 92) luôn auto approve ──────────────
+  if (trustScore > 92) {
+    return { status: "AUTO_APPROVED", aiConfidence: 1.0, reason: "high_trust_score" };
   }
 
   const startMs = postStartAt.getTime();
@@ -264,6 +270,8 @@ async function determineStatus(
 
 function buildMessage(reason: ApprovalReason): string {
   switch (reason) {
+    case "high_trust_score":
+      return "Tự động xác thực thành công! Minh chứng của bạn đã được hệ thống phê duyệt.";
     case "exif_valid":
       return "Tự động xác thực thành công! Dữ liệu EXIF hợp lệ và nằm trong cửa sổ 24h.";
     case "vision_auto_approved":
@@ -300,6 +308,15 @@ export async function POST(request: Request) {
   const userId = session.user.id;
 
   try {
+    // ── 1.1 Lấy thông tin user và Trust Score sớm để tối ưu hóa ───────────
+    const userRecord = await db.user.findUnique({
+      where: { id: userId },
+      select: { trust_score: true, name: true }
+    });
+    const trustScore = userRecord?.trust_score ?? 80;
+    const userName = userRecord?.name ?? "";
+    const isHighTrust = trustScore > 92;
+
     // ── 2. Parse input — hỗ trợ cả FormData (cũ) và JSON (Uploadthing) ─────
     const contentType = request.headers.get("content-type") || "";
     const isJson = contentType.includes("application/json");
@@ -338,17 +355,19 @@ export async function POST(request: Request) {
         );
       }
 
-      // Fetch ảnh từ CDN để phân tích EXIF server-side
-      try {
-        const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
-        if (!imgRes.ok) throw new Error(`CDN responded ${imgRes.status}`);
-        const arrayBuffer = await imgRes.arrayBuffer();
-        imageBuffer = Buffer.from(arrayBuffer);
-        imageFileType = imgRes.headers.get("content-type") || "image/jpeg";
-      } catch (fetchErr) {
-        console.warn("[checkins] Could not fetch image from CDN for EXIF:", fetchErr);
-        // Không block — vẫn tiếp tục với PENDING status
-        imageBuffer = null;
+      // Fetch ảnh từ CDN để phân tích EXIF server-side (chỉ chạy nếu không phải High Trust)
+      if (!isHighTrust) {
+        try {
+          const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
+          if (!imgRes.ok) throw new Error(`CDN responded ${imgRes.status}`);
+          const arrayBuffer = await imgRes.arrayBuffer();
+          imageBuffer = Buffer.from(arrayBuffer);
+          imageFileType = imgRes.headers.get("content-type") || "image/jpeg";
+        } catch (fetchErr) {
+          console.warn("[checkins] Could not fetch image from CDN for EXIF:", fetchErr);
+          // Không block — vẫn tiếp tục với PENDING status
+          imageBuffer = null;
+        }
       }
     } else {
       // ── (B) FormData flow (cũ: upload file trực tiếp) ──────────────────────
@@ -498,16 +517,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 5. Phân tích EXIF từ buffer ─────────────────────────────────────────
-    const exif: ExifResult = imageBuffer
+    // ── 5. Phân tích EXIF từ buffer (Bỏ qua nếu High Trust) ────────────────
+    const exif: ExifResult = (imageBuffer && !isHighTrust)
       ? await parseExifFromBuffer(imageBuffer)
       : { exifTime: null, exifFound: false, sourceTag: null };
 
-    // ── 5b. Tính Perceptual Hash & phát hiện ảnh trùng lặp ──────────────
+    // ── 5b. Tính Perceptual Hash & phát hiện ảnh trùng lặp (Bỏ qua nếu High Trust) ──
     let imagePhash: string | null = null;
     let isDuplicate = false;
 
-    if (imageBuffer) {
+    if (imageBuffer && !isHighTrust) {
       imagePhash = await computeAHash(imageBuffer);
 
       if (imagePhash) {
@@ -530,14 +549,6 @@ export async function POST(request: Request) {
         }
       }
     }
-
-    // ── 6. Lấy Trust Score người dùng ────────────────────────────────────
-    const userRecord = await db.user.findUnique({
-      where: { id: userId },
-      select: { trust_score: true, name: true }
-    });
-    const trustScore = userRecord?.trust_score ?? 80;
-    const userName = userRecord?.name ?? "";
 
     // ── 7. Composite scoring — xác định trạng thái cuối ──────────────────
     const result = await determineStatus(

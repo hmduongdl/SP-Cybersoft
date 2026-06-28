@@ -39,6 +39,10 @@ module.exports = {
         'success-text': 'var(--color-success-text)',
         'warn-bg':      'var(--color-warn-bg)',
         'warn-text':    'var(--color-warn-text)',
+        'sticky-note':       'var(--color-sticky-note-bg)',
+        'sticky-note-text':  'var(--color-sticky-note-text)',
+        'sticky-note-muted': 'var(--color-sticky-note-muted)',
+        'sticky-note-border':'var(--color-sticky-note-border)',
         'error-bg':     'var(--color-error-bg)',
         'error-text':   'var(--color-error-text)',
 

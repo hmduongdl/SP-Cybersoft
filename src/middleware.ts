@@ -17,7 +17,10 @@ export const middleware = auth((request) => {
       pathname.includes(".") || // các file tĩnh như .png, .css
       pathname === "/maintenance";
 
-    if (!isAsset) {
+    // Cho phép trang chủ và trang đăng nhập trong quá trình bảo trì
+    const isPublicPage = pathname === "/" || pathname.startsWith("/login");
+
+    if (!isAsset && !isPublicPage) {
       const url = request.nextUrl.clone();
       url.pathname = "/maintenance";
       return NextResponse.rewrite(url); // Dùng rewrite để giữ nguyên URL thanh địa chỉ nhưng hiện trang bảo trì

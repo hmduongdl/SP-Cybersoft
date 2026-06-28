@@ -215,12 +215,90 @@ function taskBelongsToView(task: Task, workspaceId: string | null) {
   return task.workspace_id === workspaceId;
 }
 
-function invalidateWorkspaceCaches(cache: Record<string, WorkspaceCache>, ...keys: (string | undefined)[]) {
+function addCacheWithTask(cache: Record<string, WorkspaceCache>, newTask: Task) {
   const next = { ...cache };
-  for (const key of keys) {
-    if (key && next[key]) delete next[key];
+  const wsKey = toCacheKey(newTask.workspace_id);
+
+  // Add to 'ALL' cache if it exists
+  if (next.ALL) {
+    const exists = next.ALL.tasks.some((t) => t.id === newTask.id);
+    if (!exists) {
+      const tasks = [newTask, ...next.ALL.tasks];
+      next.ALL = { ...next.ALL, tasks, total: next.ALL.total + 1 };
+    }
   }
-  if (next.ALL) delete next.ALL;
+
+  // Add to workspace cache if it exists
+  if (next[wsKey]) {
+    const exists = next[wsKey].tasks.some((t) => t.id === newTask.id);
+    if (!exists) {
+      const tasks = [newTask, ...next[wsKey].tasks];
+      next[wsKey] = { ...next[wsKey], tasks, total: next[wsKey].total + 1 };
+    }
+  }
+
+  return next;
+}
+
+function updateCacheWithTask(
+  cache: Record<string, WorkspaceCache>,
+  updatedTask: Task,
+  previousWorkspaceId?: string
+) {
+  const next = { ...cache };
+  const newWsKey = toCacheKey(updatedTask.workspace_id);
+  const oldWsKey = previousWorkspaceId ? toCacheKey(previousWorkspaceId) : undefined;
+
+  // 1. Update the 'ALL' cache if it exists
+  if (next.ALL) {
+    const tasks = next.ALL.tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+    next.ALL = { ...next.ALL, tasks };
+  }
+
+  // 2. Update the old workspace cache (or remove if moved)
+  if (oldWsKey && next[oldWsKey]) {
+    if (oldWsKey !== newWsKey) {
+      // Task was moved to a different workspace, remove from old cache
+      const tasks = next[oldWsKey].tasks.filter((t) => t.id !== updatedTask.id);
+      next[oldWsKey] = { ...next[oldWsKey], tasks, total: Math.max(0, next[oldWsKey].total - 1) };
+    } else {
+      // Just update it
+      const tasks = next[oldWsKey].tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+      next[oldWsKey] = { ...next[oldWsKey], tasks };
+    }
+  }
+
+  // 3. Update the new workspace cache if task was moved and new cache exists
+  if (oldWsKey && oldWsKey !== newWsKey && next[newWsKey]) {
+    const exists = next[newWsKey].tasks.some((t) => t.id === updatedTask.id);
+    if (!exists) {
+      const tasks = [updatedTask, ...next[newWsKey].tasks];
+      next[newWsKey] = { ...next[newWsKey], tasks, total: next[newWsKey].total + 1 };
+    } else {
+      const tasks = next[newWsKey].tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
+      next[newWsKey] = { ...next[newWsKey], tasks };
+    }
+  }
+
+  return next;
+}
+
+function deleteCacheWithTask(cache: Record<string, WorkspaceCache>, taskId: string, workspaceId?: string) {
+  const next = { ...cache };
+  const wsKey = workspaceId ? toCacheKey(workspaceId) : undefined;
+
+  // Remove from 'ALL' cache if it exists
+  if (next.ALL) {
+    const tasks = next.ALL.tasks.filter((t) => t.id !== taskId);
+    next.ALL = { ...next.ALL, tasks, total: Math.max(0, next.ALL.total - 1) };
+  }
+
+  // Remove from workspace cache if it exists
+  if (wsKey && next[wsKey]) {
+    const tasks = next[wsKey].tasks.filter((t) => t.id !== taskId);
+    next[wsKey] = { ...next[wsKey], tasks, total: Math.max(0, next[wsKey].total - 1) };
+  }
+
   return next;
 }
 
@@ -514,8 +592,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
       const newTask: Task = await res.json();
       set((state) => {
-        const wsKey = toCacheKey(newTask.workspace_id);
-        const newCache = invalidateWorkspaceCaches(state.workspaceCache, wsKey);
+        const newCache = addCacheWithTask(state.workspaceCache, newTask);
 
         const inCurrentView =
           state.tasksWorkspaceId === state.currentWorkspaceId &&
@@ -565,9 +642,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
       const updatedServerTask: Task = await res.json();
       set((state) => {
-        const oldWsKey = prevTask ? toCacheKey(prevTask.workspace_id) : undefined;
-        const newWsKey = toCacheKey(updatedServerTask.workspace_id);
-        const newCache = invalidateWorkspaceCaches(state.workspaceCache, oldWsKey, newWsKey);
+        const newCache = updateCacheWithTask(
+          state.workspaceCache,
+          updatedServerTask,
+          prevTask ? prevTask.workspace_id : undefined
+        );
 
         const inCurrentView =
           state.tasksWorkspaceId === state.currentWorkspaceId &&
@@ -610,9 +689,10 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       }
 
       set((state) => ({
-        workspaceCache: invalidateWorkspaceCaches(
+        workspaceCache: deleteCacheWithTask(
           state.workspaceCache,
-          prevTask ? toCacheKey(prevTask.workspace_id) : undefined
+          taskId,
+          prevTask ? (prevTask as Task).workspace_id : undefined
         ),
       }));
     } catch (error: any) {
