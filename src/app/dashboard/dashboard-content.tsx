@@ -75,8 +75,8 @@ export default async function DashboardContent() {
 
   // Filter uncompleted PC Build Tasks and PC Exercises
   const uncompletedPcTasks = pcTasks.filter(task => {
-    const checkin = task.checkins[0];
-    return !checkin || (checkin.build_data as any)?.is_draft === true;
+    const submission = task.submissions[0];
+    return !submission || (submission.build_data as any)?.is_draft === true;
   });
 
   const uncompletedExercises = todayExercises.filter(ex => {

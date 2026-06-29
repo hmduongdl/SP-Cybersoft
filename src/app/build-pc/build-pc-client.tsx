@@ -507,10 +507,10 @@ export default function BuildPcClient() {
                         }
                         setExpandedExerciseId(isExpanded ? null : ex.id);
                       }}
-                      className="px-6 py-4 flex items-center justify-between cursor-pointer bg-surface-mid/20 hover:bg-surface-mid/40 transition-all select-none"
+                      className="px-4 md:px-6 py-4 flex items-center justify-between cursor-pointer bg-surface-mid/20 hover:bg-surface-mid/40 transition-all select-none"
                     >
                       <div className="space-y-1 pr-4 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-1.5">
                           <span className={cn(
                             "rounded px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider",
                             ex.difficulty === "easy" ? "bg-success-bg text-success-text" :
@@ -546,7 +546,7 @@ export default function BuildPcClient() {
 
                     {/* Expandable submit area */}
                     {isExpanded && (
-                      <div className="border-t border-surface-container-high px-6 py-5 bg-surface-container-lowest space-y-6 animate-in slide-in-from-top-2 duration-200">
+                      <div className="border-t border-surface-container-high px-4 md:px-6 py-5 bg-surface-container-lowest space-y-6 animate-in slide-in-from-top-2 duration-200">
                         {/* Constraints detail list */}
                         <div className="rounded-lg bg-surface-container-low p-3.5 text-xs text-on-muted font-inter space-y-1">
                           <span className="font-bold text-on-surface uppercase tracking-wider block text-[10px] mb-1">Ràng buộc & Gợi ý:</span>
