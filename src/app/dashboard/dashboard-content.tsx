@@ -20,7 +20,7 @@ export default async function DashboardContent() {
       getCachedRecentCheckins(userId || ""),
       userId ? getCachedDashboardPosts(userId) : Promise.resolve([]),
       userId ? getCachedMonthlyStats(userId) : Promise.resolve({ completedThisMonth: 0, totalPostsThisMonth: 0, pendingThisMonth: 0 }),
-      userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true } }) : Promise.resolve(null),
+      userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true, role: true } }) : Promise.resolve(null),
       userId ? db.task.findMany({
         where: {
           is_archived: false,
@@ -56,6 +56,7 @@ export default async function DashboardContent() {
 
   const trustScore = user?.trust_score ?? 80;
   const userName = session?.user?.name || "Thành viên";
+  const isAdmin = user?.role === "ADMIN";
 
   // Ensure completedCount never exceeds totalPostsCount
   const totalPostsCount = monthlyStats.totalPostsThisMonth;
@@ -73,16 +74,20 @@ export default async function DashboardContent() {
 
   const allDashboardTasks = dashboardTasks.map(t => ({ id: t.id, title: t.title, due_date: t.due_date?.toISOString() || "", status: t.status }));
 
-  // Filter uncompleted PC Build Tasks and PC Exercises
-  const uncompletedPcTasks = pcTasks.filter(task => {
-    const submission = task.submissions[0];
-    return !submission || (submission.build_data as any)?.is_draft === true;
-  });
+  // Filter uncompleted PC Build Tasks and PC Exercises (exclude ADMIN role)
+  const uncompletedPcTasks = !isAdmin
+    ? pcTasks.filter(task => {
+        const submission = task.submissions[0];
+        return !submission || (submission.build_data as any)?.is_draft === true;
+      })
+    : [];
 
-  const uncompletedExercises = todayExercises.filter(ex => {
-    const sub = pcSubmissions.find(s => s.exercise_id === ex.id);
-    return !sub || (sub.parts_answer as any)?.is_draft === true;
-  });
+  const uncompletedExercises = !isAdmin
+    ? todayExercises.filter(ex => {
+        const sub = pcSubmissions.find(s => s.exercise_id === ex.id);
+        return !sub || (sub.parts_answer as any)?.is_draft === true;
+      })
+    : [];
 
   const pcTasksMapped = uncompletedPcTasks.map(t => ({
     id: `pc-task-${t.id}`,
