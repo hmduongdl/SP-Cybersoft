@@ -37,6 +37,8 @@ model User {
   theme                 String?                 @default("system")
   reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")
   checkins              Checkin[]               @relation("UserCheckins")
+  pc_submissions        PcSubmission[]          @relation("UserPcSubmissions")
+  reviewed_pc_submissions PcSubmission[]        @relation("AdminReviewedPcSubmissions")
   tags                  Tag[]
   task_assignments      TaskAssignee[]
   created_tasks         Task[]                  @relation("UserCreatedTasks")
@@ -46,6 +48,20 @@ model User {
   collaborators         WorkspaceCollaborator[]
 
   @@index([email])
+}
+
+/// Bài tập Build PC hàng ngày do AI sinh ra (Phân hệ Đào tạo Build PC)
+model PcBuildTask {
+  id            String    @id @default(uuid())
+  date          DateTime  @default(now())
+  customer_need String
+  max_budget    Float
+  requirements  String
+  deadline      DateTime?
+  created_at    DateTime  @default(now())
+  submissions   Checkin[]
+
+  @@index([date])
 }
 
 model Post {
@@ -66,7 +82,7 @@ model Post {
 model Checkin {
   id                    String        @id @default(uuid())
   user_id               String
-  post_id               String
+  post_id               String?
   image_url             String
   exif_time             DateTime?
   submitted_at          DateTime      @default(now())
@@ -81,13 +97,59 @@ model Checkin {
   image_phash           String?
   ai_is_facebook_ui     Boolean?
   ai_is_public_mode     Boolean?
-  post                  Post          @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  task_type             String        @default("SHARE_POST")
+  build_data            Json?
+  pc_task_id            String?
+  post                  Post?         @relation(fields: [post_id], references: [id], onDelete: Cascade)
   reviewer              User?         @relation("AdminReviewedCheckins", fields: [reviewed_by], references: [id])
   user                  User          @relation("UserCheckins", fields: [user_id], references: [id], onDelete: Cascade)
+  pc_task               PcBuildTask?  @relation(fields: [pc_task_id], references: [id])
 
   @@index([user_id])
   @@index([post_id])
   @@index([status])
+  @@index([task_type])
+  @@index([pc_task_id])
+}
+
+/// Bài tập Build PC do AI sinh từ Kho linh kiện — mỗi ngày nhiều bài
+model PcExercise {
+  id            String         @id @default(uuid())
+  exercise_date DateTime
+  title         String
+  description   String
+  requirements  Json
+  difficulty    String         @default("medium")
+  order_index   Int            @default(0)
+  team          Team           @default(ALL)
+  created_at    DateTime       @default(now())
+  submissions   PcSubmission[]
+
+  @@unique([exercise_date, order_index])
+  @@index([exercise_date])
+}
+
+/// Bài nộp Build PC — tối đa 5 bài/ngày/user, duyệt qua admin queue
+model PcSubmission {
+  id            String        @id @default(uuid())
+  user_id       String
+  exercise_id   String
+  parts_answer  Json
+  explanation   String
+  image_urls    Json          @default("[]")
+  submitted_at  DateTime      @default(now())
+  status        CheckinStatus @default(PENDING)
+  reject_reason String?
+  reviewed_by   String?
+  ai_feedback   String?
+  ai_score      Float?
+  exercise      PcExercise    @relation(fields: [exercise_id], references: [id], onDelete: Cascade)
+  user          User          @relation("UserPcSubmissions", fields: [user_id], references: [id], onDelete: Cascade)
+  reviewer      User?         @relation("AdminReviewedPcSubmissions", fields: [reviewed_by], references: [id])
+
+  @@index([user_id, submitted_at])
+  @@index([status])
+  @@index([exercise_id])
 }
 
 model SystemSetting {

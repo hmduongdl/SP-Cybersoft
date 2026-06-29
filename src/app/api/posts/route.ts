@@ -18,40 +18,91 @@ export async function GET(request: Request) {
     const status = url.searchParams.get('status') || 'ACTIVE';
     const skip = (page - 1) * limit;
 
-    const [allPosts, totalEmployees] = await Promise.all([
+    const [allPosts, allBuildTasks, totalEmployees, totalNonAdminEmployees] = await Promise.all([
         getCachedPostsApi(),
+        db.pcBuildTask.findMany({
+            orderBy: { date: 'desc' },
+            include: {
+                submissions: {
+                    orderBy: { submitted_at: 'desc' },
+                    include: {
+                        user: { select: { role: true } }
+                    }
+                }
+            }
+        }),
         getCachedTotalEmployees(),
+        db.user.count({
+            where: { role: "USER", is_active: true }
+        })
     ]);
 
+    // Map regular share posts
+    const mappedSharePosts = allPosts.map((post: any) => ({
+        id: post.id,
+        title: post.title,
+        description: post.description,
+        url: post.url,
+        thumbnail_url: post.thumbnail_url,
+        start_at: post.start_at.toISOString(),
+        is_archived: post.is_archived,
+        allow_late_submit: post.allow_late_submit,
+        team: post.team,
+        author: post.author,
+        task_type: "SHARE_POST",
+        successfulCheckins: post._count.checkins,
+        totalEmployees,
+        latestCheckinAt: post.checkins && post.checkins[0]
+            ? post.checkins[0].submitted_at.toISOString()
+            : null,
+    }));
+
+    // Map PC build tasks
+    const mappedBuildTasks = allBuildTasks.map((task) => {
+        const successfulCheckins = task.submissions.filter(
+            (s) => (s.status === 'APPROVED' || s.status === 'AUTO_APPROVED') && s.user?.role === 'USER'
+        ).length;
+        const latestCheckinAt = task.submissions[0]?.submitted_at?.toISOString() || null;
+
+        return {
+            id: task.id,
+            title: `💻 Bài tập Build PC`,
+            description: task.customer_need,
+            url: "",
+            thumbnail_url: null,
+            start_at: task.date.toISOString(),
+            is_archived: false,
+            allow_late_submit: true,
+            team: "ALL",
+            author: "AI",
+            task_type: "PC_BUILD",
+            max_budget: task.max_budget,
+            requirements: task.requirements,
+            deadline: task.deadline ? task.deadline.toISOString() : null,
+            successfulCheckins,
+            totalEmployees: totalNonAdminEmployees,
+            latestCheckinAt,
+        };
+    });
+
     // Filter by status: ACTIVE = not archived, ARCHIVED = archived, ALL = everything
+    const combinedPosts = [...mappedSharePosts, ...mappedBuildTasks];
+    
     const filteredPosts = status === 'ALL'
-        ? allPosts
-        : allPosts.filter((post: any) =>
+        ? combinedPosts
+        : combinedPosts.filter((post: any) =>
             status === 'ARCHIVED' ? post.is_archived : !post.is_archived
         );
+
+    // Sort combined posts by start_at descending
+    filteredPosts.sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime());
 
     const paginatedPosts = filteredPosts.slice(skip, skip + limit);
     const totalPosts = filteredPosts.length;
     const totalPages = Math.ceil(totalPosts / limit);
 
     return NextResponse.json({
-        posts: paginatedPosts.map((post) => ({
-            id: post.id,
-            title: post.title,
-            description: post.description,
-            url: post.url,
-            thumbnail_url: post.thumbnail_url,
-            start_at: post.start_at.toISOString(),
-            is_archived: post.is_archived,
-            allow_late_submit: post.allow_late_submit,
-            team: post.team,
-            author: post.author,
-            successfulCheckins: post._count.checkins,
-            totalEmployees,
-            latestCheckinAt: (post as any).checkins && (post as any).checkins[0]
-                ? (post as any).checkins[0].submitted_at.toISOString()
-                : null,
-        })),
+        posts: paginatedPosts,
         total: totalPosts,
         totalPages,
         currentPage: page,
@@ -65,8 +116,22 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const parsed = postTaskSchema.safeParse(body);
 
+    // If it's a PC Build task creation, bypass the regular Share Post schema validation
+    if (body.task_type === 'PC_BUILD') {
+        const task = await db.pcBuildTask.create({
+            data: {
+                customer_need: body.customer_need || body.title || '',
+                max_budget: Number(body.max_budget) || 0,
+                requirements: body.requirements || body.description || '',
+                deadline: body.deadline ? new Date(body.deadline) : null,
+                date: body.start_at ? new Date(body.start_at) : new Date(),
+            }
+        });
+        return NextResponse.json({ post: { ...task, task_type: 'PC_BUILD' } }, { status: 201 });
+    }
+
+    const parsed = postTaskSchema.safeParse(body);
     if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
@@ -133,10 +198,17 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID để xóa.' }, { status: 400 });
         }
 
+        // Delete from both checkin and pcBuildTask / post
+        await db.checkin.deleteMany({
+            where: { pc_task_id: { in: ids } }
+        });
+
+        await db.pcBuildTask.deleteMany({
+            where: { id: { in: ids } }
+        });
+
         await db.post.deleteMany({
-            where: {
-                id: { in: ids }
-            }
+            where: { id: { in: ids } }
         });
 
         // Revalidate cache after deleting posts
@@ -144,49 +216,8 @@ export async function DELETE(request: Request) {
         revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
         revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
-        return NextResponse.json({ success: true, message: 'Đã xóa các bài đăng thành công.' });
+        return NextResponse.json({ success: true, message: 'Đã xóa thành công.' });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message || 'Lỗi khi xóa bài đăng.' }, { status: 500 });
-    }
-}
-
-// Bulk PATCH / EDIT
-export async function PATCH(request: Request) {
-    const session = await auth();
-    if (!session?.user?.id || session.user.role !== 'ADMIN') {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    try {
-        const body = await request.json();
-        const { ids, data } = body;
-        if (!ids || !Array.isArray(ids)) {
-            return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID.' }, { status: 400 });
-        }
-
-        const updateData: Record<string, any> = {};
-        if (data.is_archived !== undefined) {
-            updateData.is_archived = data.is_archived;
-            updateData.allow_late_submit = !data.is_archived;
-        }
-        if (data.team !== undefined) {
-            updateData.team = data.team;
-        }
-
-        await db.post.updateMany({
-            where: {
-                id: { in: ids }
-            },
-            data: updateData
-        });
-
-        // Revalidate cache after updating posts
-        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
-        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
-        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
-
-        return NextResponse.json({ success: true, message: 'Đã cập nhật các bài đăng thành công.' });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message || 'Lỗi khi cập nhật bài đăng.' }, { status: 500 });
+        return NextResponse.json({ error: error.message || 'Lỗi khi xóa.' }, { status: 500 });
     }
 }

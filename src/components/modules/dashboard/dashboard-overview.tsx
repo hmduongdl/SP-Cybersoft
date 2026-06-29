@@ -14,6 +14,7 @@ import {
   ChevronDown,
   LayoutDashboard,
   TrendingUp,
+  Cpu,
 } from "lucide-react";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { cn, getPostDeadline } from "@/lib/utils";
@@ -33,7 +34,8 @@ interface DashboardPost {
   title: string;
   thumbnail_url: string | null;
   start_at: string;
-  url: string;
+  url?: string;
+  is_pc_build?: boolean;
 }
 
 export interface DashboardTask {
@@ -435,18 +437,24 @@ export function DashboardOverview({
                 {monthlyDashboardPosts.map((post) => (
                   <Link
                     key={post.id}
-                    href={`/like-share?postId=${post.id}`}
+                    href={post.is_pc_build ? post.url || "#" : `/like-share?postId=${post.id}`}
                     className="bg-surface-container-lowest dark:bg-slate-900 rounded-2xl p-4 flex items-center gap-4 shadow-ambient dark:shadow-none border border-transparent dark:border-slate-800 hover:-translate-y-0.5 transition-all cursor-pointer group"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden shrink-0">
-                      <DashboardPostThumbnail src={post.thumbnail_url} alt={post.title} />
+                    <div className="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden shrink-0 flex items-center justify-center">
+                      {post.is_pc_build ? (
+                        <Cpu className="w-6 h-6 text-primary" />
+                      ) : (
+                        <DashboardPostThumbnail src={post.thumbnail_url} alt={post.title} />
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-inter text-[15px] font-bold text-on-surface dark:text-white truncate group-hover:text-primary transition-colors">
                         {post.title}
                       </p>
                       <p className="text-[13px] text-on-surface-variant mt-0.5">
-                        {post.url ? new URL(post.url).hostname.replace("www.", "") : ""}
+                        {post.is_pc_build 
+                          ? "Linh kiện & Lắp ráp" 
+                          : (post.url ? new URL(post.url).hostname.replace("www.", "") : "")}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">

@@ -579,15 +579,6 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
           </div>
         </section>
 
-        {/* Map Placeholder */}
-        <div className="h-96 w-full bg-surface-container relative overflow-hidden">
-          <img
-            className="w-full h-full object-cover grayscale opacity-70 hover:opacity-100 hover:grayscale-0 transition-all duration-1000 cursor-pointer"
-            alt="A clean, minimalist stylized digital map of Ho Chi Minh City."
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBYBv_B9qZ7ymDjTlrBbp3wjurv9Vn-RhuRLWrWoukkxFR0wjL3Zo0cO7cI2HitlDqPGHFptnY1KaEViGBlCgibB260cR4pgaUPRtKF9lnAeRcrcPNUDEWfIVb8ttUmkOkJnPPoAGYbItzITNuW6l_kmEAWIF346-akLsiW-eXzyR9uELF0c3WSquGfiYNsnMl2ttjuUcnA7Hm9TS7Teee67LrrOc6c1uF-N4-cvF2RAMXKNoFRadb-VvDkExLr5yLNGl2hGk7TvRE"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-background/50 to-transparent pointer-events-none" />
-        </div>
       </main>
 
       {/* Footer */}

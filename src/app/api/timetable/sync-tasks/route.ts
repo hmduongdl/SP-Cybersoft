@@ -195,6 +195,38 @@ export async function POST() {
     return patchMap.get(k)!;
   };
 
+  // ── 2.5 Clean up stale (DONE) tasks from existing cells ────────────────
+  // The loop below only adds tasks; without cleanup, DONE/removed tasks from
+  // previous syncs remain in cells permanently.
+  const activeIds = new Set(tasks.map((t) => t.id));
+  const activeTitles = new Set(tasks.map((t) => t.title));
+
+  for (const row of targetRows) {
+    for (const cell of row.cells) {
+      const existingIds: string[] = Array.isArray(cell.task_ids)
+        ? (cell.task_ids as string[])
+        : [];
+      if (existingIds.length === 0) continue;
+
+      if (existingIds.some((id) => !activeIds.has(id))) {
+        // Cell has stale (DONE/removed) tasks — clean them up
+        cell.task_ids = existingIds.filter((id) => activeIds.has(id));
+
+        if (Array.isArray(cell.content)) {
+          cell.content = (cell.content as string[]).filter((item) => {
+            // Strip [DEADLINE] prefix before checking
+            const stripped = item.startsWith("[DEADLINE] ")
+              ? item.slice(11)
+              : item;
+            // Remove if it matches an active task (will be re-added by loop)
+            // Keep manual entries (don't match any title)
+            return !activeTitles.has(stripped);
+          });
+        }
+      }
+    }
+  }
+
   for (const task of tasks) {
     const dueDate = task.due_date ? new Date(task.due_date) : null;
     const isThisWeek =

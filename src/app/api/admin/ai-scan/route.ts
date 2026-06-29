@@ -90,7 +90,7 @@ export async function POST(request: Request) {
     let extractedUsername: string | null = null;
     let extractedTitle: string | null = null;
 
-    if (base64Image) {
+    if (base64Image && checkin.post) {
       try {
         // Dùng module dùng chung runVisionCheck (2-bước: Gemini + Flash)
         // Bao gồm validation: tên, tiêu đề, chế độ công khai, giao diện FB thật

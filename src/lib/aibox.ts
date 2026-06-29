@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 
 export const MODEL_CHAT_PRO = process.env.MODEL_DEEPSEEK_PRO || 'deepseek-v4-pro[1m]';
 export const MODEL_CHAT_FLASH = process.env.MODEL_DEEPSEEK_FLASH || 'deepseek-v4-flash[1m]';
-export const MODEL_VISION_ONLY = process.env.MODEL_GEMINI_VISION || 'gemini-3-flash';
+export const MODEL_VISION_ONLY = process.env.MODEL_GEMINI_VISION || 'kimi-k2.5';
 export const MODEL_VISION_THINKING = 'gemini-3-flash-thinking';
 
 // Danh sách model CHỈ được dùng cho vision (image input), không cho chat text

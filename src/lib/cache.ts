@@ -219,6 +219,7 @@ export async function getCachedPostParticipants(): Promise<Record<string, PostPa
 
   const map: Record<string, PostParticipant[]> = {};
   for (const c of checkins) {
+    if (!c.post_id) continue;
     if (!map[c.post_id]) map[c.post_id] = [];
     map[c.post_id].push({
       userId: c.user.id,
@@ -248,6 +249,35 @@ export async function getCachedAllCheckins() {
       },
       post: {
         select: { id: true, title: true, thumbnail_url: true, start_at: true },
+      },
+      pc_task: true,
+    },
+    orderBy: { submitted_at: "desc" },
+  });
+}
+
+export async function getCachedAllPcSubmissions() {
+  return db.pcSubmission.findMany({
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar_url: true,
+          department: true,
+          trust_score: true,
+        },
+      },
+      exercise: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          difficulty: true,
+          requirements: true,
+          exercise_date: true,
+        },
       },
     },
     orderBy: { submitted_at: "desc" },
