@@ -59,6 +59,33 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
+async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  retries = 2,
+  delayMs = 2000,
+  factor = 2
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const isTransient =
+      error?.status === 429 ||
+      error?.statusCode === 429 ||
+      error?.message?.includes("429") ||
+      error?.message?.includes("rate limit") ||
+      error?.message?.includes("timeout") ||
+      error?.status >= 500 ||
+      !error?.status;
+
+    if (retries > 0 && isTransient) {
+      console.warn(`[Retry] AI Vision check transient error/rate-limit. Retrying in ${delayMs}ms... (Remaining: ${retries})`);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      return retryWithBackoff(fn, retries - 1, delayMs * factor, factor);
+    }
+    throw error;
+  }
+}
+
 export async function runVisionCheck(
   input: VisionCheckInput
 ): Promise<VisionCheckResult> {
@@ -82,44 +109,44 @@ export async function runVisionCheck(
   };
 
   // ── Bước 1: Kimi/Gemini trích xuất thông tin từ ảnh ─────────────────────────
-  // ── Bước 1: Kimi/Gemini trích xuất thông tin từ ảnh ─────────────────────────
   let extracted: any = null;
   let extractionError: any = null;
 
   const extractionAttempts = [
-    // Attempt 1: Direct Moonshot (Kimi) if configured (Uploads to Kimi Files API first to avoid base64 unsupported errors)
     async () => {
       if (!process.env.MOONSHOT_API_KEY) {
         throw new Error("No MOONSHOT_API_KEY configured for vision check");
       }
       console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API via base64...");
       
-      const res = await withTimeout(
-        moonshotAI.chat.completions.create({
-          model: "kimi-k2.5",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+      const res = await retryWithBackoff(() => 
+        withTimeout(
+          moonshotAI.chat.completions.create({
+            model: "kimi-k2.5",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
 1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
 Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
-                },
-              ],
-            },
-          ],
-          max_tokens: 1500,
-        }),
-        VISION_TIMEOUT_MS
+                  },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 1500,
+          }),
+          VISION_TIMEOUT_MS
+        )
       );
 
       const aiContent = res.choices[0]?.message?.content || "{}";
@@ -150,13 +177,14 @@ Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không k
   const isPublicMode = Boolean(extracted.is_public_mode);
 
   // ── Bước 2: Flash đánh giá mức khớp ───────────────────────────────────
-  const decisionResponse = await withTimeout(
-    defaultAI.chat.completions.create({
-      model: MODEL_CHAT_FLASH,
-      messages: [
-        {
-          role: "system",
-          content: `Bạn là hệ thống kiểm duyệt minh chứng chia sẻ bài viết mạng xã hội tại công ty SP-CyberSoft.
+  const decisionResponse = await retryWithBackoff(() => 
+    withTimeout(
+      defaultAI.chat.completions.create({
+        model: MODEL_CHAT_FLASH,
+        messages: [
+          {
+            role: "system",
+            content: `Bạn là hệ thống kiểm duyệt minh chứng chia sẻ bài viết mạng xã hội tại công ty SP-CyberSoft.
 
 THÔNG TIN DỰ KIẾN:
 - Tên nhân viên: "${expectedName}"
@@ -176,11 +204,12 @@ TIÊU CHÍ ĐÁNH GIÁ ĐỂ DUYỆT TỰ ĐỘNG (BẮT BUỘC):
 4. Các yếu tố khác như chế độ Công khai (is_public_mode) hoặc giao diện (is_social_ui) chỉ dùng để tham khảo, nếu tên và nội dung đã khớp thì vẫn ưu tiên DUYỆT.
 
 Trả về JSON: { "isValid": boolean, "confidence": number (0–100), "reason": "Lý do ngắn gọn bằng tiếng Việt" }`,
-        },
-      ],
-      response_format: { type: "json_object" },
-    }),
-    VISION_TIMEOUT_MS
+          },
+        ],
+        response_format: { type: "json_object" },
+      }),
+      VISION_TIMEOUT_MS
+    )
   );
 
   const decision = JSON.parse(

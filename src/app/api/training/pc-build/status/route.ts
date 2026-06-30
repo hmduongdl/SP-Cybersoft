@@ -42,14 +42,15 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Không tìm thấy bản ghi submission" }, { status: 404 });
       }
 
-      const isAnalyzing = (submission.parts_answer as any)?.is_analyzing === true;
-      const hasError = submission.ai_feedback?.includes("Gặp lỗi hệ thống") === true;
+      const partsAnswer = (submission.parts_answer as any) || {};
+      const isAnalyzing = partsAnswer.is_analyzing === true;
+      const hasError = typeof partsAnswer.error === "string" || submission.ai_feedback?.includes("Gặp lỗi hệ thống") === true;
 
       return NextResponse.json({
         status: submission.status,
         isAnalyzing,
         hasError,
-        errorMsg: hasError ? submission.ai_feedback : null,
+        errorMsg: partsAnswer.error || (hasError ? submission.ai_feedback : null),
         data: submission.parts_answer,
       });
     }

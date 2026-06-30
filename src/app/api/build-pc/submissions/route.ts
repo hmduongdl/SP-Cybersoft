@@ -5,11 +5,13 @@ import {
   getStartOfDayVN,
   DAILY_PC_SUBMISSION_MAX,
 } from "@/lib/pc-kho";
-import { processBackgroundPcBuild } from "@/lib/pc-build-background-worker";
+import { processPcBuildVision } from "@/lib/pc-build-background-worker";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function getEndOfDayVN(start: Date): Date {
   const end = new Date(start);
@@ -92,7 +94,9 @@ export async function POST(request: Request) {
       user_id: session.user.id,
       exercise_id,
       parts_answer: {
-        is_analyzing: true
+        is_analyzing: true,
+        analysis_step: "vision",
+        analysis_message: "Đang đọc ảnh báo giá và bóc tách linh kiện..."
       },
       explanation: explanation.trim(),
       image_urls: image_urls.slice(0, 3),
@@ -106,8 +110,8 @@ export async function POST(request: Request) {
   });
 
   after(() => {
-    processBackgroundPcBuild(submission.id, "submission", image_urls[0], exercise_id)
-      .catch((err) => console.error("[submissions/route] Error running background task:", err));
+    processPcBuildVision(submission.id, "submission", image_urls[0])
+      .catch((err) => console.error("[submissions/route] Error running vision task:", err));
   });
 
   revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");

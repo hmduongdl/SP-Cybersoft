@@ -17,6 +17,7 @@ import {
   X,
   Plus,
   FileText,
+  FileSpreadsheet,
   Zap,
   Database,
   HardDrive,
@@ -57,8 +58,9 @@ interface TaskState {
   previewImage: string | null;
   isAnalyzing: boolean;
   analysisError?: string | null;
+  analysisMessage?: string | null;
   submittedAt?: string | null;
-  analysisStep: "idle" | "kimi" | "deepseek";
+  analysisStep: "idle" | "vision" | "deepseek" | "done";
   extractedParts: Record<string, Part> | null;
   compatibilityChecks: any;
   isApproved: boolean;
@@ -106,6 +108,7 @@ const DEFAULT_TASK_STATE: TaskState = {
   previewImage: null,
   isAnalyzing: false,
   analysisError: null,
+  analysisMessage: null,
   submittedAt: null,
   analysisStep: "idle",
   extractedParts: null,
@@ -194,12 +197,15 @@ export default function PcBuildTrainingClient() {
               analysisError: hasAnalysisError
                 ? buildData.error
                 : staleAnalysis
-                  ? "AI phân tích quá lâu hoặc đã lỗi ở phiên trước. Bạn có thể nộp lại cấu hình mới."
+                  ? "Chậm quá hoặc lỗi rồi, bạn thử lại lần nữa nha."
                   : missingAnalysisResult
-                    ? "AI chưa trả về kết quả phân tích hợp lệ. Bạn có thể nộp lại cấu hình mới."
+                    ? "Chưa đọc được ảnh, thử tải lại cái khác nha."
                   : null,
               submittedAt,
-              analysisStep: isAnalyzing ? "deepseek" : "idle",
+              analysisMessage: buildData.analysis_message || null,
+              analysisStep: isAnalyzing && (buildData.analysis_step === "vision" || buildData.analysis_step === "deepseek")
+                ? buildData.analysis_step
+                : "idle",
               extractedParts: isAnalyzing ? null : (buildData.checks ? buildData : null),
               compatibilityChecks: isAnalyzing ? null : buildData.checks,
               isApproved: sub.status === "AUTO_APPROVED" || buildData.is_approved === true,
@@ -242,17 +248,19 @@ export default function PcBuildTrainingClient() {
                 delete pollingIntervals[taskId];
 
                 if (result.hasError) {
-                  toast.error(result.errorMsg || "Lỗi xử lý báo giá.");
+                  toast.error(result.errorMsg || "Lỗi xử lý ảnh báo giá.");
                   updateTaskState(taskId, {
                     isAnalyzing: false,
                     analysisStep: "idle",
-                    analysisError: result.errorMsg || "Lỗi xử lý báo giá.",
+                    analysisError: result.errorMsg || "Lỗi xử lý ảnh báo giá.",
+                    analysisMessage: null,
                   });
                 } else {
                   updateTaskState(taskId, {
                     isAnalyzing: false,
                     analysisStep: "idle",
                     analysisError: null,
+                    analysisMessage: result.data?.analysis_message || null,
                     extractedParts: result.data,
                     isApproved: result.status === "AUTO_APPROVED" || result.data?.is_approved === true,
                     approvalReason: result.data?.reason || "",
@@ -260,7 +268,7 @@ export default function PcBuildTrainingClient() {
                     status: result.status,
                     isDraft: result.data?.is_draft !== false,
                   });
-                  toast.success("AI đã phân tích xong cấu hình! Hãy viết ghi chú và nộp bài để hoàn thành.");
+                  toast.success("Check xong rồi! Vô viết ghi chú và gửi bài thôi.");
                   fetchTasks();
                 }
               } else if (
@@ -272,7 +280,13 @@ export default function PcBuildTrainingClient() {
                 updateTaskState(taskId, {
                   isAnalyzing: false,
                   analysisStep: "idle",
-                  analysisError: "AI phân tích quá lâu hoặc đã lỗi ở phiên trước. Bạn có thể nộp lại cấu hình mới.",
+                  analysisError: "Chậm quá hoặc lỗi rồi, bạn thử lại lần nữa nha.",
+                });
+              } else {
+                const step = result.data?.analysis_step;
+                updateTaskState(taskId, {
+                  analysisStep: step === "vision" || step === "deepseek" ? step : state.analysisStep,
+                  analysisMessage: result.data?.analysis_message || state.analysisMessage,
                 });
               }
             }
@@ -318,7 +332,7 @@ export default function PcBuildTrainingClient() {
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
+          resolve(canvas.toDataURL("image/jpeg", 0.72));
         };
       };
       reader.onerror = (error) => reject(error);
@@ -327,13 +341,28 @@ export default function PcBuildTrainingClient() {
 
   const handleImageFileProcessing = async (taskId: string, file: File) => {
     try {
-      const base64Image = await compressImage(file);
+      const nameLower = file.name.toLowerCase();
+      const typeLower = (file.type || "").toLowerCase();
+      const isExcel = nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls") || typeLower.includes("spreadsheetml") || typeLower.includes("excel");
+      let base64Data = "";
+      if (isExcel) {
+        base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+        });
+      } else {
+        base64Data = await compressImage(file);
+      }
+
       updateTaskState(taskId, {
-        previewImage: base64Image,
+        previewImage: base64Data,
         isAnalyzing: true,
         analysisError: null,
+        analysisMessage: "Đang đọc ảnh báo giá và bóc tách linh kiện...",
         submittedAt: new Date().toISOString(),
-        analysisStep: "kimi",
+        analysisStep: "vision",
       });
 
       const res = await fetch("/api/training/pc-build/submit", {
@@ -341,7 +370,7 @@ export default function PcBuildTrainingClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           pc_task_id: taskId,
-          image_url: base64Image,
+          image_url: base64Data,
           explanation: "",
         }),
       });
@@ -352,12 +381,13 @@ export default function PcBuildTrainingClient() {
         checkin_id: data.checkin_id,
         isAnalyzing: true,
         analysisError: null,
+        analysisMessage: "Đang đọc ảnh báo giá và bóc tách linh kiện...",
         submittedAt: new Date().toISOString(),
         status: "PENDING",
         isDraft: true,
       });
 
-      toast.success("Đang tải báo giá lên & phân tích chạy ngầm...");
+	      toast.success("Đang tải lên & kiểm tra cấu hình...");
       fetchTasks();
     } catch (err: any) {
       toast.error(err.message || "Tải ảnh thất bại.");
@@ -486,7 +516,7 @@ export default function PcBuildTrainingClient() {
               Đào tạo Build PC
             </h1>
             <p className="font-inter text-xs text-on-muted mt-1.5 max-w-2xl leading-relaxed">
-              Thực hành lắp cấu hình theo nhu cầu thực tế của khách hàng. AI sẽ tự động phân tích độ tương thích và chỉ bạn cách tối ưu cấu hình nếu có thể.
+              Dân chơi build PC thứ thiệt — quăng ảnh lên là có người review liền, khỏi lo sai.
             </p>
           </div>
         </div>
@@ -496,7 +526,7 @@ export default function PcBuildTrainingClient() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Số đề bài hôm nay</p>
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đề hôm nay</p>
             <p className="text-2xl font-extrabold font-manrope text-on-surface">{tasks.length}</p>
           </div>
           <div className="p-3 rounded-xl bg-violet-500/10 text-violet-600">
@@ -506,7 +536,7 @@ export default function PcBuildTrainingClient() {
 
         <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã hoàn thành</p>
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã làm</p>
             <p className="text-2xl font-extrabold font-manrope text-on-surface">
               {completedCount} <span className="text-xs font-normal text-on-muted">/ {tasks.length} đề</span>
             </p>
@@ -518,7 +548,7 @@ export default function PcBuildTrainingClient() {
 
         <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã được phê duyệt</p>
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Qua môn</p>
             <p className="text-2xl font-extrabold font-manrope text-emerald-600 dark:text-emerald-400">
               {approvedCount} <span className="text-xs font-normal text-on-muted">đề</span>
             </p>
@@ -534,20 +564,20 @@ export default function PcBuildTrainingClient() {
         <div className="flex items-center justify-between border-b border-surface-container pb-3">
           <h2 className="font-manrope text-base font-bold text-on-surface flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-violet-500" />
-            Nhiệm vụ đào tạo hàng ngày
+            📋 Đề ôn tập hôm nay
           </h2>
         </div>
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
-            <p className="text-xs text-on-muted font-medium">Đang tải danh sách bài tập...</p>
+            <p className="text-xs text-on-muted font-medium">Đang lấy đề...</p>
           </div>
         ) : tasks.length === 0 ? (
           <Card className="border-dashed border-2 border-surface-container bg-surface-mid/10 rounded-3xl">
             <CardContent className="py-16 text-center space-y-3">
               <FileText className="h-12 w-12 text-on-muted mx-auto" />
-              <p className="text-sm font-semibold text-on-surface">Chưa có đề bài nào được giao hôm nay</p>
+              <p className="text-sm font-semibold text-on-surface">Hôm nay chưa có đề, thư giãn đi bạn ơi ✨</p>
             </CardContent>
           </Card>
         ) : (
@@ -576,7 +606,7 @@ export default function PcBuildTrainingClient() {
                         {task.deadline && (
                           <span className="bg-rose-500/10 text-rose-600 px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border border-rose-500/10">
                             <Clock className="h-3 w-3" />
-                            Hạn nộp: {getCountdownLabel(task.deadline)}
+                            Chốt: {getCountdownLabel(task.deadline)}
                           </span>
                         )}
 
@@ -593,12 +623,12 @@ export default function PcBuildTrainingClient() {
                           )}>
                             {hasAnalysisError ? <AlertTriangle className="h-3.5 w-3.5" /> : state.isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                             {hasAnalysisError
-                              ? "AI lỗi - cần nộp lại"
+                              ? "Lỗi — làm lại đi bạn"
                               : state.isAnalyzing 
-                              ? "AI Đang phân tích chạy ngầm..." 
+                              ? "Đang check..." 
                               : (isSubmitted 
-                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài") 
-                                  : "Nháp phân tích (Chưa nộp)")
+                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Ngon lành 🎉" : "Đã gửi") 
+                                  : "Mới nháp")
                             }
                           </span>
                         )}
@@ -611,7 +641,7 @@ export default function PcBuildTrainingClient() {
                       <div className="flex flex-wrap items-center gap-4 text-xs text-on-muted">
                         <span className="flex items-center gap-1">
                           <Coins className="h-3.5 w-3.5 text-amber-500" />
-                          Ngân sách tối đa: <span className="font-bold text-on-surface text-sm">{formatVND(task.max_budget)}</span>
+                          💰 Ngân sách: <span className="font-bold text-on-surface text-sm">{formatVND(task.max_budget)}</span>
                         </span>
                       </div>
                     </div>
@@ -645,7 +675,7 @@ export default function PcBuildTrainingClient() {
           }) : [];
           const hasAnalysisError = !!state.analysisError || (isResultView && !state.isAnalyzing && !parts);
           const analysisErrorMessage =
-            state.analysisError || "AI chưa trả về kết quả phân tích hợp lệ. Bạn có thể nộp lại cấu hình mới.";
+            state.analysisError || "Chưa đọc được ảnh, thử tải lại cái khác nha.";
           
           const partsAnimDelay = checksAnimDelay + (checkKeys.length * 0.4) + 0.5;
           const finalResultAnimDelay = partsAnimDelay + (partsKeys.length * 0.3) + 1.0;
@@ -682,28 +712,28 @@ export default function PcBuildTrainingClient() {
                           <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
                             <Sparkles className="w-8 h-8" />
                           </div>
-                          <h2 className="text-2xl font-bold font-manrope">Nộp cấu hình PC</h2>
-                          <p className="text-on-muted text-sm">Vui lòng xem kỹ yêu cầu và tải lên ảnh báo giá linh kiện.</p>
+                          <h2 className="text-2xl font-bold font-manrope">Build PC — Gửi bài</h2>
+                          <p className="text-on-muted text-sm">Đọc yêu cầu bên dưới, chụp ảnh bảng giá rồi quăng lên đây.</p>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="space-y-4">
                             <div className="relative rounded-2xl bg-surface-mid/85 p-5 border border-surface-container space-y-3 shadow-inner">
                               <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider">
-                                <FileText className="w-4 h-4 text-violet-500" /> Nhu cầu khách hàng
+                                <FileText className="w-4 h-4 text-violet-500" /> 🎯 Khách muốn gì?
                               </h3>
                               <p className="text-sm font-semibold text-on-surface">{task.customer_need}</p>
                               
                               <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider mt-4">
-                                <Coins className="w-4 h-4 text-amber-500" /> Ngân sách tối đa
+                                <Coins className="w-4 h-4 text-amber-500" /> 💰 Ngân sách
                               </h3>
                               <p className="text-lg font-extrabold text-emerald-500">{formatVND(task.max_budget)}</p>
                               
                               <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider mt-4">
-                                <AlertTriangle className="w-4 h-4 text-rose-500" /> Yêu cầu chi tiết
+                                <AlertTriangle className="w-4 h-4 text-rose-500" /> ⚠️ Yêu cầu kèm theo
                               </h3>
                               <p className="text-sm text-on-surface-variant leading-relaxed">
-                                {task.requirements || "Không có yêu cầu ràng buộc cụ thể."}
+                                {task.requirements || "Không có yêu cầu gì thêm."}
                               </p>
                             </div>
                           </div>
@@ -741,16 +771,16 @@ export default function PcBuildTrainingClient() {
                                 <UploadCloud className="h-8 w-8" />
                               </div>
                               <p className="text-sm font-bold text-on-surface">
-                                {draggingTaskId === task.id ? "Thả ảnh vào đây" : "Kéo thả hoặc nhấn để tải ảnh"}
+                                {draggingTaskId === task.id ? "Thả ra đây nè" : "Kéo ảnh/Excel vô đây hoặc nhấn để chọn"}
                               </p>
                               <p className="text-xs text-on-muted mt-2 max-w-[220px] leading-relaxed font-medium">
-                                Hỗ trợ các định dạng JPG, PNG. Đảm bảo ảnh rõ nét để AI đọc bảng giá tốt nhất.
+                                Nhận JPG, PNG, WEBP, Excel nha ✌️
                               </p>
                               <input
                                 type="file"
                                 ref={(el) => { fileInputRefs.current[task.id] = el; }}
                                 onChange={(e) => handleImageSelect(task.id, e)}
-                                accept="image/*"
+                                accept="image/*,.xls,.xlsx"
                                 className="hidden"
                               />
                             </div>
@@ -759,66 +789,69 @@ export default function PcBuildTrainingClient() {
                      </div>
                    ) : (
                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-6 items-start">
-                        {/* Cột 1: Ảnh báo giá & Kiểm tra kỹ thuật */}
+                        {/* Cột 1: Ảnh báo giá & ⚡ Check tương thích */}
                         <div className="lg:col-span-5 space-y-6 w-full">
                           {/* 1. Ảnh báo giá */}
                           {/* 1. Ảnh báo giá dọc 9:16 tối ưu */}
                           <div className="w-full relative group">
-                             <div 
-                               className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md cursor-zoom-in relative bg-black/5"
-                               onClick={() => setSelectedImage(state.previewImage || null)}
-                             >
-                               <img 
-                                 src={state.previewImage || undefined} 
-                                 className="w-full h-full object-cover object-top transition-all duration-300" 
-                                 alt="Báo giá cấu hình"
-                               />
-                               <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors flex items-center justify-center">
-                                 <span className="bg-black/60 backdrop-blur-sm text-[10px] font-bold text-white px-3 py-1.5 rounded-full flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
-                                   <Sparkles className="w-3 h-3 text-amber-400" /> Xem ảnh rõ nét
-                                 </span>
-                               </div>
-                             </div>
+                            {(() => {
+                              const isExcel = state.previewImage?.startsWith("data:application/vnd") || state.previewImage?.includes("spreadsheetml") || state.previewImage?.includes("excel");
+                              if (isExcel) {
+                                return (
+                                  <div className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md relative bg-surface-container-low flex flex-col items-center justify-center p-6 text-center">
+                                    <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner mb-4">
+                                      <FileSpreadsheet className="h-8 w-8" />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <p className="text-sm font-bold text-on-surface">File báo giá Excel (.xlsx)</p>
+                                      <p className="text-xs text-on-muted">Đang xử lý file...</p>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div 
+                                  className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md cursor-zoom-in relative bg-black/5"
+                                  onClick={() => setSelectedImage(state.previewImage || null)}
+                                >
+                                  <img 
+                                    src={state.previewImage || undefined} 
+                                    className="w-full h-full object-cover object-top transition-all duration-300" 
+                                    alt="Ảnh linh kiện"
+                                  />
+                                  <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors flex items-center justify-center">
+                                    <span className="bg-black/60 backdrop-blur-sm text-[10px] font-bold text-white px-3 py-1.5 rounded-full flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                      <Sparkles className="w-3 h-3 text-amber-400" /> Xem ảnh lớn
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
 
                              {state.isAnalyzing && (
                                 <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 border border-white/10 z-10">
                                   <div className="scanner-line" />
                                   <div className="bg-surface-container-lowest/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-center gap-4 text-center max-w-sm shadow-2xl">
                                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                                    <h3 className="text-lg font-bold text-on-surface font-manrope">AI đang phân tích & kiểm tra</h3>
-                                    <p className="text-sm text-on-muted leading-relaxed">Đang bóc tách linh kiện và đối chiếu độ tương thích. Vui lòng chờ trong giây lát...</p>
+                                    <h3 className="text-lg font-bold text-on-surface font-manrope">
+                                      {state.analysisStep === "vision" ? "Check phiếu giá..." : "Đang kiểm tra cấu hình"}
+                                    </h3>
+                                    <p className="text-sm text-on-muted leading-relaxed">
+                                      {state.analysisMessage || (state.analysisStep === "vision"
+                                        ? "Đang đọc ảnh báo giá và bóc tách linh kiện..."
+                                        : "DeepSeek đang phân loại linh kiện và kiểm tra tương thích...")}
+                                    </p>
                                     <button
                                       type="button"
                                       onClick={() => setCancelingTaskId(task.id)}
                                       className="mt-4 text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 bg-rose-500/10 px-4 py-2 rounded-xl transition-all border-none"
                                     >
-                                      Hủy quét bài viết
+                                      Hủy xử lý
                                     </button>
                                   </div>
                                 </div>
                              )}
                           </div>
-
-                          {hasAnalysisError && (
-                            <div className="rounded-3xl border border-rose-500/25 bg-rose-500/10 p-5 space-y-3">
-                              <div className="flex items-start gap-3">
-                                <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
-                                <div>
-                                  <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400 font-manrope">AI chưa phân tích được báo giá</h3>
-                                  <p className="text-xs text-on-muted leading-relaxed mt-1">
-                                    {analysisErrorMessage}
-                                  </p>
-                                </div>
-                              </div>
-                              <Button
-                                onClick={() => setCancelingTaskId(task.id)}
-                                variant="outline"
-                                className="w-full rounded-xl font-bold font-manrope text-xs cursor-pointer border-rose-500/30 text-rose-600 bg-rose-500/10 hover:bg-rose-500/15"
-                              >
-                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Nộp lại cấu hình mới
-                              </Button>
-                            </div>
-                          )}
 
                           {/* 2. Khối Đang kiểm tra kỹ thuật (Tuần tự) */}
                           {!state.isAnalyzing && state.compatibilityChecks && (
@@ -828,7 +861,7 @@ export default function PcBuildTrainingClient() {
                                 animate={{ opacity: 1, x: 0 }}
                                 className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider"
                               >
-                                <Sparkles className="w-4 h-4 text-violet-500" /> Kiểm tra kỹ thuật
+                                <Sparkles className="w-4 h-4 text-violet-500" /> ⚡ Check tương thích
                               </motion.h3>
                               
                               <div className="flex flex-col gap-3">
@@ -881,29 +914,50 @@ export default function PcBuildTrainingClient() {
                           )}
                         </div>
 
-                        {/* Cột 2: Linh kiện bóc tách & Tổng hợp kết quả */}
+                        {/* Cột 2: 🔧 Linh kiện tìm thấy & Tổng hợp kết quả */}
                         <div className="lg:col-span-7 space-y-6 w-full">
                           {hasAnalysisError && (
-                            <div className="rounded-3xl border border-rose-500/25 bg-surface-container-low p-6 space-y-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                            <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-6 md:p-7 space-y-5 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                                <div className="w-11 h-11 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                                   <AlertTriangle className="h-5 w-5" />
                                 </div>
-                                <div className="space-y-1">
-                                  <h3 className="font-manrope text-base font-extrabold text-on-surface">Không có kết quả phân tích AI</h3>
-                                  <p className="text-xs text-on-muted leading-relaxed">{analysisErrorMessage}</p>
+                                <div className="space-y-2 min-w-0">
+                                  <div className="space-y-1">
+                                    <h3 className="font-manrope text-lg font-extrabold text-on-surface">Chưa đọc được ảnh bạn ơi</h3>
+                                    <p className="text-xs text-on-muted leading-relaxed max-w-xl">{analysisErrorMessage}</p>
+                                  </div>
+                                  <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    Cần làm lại
+                                  </div>
                                 </div>
                               </div>
-                              <Button
-                                onClick={() => setCancelingTaskId(task.id)}
-                                className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-none"
-                              >
-                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Xóa bản lỗi & nộp lại
-                              </Button>
+                              <div className="rounded-2xl border border-surface-container bg-surface-container-lowest/70 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-on-muted">Ảnh báo giá đã lưu</p>
+                                <p className="mt-1 text-xs text-on-surface-variant leading-relaxed">
+                                  Ảnh vẫn được giữ lại để bạn đối chiếu. Khi nộp lại, bản phân tích lỗi hiện tại sẽ được xóa trước.
+                                </p>
+                              </div>
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                <Button
+                                  onClick={() => setCancelingTaskId(task.id)}
+                                  className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-none shadow-sm"
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Xóa bản lỗi & nộp lại
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setActiveTaskId(null)}
+                                  className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer"
+                                >
+                                  Đóng
+                                </Button>
+                              </div>
                             </div>
                           )}
 
-                          {/* 3. Khối Linh kiện bóc tách (Tuần tự + CountUp) */}
+                          {/* 3. Khối 🔧 Linh kiện tìm thấy (Tuần tự + CountUp) */}
                           {!state.isAnalyzing && parts && partsKeys.length > 0 && (
                             <div className="space-y-4 bg-surface-container-low/40 p-5 rounded-3xl border border-surface-container">
                               <motion.div 
@@ -913,7 +967,7 @@ export default function PcBuildTrainingClient() {
                                 className="flex items-center justify-between border-b border-surface-container-high pb-3"
                               >
                                 <h3 className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider">
-                                  <Layers className="w-4 h-4 text-indigo-500" /> Linh kiện bóc tách
+                                  <Layers className="w-4 h-4 text-indigo-500" /> 🔧 Linh kiện tìm thấy
                                 </h3>
                                 <div className="text-right">
                                   <span className="text-[10px] text-on-muted uppercase font-bold block">Tổng tiền</span>
@@ -979,10 +1033,10 @@ export default function PcBuildTrainingClient() {
                                    {state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />}
                                  </div>
                                  <h2 className="text-xl font-black font-manrope mb-1">
-                                   {state.isApproved ? "CẤU HÌNH ĐẠT YÊU CẦU!" : "CẤU HÌNH CHƯA ĐẠT!"}
+                                   {state.isApproved ? "NGON — Chuẩn bài luôn!" : "CHƯA ỔN — Coi lại mấy món kia đi!"}
                                  </h2>
                                  <p className="text-xs font-medium opacity-90 max-w-md mx-auto leading-relaxed">
-                                   {state.approvalReason || "Hệ thống AI đã hoàn thành kiểm thử báo giá linh kiện."}
+                                   {state.approvalReason || "Đã check xong phần cứng, mời bạn xem kết quả."}
                                  </p>
                               </div>
 
@@ -990,13 +1044,13 @@ export default function PcBuildTrainingClient() {
                               {(!state.previewImage || state.isDraft) && (
                                 <div className="space-y-4 bg-surface-container-low p-5 rounded-3xl border border-surface-container">
                                   <h3 className="text-xs font-bold flex items-center gap-2 uppercase tracking-wider">
-                                    <FileText className="w-3.5 h-3.5 text-primary" /> Lời nhắn gửi Admin (Tùy chọn)
+                                    <FileText className="w-3.5 h-3.5 text-primary" /> 📝 Nhắn admin vài lời (không bắt buộc)
                                   </h3>
                                   <textarea
                                     rows={3}
                                     value={state.explanation}
                                     onChange={(e) => updateTaskState(task.id, { explanation: e.target.value })}
-                                    placeholder="Ví dụ: Cấu hình này đã tối ưu hiệu năng chơi game 2K trong tầm giá..."
+                                    placeholder="Ví dụ: Em chọn CPU này vì nó ngang tầm giá, main với nguồn đều oke hết..."
                                     className="w-full resize-none rounded-2xl border border-surface-container-high bg-surface-container px-4 py-3 font-inter text-xs outline-none focus:border-primary transition-all shadow-inner"
                                   />
                                   <div className="flex justify-end">
@@ -1005,7 +1059,7 @@ export default function PcBuildTrainingClient() {
                                       disabled={state.submitting}
                                       className="gradient-primary text-on-primary rounded-xl font-bold font-manrope text-xs px-6 py-4 cursor-pointer shadow-md hover:scale-105 transition-transform"
                                     >
-                                      {state.submitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> Đang nộp...</> : <><Send className="w-4 h-4 mr-1.5"/> Hoàn thành & Nộp bài</>}
+                                      {state.submitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> Đang nộp...</> : <><Send className="w-4 h-4 mr-1.5"/> 🔥 Gửi bài</>}
                                     </Button>
                                   </div>
                                 </div>
@@ -1018,7 +1072,7 @@ export default function PcBuildTrainingClient() {
                                     variant="outline"
                                     className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-surface-container-high text-on-muted bg-surface-container-low/50 hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all"
                                   >
-                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Nộp lại cấu hình mới
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Làm lại phiếu khác
                                   </Button>
                               </div>
                             </motion.div>
@@ -1051,7 +1105,7 @@ export default function PcBuildTrainingClient() {
             </button>
             <img
               src={selectedImage}
-              alt="Bản xem trước hóa đơn"
+              alt="Xem trước ảnh"
               className="w-full h-auto max-h-[90vh] object-contain rounded-2xl"
             />
           </div>
@@ -1062,14 +1116,14 @@ export default function PcBuildTrainingClient() {
       {cancelingTaskId && (() => {
         const taskState = getTaskState(cancelingTaskId);
         const isDraft = taskState.isDraft;
-        const isFailedAnalysis = !!taskState.analysisError;
+        const isFailedAnalysis = !!taskState.analysisError || (!!taskState.previewImage && !taskState.isAnalyzing && !taskState.extractedParts);
         return (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-transparent animate-in fade-in duration-200">
             <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
               <div className="flex items-center gap-3 text-rose-600">
                 <AlertTriangle className="h-6 w-6" />
                 <h3 className="text-sm font-bold text-on-surface font-manrope">
-                  {isFailedAnalysis ? "Nộp lại cấu hình mới" : isDraft ? "Xác nhận hủy cấu hình" : "Nộp lại cấu hình mới"}
+                  {isFailedAnalysis ? "Làm lại phiếu khác" : isDraft ? "Hủy bỏ phiếu này?" : "Làm lại phiếu khác"}
                 </h3>
               </div>
               <p className="text-xs text-on-muted leading-relaxed font-inter">
@@ -1082,7 +1136,7 @@ export default function PcBuildTrainingClient() {
               </p>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setCancelingTaskId(null)}>
-                  Quay lại
+                  Để coi lại
                 </Button>
                 <Button
                   className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-xs font-bold font-manrope cursor-pointer border-none"
@@ -1107,14 +1161,14 @@ export default function PcBuildTrainingClient() {
           <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 text-primary">
               <Sparkles className="h-6 w-6" />
-              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận nộp bài</h3>
+              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận gửi bài nha</h3>
             </div>
             <p className="text-xs text-on-muted leading-relaxed font-inter">
-              Bạn có chắc chắn muốn nộp cấu hình này để Admin phê duyệt không? Sau khi nộp, bạn vẫn có thể nộp lại cấu hình mới nếu cần thiết.
+              Gửi bài là admin xem liền á, mà lỡ gửi sai thì làm lại cũng được nha.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setSubmittingTaskId(null)}>
-                Quay lại
+                Để coi lại
               </Button>
               <Button
                 className="gradient-primary text-on-primary rounded-xl text-xs font-bold font-manrope cursor-pointer border-none shadow-md shadow-primary/10"
@@ -1125,7 +1179,7 @@ export default function PcBuildTrainingClient() {
                   setActiveTaskId(null);
                 }}
               >
-                Xác nhận nộp bài
+                Xác nhận gửi bài nha
               </Button>
             </div>
           </div>

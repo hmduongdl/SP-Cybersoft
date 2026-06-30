@@ -2,9 +2,10 @@ import { after, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getStartOfDayVN } from "@/lib/pc-kho";
-import { processBackgroundPcBuild } from "@/lib/pc-build-background-worker";
+import { processPcBuildVision } from "@/lib/pc-build-background-worker";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const DAILY_MAX = 5;
@@ -48,14 +49,16 @@ export async function POST(request: Request) {
       status: "PENDING",
       build_data: {
         is_analyzing: true,
+        analysis_step: "vision",
+        analysis_message: "Đang đọc ảnh báo giá và bóc tách linh kiện...",
         explanation: explanation || "",
       },
     },
   });
 
   after(() => {
-    processBackgroundPcBuild(checkin.id, "checkin", image_url, pc_task_id)
-      .catch((err) => console.error("[submit/route] Error running background task:", err));
+    processPcBuildVision(checkin.id, "checkin", image_url)
+      .catch((err) => console.error("[submit/route] Error running vision task:", err));
   });
 
   return NextResponse.json({
