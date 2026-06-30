@@ -165,7 +165,7 @@ Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không k
     async () => {
       console.log("[ai-vision-check] Attempting extraction with defaultAI (API Box Main)...");
       
-      const modelsToTry = [MODEL_VISION_ONLY, "gpt-4o-mini", "gemini-1.5-flash"];
+      const modelsToTry = [MODEL_VISION_ONLY];
       let lastErr: any = null;
 
       for (const model of modelsToTry) {
