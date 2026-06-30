@@ -70,7 +70,7 @@ export function useWorkspaceTasks() {
   );
 }
 
-/** Mọi task user tham gia (assignee/creator) trên mọi workspace — dùng cho thẻ Việc của tôi. */
+/** Mọi task được assign cho user trên mọi workspace — dùng cho thẻ Việc của tôi. */
 export function useMyTasks() {
   const { data: session } = useSession();
   const allTasks = useTaskStore((s) => s.workspaceCache["ALL"]?.tasks ?? EMPTY_TASKS);

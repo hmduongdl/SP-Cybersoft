@@ -6,24 +6,6 @@ export interface GeneratedPcBuildTask {
   requirements: string;
 }
 
-const FALLBACK_TASKS: GeneratedPcBuildTask[] = [
-  {
-    customer_need: "Sinh viên cần PC học lập trình và chơi game nhẹ (Valorant, LOL)",
-    max_budget: 18000000,
-    requirements: "CPU Core i5 hoặc Ryzen 5, RAM 16GB, SSD 512GB, card đồ họa rời GTX/RTX phân khúc phổ thông",
-  },
-  {
-    customer_need: "Designer làm đồ họa 2D Photoshop, Illustrator và thiết kế web",
-    max_budget: 25000000,
-    requirements: "CPU Core i5 hoặc Ryzen 5 trở lên, RAM 16GB hoặc 32GB, SSD 512GB NVMe, có card đồ họa rời",
-  },
-  {
-    customer_need: "Nhân viên văn phòng làm kế toán, nhập liệu, duyệt web nhiều tab",
-    max_budget: 10000000,
-    requirements: "CPU Core i3 hoặc i5, RAM 8GB hoặc 16GB, SSD 256GB hoặc 512GB, không cần VGA rời",
-  },
-];
-
 export async function generateDailyPcBuildTasks(count = 3): Promise<GeneratedPcBuildTask[]> {
   try {
     const response = await aibox.chat.completions.create({
@@ -64,5 +46,5 @@ Trả về định dạng JSON sau:
     console.error("[pc-build-task-ai]", err);
   }
 
-  return FALLBACK_TASKS.slice(0, count);
+  return [];
 }

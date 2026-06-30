@@ -5,7 +5,7 @@ import { checkAndResetQuota, recordTokenUsage } from "@/lib/ai-quota";
 import { db } from "@/lib/db";
 
 import { getActiveViewers } from "@/lib/task-note-collab";
-import { persistTaskNoteFromBlocks } from "@/lib/task-note-persist";
+import { persistTaskNoteFromBlocks, extractTextFromBlockNote } from "@/lib/task-note-persist";
 import {
   markdownToBlockNoteBlocks,
   mergeTaskNoteWithAI,
@@ -114,32 +114,54 @@ export async function POST(req: NextRequest) {
         .filter((v) => v.userId !== session.user!.id)
         .map((v) => v.userName || "Ai đó");
 
-      let markdown: string;
+      let blocks: any[];
+      let savedNote: any = serverNote;
+      let shouldCallAI = true;
 
       if (action === "sync") {
-        markdown = await mergeTaskNoteWithAI({
-          taskTitle: task?.title,
-          serverContent: (serverNote?.content as unknown[]) ?? null,
-          localContent,
-          serverEditedBy: serverNote?.last_edited_by_name,
-          otherViewerNames,
-        });
-      } else {
-        markdown = await rewriteTaskNoteWithAI({
-          taskTitle: task?.title,
-          content: localContent,
+        const serverText = serverNote?.content
+          ? extractTextFromBlockNote(serverNote.content as any[])
+          : "";
+        const localText = extractTextFromBlockNote(localContent);
+
+        // If server note is empty or local content matches server content exactly, skip AI merge
+        if (!serverText || serverText.trim() === localText.trim()) {
+          shouldCallAI = false;
+          blocks = localContent;
+          savedNote = await persistTaskNoteFromBlocks(taskId, localContent, {
+            id: session.user.id,
+            name: session.user.name || session.user.email || null,
+          });
+        }
+      }
+
+      if (shouldCallAI) {
+        let markdown: string;
+        if (action === "sync") {
+          markdown = await mergeTaskNoteWithAI({
+            taskTitle: task?.title,
+            serverContent: (serverNote?.content as unknown[]) ?? null,
+            localContent,
+            serverEditedBy: serverNote?.last_edited_by_name,
+            otherViewerNames,
+          });
+        } else {
+          markdown = await rewriteTaskNoteWithAI({
+            taskTitle: task?.title,
+            content: localContent,
+          });
+        }
+
+        blocks = markdownToBlockNoteBlocks(markdown);
+        savedNote = await persistTaskNoteFromBlocks(taskId, blocks, {
+          id: session.user.id,
+          name: session.user.name || session.user.email || null,
         });
       }
 
-      const blocks = markdownToBlockNoteBlocks(markdown);
-      const savedNote = await persistTaskNoteFromBlocks(taskId, blocks as any[], {
-        id: session.user.id,
-        name: session.user.name || session.user.email || null,
-      });
-
       return NextResponse.json({
         success: true,
-        content: blocks,
+        content: blocks!,
         note: savedNote,
       });
     }
@@ -649,10 +671,10 @@ PHONG CÁCH TRẢ LỜI:
                   }
                   finalTags.push({ id: techTag.id });
                 } else if (ws.name === "Website" || ws.name === "Web") {
-                  let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Web" } });
+                  let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Website" } });
                   if (!webTag) {
                     webTag = await db.tag.create({
-                      data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: userId }
+                      data: { name: "Website", color: "#10b981", workspace_id: ws.id, user_id: userId }
                     });
                   }
                   finalTags.push({ id: webTag.id });

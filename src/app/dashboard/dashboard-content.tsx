@@ -27,8 +27,11 @@ export default async function DashboardContent() {
           status: { not: "DONE" },
           due_date: { not: null },
           OR: [
-            { creator_id: userId },
-            { assignees: { some: { user_id: userId } } }
+            { assignees: { some: { user_id: userId } } },
+            {
+              creator_id: userId,
+              assignees: { none: {} }
+            }
           ]
         },
         orderBy: { due_date: 'asc' },

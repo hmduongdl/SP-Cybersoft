@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { copyMarkdownAsRichText } from "@/utils/clipboard";
 
 export async function copyToClipboard(text: string, successMessage: string) {
   if (!text.trim()) {
@@ -6,10 +7,9 @@ export async function copyToClipboard(text: string, successMessage: string) {
     return;
   }
 
-  try {
-    await navigator.clipboard.writeText(text);
+  if (await copyMarkdownAsRichText(text)) {
     toast.success(successMessage);
-  } catch {
+  } else {
     toast.error("Không thể copy vào clipboard");
   }
 }

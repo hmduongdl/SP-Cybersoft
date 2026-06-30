@@ -11,6 +11,7 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { CustomPropertyField, TYPE_ICONS, TYPE_LABELS, CustomPropertyDefinition } from "./CustomPropertyField";
 import { TaskNoteEditor } from "./TaskNoteEditor";
+import { useSession } from "next-auth/react";
 
 // Helper: convert a user-facing value back to DB column fields for optimistic updates
 function valueToFields(type: string, value: any) {
@@ -60,6 +61,29 @@ export function TaskDetailPanel() {
 
   const task = useMemo(() => tasks.find((t) => t.id === selectedTaskId), [tasks, selectedTaskId]);
 
+  const { data: session } = useSession();
+
+  const isCompanyWorkspace = useMemo(() => {
+    if (!task?.workspace_id) return false;
+    const ws = workspaces.find(w => w.id === task.workspace_id);
+    if (!ws) return false;
+    return ws.type === "WEBSITE" || ws.type === "TECH" || ["Tech", "Website", "Web"].includes(ws.name);
+  }, [task?.workspace_id, workspaces]);
+
+  const canEditNote = useMemo(() => {
+    if (!session?.user) return false;
+    if (session.user.role === "ADMIN") return true;
+
+    // For non-admin user:
+    if (isCompanyWorkspace) {
+      // Must be an assignee to edit
+      const isAssignee = task?.assignees?.some(a => a.id === session.user.id);
+      return !!isAssignee;
+    }
+
+    return true; // Outside company workspaces, other users who can access can edit.
+  }, [session, task, isCompanyWorkspace]);
+
   const [assigneeSearch, setAssigneeSearch] = useState("");
   const [showAssigneePicker, setShowAssigneePicker] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -77,6 +101,17 @@ export function TaskDetailPanel() {
     "idle" | "saving" | "saved" | "error"
   >("idle");
   const [editingDueDate, setEditingDueDate] = useState(false);
+
+  // Local states for Title and Description to avoid multiple rapid backend PATCH requests
+  const [localTitle, setLocalTitle] = useState("");
+  const [localDesc, setLocalDesc] = useState("");
+
+  useEffect(() => {
+    if (task) {
+      setLocalTitle(task.title || "");
+      setLocalDesc(task.description || "");
+    }
+  }, [task?.id, task?.title, task?.description]);
 
   // Cache workspace defs to avoid redundant fetches
   const wsDefsCache = useRef<Record<string, CustomPropertyDefinition[]>>({});
@@ -311,15 +346,19 @@ export function TaskDetailPanel() {
     updateTask(t.id, { status: nextStatus });
   };
 
-  const updateTaskTitle = (newTitle: string) => {
+  const handleTitleBlur = () => {
     if (task) {
-      updateTask(task.id, { title: newTitle });
+      if (localTitle.trim() === "") {
+        setLocalTitle(task.title);
+      } else if (localTitle !== task.title) {
+        updateTask(task.id, { title: localTitle });
+      }
     }
   };
 
-  const updateTaskDescription = (newDesc: string) => {
-    if (task) {
-      updateTask(task.id, { description: newDesc });
+  const handleDescBlur = () => {
+    if (task && localDesc !== (task.description || "")) {
+      updateTask(task.id, { description: localDesc });
     }
   };
 
@@ -381,16 +420,18 @@ export function TaskDetailPanel() {
 
               {/* Title Input */}
               <input
-                value={task.title}
-                onChange={e => updateTaskTitle(e.target.value)}
+                value={localTitle}
+                onChange={e => setLocalTitle(e.target.value)}
+                onBlur={handleTitleBlur}
                 className="w-full text-2xl font-bold text-on-surface border-none outline-none focus:ring-0 p-0 mb-2 bg-transparent placeholder:text-on-muted/60"
                 placeholder="Nhập tiêu đề công việc..."
               />
 
               {/* Description Input */}
               <textarea
-                value={task.description || ""}
-                onChange={e => updateTaskDescription(e.target.value)}
+                value={localDesc}
+                onChange={e => setLocalDesc(e.target.value)}
+                onBlur={handleDescBlur}
                 className="w-full text-sm text-on-muted border-none outline-none focus:ring-0 p-0 mb-4 bg-transparent placeholder:text-on-muted/70 resize-none min-h-[40px]"
                 placeholder="Thêm mô tả công việc (tùy chọn)..."
                 rows={2}
@@ -663,10 +704,9 @@ export function TaskDetailPanel() {
                     <TaskNoteEditor
                       key={selectedTaskId}
                       taskId={selectedTaskId}
-                      initialContent={task?.note?.content}
-                      initialRevision={task?.note?.revision ?? 0}
                       isDarkMode={isDarkMode}
                       onSaveStatusChange={setNoteSaveStatus}
+                      editable={canEditNote}
                     />
                   )}
                 </div>

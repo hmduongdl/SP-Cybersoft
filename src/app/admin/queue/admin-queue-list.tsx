@@ -18,6 +18,11 @@ function getTabFilter(status: string, module: string): string[] {
   return ["PENDING"];
 }
 
+function isSubmittedPcSubmission(submission: { parts_answer: unknown }) {
+  const parts = submission.parts_answer as { is_draft?: unknown; is_analyzing?: unknown } | null;
+  return parts?.is_draft === false && parts?.is_analyzing !== true;
+}
+
 export default async function AdminQueueList(props: {
   searchParams?: Promise<{ page?: string; tab?: string; search?: string; dept?: string; module?: string }>;
 }) {
@@ -38,12 +43,13 @@ export default async function AdminQueueList(props: {
     getCachedAllPcSubmissions(),
   ]);
 
-  const pcPendingCount = allPcSubmissions.filter((s) => s.status === "PENDING").length;
+  const submittedPcSubmissions = allPcSubmissions.filter(isSubmittedPcSubmission);
+  const pcPendingCount = submittedPcSubmissions.filter((s) => s.status === "PENDING").length;
   const likeSharePendingCount = allCheckins.filter((c) => c.status === "PENDING").length;
 
   if (module === "build-pc") {
     const tabStatuses = getTabFilter(activeTab, module);
-    let filtered = allPcSubmissions.filter((s) => tabStatuses.includes(s.status));
+    let filtered = submittedPcSubmissions.filter((s) => tabStatuses.includes(s.status));
 
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
@@ -59,7 +65,7 @@ export default async function AdminQueueList(props: {
 
     const totalPages = Math.ceil(filtered.length / PER_PAGE);
     const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
-    const reviewedCount = allPcSubmissions.filter(
+    const reviewedCount = submittedPcSubmissions.filter(
       (s) => s.status === "APPROVED" || s.status === "REJECTED"
     ).length;
 

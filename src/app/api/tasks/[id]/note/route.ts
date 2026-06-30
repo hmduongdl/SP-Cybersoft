@@ -73,6 +73,34 @@ export async function POST(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Check company workspace assignment permissions
+    const task = await db.task.findUnique({
+      where: { id: taskId },
+      include: {
+        workspace: { select: { name: true, type: true } },
+        assignees: { select: { user_id: true } }
+      }
+    });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const isCompanyWorkspace =
+      task.workspace.type === "WEBSITE" ||
+      task.workspace.type === "TECH" ||
+      ["Tech", "Website", "Web"].includes(task.workspace.name);
+
+    if (isCompanyWorkspace && session.user.role !== "ADMIN") {
+      const isAssignee = task.assignees.some(a => a.user_id === session.user.id);
+      if (!isAssignee) {
+        return NextResponse.json(
+          { error: "Bạn không có quyền chỉnh sửa ghi chú trong không gian của công ty khi chưa được phân công nhiệm vụ." },
+          { status: 403 }
+        );
+      }
+    }
+
     const body = await req.json();
     const { content } = body;
 

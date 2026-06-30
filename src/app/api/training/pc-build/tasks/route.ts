@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getStartOfDayVN } from "@/lib/pc-kho";
-import { generateDailyPcBuildTasks } from "@/lib/pc-build-task-ai";
 
 export const dynamic = "force-dynamic";
 
@@ -21,26 +20,10 @@ export async function GET() {
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
 
-  let tasks = await db.pcBuildTask.findMany({
+  const tasks = await db.pcBuildTask.findMany({
     where: { date: { gte: today, lt: tomorrow } },
     orderBy: { created_at: "asc" },
   });
-
-  if (tasks.length === 0) {
-    const generated = await generateDailyPcBuildTasks(3);
-    await db.pcBuildTask.createMany({
-      data: generated.map((t) => ({
-        date: today,
-        customer_need: t.customer_need,
-        max_budget: t.max_budget,
-        requirements: t.requirements,
-      })),
-    });
-    tasks = await db.pcBuildTask.findMany({
-      where: { date: { gte: today, lt: tomorrow } },
-      orderBy: { created_at: "asc" },
-    });
-  }
 
   const userSubmissions = await db.checkin.findMany({
     where: {

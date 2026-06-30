@@ -12,42 +12,6 @@ export interface GeneratedExercise {
   difficulty: "easy" | "medium" | "hard";
 }
 
-const FALLBACK_EXERCISES: GeneratedExercise[] = [
-  {
-    title: "PC Gaming tầm trung khoảng 20 triệu",
-    description: "Lắp cấu hình chơi game Full HD (Valorant, LOL, PUBG) mượt mà.",
-    requirements: {
-      budget: 20000000,
-      useCase: "Gaming 1080p",
-      constraints: ["CPU Core i5 hoặc Ryzen 5", "RAM tối thiểu 16GB", "SSD từ 512GB trở lên", "Có card đồ họa rời (VGA)"],
-      hints: ["Ưu tiên nguồn từ 550W trở lên để đảm bảo công suất", "SSD nên chọn chuẩn NVMe"],
-    },
-    difficulty: "medium",
-  },
-  {
-    title: "PC Văn phòng tiết kiệm 10 triệu",
-    description: "Cấu hình làm việc văn phòng nhẹ nhàng, xem phim, lướt web.",
-    requirements: {
-      budget: 10000000,
-      useCase: "Office / Study",
-      constraints: ["CPU Core i3 hoặc Ryzen 3 trở lên", "RAM tối thiểu 8GB", "SSD từ 256GB trở lên", "Không cần VGA rời"],
-      hints: ["Chọn CPU có tích hợp đồ họa (iGPU)", "Chọn vỏ case gọn gàng"],
-    },
-    difficulty: "easy",
-  },
-  {
-    title: "PC Đồ họa & Render 40 triệu",
-    description: "Dựng hình 3D, thiết kế đồ họa nặng và render video dài.",
-    requirements: {
-      budget: 40000000,
-      useCase: "Content Creation / Rendering",
-      constraints: ["CPU Core i7 hoặc Ryzen 7", "RAM từ 32GB trở lên", "SSD NVMe từ 1TB trở lên", "Card đồ họa rời chuyên dụng"],
-      hints: ["Nên chọn tản nhiệt khí lớn hoặc tản nhiệt nước để mát CPU khi render", "Nguồn công suất thực từ 750W trở lên"],
-    },
-    difficulty: "hard",
-  },
-];
-
 export async function generateDailyExercises(count = 3): Promise<GeneratedExercise[]> {
   try {
     const response = await aibox.chat.completions.create({
@@ -96,7 +60,7 @@ Trả về định dạng JSON sau:
     console.error("[pc-exercise-ai] generation failed:", err);
   }
 
-  return FALLBACK_EXERCISES.slice(0, count);
+  return [];
 }
 
 export async function reviewPcSubmission(params: {

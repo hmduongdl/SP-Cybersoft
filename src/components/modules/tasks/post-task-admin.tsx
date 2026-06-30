@@ -452,11 +452,11 @@ export function PostTaskAdmin() {
   });
 
   return (
-    <div className="space-y-6 p-1 md:p-4 animate-in fade-in duration-200">
+    <div className="animate-in fade-in duration-200">
       <Toaster position="top-right" richColors />
 
       {/* Header Info */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="font-manrope text-xl font-bold text-on-surface">Quản lý Task & Bài Tập</h1>
           <p className="font-inter text-xs text-on-muted">Quản trị các bài tập Build PC và nhiệm vụ Like-Share Facebook</p>
@@ -468,7 +468,7 @@ export function PostTaskAdmin() {
       </div>
 
       {/* View switcher tabs */}
-      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-sm">
+      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-sm mb-6">
         <button
           onClick={() => setAdminTab("share_post")}
           className={cn(
@@ -496,7 +496,7 @@ export function PostTaskAdmin() {
       </div>
 
       {/* Date & status filters */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-high bg-surface-mid p-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-high bg-surface-mid px-6 py-4 mb-6">
         <MonthWeekFilter filter={monthFilter} />
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-500 uppercase">Trạng thái:</span>
@@ -513,7 +513,7 @@ export function PostTaskAdmin() {
       </div>
 
       {/* Table list */}
-      <Card className="overflow-hidden border border-slate-100 shadow-ambient bg-surface-mid rounded-3xl">
+      <div className="bg-surface-mid border border-surface-container-high rounded-3xl overflow-hidden shadow-ambient">
         {loadingPosts ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -528,7 +528,7 @@ export function PostTaskAdmin() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-surface-container bg-surface-mid/60 text-xs font-bold text-on-surface uppercase font-manrope">
-                  <th className="px-5 py-4 w-12 text-center">
+                  <th className="px-6 py-4 w-12 text-center">
                     <input
                       type="checkbox"
                       checked={selectedIds.length === postsOfTab.length && postsOfTab.length > 0}
@@ -536,15 +536,14 @@ export function PostTaskAdmin() {
                       className="rounded border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                     />
                   </th>
-                  <th className="px-5 py-4 w-16">Ảnh</th>
-                  <th className="px-5 py-4">
+                  <th className="px-6 py-4 w-16">Ảnh</th>
+                  <th className="px-6 py-4">
                     {adminTab === "pc_build" ? "Nhu cầu của khách" : "Tiêu đề bài đăng Facebook"}
                   </th>
-                  <th className="px-5 py-4 w-28">Thể loại</th>
-                  <th className="px-5 py-4 w-44">Ngày giao / Hạn nộp</th>
-                  <th className="px-5 py-4 w-32 text-center">Đã duyệt</th>
-                  <th className="px-5 py-4 w-28">Trạng thái</th>
-                  <th className="px-5 py-4 text-right w-36">Hành động</th>
+                  <th className="px-6 py-4 w-44">DEADLINE</th>
+                  <th className="px-6 py-4 w-32 text-center">Đã duyệt</th>
+                  <th className="px-6 py-4 w-28">Trạng thái</th>
+                  <th className="px-6 py-4 text-right w-36">Hành động</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container-low bg-surface-container-lowest font-inter text-xs">
@@ -560,7 +559,7 @@ export function PostTaskAdmin() {
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-6 py-4 text-center">
                         <input
                           type="checkbox"
                           checked={isChecked}
@@ -570,7 +569,7 @@ export function PostTaskAdmin() {
                       </td>
 
                       {/* Thumbnail / Icon */}
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center overflow-hidden shadow-sm">
                           {isPcBuild ? (
                             <Cpu className="h-5 w-5 text-primary" />
@@ -581,7 +580,7 @@ export function PostTaskAdmin() {
                       </td>
 
                       {/* Title & description */}
-                      <td className="px-5 py-4 max-w-sm">
+                      <td className="px-6 py-4 max-w-sm">
                         <div className="space-y-0.5">
                           <span className="font-semibold text-on-surface block truncate">
                             {isPcBuild ? `💻 Bài tập: ${post.description}` : post.title}
@@ -594,21 +593,11 @@ export function PostTaskAdmin() {
                         </div>
                       </td>
 
-                      {/* Type Badge */}
-                      <td className="px-5 py-4">
-                        <span className={cn(
-                          "px-2 py-0.5 rounded-lg text-[10px] font-extrabold uppercase font-manrope border-none",
-                          isPcBuild ? "bg-primary/10 text-primary" : "bg-indigo-100 text-indigo-700"
-                        )}>
-                          {isPcBuild ? "Build PC" : "Like-Share"}
-                        </span>
-                      </td>
-
                       {/* Date */}
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         <div className="space-y-0.5">
                           <span className="font-medium text-on-surface-variant block">
-                            Giao: {formatDateTime(post.start_at)}
+                            {formatDateTime(post.start_at)}
                           </span>
                           {post.deadline && (
                             <span className="text-[10px] font-bold text-rose-600 block">
@@ -619,7 +608,7 @@ export function PostTaskAdmin() {
                       </td>
 
                       {/* Checkin rate / View submissions */}
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-6 py-4 text-center">
                         <button
                           onClick={() => handleOpenSubmissionsDrawer(post)}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 border-none font-inter hover:bg-emerald-500/20 transition-all cursor-pointer"
@@ -629,7 +618,7 @@ export function PostTaskAdmin() {
                       </td>
 
                       {/* Status */}
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         <span className={cn(
                           "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border-none font-inter",
                           post.is_archived ? "bg-rose-500/10 text-rose-600" : "bg-emerald-500/10 text-emerald-700"
@@ -639,7 +628,7 @@ export function PostTaskAdmin() {
                       </td>
 
                       {/* Actions */}
-                      <td className="px-5 py-4 text-right">
+                      <td className="px-6 py-4 text-right">
                         <div className="flex justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenSubmissionsDrawer(post)}
@@ -679,7 +668,7 @@ export function PostTaskAdmin() {
           </div>
         )}
         {!loadingPosts && filteredPosts.length > 0 && (
-          <div className="px-5 py-4 border-t border-surface-container">
+          <div className="px-6 py-4 border-t border-surface-container">
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -687,7 +676,7 @@ export function PostTaskAdmin() {
             />
           </div>
         )}
-      </Card>
+      </div>
 
       {/* CREATE/EDIT FORM MODAL */}
       {isModalOpen && (

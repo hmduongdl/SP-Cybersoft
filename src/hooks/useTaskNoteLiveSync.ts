@@ -183,7 +183,7 @@ export function useTaskNoteLiveSync(
   ]);
 }
 
-export function useTypingGuard(isTypingRef: MutableRefObject<boolean>) {
+export function useTypingGuard(isTypingRef: MutableRefObject<boolean>, onTypingStopped?: () => void) {
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const markTyping = () => {
@@ -192,6 +192,7 @@ export function useTypingGuard(isTypingRef: MutableRefObject<boolean>) {
     typingTimerRef.current = setTimeout(() => {
       isTypingRef.current = false;
       typingTimerRef.current = null;
+      onTypingStopped?.();
     }, TYPING_IDLE_MS);
   };
 
@@ -201,6 +202,7 @@ export function useTypingGuard(isTypingRef: MutableRefObject<boolean>) {
       clearTimeout(typingTimerRef.current);
       typingTimerRef.current = null;
     }
+    onTypingStopped?.();
   };
 
   useEffect(() => {

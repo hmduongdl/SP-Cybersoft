@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -26,7 +26,14 @@ interface PcSubmissionItem {
   status: string;
   submitted_at: string | Date;
   explanation: string;
-  parts_answer: Array<{ name: string; price: number; category: string; reason?: string }>;
+  parts_answer:
+    | Array<{ name: string; price: number; category: string; reason?: string }>
+    | {
+        parts?: Array<{ name: string; price: number; category: string; reason?: string }>;
+        total_price?: number;
+        temp_ai_score?: number;
+        temp_ai_feedback?: string;
+      };
   image_urls: string[];
   ai_score: number | null;
   ai_feedback: string | null;
@@ -59,6 +66,18 @@ interface Props {
 
 const presetReasons = ["Linh kiện không tương thích", "Vượt ngân sách", "Giải thích chưa đủ", "Sai yêu cầu đề bài"];
 
+function getSubmissionParts(partsAnswer: PcSubmissionItem["parts_answer"]) {
+  if (Array.isArray(partsAnswer)) return partsAnswer;
+  return Array.isArray(partsAnswer?.parts) ? partsAnswer.parts : [];
+}
+
+function getSubmissionTotal(partsAnswer: PcSubmissionItem["parts_answer"], parts: ReturnType<typeof getSubmissionParts>) {
+  if (!Array.isArray(partsAnswer) && typeof partsAnswer?.total_price === "number") {
+    return partsAnswer.total_price;
+  }
+  return parts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+}
+
 export default function BuildPcQueueClient({
   initialSubmissions,
   currentPage = 1,
@@ -81,6 +100,15 @@ export default function BuildPcQueueClient({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+
+  useEffect(() => {
+    setSubmissions(initialSubmissions);
+    setActiveTab(initialTab);
+    setSearchTerm(initialSearch);
+    setDeptFilter(initialDept);
+    setSelectedIds(new Set());
+    setExpandedId(null);
+  }, [initialSubmissions, initialTab, initialSearch, initialDept]);
 
   const updateUrl = (params: Record<string, string>) => {
     const p = new URLSearchParams(searchParams.toString());
@@ -222,10 +250,12 @@ export default function BuildPcQueueClient({
           <p className="py-12 text-center text-sm text-on-muted">Không có bài nộp.</p>
         ) : (
           submissions.map((s) => {
-            const parts = (s.parts_answer as PcSubmissionItem["parts_answer"]) || [];
+            const parts = getSubmissionParts(s.parts_answer);
             const images = (s.image_urls as string[]) || [];
-            const totalPrice = parts.reduce((sum, p) => sum + (p.price || 0), 0);
+            const totalPrice = getSubmissionTotal(s.parts_answer, parts);
             const isExpanded = expandedId === s.id;
+            const aiScore = s.ai_score ?? (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_score ?? null : null);
+            const aiFeedback = s.ai_feedback || (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_feedback || null : null);
 
             return (
               <div key={s.id} className="rounded-2xl border border-surface-container-high bg-surface-mid overflow-hidden">
@@ -255,10 +285,10 @@ export default function BuildPcQueueClient({
                     <p className="font-inter text-[10px] text-on-muted">
                       {new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
                     </p>
-                    {s.ai_score != null && (
+                    {aiScore != null && (
                       <p className="mt-1 flex items-center gap-1 font-inter text-[10px] text-on-muted">
                         <Sparkles className="h-3 w-3 text-primary" />
-                        AI: {Math.round(s.ai_score)}đ — {s.ai_feedback}
+                        AI: {Math.round(aiScore)}đ — {aiFeedback}
                       </p>
                     )}
                   </div>

@@ -108,24 +108,23 @@ export async function POST() {
         { is_archived: false },
         {
           OR: [
-            // Direct assignment
-            { creator_id: userId },
-            // Multi-assignee support
+            // User is explicitly assigned
             { assignees: { some: { user_id: userId } } },
-            // Workspace-level: user is a collaborator in the workspace that owns this task
+            // OR the task is unassigned and the user is involved (creator, workspace owner, or collaborator)
             {
-              workspace: {
-                collaborators: {
-                  some: { user_id: userId },
-                },
-              },
-            },
-            // Workspace-level: user is the workspace owner
-            {
-              workspace: {
-                owner_id: userId,
-              },
-            },
+              assignees: { none: {} },
+              OR: [
+                { creator_id: userId },
+                { workspace: { owner_id: userId } },
+                {
+                  workspace: {
+                    collaborators: {
+                      some: { user_id: userId }
+                    }
+                  }
+                }
+              ]
+            }
           ],
         },
       ],
