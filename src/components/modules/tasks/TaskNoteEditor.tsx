@@ -20,6 +20,7 @@ import { useTaskNoteBlockLock } from "@/hooks/useTaskNoteBlockLock";
 import { useTaskStore } from "@/store/useTaskStore";
 import { stripSlashCommandSuffix } from "@/lib/task-note-slash";
 import { getTaskNoteSlashMenuItems } from "./task-note-slash-items";
+import { Loader2 } from "lucide-react";
 
 const SAVE_DEBOUNCE_MS = 600;
 const SAVED_STATUS_MS = 2500;
@@ -35,14 +36,16 @@ type TaskNoteEditorProps = {
   initialRevision?: number;
   isDarkMode: boolean;
   onSaveStatusChange?: (status: NoteSaveStatus) => void;
+  editable?: boolean;
 };
 
-export function TaskNoteEditor({
+function TaskNoteEditorInner({
   taskId,
   initialContent,
   initialRevision = 0,
   isDarkMode,
   onSaveStatusChange,
+  editable = true,
 }: TaskNoteEditorProps) {
   const { data: session } = useSession();
   const updateTaskNote = useTaskStore((s) => s.updateTaskNote);
@@ -57,8 +60,6 @@ export function TaskNoteEditor({
   const blockWarnedRef = useRef<string | null>(null);
   const statusRef = useRef<NoteSaveStatus>("idle");
   const savedTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const { markTyping, clearTyping } = useTypingGuard(isTypingRef);
-
   const publishStatus = (status: NoteSaveStatus) => {
     statusRef.current = status;
     onSaveStatusChange?.(status);
@@ -80,6 +81,10 @@ export function TaskNoteEditor({
       noteDebounceRef.current === null &&
       !isSavingRef.current;
   };
+
+  const { markTyping, clearTyping } = useTypingGuard(isTypingRef, () => {
+    syncCanApplyRemote();
+  });
 
   const [collabState, setCollabState] = useState<NoteCollabState>({
     locks: [],
@@ -266,7 +271,7 @@ export function TaskNoteEditor({
     if (!editor) return;
 
     const unsubscribe = editor.onChange(() => {
-      if (skipSaveRef.current) return;
+      if (skipSaveRef.current || !editable) return;
 
       markTyping();
       syncCanApplyRemote();
@@ -300,11 +305,25 @@ export function TaskNoteEditor({
       }, SAVE_DEBOUNCE_MS);
     });
 
-    return () => {
-      unsubscribe();
+    const handleUnload = () => {
       if (noteDebounceRef.current) {
         clearTimeout(noteDebounceRef.current);
         noteDebounceRef.current = null;
+        void updateTaskNote(taskId, editor.document).catch(() => {});
+      }
+    };
+
+    window.addEventListener("beforeunload", handleUnload);
+    document.addEventListener("visibilitychange", handleUnload);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("beforeunload", handleUnload);
+      document.removeEventListener("visibilitychange", handleUnload);
+      if (noteDebounceRef.current) {
+        clearTimeout(noteDebounceRef.current);
+        noteDebounceRef.current = null;
+        void updateTaskNote(taskId, editor.document).catch(() => {});
       }
       if (savedTimerRef.current) {
         clearTimeout(savedTimerRef.current);
@@ -374,23 +393,83 @@ export function TaskNoteEditor({
           ))}
         </div>
       )}
-      <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} slashMenu={false}>
-        <SuggestionMenuController
-          triggerCharacter="/"
-          getItems={async (query) =>
-            filterSuggestionItems(
-              [
-                ...getTaskNoteSlashMenuItems(editor, {
-                  onSync: () => aiHandlersRef.current.onSync(),
-                  onRewrite: () => aiHandlersRef.current.onRewrite(),
-                }),
-                ...getDefaultReactSlashMenuItems(editor),
-              ],
-              query
-            )
-          }
-        />
+      <BlockNoteView editor={editor} theme={isDarkMode ? "dark" : "light"} slashMenu={false} editable={editable}>
+        {editable && (
+          <SuggestionMenuController
+            triggerCharacter="/"
+            getItems={async (query) =>
+              filterSuggestionItems(
+                [
+                  ...getTaskNoteSlashMenuItems(editor, {
+                    onSync: () => aiHandlersRef.current.onSync(),
+                    onRewrite: () => aiHandlersRef.current.onRewrite(),
+                  }),
+                  ...getDefaultReactSlashMenuItems(editor),
+                ],
+                query
+              )
+            }
+          />
+        )}
       </BlockNoteView>
     </div>
+  );
+}
+
+export function TaskNoteEditor({
+  taskId,
+  isDarkMode,
+  onSaveStatusChange,
+  editable = true,
+}: Omit<TaskNoteEditorProps, "initialContent" | "initialRevision">) {
+  const [loading, setLoading] = useState(true);
+  const [noteData, setNoteData] = useState<{ content: any; revision: number } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setNoteData(null);
+
+    async function loadNote() {
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/note`, {
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache" },
+        });
+        if (!res.ok) throw new Error("failed to load note");
+        const data = await res.json();
+        if (!active) return;
+        setNoteData(data.note ? { content: data.note.content, revision: data.note.revision } : null);
+      } catch (err) {
+        console.error("Failed to pre-load note:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void loadNote();
+    return () => {
+      active = false;
+    };
+  }, [taskId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 gap-2 text-xs text-on-muted">
+        <Loader2 className="animate-spin text-primary" size={16} />
+        <span>Đang tải ghi chú...</span>
+      </div>
+    );
+  }
+
+  return (
+    <TaskNoteEditorInner
+      taskId={taskId}
+      initialContent={noteData?.content}
+      initialRevision={noteData?.revision ?? 0}
+      isDarkMode={isDarkMode}
+      onSaveStatusChange={onSaveStatusChange}
+      editable={editable}
+    />
   );
 }

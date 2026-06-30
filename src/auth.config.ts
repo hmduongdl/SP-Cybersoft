@@ -34,6 +34,7 @@ export const authConfig = {
       const isProtectedRoute =
         pathname.startsWith("/dashboard") ||
         pathname.startsWith("/like-share") ||
+        pathname.startsWith("/build-pc") ||
         pathname.startsWith("/tasks") ||
         pathname.startsWith("/timetable") ||
 	        pathname.startsWith("/seo-tools");

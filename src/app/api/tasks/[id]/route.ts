@@ -18,37 +18,42 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Merge incoming tags with auto-enforced workspace tags
-    let finalTags = tags ? tags.map((t: any) => ({ id: t.id })) : task.tags.map(t => ({ id: t.id }));
+    // Merge incoming tags with auto-enforced workspace tags (only if tags or workspace_id is provided to optimize query)
+    const isTagsOrWsUpdating = tags !== undefined || workspace_id !== undefined;
+    let finalTags: { id: string }[] | undefined = undefined;
 
-    const targetWsId = workspace_id || task.workspace_id;
-    if (workspace_id || task.workspace.name === "Tech" || task.workspace.name === "Website" || task.workspace.name === "Web") {
-      const ws = await db.workspace.findUnique({ where: { id: targetWsId } });
-      if (ws) {
-        if (ws.name === "Tech") {
-          let techTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Tech" } });
-          if (!techTag) {
-            techTag = await db.tag.create({
-              data: { name: "Tech", color: "#3b82f6", workspace_id: ws.id, user_id: session.user.id }
-            });
-          }
-          const hasTechTag = tags?.some((t: any) => t.name === "Tech");
-          if (!hasTechTag && !finalTags.some((t: any) => t.id === techTag!.id)) {
-            finalTags.push({ id: techTag.id });
-          }
-        } else if (ws.name === "Website" || ws.name === "Web") {
-          let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Web" } });
-          if (!webTag) {
-            webTag = await db.tag.create({
-              data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
-            });
-          }
-          const hasWebTag = tags?.some((t: any) => t.name === "Web");
-          if (!hasWebTag && !finalTags.some((t: any) => t.id === webTag!.id)) {
-            finalTags.push({ id: webTag.id });
+    if (isTagsOrWsUpdating) {
+      const activeTags = tags ? tags.map((t: any) => ({ id: t.id })) : task.tags.map(t => ({ id: t.id }));
+      const targetWsId = workspace_id || task.workspace_id;
+      if (workspace_id || task.workspace.name === "Tech" || task.workspace.name === "Website" || task.workspace.name === "Web") {
+        const ws = await db.workspace.findUnique({ where: { id: targetWsId } });
+        if (ws) {
+          if (ws.name === "Tech") {
+            let techTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Tech" } });
+            if (!techTag) {
+              techTag = await db.tag.create({
+                data: { name: "Tech", color: "#3b82f6", workspace_id: ws.id, user_id: session.user.id }
+              });
+            }
+            const hasTechTag = tags?.some((t: any) => t.name === "Tech");
+            if (!hasTechTag && !activeTags.some((t: any) => t.id === techTag!.id)) {
+              activeTags.push({ id: techTag.id });
+            }
+          } else if (ws.name === "Website" || ws.name === "Web") {
+            let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Website" } });
+            if (!webTag) {
+              webTag = await db.tag.create({
+                data: { name: "Website", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
+              });
+            }
+            const hasWebTag = tags?.some((t: any) => t.name === "Website");
+            if (!hasWebTag && !activeTags.some((t: any) => t.id === webTag!.id)) {
+              activeTags.push({ id: webTag.id });
+            }
           }
         }
       }
+      finalTags = activeTags;
     }
 
     const updatedTask = await db.task.update({
@@ -60,7 +65,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         ...(due_date !== undefined && { due_date: due_date ? new Date(due_date) : null }),
         ...(workspace_id && { workspace_id }),
         ...(creator_id && { creator_id }),
-        tags: { set: finalTags },
+        ...(finalTags !== undefined && { tags: { set: finalTags } }),
         ...(assignee_ids !== undefined && {
           assignees: {
             deleteMany: {},

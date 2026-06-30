@@ -17,7 +17,8 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const isTasksPage = pathname === "/tasks" || pathname?.startsWith("/tasks/");
   const isTimetablePage = pathname === "/timetable" || pathname?.startsWith("/timetable/");
   const isSeoToolsPage = pathname === "/seo-tools" || pathname?.startsWith("/seo-tools/");
-  const isFullWidthPage = isTasksPage || isTimetablePage;
+  const isAiChatPage = pathname === "/ai-chat" || pathname?.startsWith("/ai-chat/");
+  const isFullWidthPage = isTasksPage || isTimetablePage || isAiChatPage;
 
   if (isLoginPage || isLandingPage || isMaintenanceMode || pathname === "/maintenance") {
     return <div className="h-screen w-screen overflow-y-auto bg-surface">{children}</div>;
@@ -45,7 +46,7 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
         </div>
 
         {/* Global AI Assistant Pop-up Chat */}
-        {!isSeoToolsPage && <AIAssistant />}
+        {!isSeoToolsPage && !isAiChatPage && <AIAssistant />}
       </div>
     </div>
   );

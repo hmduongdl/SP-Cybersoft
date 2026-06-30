@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Plus, Trash2, Save, Key, Cpu, Building2, Server, FolderKanban,
+  Plus, Trash2, Save, Key, Cpu, Building2, Server, FolderKanban, Upload, FileText, Loader2, CheckCircle2,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -24,6 +24,7 @@ export default function AdminSettingsPage() {
   });
 
   const [isLoading, setIsLoading] = useState(true);
+  // PC Build inventory upload states removed
 
   const fetchDepartments = async () => {
     try {
@@ -162,6 +163,8 @@ export default function AdminSettingsPage() {
       toast.error("Đã xảy ra lỗi.");
     }
   };
+
+  // Handlers for PC Build inventory upload removed
 
   if (isLoading) return <div className="p-8 text-on-surface-variant">Đang tải cấu hình...</div>;
 
@@ -324,6 +327,8 @@ export default function AdminSettingsPage() {
             </button>
           </div>
         </div>
+
+        {/* PC Build Inventory Upload Section Removed */}
 
       </div>
     </div>

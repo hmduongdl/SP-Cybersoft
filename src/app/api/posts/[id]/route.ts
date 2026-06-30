@@ -20,8 +20,25 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const { id } = await params;
     const body = await request.json();
-    const parsed = postTaskSchema.safeParse(body);
 
+    // Check if it's a PC Build Task editing
+    const buildTask = await db.pcBuildTask.findUnique({ where: { id } });
+    if (buildTask) {
+        const updatedTask = await db.pcBuildTask.update({
+            where: { id },
+            data: {
+                customer_need: body.customer_need || body.title || '',
+                max_budget: Number(body.max_budget) || 0,
+                requirements: body.requirements || body.description || '',
+                deadline: body.deadline ? new Date(body.deadline) : null,
+                date: body.start_at ? new Date(body.start_at) : new Date(),
+            }
+        });
+        return NextResponse.json({ post: { ...updatedTask, task_type: 'PC_BUILD' } });
+    }
+
+    // Otherwise treat as a regular Facebook Share Post edit
+    const parsed = postTaskSchema.safeParse(body);
     if (!parsed.success) {
         return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
@@ -59,9 +76,16 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     }
 
     const { id } = await params;
-    await db.post.delete({
-        where: { id },
-    });
+
+    // Check if it's a PC Build Task
+    const buildTask = await db.pcBuildTask.findUnique({ where: { id } });
+    if (buildTask) {
+        // First delete dependent checkins
+        await db.checkin.deleteMany({ where: { pc_task_id: id } });
+        await db.pcBuildTask.delete({ where: { id } });
+    } else {
+        await db.post.delete({ where: { id } });
+    }
 
     // Revalidate cache after deleting a post
     revalidateTag(CACHE_TAGS.POSTS_LIST, "default");

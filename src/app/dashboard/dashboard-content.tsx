@@ -6,43 +6,60 @@ import {
   getCachedDashboardPosts,
   getCachedMonthlyStats,
 } from "@/lib/cache";
-
-function getTodayColKey(): string {
-  const day = new Date().getDay();
-  const map: Record<number, string> = {
-    0: "sun", 1: "mon", 2: "tue", 3: "wed", 4: "thu", 5: "fri", 6: "sat",
-  };
-  return map[day];
-}
+import { getStartOfDayVN } from "@/lib/pc-kho";
 
 export default async function DashboardContent() {
   const session = await auth();
   const userId = session?.user?.id;
 
-  const [recentCheckins, dashboardPosts, monthlyStats, user, dashboardTasks] =
+  const today = getStartOfDayVN();
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+
+  const [recentCheckins, dashboardPosts, monthlyStats, user, dashboardTasks, pcTasks, pcSubmissions, todayExercises] =
     await Promise.all([
       getCachedRecentCheckins(userId || ""),
       userId ? getCachedDashboardPosts(userId) : Promise.resolve([]),
       userId ? getCachedMonthlyStats(userId) : Promise.resolve({ completedThisMonth: 0, totalPostsThisMonth: 0, pendingThisMonth: 0 }),
-      userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true } }) : Promise.resolve(null),
+      userId ? db.user.findUnique({ where: { id: userId }, select: { trust_score: true, role: true } }) : Promise.resolve(null),
       userId ? db.task.findMany({
         where: {
           is_archived: false,
           status: { not: "DONE" },
           due_date: { not: null },
           OR: [
-            { creator_id: userId },
-            { assignees: { some: { user_id: userId } } }
+            { assignees: { some: { user_id: userId } } },
+            {
+              creator_id: userId,
+              assignees: { none: {} }
+            }
           ]
         },
         orderBy: { due_date: 'asc' },
         take: 5,
         select: { id: true, title: true, due_date: true, status: true }
       }) : Promise.resolve([]),
+      userId ? db.pcBuildTask.findMany({
+        where: { date: { gte: today, lt: tomorrow } },
+        include: {
+          submissions: {
+            where: { user_id: userId }
+          }
+        }
+      }) : Promise.resolve([]),
+      userId ? db.pcSubmission.findMany({
+        where: {
+          user_id: userId,
+          submitted_at: { gte: today, lt: tomorrow }
+        }
+      }) : Promise.resolve([]),
+      userId ? db.pcExercise.findMany({
+        where: { exercise_date: { gte: today, lt: tomorrow } }
+      }) : Promise.resolve([]),
     ]);
 
   const trustScore = user?.trust_score ?? 80;
   const userName = session?.user?.name || "Thành viên";
+  const isAdmin = user?.role === "ADMIN";
 
   // Ensure completedCount never exceeds totalPostsCount
   const totalPostsCount = monthlyStats.totalPostsThisMonth;
@@ -59,6 +76,46 @@ export default async function DashboardContent() {
   }));
 
   const allDashboardTasks = dashboardTasks.map(t => ({ id: t.id, title: t.title, due_date: t.due_date?.toISOString() || "", status: t.status }));
+
+  // Filter uncompleted PC Build Tasks and PC Exercises (exclude ADMIN role)
+  const uncompletedPcTasks = !isAdmin
+    ? pcTasks.filter(task => {
+        const submission = task.submissions[0];
+        return !submission || (submission.build_data as any)?.is_draft === true;
+      })
+    : [];
+
+  const uncompletedExercises = !isAdmin
+    ? todayExercises.filter(ex => {
+        const sub = pcSubmissions.find(s => s.exercise_id === ex.id);
+        return !sub || (sub.parts_answer as any)?.is_draft === true;
+      })
+    : [];
+
+  const pcTasksMapped = uncompletedPcTasks.map(t => ({
+    id: `pc-task-${t.id}`,
+    title: `💻 Đào tạo: Lắp ráp PC (${t.customer_need})`,
+    thumbnail_url: null,
+    start_at: t.date.toISOString(),
+    url: "/training/pc-build",
+    is_pc_build: true,
+  }));
+
+  const exercisesMapped = uncompletedExercises.map(ex => ({
+    id: `pc-ex-${ex.id}`,
+    title: `🛠️ Luyện tập: ${ex.title}`,
+    thumbnail_url: null,
+    start_at: ex.exercise_date.toISOString(),
+    url: "/build-pc",
+    is_pc_build: true,
+  }));
+
+  const combinedDashboardPosts = [
+    ...pcTasksMapped,
+    ...exercisesMapped,
+    ...dashboardPosts
+  ];
+
   return (
     <DashboardOverview
       userName={userName}
@@ -67,7 +124,7 @@ export default async function DashboardContent() {
       totalPostsCount={totalPostsCount}
       trustScore={trustScore}
       activityFeed={activityFeed}
-      dashboardPosts={dashboardPosts}
+      dashboardPosts={combinedDashboardPosts}
       dashboardTasks={allDashboardTasks}
     />
   );

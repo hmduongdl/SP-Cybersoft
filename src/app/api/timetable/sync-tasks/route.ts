@@ -108,24 +108,23 @@ export async function POST() {
         { is_archived: false },
         {
           OR: [
-            // Direct assignment
-            { creator_id: userId },
-            // Multi-assignee support
+            // User is explicitly assigned
             { assignees: { some: { user_id: userId } } },
-            // Workspace-level: user is a collaborator in the workspace that owns this task
+            // OR the task is unassigned and the user is involved (creator, workspace owner, or collaborator)
             {
-              workspace: {
-                collaborators: {
-                  some: { user_id: userId },
-                },
-              },
-            },
-            // Workspace-level: user is the workspace owner
-            {
-              workspace: {
-                owner_id: userId,
-              },
-            },
+              assignees: { none: {} },
+              OR: [
+                { creator_id: userId },
+                { workspace: { owner_id: userId } },
+                {
+                  workspace: {
+                    collaborators: {
+                      some: { user_id: userId }
+                    }
+                  }
+                }
+              ]
+            }
           ],
         },
       ],
@@ -194,6 +193,38 @@ export async function POST() {
     }
     return patchMap.get(k)!;
   };
+
+  // ── 2.5 Clean up stale (DONE) tasks from existing cells ────────────────
+  // The loop below only adds tasks; without cleanup, DONE/removed tasks from
+  // previous syncs remain in cells permanently.
+  const activeIds = new Set(tasks.map((t) => t.id));
+  const activeTitles = new Set(tasks.map((t) => t.title));
+
+  for (const row of targetRows) {
+    for (const cell of row.cells) {
+      const existingIds: string[] = Array.isArray(cell.task_ids)
+        ? (cell.task_ids as string[])
+        : [];
+      if (existingIds.length === 0) continue;
+
+      if (existingIds.some((id) => !activeIds.has(id))) {
+        // Cell has stale (DONE/removed) tasks — clean them up
+        cell.task_ids = existingIds.filter((id) => activeIds.has(id));
+
+        if (Array.isArray(cell.content)) {
+          cell.content = (cell.content as string[]).filter((item) => {
+            // Strip [DEADLINE] prefix before checking
+            const stripped = item.startsWith("[DEADLINE] ")
+              ? item.slice(11)
+              : item;
+            // Remove if it matches an active task (will be re-added by loop)
+            // Keep manual entries (don't match any title)
+            return !activeTitles.has(stripped);
+          });
+        }
+      }
+    }
+  }
 
   for (const task of tasks) {
     const dueDate = task.due_date ? new Date(task.due_date) : null;

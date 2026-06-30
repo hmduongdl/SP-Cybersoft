@@ -102,6 +102,7 @@ export async function GET(request: Request) {
     // Build lookup: userId -> Map<postId, checkin>
     const checkinByUser = new Map<string, Map<string, typeof checkins[0]>>();
     for (const c of checkins) {
+      if (!c.post_id) continue;
       if (!checkinByUser.has(c.user_id)) {
         checkinByUser.set(c.user_id, new Map());
       }

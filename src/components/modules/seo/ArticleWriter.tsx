@@ -8,8 +8,6 @@ import { copyToClipboard, parseApiErrorResponse, readTextStream } from "@/lib/se
 import { ARTICLE_TONE_VALUES, validateSeoMinOnly } from "@/lib/seo-schemas";
 import {
   AiTypingIndicator,
-  SAMPLE_ARTICLE_TOPIC,
-  SampleButton,
   SeoTips,
   StreamingMarkdown,
 } from "@/components/modules/seo/seo-helpers";
@@ -64,8 +62,6 @@ export function ArticleWriter() {
     }
   };
 
-  const fillSample = () => setTopic(SAMPLE_ARTICLE_TOPIC);
-
   const showOutput = isStreaming || !!content;
 
   return (
@@ -87,7 +83,6 @@ export function ArticleWriter() {
             <label htmlFor="article-topic" className="block text-sm font-semibold text-on-surface font-inter">
               Thông tin sản phẩm
             </label>
-            <SampleButton onClick={fillSample} />
           </div>
           <textarea
             id="article-topic"

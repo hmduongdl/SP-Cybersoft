@@ -11,6 +11,7 @@ export interface Workspace {
   color?: string;
   owner_id: string;
   is_default?: boolean;
+  type?: string;
 }
 
 export interface Tag {
@@ -97,12 +98,10 @@ export function filterTasksByWorkspace(tasks: readonly Task[], workspaceId: stri
   return tasks.filter((t) => t.workspace_id === workspaceId);
 }
 
-/** Task thuộc về user (được assign hoặc là người tạo). */
+/** Task được gán cho user. */
 export function isMyTask(task: Task, currentUserId?: string): boolean {
   if (!currentUserId) return false;
-  const isAssigned = task.assignees?.some((a) => a.id === currentUserId) ?? false;
-  const isCreator = task.creator_id === currentUserId;
-  return isAssigned || isCreator;
+  return task.assignees?.some((a) => a.id === currentUserId) ?? false;
 }
 
 export function filterTasks(tasks: readonly Task[], params: TaskFilterParams): Task[] {
@@ -112,7 +111,7 @@ export function filterTasks(tasks: readonly Task[], params: TaskFilterParams): T
   let result: Task[];
 
   if (activeFilter === 'my_tasks') {
-    // Việc của tôi: hiện mọi task user được assign / tạo — bỏ qua workspace đang chọn
+    // Việc của tôi: hiện mọi task được assign cho user — bỏ qua workspace đang chọn
     result = tasks.filter((t) => isMyTask(t, currentUserId));
   } else {
     result = filterTasksByWorkspace(tasks, currentWorkspaceId);
@@ -196,7 +195,7 @@ interface TaskStoreState {
   fetchTags: (workspaceId: string) => Promise<void>;
   loadMoreTasks: () => Promise<void>;
   fetchUsers: () => Promise<void>;
-  /** Tải cache ALL (assignee/creator cross-workspace) — dùng cho filter Việc của tôi. */
+  /** Tải cache ALL để lọc task được assign cross-workspace cho filter Việc của tôi. */
   ensureAllTasksLoaded: () => Promise<void>;
 
   addTask: (taskData: Partial<Task>) => Promise<void>;
@@ -461,9 +460,26 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         const newCache = { ...state.workspaceCache };
         const cachedTags = newCache[cacheKey]?.tags ?? state.tags;
 
+        // Preserve note and customProperties from already loaded tasks to prevent cache wipeout
+        const mergeTasks = (incoming: Task[], existing: Task[]) => {
+          return incoming.map(t => {
+            const ext = existing.find(e => e.id === t.id);
+            if (ext) {
+              return {
+                ...t,
+                note: ext.note !== undefined ? ext.note : t.note,
+                customProperties: ext.customProperties !== undefined ? ext.customProperties : t.customProperties,
+              };
+            }
+            return t;
+          });
+        };
+
+        const mergedFetched = mergeTasks(fetchedTasks, state.tasks);
+
         if (page === 1) {
           newCache[cacheKey] = {
-            tasks: fetchedTasks,
+            tasks: mergedFetched,
             tags: cachedTags,
             total,
             fetchedAt: Date.now(),
@@ -472,8 +488,17 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           const existing = newCache[cacheKey];
           if (existing) {
             const merged = [...existing.tasks];
-            for (const t of fetchedTasks) {
-              if (!merged.some((item) => item.id === t.id)) merged.push(t);
+            for (const t of mergedFetched) {
+              if (!merged.some((item) => item.id === t.id)) {
+                merged.push(t);
+              } else {
+                const idx = merged.findIndex((item) => item.id === t.id);
+                merged[idx] = {
+                  ...t,
+                  note: merged[idx].note !== undefined ? merged[idx].note : t.note,
+                  customProperties: merged[idx].customProperties !== undefined ? merged[idx].customProperties : t.customProperties,
+                };
+              }
             }
             newCache[cacheKey] = { ...existing, tasks: merged, total, fetchedAt: Date.now() };
           }
@@ -486,7 +511,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
         if (page === 1) {
           return {
-            tasks: fetchedTasks,
+            tasks: mergedFetched,
             taskTotal: total,
             tasksWorkspaceId: workspaceId,
             workspaceCache: newCache,
@@ -494,8 +519,17 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         }
 
         const merged = [...state.tasks];
-        for (const t of fetchedTasks) {
-          if (!merged.some((item) => item.id === t.id)) merged.push(t);
+        for (const t of mergedFetched) {
+          if (!merged.some((item) => item.id === t.id)) {
+            merged.push(t);
+          } else {
+            const idx = merged.findIndex((item) => item.id === t.id);
+            merged[idx] = {
+              ...t,
+              note: merged[idx].note !== undefined ? merged[idx].note : t.note,
+              customProperties: merged[idx].customProperties !== undefined ? merged[idx].customProperties : t.customProperties,
+            };
+          }
         }
         return {
           tasks: merged,
@@ -622,7 +656,9 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
             const ids = (taskData as any).assignee_ids as string[];
             updated.assignees = ids.map((id) => {
               const existing = t.assignees.find((a) => a.id === id);
-              return existing || { id, name: '', avatar_url: null };
+              if (existing) return existing;
+              const userInStore = state.users.find((u) => u.id === id);
+              return userInStore ? { id, name: userInStore.name, avatar_url: userInStore.avatar_url } : { id, name: '', avatar_url: null };
             });
           }
           return updated;
@@ -714,6 +750,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: noteContent }),
+      keepalive: true,
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

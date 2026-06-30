@@ -17,7 +17,13 @@ import {
   AlertTriangle,
   FileText,
   FileEdit,
-  User
+  User,
+  Cpu,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Eye,
+  CheckCircle2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime, formatDateTimeWithTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
@@ -26,6 +32,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { toast, Toaster } from "sonner";
 import { MonthWeekFilter } from "@/components/shared/month-week-filter";
 import { useMonthWeekFilter, isInRange } from "@/hooks/use-month-week-filter";
+import { formatVND } from "@/lib/pc-kho";
 
 interface ManagedPost {
   id: string;
@@ -41,6 +48,11 @@ interface ManagedPost {
   successfulCheckins: number;
   totalEmployees: number;
   latestCheckinAt: string | null;
+  // PC Build extensions
+  task_type?: "SHARE_POST" | "PC_BUILD";
+  max_budget?: number;
+  requirements?: string;
+  deadline?: string | null;
 }
 
 interface UserAccount {
@@ -56,23 +68,36 @@ interface UserAccount {
   facebook_verified?: boolean;
 }
 
-interface DensityState {
-  count: number;
-  limit: number;
-  reachedLimit: boolean;
-  message: string | null;
-}
+const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
+  PENDING: { label: "Chờ duyệt", icon: <Clock className="h-3.5 w-3.5" />, className: "text-amber-700 bg-amber-50" },
+  APPROVED: { label: "Đã duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-emerald-700 bg-emerald-50" },
+  REJECTED: { label: "Từ chối", icon: <XCircle className="h-3.5 w-3.5" />, className: "text-rose-700 bg-rose-50" },
+  AUTO_APPROVED: { label: "Tự duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-emerald-700 bg-emerald-50" },
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  cpu: "Bộ vi xử lý (CPU)",
+  mainboard: "Bo mạch chủ (Mainboard)",
+  ram: "Bộ nhớ trong (RAM)",
+  vga: "Card đồ họa (VGA)",
+  ssd: "Ổ cứng (SSD/HDD)",
+  psu: "Nguồn máy tính (PSU)",
+  case: "Vỏ máy tính (Case)",
+  cooler_fan: "Tản nhiệt & Quạt (Cooling)",
+  monitor: "Màn hình (Monitor)",
+  keyboard_mouse: "Bàn phím & Chuột",
+  headphone: "Tai nghe (Headphone)",
+  desk_chair: "Bàn ghế (Furniture)",
+};
 
 function toDateTimeValue(dateKey: string) {
   return `${dateKey}T12:00`;
 }
 
-/** Safe thumbnail with fallback when image fails to load */
 function PostThumbnail({ src, alt }: { src: string | null; alt: string }) {
   const [imgSrc, setImgSrc] = useState(src || "");
   const [failed, setFailed] = useState(false);
 
-  // Reset state when src prop changes
   useEffect(() => {
     setImgSrc(src || "");
     setFailed(false);
@@ -98,6 +123,7 @@ function PostThumbnail({ src, alt }: { src: string | null; alt: string }) {
 }
 
 export function PostTaskAdmin() {
+  const [adminTab, setAdminTab] = useState<"share_post" | "pc_build">("share_post");
   const [posts, setPosts] = useState<ManagedPost[]>([]);
   const [users, setUsers] = useState<UserAccount[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
@@ -109,7 +135,7 @@ export function PostTaskAdmin() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalPosts, setTotalPosts] = useState(0);
 
-  // Bộ lọc tháng / khoảng ngày
+  // Filters by MonthWeek
   const monthFilter = useMonthWeekFilter();
 
   // Bulk Operations State
@@ -119,8 +145,18 @@ export function PostTaskAdmin() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ManagedPost | null>(null);
 
+  // Submissions Drawer State
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [selectedDrawerTask, setSelectedDrawerTask] = useState<ManagedPost | null>(null);
+  const [drawerSubmissions, setDrawerSubmissions] = useState<any[]>([]);
+  const [loadingDrawerSubmissions, setLoadingDrawerSubmissions] = useState(false);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [viewingBuildData, setViewingBuildData] = useState<any | null>(null);
+
   // Form State
   const [formData, setFormData] = useState({
+    task_type: "SHARE_POST" as "SHARE_POST" | "PC_BUILD",
     title: "",
     url: "",
     thumbnail_url: "",
@@ -128,15 +164,15 @@ export function PostTaskAdmin() {
     date: getLocalDateKey(new Date()),
     team: "ALL" as "ALL" | "TECH" | "SALES" | "MARKETING",
     author_id: "",
+    // PC Build specific
+    customer_need: "",
+    max_budget: "",
+    requirements: "",
+    deadline: "",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Density Check State (for the selected date in the modal)
-  const [density, setDensity] = useState<DensityState | null>(null);
-  const [checkingDensity, setCheckingDensity] = useState(false);
-
-  // Load posts
   async function loadPosts(page = 1, status?: string) {
     setLoadingPosts(true);
     try {
@@ -155,70 +191,87 @@ export function PostTaskAdmin() {
     }
   }
 
-  // Load users (for author detection)
   async function loadUsers() {
     try {
       const res = await fetch("/api/admin/accounts");
       if (res.ok) {
         const data = await res.json();
         setUsers(data.users || []);
-      } else {
-        toast.error("Không thể tải danh sách người dùng — chức năng phát hiện tác giả sẽ không hoạt động.");
       }
     } catch (err) {
-      console.error("Lỗi khi tải danh sách người dùng:", err);
-      toast.error("Mất kết nối khi tải danh sách người dùng.");
+      console.error(err);
     }
   }
 
   useEffect(() => {
     loadPosts(1, statusFilter);
     loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-fetch when status filter changes
   useEffect(() => {
     loadPosts(1, statusFilter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
-  // Run density check whenever selected date in form changes
-  useEffect(() => {
-    if (!isModalOpen) return;
-    let active = true;
-
-    async function checkDensity() {
-      setCheckingDensity(true);
-      try {
-        const response = await fetch(`/api/posts/density?date=${formData.date}`, {
-          cache: "no-store",
-        });
-        const data = await response.json();
-        if (active) {
-          setDensity(data);
-        }
-      } catch (err) {
-        console.error("Lỗi kiểm tra mật độ:", err);
-      } finally {
-        if (active) {
-          setCheckingDensity(false);
-        }
+  // Load Submissions inside Drawer
+  const fetchDrawerSubmissions = async (taskId: string) => {
+    setLoadingDrawerSubmissions(true);
+    try {
+      const res = await fetch(`/api/admin/tasks/${taskId}/checkins`);
+      if (res.ok) {
+        const data = await res.json();
+        setDrawerSubmissions(data.checkins || []);
       }
+    } catch {
+      toast.error("Không tải được danh sách bài nộp.");
+    } finally {
+      setLoadingDrawerSubmissions(false);
+    }
+  };
+
+  const handleOpenSubmissionsDrawer = (post: ManagedPost) => {
+    setSelectedDrawerTask(post);
+    setDrawerSubmissions([]);
+    setIsDrawerOpen(true);
+    setRejectingId(null);
+    setRejectReason("");
+    fetchDrawerSubmissions(post.id);
+  };
+
+  const handleCheckinAction = async (id: string, action: "APPROVE" | "REJECT") => {
+    if (action === "REJECT" && !rejectReason.trim()) {
+      toast.error("Vui lòng nhập lý do từ chối.");
+      return;
     }
 
-    checkDensity();
+    try {
+      const res = await fetch("/api/admin/checkin/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          checkinIds: [id],
+          action,
+          rejectReason: action === "REJECT" ? rejectReason.trim() : null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
 
-    return () => {
-      active = false;
-    };
-  }, [formData.date, isModalOpen]);
+      toast.success(action === "APPROVE" ? "Đã duyệt bài nộp!" : "Đã từ chối bài nộp.");
+      setRejectingId(null);
+      setRejectReason("");
+      if (selectedDrawerTask) {
+        fetchDrawerSubmissions(selectedDrawerTask.id);
+        loadPosts(currentPage);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi xử lý.");
+    }
+  };
 
-
-  // Open modal for adding
   const handleOpenAddModal = () => {
     setEditingPost(null);
     setFormData({
+      task_type: adminTab === "pc_build" ? "PC_BUILD" : "SHARE_POST",
       title: "",
       url: "",
       thumbnail_url: "",
@@ -226,72 +279,90 @@ export function PostTaskAdmin() {
       date: getLocalDateKey(new Date()),
       team: "ALL",
       author_id: "",
+      customer_need: "",
+      max_budget: "",
+      requirements: "",
+      deadline: "",
     });
     setFormErrors({});
     setIsModalOpen(true);
   };
 
-  // Open modal for editing
   const handleOpenEditModal = (post: ManagedPost) => {
     setEditingPost(post);
     const scheduledAt = new Date(post.start_at);
     const dateKey = getLocalDateKey(scheduledAt);
 
     setFormData({
-      title: post.title,
-      url: post.url,
+      task_type: post.task_type || "SHARE_POST",
+      title: post.title || "",
+      url: post.url || "",
       thumbnail_url: post.thumbnail_url ?? "",
-      description: post.description,
+      description: post.description || "",
       date: dateKey,
       team: post.team || "ALL",
       author_id: post.author || "",
+      customer_need: post.task_type === "PC_BUILD" ? post.description : "",
+      max_budget: post.max_budget ? String(post.max_budget) : "",
+      requirements: post.requirements || "",
+      deadline: post.deadline ? getLocalDateKey(new Date(post.deadline)) : "",
     });
     setFormErrors({});
     setIsModalOpen(true);
   };
 
-  // Validate form fields client-side
   const validateForm = () => {
     const errors: Record<string, string> = {};
-    if (formData.title.trim().length < 10) {
-      errors.title = "Tiêu đề phải có tối thiểu 10 ký tự.";
-    }
-    if (!formData.url.trim()) {
-      errors.url = "Vui lòng nhập đường dẫn bài viết gốc.";
-    } else {
-      try {
-        new URL(formData.url);
-      } catch (e) {
-        errors.url = "Link bài viết gốc phải là URL hợp lệ.";
+    if (formData.task_type === "PC_BUILD") {
+      if (!formData.customer_need.trim()) {
+        errors.customer_need = "Vui lòng nhập nhu cầu khách hàng.";
       }
-    }
-    if (formData.thumbnail_url.trim()) {
-      try {
-        new URL(formData.thumbnail_url);
-      } catch (e) {
-        errors.thumbnail_url = "Link ảnh thumbnail phải là URL hợp lệ.";
+      const budget = Number(formData.max_budget);
+      if (!formData.max_budget || isNaN(budget) || budget <= 0) {
+        errors.max_budget = "Ngân sách tối đa phải là số lớn hơn 0.";
+      }
+    } else {
+      if (formData.title.trim().length < 10) {
+        errors.title = "Tiêu đề phải có tối thiểu 10 ký tự.";
+      }
+      if (!formData.url.trim()) {
+        errors.url = "Vui lòng nhập link bài viết gốc.";
+      } else {
+        try {
+          new URL(formData.url);
+        } catch {
+          errors.url = "Link bài viết gốc phải là URL hợp lệ.";
+        }
       }
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // Submit form (create or edit)
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setSaving(true);
     try {
-      const payload = {
-        title: formData.title,
-        url: formData.url,
-        thumbnail_url: formData.thumbnail_url || null,
-        description: formData.description,
+      const payload: Record<string, any> = {
+        task_type: formData.task_type,
         start_at: toDateTimeValue(formData.date),
-        team: formData.team,
-        author: formData.author_id || null,
       };
+
+      if (formData.task_type === "PC_BUILD") {
+        payload.customer_need = formData.customer_need.trim();
+        payload.max_budget = Number(formData.max_budget);
+        payload.requirements = formData.requirements.trim();
+        payload.deadline = formData.deadline ? toDateTimeValue(formData.deadline) : null;
+      } else {
+        payload.title = formData.title.trim();
+        payload.url = formData.url.trim();
+        payload.thumbnail_url = formData.thumbnail_url.trim() || null;
+        payload.description = formData.description.trim();
+        payload.team = formData.team;
+        payload.author = formData.author_id || null;
+      }
 
       const url = editingPost ? `/api/posts/${editingPost.id}` : "/api/posts";
       const method = editingPost ? "PATCH" : "POST";
@@ -303,377 +374,289 @@ export function PostTaskAdmin() {
       });
 
       if (!res.ok) {
-        throw new Error("Không thể lưu bài viết. Vui lòng kiểm tra lại thông tin.");
+        const err = await res.json();
+        throw new Error(err.error || "Gặp lỗi khi lưu task.");
       }
 
-      toast.success(editingPost ? "Cập nhật bài viết thành công!" : "Tạo bài viết mới thành công!");
+      toast.success(editingPost ? "Đã sửa bài viết thành công." : "Tạo bài viết mới thành công.");
       setIsModalOpen(false);
-      loadPosts(1);
+      loadPosts(currentPage);
     } catch (error: any) {
-      toast.error(error.message || "Đã xảy ra lỗi.");
+      toast.error(error.message || "Lỗi lưu dữ liệu.");
     } finally {
       setSaving(false);
     }
   };
 
-  // Delete individual post
-  const handleDeletePost = async (postId: string) => {
-    if (!window.confirm("Bạn có chắc chắn muốn xóa bài viết này và toàn bộ check-in liên quan?")) return;
-
-    try {
-      const res = await fetch(`/api/posts/${postId}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Xóa bài viết thất bại.");
-      toast.success("Xóa bài viết thành công!");
-      setSelectedIds(prev => prev.filter(id => id !== postId));
-      loadPosts(1);
-    } catch (error: any) {
-      toast.error(error.message || "Lỗi khi xóa bài viết.");
-    }
-  };
-
-  // Toggle Archive/Active individual post via dedicated endpoint
-  const handleToggleArchive = async (post: ManagedPost) => {
-    try {
-      const res = await fetch(`/api/posts/${post.id}/status`, { method: "PATCH" });
-      if (!res.ok) throw new Error("Cập nhật trạng thái bài viết thất bại.");
-      toast.success(post.is_archived ? "Đã mở khóa bài viết thành công!" : "Đã khóa bài viết thành công!");
-      loadPosts(1);
-    } catch (error: any) {
-      toast.error(error.message || "Lỗi khi cập nhật trạng thái.");
-    }
-  };
-
-  // Bulk deletion
-  const handleBulkDelete = async () => {
-    if (selectedIds.length === 0) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.length} bài đăng đã chọn? Toàn bộ check-in liên quan cũng sẽ bị xóa.`)) return;
-
+  const handleDeletePost = async (id: string) => {
+    if (!confirm("Bạn có chắc chắn muốn xóa bài viết này không? Hành động này cũng sẽ xóa toàn bộ lịch sử check-in liên quan.")) return;
     try {
       const res = await fetch("/api/posts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
+        body: JSON.stringify({ ids: [id] }),
       });
-      if (!res.ok) throw new Error("Xóa hàng loạt thất bại.");
-      toast.success(`Đã xóa thành công ${selectedIds.length} bài đăng!`);
-      setSelectedIds([]);
-      loadPosts(1);
-    } catch (error: any) {
-      toast.error(error.message || "Lỗi xóa hàng loạt.");
+      if (res.ok) {
+        toast.success("Đã xóa bài viết thành công.");
+        loadPosts(currentPage);
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Xóa thất bại.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi xóa bài viết.");
     }
   };
 
-  // Bulk archive/unarchive
-  const handleBulkArchive = async (archive: boolean) => {
-    if (selectedIds.length === 0) return;
+  const handleToggleArchive = async (post: ManagedPost) => {
     try {
       const res = await fetch("/api/posts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ids: selectedIds,
-          data: { is_archived: archive }
+          ids: [post.id],
+          data: { is_archived: !post.is_archived }
         }),
       });
-      if (!res.ok) throw new Error("Cập nhật hàng loạt thất bại.");
-      toast.success(archive ? `Đã khóa ${selectedIds.length} bài viết` : `Đã mở khóa ${selectedIds.length} bài viết`);
-      setSelectedIds([]);
-      loadPosts(1);
-    } catch (error: any) {
-      toast.error(error.message || "Lỗi cập nhật hàng loạt.");
+      if (res.ok) {
+        toast.success(post.is_archived ? "Đã mở khóa bài viết." : "Đã khóa bài viết.");
+        loadPosts(currentPage);
+      }
+    } catch {
+      toast.error("Không cập nhật được trạng thái bài viết.");
     }
   };
 
-  // Handle checking row checkboxes
   const handleSelectRow = (id: string) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
 
-  // Lọc bài viết theo status và khoảng ngày
-  const filteredPosts = posts.filter(post => {
-    const matchesStatus =
-      statusFilter === "ALL" ||
-      (statusFilter === "ACTIVE" && !post.is_archived) ||
-      (statusFilter === "ARCHIVED" && post.is_archived);
-
-    const matchesDateRange = isInRange(post.start_at, monthFilter.effectiveRange);
-
-    return matchesStatus && matchesDateRange;
-  });
-
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      const pageIds = filteredPosts.map(p => p.id);
-      setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(posts.map(p => p.id));
     } else {
-      const pageIds = filteredPosts.map(p => p.id);
-      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+      setSelectedIds([]);
     }
   };
 
-  const isAllSelected = filteredPosts.length > 0 && filteredPosts.every(p => selectedIds.includes(p.id));
+  // 1. Filter by active tab (SHARE_POST vs. PC_BUILD)
+  const postsOfTab = posts.filter(post => 
+    adminTab === "pc_build" ? post.task_type === "PC_BUILD" : post.task_type !== "PC_BUILD"
+  );
+
+  // 2. Filter by MonthWeek
+  const filteredPosts = postsOfTab.filter(post => {
+    return isInRange(post.start_at, monthFilter.effectiveRange);
+  });
 
   return (
-    <div className="space-y-6 pb-12 text-on-surface">
-      <Toaster position="top-right" richColors duration={1500} />
+    <div className="animate-in fade-in duration-200">
+      <Toaster position="top-right" richColors />
 
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 border-none pb-6">
+      {/* Header Info */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
-          <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
-            <span>Dashboard</span>
-            <span>/</span>
-            <span className="text-primary font-semibold">Quản lý bài viết</span>
-          </nav>
-          <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Quản lý bài viết</h1>
-          <p className="mt-1 text-sm text-on-surface-variant font-inter">
-            Lên lịch và quản lý các bài đăng công việc cho đội ngũ nhân sự.
-          </p>
+          <h1 className="font-manrope text-xl font-bold text-on-surface">Quản lý Task & Bài Tập</h1>
+          <p className="font-inter text-xs text-on-muted">Quản trị các bài tập Build PC và nhiệm vụ Like-Share Facebook</p>
         </div>
-        <div>
-          <button
-            onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-primary to-primary-gradient-end text-on-primary font-semibold text-sm shadow-ambient transition-all"
+        <Button onClick={handleOpenAddModal} className="gradient-primary text-on-primary">
+          <Plus className="h-4 w-4" />
+          {adminTab === "pc_build" ? "Thêm Bài Tập PC" : "Thêm Task Like-Share"}
+        </Button>
+      </div>
+
+      {/* View switcher tabs */}
+      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-sm mb-6">
+        <button
+          onClick={() => setAdminTab("share_post")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 font-manrope text-xs font-bold transition-all cursor-pointer",
+            adminTab === "share_post"
+              ? "bg-surface-container-lowest text-primary shadow-sm"
+              : "text-on-muted hover:text-on-surface"
+          )}
+        >
+          <FileText className="h-4 w-4" />
+          Like-Share Facebook
+        </button>
+        <button
+          onClick={() => setAdminTab("pc_build")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 font-manrope text-xs font-bold transition-all cursor-pointer",
+            adminTab === "pc_build"
+              ? "bg-surface-container-lowest text-primary shadow-sm"
+              : "text-on-muted hover:text-on-surface"
+          )}
+        >
+          <Cpu className="h-4 w-4" />
+          Bài tập Build PC
+        </button>
+      </div>
+
+      {/* Date & status filters */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-3xl border border-surface-container-high bg-surface-mid px-6 py-4 mb-6">
+        <MonthWeekFilter filter={monthFilter} />
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-slate-500 uppercase">Trạng thái:</span>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-1.5 text-xs text-on-surface focus:outline-none"
           >
-            <Plus className="h-4.5 w-4.5" />
-            <span>Tạo bài viết</span>
-          </button>
+            <option value="ALL">Tất cả</option>
+            <option value="ACTIVE">Đang hoạt động</option>
+            <option value="ARCHIVED">Đã khóa</option>
+          </select>
         </div>
       </div>
 
-      {/* Filters & Bulk Operations Card */}
-      <Card className="bg-surface-container-lowest border-none rounded-2xl shadow-ambient p-4">
-        <div className="flex flex-col gap-4">
-          {/* Filter bar */}
-          <div className="flex flex-col gap-3">
-            {/* Bộ lọc tháng / khoảng ngày */}
-            <MonthWeekFilter filter={monthFilter} />
-
-            <div className="flex items-center gap-4">
-              {/* Status Filter */}
-              <div className="flex gap-2 items-center flex-1">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full max-w-xs px-3 py-2.5 bg-surface-container-low border-none rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                >
-                  <option value="ALL">Tất cả bài viết</option>
-                  <option value="ACTIVE">Đang kích hoạt (Chưa khóa)</option>
-                  <option value="ARCHIVED">Đã khóa</option>
-                </select>
-
-                <button
-                  onClick={() => loadPosts()}
-                  disabled={loadingPosts}
-                  title="Tải lại danh sách"
-                  className="p-2.5 flex items-center justify-center rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant transition-all duration-150"
-                >
-                  <RefreshCw className={cn("h-4.5 w-4.5", loadingPosts && "animate-spin")} />
-                </button>
-
-                <span className="text-xs text-on-surface-variant font-inter">
-                  <strong className="text-on-surface">{filteredPosts.length}</strong> bài viết
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bulk Action Bar (Visible only when items are checked) */}
-          {selectedIds.length > 0 && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-primary-container/30 border border-primary-container rounded-xl p-3.5 animate-in fade-in duration-150">
-              <div className="flex items-center gap-2 text-on-primary-container text-sm font-semibold">
-                <Check className="h-4.5 w-4.5 text-primary" />
-                <span>Đang chọn {selectedIds.length} bài viết</span>
-              </div>
-
-              <div className="flex flex-wrap gap-2 items-center">
-                <button
-                  onClick={() => handleBulkArchive(true)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-error-container/30 border border-error-container text-error rounded-xl shadow-ambient transition-all duration-150 hover:bg-error-container/50"
-                >
-                  <Lock className="h-3.5 w-3.5" />
-                  Khóa hàng loạt
-                </button>
-
-                <button
-                  onClick={() => handleBulkArchive(false)}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-tertiary-fixed border border-tertiary-fixed-dim text-on-tertiary-fixed-variant rounded-xl shadow-ambient transition-all duration-150 hover:bg-tertiary-fixed-dim"
-                >
-                  <Unlock className="h-3.5 w-3.5" />
-                  Mở khóa hàng loạt
-                </button>
-
-                <button
-                  onClick={() => setSelectedIds([])}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-surface-container text-on-surface-variant rounded-xl shadow-ambient transition-all duration-150 hover:bg-surface-container-high"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Hủy chọn
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Posts Table */}
-      <Card className="bg-surface-container-lowest border-none rounded-[16px] shadow-[0_20px_40px_rgba(19,27,46,0.06)] overflow-hidden">
+      {/* Table list */}
+      <div className="bg-surface-mid border border-surface-container-high rounded-3xl overflow-hidden shadow-ambient">
         {loadingPosts ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-on-surface-variant gap-2">
-            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-            <p className="text-sm font-inter">Đang tải danh sách bài đăng...</p>
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="text-sm text-on-muted">Đang tải danh sách...</p>
           </div>
         ) : filteredPosts.length === 0 ? (
-          <div className="min-h-[300px] flex flex-col items-center justify-center text-on-surface-variant p-8 text-center">
-            <div className="h-12 w-12 rounded-full bg-surface-container flex items-center justify-center text-outline mb-3">
-              <FileText className="h-6 w-6" />
-            </div>
-            <p className="text-base font-semibold text-on-surface font-manrope">Không tìm thấy bài viết nào</p>
-            <p className="text-sm text-on-surface-variant mt-1 max-w-xs font-inter">
-              Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm của bạn.
-            </p>
+          <div className="py-20 text-center text-sm text-on-muted">
+            {adminTab === "pc_build" ? "Chưa có bài tập Build PC nào." : "Chưa có task Like-Share Facebook nào."}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-none bg-surface-container-low text-label-sm font-semibold text-on-surface-variant font-inter uppercase tracking-[0.05em]">
-                  <th className="px-5 py-4 w-12 text-center">
+                <tr className="border-b border-surface-container bg-surface-mid/60 text-xs font-bold text-on-surface uppercase font-manrope">
+                  <th className="px-6 py-4 w-12 text-center">
                     <input
                       type="checkbox"
-                      checked={isAllSelected}
-                      onChange={handleSelectAll}
-                      className="rounded-lg border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                      checked={selectedIds.length === postsOfTab.length && postsOfTab.length > 0}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="rounded border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                     />
                   </th>
-                  <th className="px-5 py-4 w-20">Ảnh bìa</th>
-                  <th className="px-5 py-4">Bài đăng</th>
-                  <th className="px-5 py-4">Tác giả</th>
-                  <th className="px-5 py-4">Ngày đăng</th>
-                  <th className="px-5 py-4">Check-in</th>
-                  <th className="px-5 py-4">Trạng thái</th>
-                  <th className="px-5 py-4 text-right">Thao tác</th>
+                  <th className="px-6 py-4 w-16">Ảnh</th>
+                  <th className="px-6 py-4">
+                    {adminTab === "pc_build" ? "Nhu cầu của khách" : "Tiêu đề bài đăng Facebook"}
+                  </th>
+                  <th className="px-6 py-4 w-44">DEADLINE</th>
+                  <th className="px-6 py-4 w-32 text-center">Đã duyệt</th>
+                  <th className="px-6 py-4 w-28">Trạng thái</th>
+                  <th className="px-6 py-4 text-right w-36">Hành động</th>
                 </tr>
               </thead>
-              <tbody className="divide-y-0 text-sm">
+              <tbody className="divide-y divide-surface-container-low bg-surface-container-lowest font-inter text-xs">
                 {filteredPosts.map((post) => {
                   const isChecked = selectedIds.includes(post.id);
-
+                  const isPcBuild = post.task_type === "PC_BUILD";
                   return (
-                    <tr 
-                      key={post.id} 
+                    <tr
+                      key={post.id}
                       className={cn(
-                        "hover:bg-surface-container transition-all duration-150 group border-none",
-                        isChecked && "bg-primary-container/20"
+                        "hover:bg-slate-50/50 transition-colors",
+                        isChecked && "bg-indigo-50/20"
                       )}
                     >
                       {/* Checkbox */}
-                      <td className="px-5 py-4 text-center">
+                      <td className="px-6 py-4 text-center">
                         <input
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => handleSelectRow(post.id)}
-                          className="rounded-lg border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
+                          className="rounded border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                         />
                       </td>
 
-                      {/* Thumbnail */}
-                      <td className="px-5 py-4">
-                        <div className="w-12 h-12 rounded-xl bg-surface-container border-none overflow-hidden relative shadow-ambient">
-                          <PostThumbnail src={post.thumbnail_url} alt={post.title} />
+                      {/* Thumbnail / Icon */}
+                      <td className="px-6 py-4">
+                        <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center overflow-hidden shadow-sm">
+                          {isPcBuild ? (
+                            <Cpu className="h-5 w-5 text-primary" />
+                          ) : (
+                            <PostThumbnail src={post.thumbnail_url} alt={post.title} />
+                          )}
                         </div>
                       </td>
 
-                      {/* Title */}
-                      <td className="px-5 py-4 max-w-sm">
-                        <div className="group/tip relative">
-                          <span className="font-semibold text-on-surface dark:text-white group-hover:text-indigo-600 transition-all duration-150 block truncate cursor-default">
-                            {post.title}
+                      {/* Title & description */}
+                      <td className="px-6 py-4 max-w-sm">
+                        <div className="space-y-0.5">
+                          <span className="font-semibold text-on-surface block truncate">
+                            {isPcBuild ? `💻 Bài tập: ${post.description}` : post.title}
                           </span>
-                          {/* Tooltip on hover */}
-                          <div className="absolute left-0 bottom-full mb-2 w-72 p-3 bg-inverse-surface text-white text-xs rounded-xl shadow-[0_32px_64px_rgba(19,27,46,0.12)] opacity-0 invisible group-hover/tip:opacity-100 group-hover/tip:visible transition-all duration-200 z-50 pointer-events-none">
-                            <p className="font-bold text-inverse-on-surface mb-1 truncate">{post.title}</p>
-                            {post.description && (
-                              <p className="text-outline leading-relaxed line-clamp-4">{post.description}</p>
-                            )}
-                            {!post.description && (
-                              <p className="text-outline italic">Không có mô tả</p>
-                            )}
-                            {/* Arrow */}
-                            <div className="absolute left-4 top-full -translate-y-1/2 border-4 border-transparent border-t-slate-900" />
-                          </div>
+                          <span className="text-[10px] text-on-muted block line-clamp-1">
+                            {isPcBuild
+                              ? `Ngân sách: ${formatVND(post.max_budget || 0)} • Yêu cầu: ${post.requirements || "Không có"}`
+                              : post.description || "Không có mô tả"}
+                          </span>
                         </div>
                       </td>
 
-                      {/* Author */}
-                      <td className="px-5 py-4">
-                        <span className="text-sm text-on-surface-variant font-medium">
-                          {post.author || "—"}
-                        </span>
+                      {/* Date */}
+                      <td className="px-6 py-4">
+                        <div className="space-y-0.5">
+                          <span className="font-medium text-on-surface-variant block">
+                            {formatDateTime(post.start_at)}
+                          </span>
+                          {post.deadline && (
+                            <span className="text-[10px] font-bold text-rose-600 block">
+                              Hạn: {formatDateTime(post.deadline)}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
-                      {/* Scheduled at */}
-                      <td className="px-5 py-4">
-                        <span className="font-semibold text-on-surface-variant">
-                          {formatDateTime(post.start_at)}
-                        </span>
-                      </td>
-
-                      {/* Checkin Rate */}
-                      <td className="px-5 py-4">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 border-none font-inter">
+                      {/* Checkin rate / View submissions */}
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={() => handleOpenSubmissionsDrawer(post)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 border-none font-inter hover:bg-emerald-500/20 transition-all cursor-pointer"
+                        >
                           {post.successfulCheckins}/{post.totalEmployees} nhân sự
-                        </span>
+                        </button>
                       </td>
 
                       {/* Status */}
-                      <td className="px-5 py-4">
+                      <td className="px-6 py-4">
                         <span className={cn(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold border-none font-inter",
-                          post.is_archived 
-                            ? "bg-rose-500/10 text-rose-600" 
-                            : "bg-emerald-500/10 text-emerald-700"
+                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border-none font-inter",
+                          post.is_archived ? "bg-rose-500/10 text-rose-600" : "bg-emerald-500/10 text-emerald-700"
                         )}>
-                          <span className={cn(
-                            "w-1.5 h-1.5 rounded-full",
-                            post.is_archived ? "bg-rose-500" : "bg-emerald-500 animate-pulse"
-                          )} />
                           {post.is_archived ? "Đã khóa" : "Hoạt động"}
                         </span>
                       </td>
 
                       {/* Actions */}
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenSubmissionsDrawer(post)}
+                            title="Duyệt bài nộp"
+                            className="p-1.5 bg-surface-container-lowest hover:bg-emerald-50 hover:text-emerald-600 border border-surface-container rounded-lg text-on-surface-variant transition-all cursor-pointer"
+                          >
+                            <CheckCircle className="h-3.5 w-3.5" />
+                          </button>
                           <button
                             onClick={() => handleOpenEditModal(post)}
-                            title="Sửa bài viết"
-                            className="p-2 bg-surface-container-lowest hover:bg-indigo-50 border-none rounded-xl text-on-surface-variant hover:text-indigo-600 transition-all duration-150"
+                            title="Sửa"
+                            className="p-1.5 bg-surface-container-lowest hover:bg-indigo-50 hover:text-indigo-600 border border-surface-container rounded-lg text-on-surface-variant transition-all cursor-pointer"
                           >
-                            <Edit2 className="h-4 w-4" />
+                            <Edit2 className="h-3.5 w-3.5" />
                           </button>
-
                           <button
                             onClick={() => handleToggleArchive(post)}
-                            title={post.is_archived ? "Mở khóa bài viết" : "Khóa bài viết"}
-                            className={cn(
-                              "p-2 bg-surface-container-lowest border-none rounded-xl transition-all duration-150",
-                              post.is_archived
-                                ? "text-rose-500 hover:bg-rose-50 hover:text-rose-700"
-                                : "text-outline hover:bg-sky-50 hover:text-sky-600"
-                            )}
+                            title={post.is_archived ? "Mở khóa" : "Khóa"}
+                            className="p-1.5 bg-surface-container-lowest border border-surface-container rounded-lg text-on-surface-variant transition-all cursor-pointer"
                           >
-                            {post.is_archived ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                            {post.is_archived ? <Unlock className="h-3.5 w-3.5 text-rose-500" /> : <Lock className="h-3.5 w-3.5" />}
                           </button>
-
                           <button
                             onClick={() => handleDeletePost(post.id)}
-                            title="Xóa bài viết"
-                            className="p-2 bg-surface-container-lowest hover:bg-rose-50 border-none rounded-xl text-on-surface-variant hover:text-rose-600 transition-all duration-150"
+                            title="Xóa"
+                            className="p-1.5 bg-surface-container-lowest hover:bg-rose-50 hover:text-rose-600 border border-surface-container rounded-lg text-on-surface-variant transition-all cursor-pointer"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       </td>
@@ -685,7 +668,7 @@ export function PostTaskAdmin() {
           </div>
         )}
         {!loadingPosts && filteredPosts.length > 0 && (
-          <div className="px-5 pb-4">
+          <div className="px-6 py-4 border-t border-surface-container">
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -693,251 +676,493 @@ export function PostTaskAdmin() {
             />
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* FORM DIALOG MODAL (ADD / EDIT POST) */}
+      {/* CREATE/EDIT FORM MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          {/* Backdrop */}
-          <div 
-            onClick={() => !saving && setIsModalOpen(false)}
-            className="fixed inset-0 z-50 bg-slate-950/70"
-          />
-
-          {/* Form Card */}
-          <Card className="w-full max-w-2xl bg-surface-mid rounded-3xl border border-slate-100 shadow-2xl relative z-50 overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150 my-8 flex flex-col">
-            <div className="px-6 py-4 border-none flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <FileEdit className="h-5 w-5 text-indigo-600" />
-                {editingPost ? "Sửa Task Bài Viết" : "Tạo Task Bài Viết Mới"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <Card className="w-full max-w-2xl bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl relative z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-surface-container flex items-center justify-between">
+              <h3 className="text-base font-bold text-on-surface flex items-center gap-2">
+                {formData.task_type === "PC_BUILD" ? <Cpu className="h-5 w-5 text-primary" /> : <FileText className="h-5 w-5 text-indigo-600" />}
+                {editingPost 
+                  ? (formData.task_type === "PC_BUILD" ? "Sửa Bài Tập Build PC" : "Sửa Task Like-Share")
+                  : (formData.task_type === "PC_BUILD" ? "Tạo Bài Tập Build PC Mới" : "Tạo Task Like-Share Mới")
+                }
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
                 disabled={saving}
-                className="w-8 h-8 rounded-xl bg-slate-100 text-slate-500 hover:text-slate-900 flex items-center justify-center transition-all"
+                className="w-8 h-8 rounded-full hover:bg-surface-container-low text-on-muted hover:text-on-surface flex items-center justify-center transition-all cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleFormSubmit}>
-              <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-                
-                {/* Form fields grid */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                  {/* Left core details (Title, link, description) */}
-                  <div className="md:col-span-7 space-y-4">
+            <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto">
+              <div className="p-6 space-y-5">
+                {formData.task_type === "PC_BUILD" ? (
+                  // PC BUILD FORM FIELDS
+                  <div className="space-y-4">
+                    {/* Customer Need */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-need">
+                        Nhu cầu của khách hàng
+                      </label>
+                      <input
+                        id="pc-need"
+                        type="text"
+                        placeholder="Ví dụ: Ráp dàn máy chơi game và vẽ CAD nhẹ nhàng..."
+                        value={formData.customer_need}
+                        onChange={(e) => setFormData({ ...formData, customer_need: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
+                      />
+                      {formErrors.customer_need && (
+                        <p className="text-[10px] text-error-text font-semibold">{formErrors.customer_need}</p>
+                      )}
+                    </div>
+
+                    {/* Max Budget */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-budget">
+                        Ngân sách tối đa (VNĐ)
+                      </label>
+                      <input
+                        id="pc-budget"
+                        type="number"
+                        placeholder="Ví dụ: 20000000"
+                        value={formData.max_budget}
+                        onChange={(e) => setFormData({ ...formData, max_budget: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
+                      />
+                      {formErrors.max_budget && (
+                        <p className="text-[10px] text-error-text font-semibold">{formErrors.max_budget}</p>
+                      )}
+                    </div>
+
+                    {/* Requirements */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-reqs">
+                        Các ràng buộc / Yêu cầu chi tiết
+                      </label>
+                      <textarea
+                        id="pc-reqs"
+                        rows={3}
+                        placeholder="Ví dụ: Dùng CPU Intel Core i5 thế hệ 13 trở lên, RAM DDR5..."
+                        value={formData.requirements}
+                        onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Date */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-on-surface uppercase">
+                          Ngày giao bài
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.date}
+                          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                          disabled={saving}
+                          className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
+                        />
+                      </div>
+
+                      {/* Deadline */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-on-surface uppercase">
+                          Hạn nộp bài
+                        </label>
+                        <input
+                          type="date"
+                          value={formData.deadline}
+                          onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                          disabled={saving}
+                          className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // SHARE POST FORM FIELDS
+                  <div className="space-y-4">
                     {/* Title */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-title">
-                        Tiêu đề bài viết
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="form-title">
+                        Tiêu đề bài đăng
                       </label>
-                      <input 
+                      <input
                         id="form-title"
                         type="text"
-                        placeholder="Ví dụ: Đăng ký tham gia Q3 Town Hall Highlights"
+                        placeholder="Nhập tiêu đề task Like-Share..."
                         value={formData.title}
                         onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         disabled={saving}
-                        className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400" 
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
                       />
                       {formErrors.title && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.title}</p>
+                        <p className="text-[10px] text-error-text font-semibold">{formErrors.title}</p>
                       )}
                     </div>
 
                     {/* Facebook URL */}
                     <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-url">
-                        Link bài viết gốc Facebook
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="form-url">
+                        Link bài đăng gốc Facebook
                       </label>
                       <div className="relative">
-                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
-                        <input 
+                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-on-muted h-3.5 w-3.5" />
+                        <input
                           id="form-url"
                           type="url"
                           placeholder="https://www.facebook.com/..."
                           value={formData.url}
                           onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                           disabled={saving}
-                          className="w-full px-4 py-2.5 pl-9 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 font-mono" 
+                          className="w-full pl-9 pr-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
                         />
                       </div>
-                      
-                      {/* Author select dropdown */}
-                      <div className="mt-1.5 p-2 bg-slate-50/50 border border-slate-200/80 rounded-xl text-xs flex items-center gap-2">
-                        <User className="h-4 w-4 text-indigo-500" />
-                        <span className="font-semibold text-slate-700">Tác giả:</span>
-                        <select
-                          value={formData.author_id || ""}
-                          onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
-                          disabled={saving}
-                          className="flex-1 bg-transparent border-none text-sm text-slate-900 focus:outline-none focus:ring-0"
-                        >
-                          <option value="">-- Chọn tác giả --</option>
-                          <option value="songphuong_tech">Song Phương Technology</option>
-                          <option value="songphuong">Song Phương</option>
-                        </select>
-                      </div>
-
                       {formErrors.url && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.url}</p>
+                        <p className="text-[10px] text-error-text font-semibold">{formErrors.url}</p>
+                      )}
+                    </div>
+
+                    {/* Thumbnail URL */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="form-thumbnail">
+                        Link ảnh đại diện
+                      </label>
+                      <div className="relative">
+                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-on-muted h-3.5 w-3.5" />
+                        <input
+                          id="form-thumbnail"
+                          type="url"
+                          placeholder="https://images.unsplash.com/..."
+                          value={formData.thumbnail_url}
+                          onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                          disabled={saving}
+                          className="w-full pl-9 pr-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
+                        />
+                      </div>
+                      {formErrors.thumbnail_url && (
+                        <p className="text-[10px] text-error-text font-semibold">{formErrors.thumbnail_url}</p>
                       )}
                     </div>
 
                     {/* Description */}
                     <div className="space-y-1">
-                      <div className="flex justify-between items-center mb-1">
-                        <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-desc">
-                          Mô tả chi tiết / Yêu cầu checkin
-                        </label>
-                        {editingPost && editingPost.latestCheckinAt && (
-                          <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-md">
-                            Bản ghi mới nhất: {formatDateTimeWithTime(editingPost.latestCheckinAt)}
-                          </span>
-                        )}
-                      </div>
-                      <textarea 
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="form-desc">
+                        Mô tả yêu cầu
+                      </label>
+                      <textarea
                         id="form-desc"
-                        rows={4}
-                        placeholder="Ví dụ: Đội ngũ like & share kèm hashtag..."
+                        rows={3}
+                        placeholder="Nội dung mô tả nhiệm vụ Like-Share..."
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         disabled={saving}
-                        className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 resize-none" 
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface resize-none"
                       />
-                      {formErrors.description && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.description}</p>
-                      )}
                     </div>
 
-                    {/* Team Selector */}
-                    <div className="space-y-2">
-                      <label className="block text-xs font-bold text-slate-600 uppercase">
-                        Nhóm thực hiện
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {["ALL", "TECH", "SALES", "MARKETING"].map((team) => (
-                          <button
-                            key={team}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, team: team as any })}
-                            className={cn(
-                              "rounded-full px-4 py-1.5 text-xs transition-all",
-                              formData.team === team
-                                ? "bg-indigo-600 text-white shadow-sm font-semibold"
-                                : "bg-slate-100 text-slate-600 hover:bg-slate-200/80 cursor-pointer"
-                            )}
-                          >
-                            {team === "ALL" ? "Tất cả" : team}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right side config (Scheduling, Media) */}
-                  <div className="md:col-span-5 space-y-4">
-                    {/* Date/Time density checks */}
-                    <div className="bg-surface-mid border border-slate-100/80 rounded-2xl p-5 shadow-sm space-y-4">
-                      <div className="flex items-center gap-1.5 text-slate-900 font-bold text-xs uppercase mb-2">
-                        <CalendarIcon className="h-4 w-4 text-indigo-500" />
-                        Thời gian lên lịch
-                      </div>
-                      
-                      {checkingDensity ? (
-                        <div className="text-xs text-slate-500 flex items-center gap-1.5 py-1">
-                          <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
-                          Đang kiểm tra mật độ ngày đăng...
-                        </div>
-                      ) : density?.reachedLimit ? (
-                        <div className="bg-red-50 text-red-700 border border-red-100 p-2.5 rounded-xl text-xs flex items-start gap-2">
-                          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                          <p className="font-semibold">
-                            Cảnh báo: Đã đạt tối đa {density.limit} bài đăng ngày {formData.date}.
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="bg-indigo-50/60 text-indigo-700 border border-indigo-100/50 p-2.5 rounded-xl text-xs flex items-start gap-2">
-                          <Check className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-                          <p className="font-semibold">
-                            Mật độ: {density?.count ?? 0}/{density?.limit ?? DAILY_POST_LIMIT} bài đăng ngày {formData.date}.
-                          </p>
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
-                        <div>
-                          <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Ngày đăng</label>
-                          <input
-                            type="date"
-                            value={formData.date}
-                            onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                            disabled={saving}
-                            className="w-full px-4 py-2.5 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Thumbnail url */}
-                    <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600 uppercase" htmlFor="form-thumb">
-                        Thumbnail (Ảnh bìa)
-                      </label>
-                      <div className="relative">
-                        <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Date */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-on-surface uppercase">
+                          Ngày lên sóng
+                        </label>
                         <input
-                          id="form-thumb"
-                          type="url"
-                          placeholder="https://example.com/image.jpg"
-                          value={formData.thumbnail_url}
-                          onChange={(e) => setFormData({ ...formData, thumbnail_url: e.target.value })}
+                          type="date"
+                          value={formData.date}
+                          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                           disabled={saving}
-                          className="w-full px-4 py-2.5 pl-9 bg-slate-50/50 border border-slate-200/80 rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm text-slate-900 placeholder:text-slate-400 font-mono"
+                          className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
                         />
                       </div>
-                      {formErrors.thumbnail_url && (
-                        <p className="text-xs text-red-500 font-semibold">{formErrors.thumbnail_url}</p>
-                      )}
+
+                      {/* Team */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-on-surface uppercase">
+                          Phòng ban tham gia
+                        </label>
+                        <select
+                          value={formData.team}
+                          onChange={(e) => setFormData({ ...formData, team: e.target.value as any })}
+                          disabled={saving}
+                          className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface focus:outline-none"
+                        >
+                          <option value="ALL">Tất cả phòng ban</option>
+                          <option value="TECH">Khối Kỹ Thuật (Tech)</option>
+                          <option value="SALES">Khối Kinh Doanh (Sales)</option>
+                          <option value="MARKETING">Marketing</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
-                </div>
-
+                )}
               </div>
 
-              {/* Form buttons */}
-              <div className="px-6 py-4 border-none flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={saving}
-                  className="bg-slate-100 hover:bg-slate-200/80 text-slate-700 font-medium py-2.5 px-5 rounded-xl border border-slate-200/40 transition-all duration-200 text-sm active:scale-95"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving || (density?.reachedLimit && !editingPost)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-5 rounded-xl shadow-sm transition-all duration-200 text-sm active:scale-95 flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  {saving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Đang lưu...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-4.5 w-4.5" />
-                      <span>Lưu xuất bản</span>
-                    </>
-                  )}
-                </button>
+              <div className="border-t border-surface-container bg-surface-mid/30 px-6 py-4 flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)} disabled={saving}>
+                  Hủy
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {editingPost ? "Lưu thay đổi" : "Tạo mới"}
+                </Button>
               </div>
             </form>
           </Card>
         </div>
       )}
+
+      {/* SUBMISSIONS LIST DRAWER */}
+      {isDrawerOpen && selectedDrawerTask && (
+        <div className="fixed inset-0 z-50 flex justify-end backdrop-blur-sm bg-black/60 animate-in fade-in duration-200">
+          <div onClick={() => setIsDrawerOpen(false)} className="absolute inset-0 z-0" />
+          
+          <div className="relative z-10 w-full max-w-2xl bg-surface-container-lowest shadow-2xl h-full flex flex-col animate-in slide-in-from-right duration-300">
+            {/* Header */}
+            <div className="px-6 py-5 border-b border-surface-container flex items-center justify-between bg-surface-mid/20">
+              <div>
+                <h3 className="font-manrope text-base font-bold text-on-surface flex items-center gap-2">
+                  {selectedDrawerTask.task_type === "PC_BUILD" ? <Cpu className="h-5 w-5 text-primary" /> : <FileText className="h-5 w-5 text-indigo-600" />}
+                  {selectedDrawerTask.task_type === "PC_BUILD" ? "Duyệt Bài Nộp Build PC" : "Lịch Sử Nộp Bài Share"}
+                </h3>
+                <p className="text-xs text-on-muted mt-0.5 line-clamp-1">{selectedDrawerTask.description}</p>
+              </div>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="w-8 h-8 rounded-full hover:bg-surface-container-low text-on-muted hover:text-on-surface flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              {loadingDrawerSubmissions ? (
+                <div className="flex flex-col items-center justify-center py-24 gap-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <p className="text-xs text-on-muted">Đang tải danh sách bài nộp...</p>
+                </div>
+              ) : drawerSubmissions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-24 text-on-muted space-y-2 border-2 border-dashed border-surface-container-high rounded-3xl">
+                  <Clock className="h-10 w-10 text-outline" />
+                  <p className="text-sm font-semibold">Chưa có bài nộp nào</p>
+                  <p className="text-xs text-center px-4">Khi nhân viên hoàn thành và nộp báo giá, bài làm sẽ xuất hiện ở đây để duyệt.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {drawerSubmissions.map((chk) => {
+                    const st = STATUS_CONFIG[chk.status] || STATUS_CONFIG.PENDING;
+                    const isBuildTask = selectedDrawerTask.task_type === "PC_BUILD";
+                    return (
+                      <div key={chk.id} className="rounded-2xl border border-surface-container-high p-4 space-y-4 bg-surface-mid/20 hover:border-primary/20 transition-all">
+                        {/* Submitter Info */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase overflow-hidden">
+                              {chk.user?.avatar_url ? (
+                                <img src={chk.user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <User className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-xs text-on-surface">{chk.user?.name || "Nhân viên"}</h4>
+                              <p className="text-[10px] text-on-muted">{chk.user?.department || "—"} • {new Date(chk.submitted_at).toLocaleString()}</p>
+                            </div>
+                          </div>
+                          
+                          <span className={cn("inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[10px] font-bold", st.className)}>
+                            {st.icon}
+                            {st.label}
+                          </span>
+                        </div>
+
+                        {/* Submission Content */}
+                        {isBuildTask ? (
+                          <div className="space-y-3">
+                            {chk.image_url && (
+                              <div className="relative w-36 h-24 rounded-lg border border-surface-container bg-black/5 overflow-hidden group cursor-pointer" onClick={() => setViewingBuildData(chk)}>
+                                <img src={chk.image_url} alt="Báo giá" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Eye className="h-4 w-4 text-white" />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Components summary table */}
+                            <div className="rounded-xl border border-surface-container bg-surface-container-lowest/60 p-3 text-[10px] space-y-1">
+                              <div className="flex justify-between items-center border-b border-surface-container pb-1 mb-1 font-bold text-on-surface">
+                                <span>Cấu hình linh kiện đề xuất:</span>
+                                <span className="text-primary">{formatVND(Number(chk.build_data?.total_price?.price || chk.build_data?.total_price || 0))}</span>
+                              </div>
+                              {Object.entries(chk.build_data || {})
+                                .filter(([k, v]) => k !== "total_price" && k !== "use_auto_total" && v && (v as any).name)
+                                .map(([k, v]) => (
+                                  <div key={k} className="flex justify-between">
+                                    <span className="text-on-muted w-24 shrink-0 font-semibold">{CATEGORY_LABELS[k] || k}:</span>
+                                    <span className="text-on-surface truncate flex-1 pr-2 text-left">{(v as any).name}</span>
+                                    <span className="text-on-surface font-bold">{(v as any).price > 0 ? formatVND((v as any).price) : "-"}</span>
+                                  </div>
+                                ))}
+                            </div>
+
+                            {chk.explanation && (
+                              <div className="text-xs italic text-on-surface-variant font-inter bg-slate-50 p-2.5 rounded-lg border border-slate-100 leading-relaxed">
+                                &ldquo;{chk.explanation}&rdquo;
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {chk.image_url && (
+                              <div className="relative w-48 h-32 rounded-lg border border-surface-container bg-black/5 overflow-hidden group cursor-pointer" onClick={() => window.open(chk.image_url, "_blank")}>
+                                <img src={chk.image_url} alt="Screenshot" className="w-full h-full object-cover" />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Eye className="h-4 w-4 text-white" />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        {chk.status === "PENDING" && (
+                          <div className="pt-2 flex flex-col gap-2">
+                            {rejectingId === chk.id ? (
+                              <div className="space-y-2 border border-rose-100 bg-rose-50/20 p-3 rounded-xl">
+                                <label className="block text-[10px] font-bold text-rose-700 uppercase">Lý do từ chối</label>
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Nhập lý do từ chối..."
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    className="flex-1 px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-xs focus:outline-none focus:border-rose-500"
+                                  />
+                                  <Button onClick={() => handleCheckinAction(chk.id, "REJECT")} className="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3">
+                                    Xác nhận
+                                  </Button>
+                                  <Button variant="outline" onClick={() => setRejectingId(null)} className="text-xs px-2.5">
+                                    Hủy
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  onClick={() => handleCheckinAction(chk.id, "APPROVE")}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-1.5 px-3 flex items-center gap-1 shrink-0"
+                                >
+                                  <Check className="h-3.5 w-3.5" /> Duyệt đạt
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => {
+                                    setRejectingId(chk.id);
+                                    setRejectReason("");
+                                  }}
+                                  className="text-rose-600 border-rose-100 hover:bg-rose-50 text-xs py-1.5 px-3 flex items-center gap-1 shrink-0"
+                                >
+                                  <X className="h-3.5 w-3.5" /> Từ chối
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {chk.status === "REJECTED" && chk.reject_reason && (
+                          <p className="text-[10px] text-rose-600 font-bold bg-rose-50/30 p-2 rounded-lg border border-rose-100/50">
+                            Lý do hủy duyệt: {chk.reject_reason}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULL QUOTE LIGHTBOX OVERLAY */}
+      {viewingBuildData && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 animate-in fade-in duration-200">
+          <div className="absolute inset-0 cursor-zoom-out" onClick={() => setViewingBuildData(null)} />
+          <div className="relative z-10 max-w-4xl max-h-[85vh] overflow-hidden rounded-2xl bg-white flex flex-col md:flex-row shadow-2xl">
+            <div className="flex-1 bg-black flex items-center justify-center p-2 min-h-[300px]">
+              <img src={viewingBuildData.image_url} alt="Báo giá đầy đủ" className="max-w-full max-h-[75vh] object-contain" />
+            </div>
+            <div className="w-full md:w-80 p-5 bg-white flex flex-col justify-between overflow-y-auto">
+              <div className="space-y-4">
+                <div className="flex justify-between items-start border-b pb-3">
+                  <div>
+                    <h4 className="font-bold text-sm text-slate-900">Chi tiết cấu hình đề xuất</h4>
+                    <p className="text-[10px] text-slate-500">{new Date(viewingBuildData.submitted_at).toLocaleString()}</p>
+                  </div>
+                  <button onClick={() => setViewingBuildData(null)} className="p-1 hover:bg-slate-100 rounded-full">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between font-bold text-slate-900 border-b pb-1">
+                    <span>Tổng tiền:</span>
+                    <span className="text-indigo-600">{formatVND(Number(viewingBuildData.build_data?.total_price?.price || viewingBuildData.build_data?.total_price || 0))}</span>
+                  </div>
+                  <div className="divide-y max-h-[40vh] overflow-y-auto pr-1">
+                    {Object.entries(viewingBuildData.build_data || {})
+                      .filter(([k, v]) => k !== "total_price" && k !== "use_auto_total" && v && (v as any).name)
+                      .map(([k, v]) => (
+                        <div key={k} className="py-2 space-y-0.5">
+                          <span className="text-[10px] font-bold text-slate-400 block uppercase">{CATEGORY_LABELS[k] || k}</span>
+                          <span className="text-slate-800 font-semibold block leading-tight">{(v as any).name}</span>
+                          <span className="text-indigo-600 font-bold block text-[10px]">{(v as any).price > 0 ? formatVND((v as any).price) : "-"}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t mt-4 flex gap-2">
+                <Button className="flex-1 text-xs py-1.5" onClick={() => { handleCheckinAction(viewingBuildData.id, "APPROVE"); setViewingBuildData(null); }}>
+                  Duyệt đạt
+                </Button>
+                <Button variant="outline" className="flex-1 text-xs py-1.5 text-rose-600 border-rose-100 hover:bg-rose-50" onClick={() => { setRejectingId(viewingBuildData.id); setRejectReason(""); setViewingBuildData(null); }}>
+                  Từ chối
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// Inline Button fallback component
+function Button({ children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: string }) {
+  return (
+    <button
+      className={cn(
+        "rounded-xl px-4 py-2 font-manrope text-xs font-bold cursor-pointer transition-all disabled:opacity-50 inline-flex items-center justify-center gap-1.5",
+        props.variant === "outline"
+          ? "border border-surface-container text-on-surface hover:bg-surface-container-low bg-surface-container-lowest"
+          : "gradient-primary text-on-primary hover:opacity-95",
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
   );
 }

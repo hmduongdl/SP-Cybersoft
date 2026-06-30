@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   Zap,
+  Cpu,
 } from "lucide-react";
 import { Toaster } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -32,7 +33,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 interface Checkin {
   id: string;
   user_id: string;
-  post_id: string;
+  post_id?: string | null;
   image_url: string;
   exif_time: string | Date | null;
   status: "PENDING" | "AUTO_APPROVED" | "APPROVED" | "REJECTED";
@@ -44,6 +45,16 @@ interface Checkin {
   ai_analysis_reason?: string | null;
   submitted_at: string | Date;
   note?: string | null;
+  task_type?: string;
+  build_data?: any;
+  pc_task_id?: string | null;
+  pc_task?: {
+    id: string;
+    date: string | Date;
+    customer_need: string;
+    max_budget: number;
+    requirements: string;
+  } | null;
   user: {
     id: string;
     name: string | null;
@@ -53,12 +64,12 @@ interface Checkin {
     facebook_profile_url?: string | null;
     trust_score?: number | null;
   };
-  post: {
+  post?: {
     id: string;
     title: string;
     thumbnail_url: string | null;
     start_at: string | Date;
-  };
+  } | null;
 }
 
 interface QueueClientProps {
@@ -98,6 +109,7 @@ export default function QueueClient({
   const [rejectReason, setRejectReason] = useState("");
   const [isBatchRejecting, setIsBatchRejecting] = useState(false);
   const [batchRejectReason, setBatchRejectReason] = useState("");
+  const [viewingBuildItem, setViewingBuildItem] = useState<any | null>(null);
   // Revoke (thu hồi tự động duyệt) state
   const [isRevokingId, setIsRevokingId] = useState<string | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
@@ -483,22 +495,42 @@ export default function QueueClient({
                     </button>
                   )}
 
-                  {/* Image: 16:9 ratio */}
-                  <div className="relative w-full aspect-video cursor-zoom-in overflow-hidden"
-                    onClick={() => setZoomImageUrl(item.image_url)}>
-                    <Image src={item.image_url} alt="Checkin proof" fill
-                      referrerPolicy="no-referrer"
-                      className="object-cover rounded-t-[16px]"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
-                    {/* Status badge top-right */}
-                    <span className={cn(
-                      "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-ambient border-none",
-                      statusMeta.bg
-                    )}>
-                      {statusMeta.label}
-                    </span>
-                  </div>
+                  {/* Image: 16:9 ratio or PC build placeholder */}
+                  {item.task_type === "PC_BUILD" ? (
+                    <div className="relative w-full aspect-video bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 flex items-center justify-center border-b border-outline/10">
+                      <div className="text-center space-y-2">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-600/10 text-indigo-600 flex items-center justify-center mx-auto">
+                          <Cpu className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30 px-2 py-0.5 rounded-full">
+                          PC Build Training
+                        </span>
+                      </div>
+                      {/* Status badge top-right */}
+                      <span className={cn(
+                        "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-ambient border-none",
+                        statusMeta.bg
+                      )}>
+                        {statusMeta.label}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="relative w-full aspect-video cursor-zoom-in overflow-hidden"
+                      onClick={() => setZoomImageUrl(item.image_url)}>
+                      <Image src={item.image_url} alt="Checkin proof" fill
+                        referrerPolicy="no-referrer"
+                        className="object-cover rounded-t-[16px]"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/15 to-transparent" />
+                      {/* Status badge top-right */}
+                      <span className={cn(
+                        "absolute top-3 right-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-ambient border-none",
+                        statusMeta.bg
+                      )}>
+                        {statusMeta.label}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Card body */}
                   <div className="p-4 space-y-3 flex-1 flex flex-col bg-surface-container-lowest">
@@ -558,10 +590,28 @@ export default function QueueClient({
                       })}
                     </div>
 
-                    {/* Post title */}
-                    <p className="text-xs font-semibold text-on-surface-variant line-clamp-1 font-inter">
-                      📌 {item.post.title}
-                    </p>
+                    {/* Card Title */}
+                    {item.task_type === "PC_BUILD" ? (
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 font-manrope">
+                          💻 Bài tập Build PC - {item.user.name || "Nhân viên"}
+                        </p>
+                        {item.pc_task?.customer_need && (
+                          <p className="text-[11px] font-semibold text-on-surface-variant line-clamp-2 font-inter leading-relaxed">
+                            🎯 Nhu cầu: {item.pc_task.customer_need}
+                          </p>
+                        )}
+                        {item.pc_task?.max_budget && (
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold font-inter">
+                            💰 Ngân sách: {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(item.pc_task.max_budget)}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs font-semibold text-on-surface-variant line-clamp-1 font-inter">
+                        📌 {item.post?.title || "Bài viết không xác định"}
+                      </p>
+                    )}
 
                     {/* FB profile link */}
                     <div className="flex items-center gap-1.5">
@@ -573,7 +623,7 @@ export default function QueueClient({
                     </div>
 
                     {/* AI Confidence meter + Extracted data */}
-                    {scanResult && (
+                    {item.task_type !== "PC_BUILD" && scanResult && (
                       <div className="space-y-1.5 p-2.5 rounded-lg bg-surface-container-low/50 border border-outline-variant/30">
                         <div className="flex items-center justify-between font-inter">
                           <span className="text-[10px] font-semibold text-on-surface-variant flex items-center gap-1">
@@ -623,7 +673,7 @@ export default function QueueClient({
                     )}
 
                     {/* AI Scan loading placeholder */}
-                    {!scanResult && scanningId === item.id && (
+                    {item.task_type !== "PC_BUILD" && !scanResult && scanningId === item.id && (
                       <div className="space-y-1.5 py-1">
                         <div className="h-1 bg-surface-container-high rounded-full animate-pulse w-3/4" />
                         <div className="h-2 bg-surface-container-high rounded animate-pulse w-full" />
@@ -635,6 +685,18 @@ export default function QueueClient({
                       <div className="p-2.5 rounded-lg bg-error-container text-on-error-container text-[10px] font-semibold font-inter border-none">
                         Lý do: {item.reject_reason}
                       </div>
+                    )}
+
+                    {/* View Build Details Button (PC_BUILD only) */}
+                    {item.task_type === "PC_BUILD" && (
+                      <button
+                        type="button"
+                        onClick={() => setViewingBuildItem(item)}
+                        className="w-full mt-2 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:hover:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold font-inter transition-all flex items-center justify-center gap-1.5 border-none cursor-pointer"
+                      >
+                        <Zap className="w-3.5 h-3.5" />
+                        Xem chi tiết cấu hình
+                      </button>
                     )}
 
                     {/* Spacer for flex */}
@@ -672,7 +734,7 @@ export default function QueueClient({
                             </div>
                           </div>
                         ) : (
-                          <div className={cn("grid gap-2 pt-1", !scanResult ? "grid-cols-3" : "grid-cols-2")}>
+                          <div className={cn("grid gap-2 pt-1", (!scanResult && item.task_type !== "PC_BUILD") ? "grid-cols-3" : "grid-cols-2")}>
                             {/* Reject */}
                             <button onClick={() => { setIsRejectingId(item.id); setRejectReason(""); }}
                               disabled={isActionLoading || scanningId === item.id}
@@ -681,7 +743,7 @@ export default function QueueClient({
                               Từ chối
                             </button>
                             {/* AI Scan */}
-                            {!scanResult && (
+                            {!scanResult && item.task_type !== "PC_BUILD" && (
                               <button onClick={() => handleAIScan(item.id)} disabled={isActionLoading}
                                 className="px-3 py-1.5 rounded-[8px] bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-xs font-semibold active:scale-[0.98] transition-all cursor-pointer border-none flex items-center justify-center gap-1 font-inter">
                                 <Sparkles className="w-3.5 h-3.5 text-primary" />
@@ -812,6 +874,161 @@ export default function QueueClient({
               className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-950/70 text-white flex items-center justify-center hover:bg-black/60 transition-all duration-150">
               <X className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Build Details Modal */}
+      {viewingBuildItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div onClick={() => setViewingBuildItem(null)} className="absolute inset-0 bg-slate-950/70" />
+          <div className="relative w-full max-w-2xl rounded-[16px] overflow-hidden animate-in zoom-in-95 duration-200 border-none max-h-[90vh] flex flex-col"
+            style={{ background: "rgba(255, 255, 255, 0.95)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", boxShadow: "0 40px 80px rgba(19, 27, 46, 0.12)" }}>
+            
+            {/* Modal Header */}
+            <div className="p-6 border-b border-outline/10 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-on-surface font-manrope">
+                  Chi tiết bài nộp Build PC
+                </h3>
+                <p className="text-xs text-on-surface-variant font-inter mt-0.5">
+                  Nhân viên: <strong>{viewingBuildItem.user.name}</strong> ({viewingBuildItem.user.department || "N/A"})
+                </p>
+              </div>
+              <button onClick={() => setViewingBuildItem(null)} className="w-8 h-8 rounded-[8px] bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-all shrink-0">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 no-scrollbar text-on-surface">
+              {/* Nửa trên: Đề bài gốc */}
+              <div className="space-y-3 p-4 rounded-xl bg-indigo-50/40 border border-indigo-100/30">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-700 font-inter flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                  Yêu cầu bài tập (Đề bài)
+                </h4>
+                {viewingBuildItem.pc_task ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-inter leading-relaxed">
+                    <div className="space-y-1 md:col-span-2">
+                      <span className="text-on-surface-variant/80 font-semibold">Nhu cầu khách hàng:</span>
+                      <p className="text-on-surface font-medium text-sm">{viewingBuildItem.pc_task.customer_need}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-on-surface-variant/80 font-semibold">Ngân sách tối đa:</span>
+                      <p className="text-emerald-600 font-bold text-sm">
+                        {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(viewingBuildItem.pc_task.max_budget)}
+                      </p>
+                    </div>
+                    <div className="space-y-1 md:col-span-2 text-on-surface/90">
+                      <span className="text-on-surface-variant/80 font-semibold">Yêu cầu chi tiết khác:</span>
+                      <p className="text-on-surface font-medium whitespace-pre-line">{viewingBuildItem.pc_task.requirements}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-on-surface-variant font-inter italic">Không tìm thấy thông tin đề bài gốc.</p>
+                )}
+              </div>
+
+              {/* Nửa dưới: Cục build_data */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface-variant font-inter flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-primary" />
+                  Cấu hình linh kiện nhân viên đề xuất
+                </h4>
+                
+                <div className="overflow-hidden rounded-xl border border-outline/10 bg-surface-container-lowest">
+                  <table className="w-full text-left border-collapse text-xs font-inter">
+                    <thead>
+                      <tr className="bg-surface-container-low border-b border-outline/10 text-on-surface-variant font-bold">
+                        <th className="p-3 w-1/3">Loại linh kiện</th>
+                        <th className="p-3 w-1/2">Tên sản phẩm</th>
+                        <th className="p-3 text-right">Đơn giá</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline/5">
+                      {Object.entries(viewingBuildItem.build_data || {})
+                        .filter(([key]) => key !== "total_price")
+                        .map(([key, value]: [string, any]) => {
+                          const categoryLabels: Record<string, string> = {
+                            cpu: "Bộ vi xử lý (CPU)",
+                            mainboard: "Bo mạch chủ (Mainboard)",
+                            ram: "Bộ nhớ trong (RAM)",
+                            vga: "Card màn hình (VGA)",
+                            ssd: "Ổ cứng (SSD)",
+                            psu: "Nguồn máy tính (PSU)",
+                            cooler: "Tản nhiệt (Cooler)",
+                            case: "Vỏ máy tính (Case)"
+                          };
+                          return (
+                            <tr key={key} className="hover:bg-surface-container-low/20">
+                              <td className="p-3 font-semibold text-on-surface-variant">
+                                {categoryLabels[key] || key}
+                              </td>
+                              <td className="p-3 text-on-surface font-medium">
+                                {value?.name || "Chưa chọn"}
+                              </td>
+                              <td className="p-3 text-right font-medium">
+                                {value?.price ? new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value.price) : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      
+                      {/* Dòng cuối cùng in đậm: TỔNG TIỀN */}
+                      <tr className="bg-surface-container-low/30 border-t border-outline/10 font-bold text-sm">
+                        <td colSpan={2} className="p-3 text-right font-bold text-on-surface">
+                          TỔNG TIỀN CẤU HÌNH:
+                        </td>
+                        <td className="p-3 text-right font-black text-indigo-600 dark:text-indigo-400">
+                          {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(viewingBuildItem.build_data?.total_price || 0)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* So sánh Budget */}
+                {viewingBuildItem.pc_task && (
+                  <div className="flex justify-end pt-1">
+                    {(viewingBuildItem.build_data?.total_price || 0) <= viewingBuildItem.pc_task.max_budget ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                        ✓ Trong ngân sách (Hợp lệ)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-100">
+                        ⚠ Vượt quá ngân sách cho phép!
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-6 border-t border-outline/10 bg-surface-container-low/40 flex justify-between items-center gap-3">
+              <button onClick={() => setViewingBuildItem(null)}
+                className="px-4 py-2 rounded-lg text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-all duration-150 font-inter border-none cursor-pointer">
+                Đóng
+              </button>
+
+              {viewingBuildItem.status === "PENDING" && (
+                <div className="flex gap-2">
+                  <button onClick={() => { setIsRejectingId(viewingBuildItem.id); setRejectReason(""); setViewingBuildItem(null); }}
+                    disabled={isActionLoading}
+                    className="px-4 py-2 rounded-lg bg-error-container text-on-error-container text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer border-none flex items-center gap-1 font-inter">
+                    <X className="w-3.5 h-3.5" />
+                    Từ chối
+                  </button>
+                  <button onClick={() => { handleSingleApprove(viewingBuildItem.id); setViewingBuildItem(null); }}
+                    disabled={isActionLoading}
+                    className="px-4 py-2 rounded-lg gradient-primary text-white text-xs font-bold hover:brightness-105 active:scale-[0.98] transition-all cursor-pointer border-none flex items-center gap-1 font-inter">
+                    <Check className="w-3.5 h-3.5" />
+                    Duyệt cấu hình
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       )}

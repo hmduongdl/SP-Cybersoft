@@ -1,0 +1,196 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/auth";
+import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { db } from "@/lib/db";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const imageBase64 = typeof body.imageBase64 === "string" ? body.imageBase64.trim() : "";
+    const pc_task_id = typeof body.pc_task_id === "string" ? body.pc_task_id.trim() : "";
+
+    if (!imageBase64) {
+      return NextResponse.json({ error: "Không tìm thấy dữ liệu ảnh" }, { status: 400 });
+    }
+
+    const imageUrl = imageBase64.startsWith("data:")
+      ? imageBase64
+      : `data:image/jpeg;base64,${imageBase64}`;
+
+    const cleanAndParseJSON = (str: string): any => {
+      try {
+        let cleanStr = str.trim();
+        if (cleanStr.startsWith("```")) {
+          const match = cleanStr.match(/^(?:```(?:json)?\n?)([\s\S]*?)(?:\n?```)$/i);
+          if (match && match[1]) {
+            cleanStr = match[1].trim();
+          }
+        }
+        return JSON.parse(cleanStr);
+      } catch (e) {
+        console.error("[cleanAndParseJSON] Failed to parse JSON:", str, e);
+        return {};
+      }
+    };
+
+    // 1. Call Kimi Vision to extract the items as a list of raw elements (Accountant Role)
+    const response = await aibox.chat.completions.create({
+      model: MODEL_VISION_ONLY,
+      messages: [
+        {
+          role: "system",
+          content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+          Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+          { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+          If thông tin nào không rõ ràng, hãy để là null.`
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+            { type: "image_url", image_url: { url: imageUrl } }
+          ]
+        }
+      ],
+      max_tokens: 4000,
+    });
+
+    const aiContent = response.choices[0]?.message?.content || "{}";
+    const extractedRaw = cleanAndParseJSON(aiContent);
+
+    // 2. Load Task or Exercise requirements
+    let expectedBudget = 0;
+    let expectedNeed = "Không có";
+    let expectedReqs = "Không có";
+
+    if (pc_task_id) {
+      // Try pcBuildTask table first
+      const task = await db.pcBuildTask.findUnique({ where: { id: pc_task_id } });
+      if (task) {
+        expectedBudget = task.max_budget;
+        expectedNeed = task.customer_need;
+        expectedReqs = task.requirements;
+      } else {
+        // Try pcExercise table instead
+        const exercise = await db.pcExercise.findUnique({ where: { id: pc_task_id } });
+        if (exercise) {
+          const reqs = exercise.requirements as any;
+          expectedBudget = Number(reqs?.budget) || 0;
+          expectedNeed = `${exercise.title} - ${exercise.description} (${reqs?.useCase || ""})`;
+          expectedReqs = `Ràng buộc: ${Array.isArray(reqs?.constraints) ? reqs.constraints.join(", ") : ""}. Gợi ý: ${Array.isArray(reqs?.hints) ? reqs.hints.join(", ") : ""}`;
+        }
+      }
+    }
+
+    // 3. Call DeepSeek to match and classify raw extracted items & perform compatibility check
+    const DEEPSEEK_PROMPT = `
+Bạn là hệ thống tự động hóa phân loại và duyệt cấu hình PC của công ty SP-CyberSoft.
+Nhiệm vụ của bạn là phân tích danh sách linh kiện thô trích xuất từ hóa đơn (dưới dạng JSON), phân loại chúng vào các danh mục biểu mẫu chuẩn, tính toán tổng giá tiền và kiểm tra kỹ thuật khả năng tương thích của cấu hình, so sánh với đề bài.
+
+DỮ LIỆU ĐỀ BÀI (NẾU CÓ):
+- Nhu cầu khách hàng: "${expectedNeed}"
+- Ngân sách tối đa: ${expectedBudget > 0 ? expectedBudget.toLocaleString('vi-VN') + ' VNĐ' : 'Không giới hạn'}
+- Yêu cầu cấu hình khác: "${expectedReqs}"
+
+LINH KIỆN THÔ TRÍCH XUẤT TỪ HÓA ĐƠN:
+${JSON.stringify(extractedRaw, null, 2)}
+
+NHIỆM VỤ CỦA BẠN:
+1. Phân loại linh kiện:
+   Duyệt qua danh sách linh kiện thô từ hóa đơn và phân loại chuẩn xác vào các danh mục sau:
+   - cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, headphone, desk_chair.
+   Trả về thông tin dưới dạng: { "name": "Tên chi tiết linh kiện", "price": số_tiền (chỉ lấy số nguyên, ví dụ: 2500000) }.
+   Nếu danh mục nào không có hoặc không được đề cập trong hóa đơn, hãy để mặc định là { "name": "", "price": 0 }.
+   Lưu ý:
+   - Danh mục keyboard_mouse có thể kết hợp từ Bàn phím và Chuột trong hóa đơn nếu cả hai cùng xuất hiện.
+   - Các linh kiện phụ kiện như headphone hay bàn ghế (furniture) nếu có hãy xếp vào headphone hoặc desk_chair tương ứng.
+2. Kiểm tra kỹ thuật tương thích phần cứng:
+   Hãy đánh giá tính tương thích và hợp lệ dựa trên các yếu tố sau:
+   a. Socket (CPU & Mainboard): Ví dụ LGA1700 của Intel đi với main H610/B760/Z790; AM5 của AMD đi với main A620/B650; LGA1200 đi với main H410/H510/B460/B560,... CPU và Mainboard có tương thích socket không?
+   b. RAM (DDR4/DDR5 & Mainboard): RAM DDR4 chỉ lắp được mainboard DDR4, RAM DDR5 chỉ lắp được mainboard DDR5. Đọc tên mainboard và RAM xem có bị lệch thế hệ DDR không?
+   c. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ tải cho CPU + VGA không? (Ví dụ: i5 + RTX 4060 cần nguồn từ 550W trở lên; i7 + RTX 4070 cần nguồn từ 650W trở lên; cấu hình văn phòng không VGA rời cần nguồn 350W-450W trở lên).
+   d. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không? (Ví dụ main ATX lắp vào case Mini-ITX là không vừa).
+   e. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế có vượt ngân sách tối đa không? Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
+3. Đánh giá duyệt cấu hình (chỉ áp dụng nếu có đề bài):
+   - Đặt "isApproved": true nếu thỏa mãn: tổng giá <= ngân sách, các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu), và đáp ứng được nhu cầu khách hàng. Ngược lại đặt false.
+   - Ghi nhận xét ngắn gọn trong "reason".
+
+BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
+{
+  "matched_parts": {
+    "cpu": { "name": "...", "price": 0 },
+    "mainboard": { "name": "...", "price": 0 },
+    "ram": { "name": "...", "price": 0 },
+    "vga": { "name": "...", "price": 0 },
+    "ssd": { "name": "...", "price": 0 },
+    "psu": { "name": "...", "price": 0 },
+    "case": { "name": "...", "price": 0 },
+    "cooler_fan": { "name": "...", "price": 0 },
+    "monitor": { "name": "...", "price": 0 },
+    "keyboard_mouse": { "name": "...", "price": 0 },
+    "headphone": { "name": "...", "price": 0 },
+    "desk_chair": { "name": "...", "price": 0 },
+    "total_price": 0
+  },
+  "isApproved": boolean,
+  "reason": "Giải thích tổng quan lý do duyệt hoặc từ chối ngắn gọn bằng tiếng Việt",
+  "checks": {
+    "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về Socket CPU & Main" },
+    "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về tương thích RAM DDR4/DDR5" },
+    "power": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về công suất nguồn PSU" },
+    "case": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về kích thước vỏ case & mainboard" },
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về ngân sách và chênh lệch giá tiền" }
+  }
+}
+`;
+
+    const deepseekResponse = await aibox.chat.completions.create({
+      model: MODEL_CHAT_FLASH,
+      messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+      response_format: { type: "json_object" },
+    });
+
+    const deepseekContent = deepseekResponse.choices[0]?.message?.content || "{}";
+    const result = JSON.parse(deepseekContent);
+
+    // Format output data to include partId: "" to satisfy client types
+    const formattedData: any = {};
+    if (result.matched_parts) {
+      for (const [key, val] of Object.entries(result.matched_parts)) {
+        if (key === 'total_price') {
+          formattedData[key] = val;
+        } else {
+          const v = val as any;
+          formattedData[key] = {
+            name: v.name || "",
+            price: v.price || 0,
+            partId: ""
+          };
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: formattedData,
+      autoApprove: result.isApproved,
+      reason: result.reason,
+      checks: result.checks || {}
+    });
+
+  } catch (error: unknown) {
+    console.error("[extract-build]", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json(
+      { error: "Lỗi khi trích xuất dữ liệu từ ảnh", details: message },
+      { status: 500 }
+    );
+  }
+}

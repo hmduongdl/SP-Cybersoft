@@ -102,14 +102,14 @@ export async function POST(req: Request) {
           finalTags.push({ id: techTag.id });
         }
       } else if (ws.name === "Website" || ws.name === "Web") {
-        let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Web" } });
+        let webTag = await db.tag.findFirst({ where: { workspace_id: ws.id, name: "Website" } });
         if (!webTag) {
           webTag = await db.tag.create({
-            data: { name: "Web", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
+            data: { name: "Website", color: "#10b981", workspace_id: ws.id, user_id: session.user.id }
           });
         }
-        // Check by name to avoid duplicate when multiple "Web" tags exist (different user_ids)
-        const hasWebTag = tags?.some((t: any) => t.name === "Web");
+        // Check by name to avoid duplicate when multiple "Website" tags exist (different user_ids)
+        const hasWebTag = tags?.some((t: any) => t.name === "Website");
         if (!hasWebTag && !finalTags.some((t: any) => t.id === webTag!.id)) {
           finalTags.push({ id: webTag.id });
         }

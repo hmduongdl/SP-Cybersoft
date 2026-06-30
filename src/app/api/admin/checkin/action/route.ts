@@ -85,7 +85,7 @@ export async function POST(request: Request) {
       await updateUserTrustScore(
         checkin.user_id, 
         action === "APPROVE" ? "APPROVED" : "REJECTED",
-        checkin.post_id
+        checkin.post_id ?? undefined
       );
     }
 

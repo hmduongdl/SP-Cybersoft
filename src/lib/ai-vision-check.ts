@@ -47,7 +47,24 @@ export async function runVisionCheck(
 ): Promise<VisionCheckResult> {
   const { base64Image, mimeType, expectedName, expectedTitle, expectedUrl } = input;
 
-  // ── Bước 1: Gemini trích xuất thông tin từ ảnh ─────────────────────────
+  // Helper function to extract and parse JSON from Markdown wrappers if present
+  const cleanAndParseJSON = (str: string): any => {
+    try {
+      let cleanStr = str.trim();
+      if (cleanStr.startsWith("```")) {
+        const match = cleanStr.match(/^(?:```(?:json)?\n?)([\s\S]*?)(?:\n?```)$/i);
+        if (match && match[1]) {
+          cleanStr = match[1].trim();
+        }
+      }
+      return JSON.parse(cleanStr);
+    } catch (e) {
+      console.error("[cleanAndParseJSON] Failed to parse JSON:", str, e);
+      return {};
+    }
+  };
+
+  // ── Bước 1: Kimi/Gemini trích xuất thông tin từ ảnh ─────────────────────────
   const geminiResponse = await withTimeout(
     aibox.chat.completions.create({
       model: MODEL_VISION_ONLY,
@@ -62,7 +79,7 @@ export async function runVisionCheck(
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
-Trả về đúng định dạng JSON, không kèm giải thích.`,
+Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
             },
             {
               type: "image_url",
@@ -71,12 +88,12 @@ Trả về đúng định dạng JSON, không kèm giải thích.`,
           ],
         },
       ],
-      response_format: { type: "json_object" },
+      max_tokens: 1500,
     }),
     VISION_TIMEOUT_MS
   );
 
-  const extracted = JSON.parse(
+  const extracted = cleanAndParseJSON(
     geminiResponse.choices[0]?.message?.content || "{}"
   );
 

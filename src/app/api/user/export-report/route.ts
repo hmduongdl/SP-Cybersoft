@@ -74,6 +74,7 @@ export async function GET(request: Request) {
     // Build postId -> checkin lookup
     const checkinByPost = new Map<string, typeof checkins[0]>();
     for (const c of checkins) {
+      if (!c.post_id) continue;
       checkinByPost.set(c.post_id, c);
     }
 

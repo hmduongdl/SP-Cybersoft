@@ -13,9 +13,9 @@
  *  5. Fetch ảnh từ CDN / upload FormData
  *  6. Perceptual hash — phát hiện ảnh tái sử dụng / trùng lặp (Hướng 3)
  *  7. Phân tích EXIF server-side (exifr)
- *  8. Nếu EXIF không đủ, chạy AI Vision Check tự động (Hướng 1+4)
- *  9. Composite scoring — quyết định AUTO_APPROVED | PENDING (Hướng 2)
- * 10. Tạo bản ghi Checkin, cập nhật Trust Score
+ *  8. Tạo bản ghi PENDING trong hàng chờ
+ *  9. Chạy AI nền theo luồng Kimi đọc ảnh -> DeepSeek phân tích
+ * 10. AI nền tự duyệt nếu minh chứng hợp lệ và Trust Score > 70
  * 11. Trả về JSON { success, status, exif_time, message }
  */
 
@@ -26,9 +26,8 @@ import { uploadImage, deleteImage } from "@/lib/upload";
 import exifr from "exifr";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
-import { updateUserTrustScore } from "@/lib/trust-score";
-import { runVisionCheck } from "@/lib/ai-vision-check";
 import { computeAHash, hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
+import { processBackgroundCheckinReview } from "@/lib/checkin-background-worker";
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
@@ -114,185 +113,6 @@ async function parseExifFromBuffer(buffer: Buffer): Promise<ExifResult> {
   }
 }
 
-// ─── Composite scoring — quyết định trạng thái ───────────────────────────────
-
-type ApprovalReason =
-  | "high_trust_score"
-  | "exif_valid"
-  | "exif_out_of_window"
-  | "no_exif"
-  | "exif_valid_but_low_trust"
-  | "vision_auto_approved"
-  | "vision_pending_no_public"
-  | "vision_pending_low_confidence"
-  | "duplicate_image"
-  | "ai_vision_timeout";
-
-interface StatusResult {
-  status: "AUTO_APPROVED" | "PENDING";
-  aiConfidence: number;
-  reason: ApprovalReason;
-  /** Dữ liệu AI Vision để lưu vào DB (nếu có) */
-  visionData?: {
-    extractedUsername: string | null;
-    extractedTitle: string | null;
-    isFacebookUI: boolean;
-    isPublicMode: boolean;
-    visionReason: string;
-  };
-}
-
-/**
- * Ngưỡng vision confidence để tự động duyệt khi không có EXIF.
- * Yêu cầu ảnh phải trông như mạng xã hội thật VÀ ở chế độ công khai.
- */
-const VISION_AUTO_APPROVE_CONFIDENCE = 0.82;
-const VISION_TRUST_SCORE_REQUIRED = 60;
-
-async function determineStatus(
-  exifFound: boolean,
-  exifTime: Date | null,
-  postStartAt: Date,
-  trustScore: number,
-  imageBuffer: Buffer | null,
-  isDuplicate: boolean,
-  visionInput: {
-    expectedName: string;
-    expectedTitle: string;
-    expectedUrl?: string | null;
-    mimeType: string;
-  } | null
-): Promise<StatusResult> {
-  // ── Hard block: ảnh trùng lặp ─────────────────────────────────────────
-  if (isDuplicate) {
-    return { status: "PENDING", aiConfidence: 0.1, reason: "duplicate_image" };
-  }
-
-  // ── Điểm uy tín cao (Trust Score > 92) luôn auto approve ──────────────
-  if (trustScore > 92) {
-    return { status: "AUTO_APPROVED", aiConfidence: 1.0, reason: "high_trust_score" };
-  }
-
-  const startMs = postStartAt.getTime();
-  const endMs = startMs + WINDOW_MS;
-
-  // ── Tín hiệu EXIF (mạnh nhất) ─────────────────────────────────────────
-  if (exifFound && exifTime) {
-    const takenMs = exifTime.getTime();
-    const isWithinWindow = takenMs >= startMs && takenMs <= endMs;
-
-    if (isWithinWindow) {
-      if (trustScore >= 50) {
-        return { status: "AUTO_APPROVED", aiConfidence: 0.97, reason: "exif_valid" };
-      }
-      return { status: "PENDING", aiConfidence: 0.97, reason: "exif_valid_but_low_trust" };
-    }
-    // EXIF ngoài cửa sổ → thử vision nếu trust đủ cao
-  }
-
-  // ── AI Vision Check (khi EXIF không đủ) ──────────────────────────────
-  const needsVision = imageBuffer && visionInput && trustScore >= VISION_TRUST_SCORE_REQUIRED;
-
-  if (needsVision) {
-    try {
-      const base64Image = imageBuffer.toString("base64");
-      const vision = await runVisionCheck({
-        base64Image,
-        mimeType: visionInput.mimeType,
-        expectedName: visionInput.expectedName,
-        expectedTitle: visionInput.expectedTitle,
-        expectedUrl: visionInput.expectedUrl,
-      });
-
-      const visionData = {
-        extractedUsername: vision.extractedUsername,
-        extractedTitle: vision.extractedTitle,
-        isFacebookUI: vision.isFacebookUI,
-        isPublicMode: vision.isPublicMode,
-        visionReason: vision.reason,
-      };
-
-      // Điều kiện tự động duyệt qua AI vision:
-      // 1. Vision đánh giá hợp lệ
-      // 2. Confidence đủ cao
-      // 3. Ảnh trông như giao diện mạng xã hội thật
-      // 4. Bài ở chế độ Công khai
-      if (
-        vision.isValid &&
-        vision.confidence >= VISION_AUTO_APPROVE_CONFIDENCE &&
-        vision.isFacebookUI &&
-        vision.isPublicMode
-      ) {
-        return {
-          status: "AUTO_APPROVED",
-          aiConfidence: vision.confidence,
-          reason: "vision_auto_approved",
-          visionData,
-        };
-      }
-
-      // Ảnh hợp lệ nhưng thiếu chế độ công khai → vào hàng đợi với confidence cao
-      if (vision.isValid && vision.confidence >= VISION_AUTO_APPROVE_CONFIDENCE && !vision.isPublicMode) {
-        return {
-          status: "PENDING",
-          aiConfidence: vision.confidence,
-          reason: "vision_pending_no_public",
-          visionData,
-        };
-      }
-
-      // Confidence thấp → vào hàng đợi
-      return {
-        status: "PENDING",
-        aiConfidence: vision.confidence,
-        reason: "vision_pending_low_confidence",
-        visionData,
-      };
-    } catch {
-      // Vision timeout hoặc lỗi API → fallback về PENDING bình thường
-    }
-
-    // Vision timeout fallback
-    if (exifFound && exifTime) {
-      return { status: "PENDING", aiConfidence: 0.5, reason: "ai_vision_timeout" };
-    }
-    return { status: "PENDING", aiConfidence: 0.25, reason: "ai_vision_timeout" };
-  }
-
-  // ── Fallback thuần ────────────────────────────────────────────────────
-  if (exifFound && exifTime) {
-    return { status: "PENDING", aiConfidence: 0.5, reason: "exif_out_of_window" };
-  }
-  return { status: "PENDING", aiConfidence: 0.25, reason: "no_exif" };
-}
-
-// ─── Tạo message trả về cho frontend ──────────────────────────────────────────
-
-function buildMessage(reason: ApprovalReason): string {
-  switch (reason) {
-    case "high_trust_score":
-      return "Tự động xác thực thành công! Minh chứng của bạn đã được hệ thống phê duyệt.";
-    case "exif_valid":
-      return "Tự động xác thực thành công! Dữ liệu EXIF hợp lệ và nằm trong cửa sổ 24h.";
-    case "vision_auto_approved":
-      return "AI đã xác thực minh chứng thành công! Nội dung ảnh hợp lệ và ở chế độ công khai.";
-    case "exif_out_of_window":
-      return "Ảnh có dữ liệu EXIF nhưng thời gian chụp nằm ngoài cửa sổ 24h. Chuyển sang hàng đợi duyệt thủ công.";
-    case "no_exif":
-      return "Không phát hiện thông tin EXIF (có thể là ảnh chụp màn hình). Chuyển sang hàng đợi duyệt thủ công.";
-    case "exif_valid_but_low_trust":
-      return "Dữ liệu EXIF hợp lệ nhưng tài khoản đang có Độ tin cậy thấp. Chuyển sang hàng đợi duyệt thủ công.";
-    case "vision_pending_no_public":
-      return "AI nhận dạng được nội dung nhưng không thấy chế độ Công khai. Vui lòng đảm bảo share ở chế độ Public. Chuyển sang hàng đợi duyệt thủ công.";
-    case "vision_pending_low_confidence":
-      return "AI không xác minh được nội dung ảnh với độ chính xác đủ cao. Chuyển sang hàng đợi duyệt thủ công.";
-    case "duplicate_image":
-      return "Phát hiện ảnh đã được sử dụng trước đó. Vui lòng chụp ảnh mới. Chuyển sang hàng đợi duyệt thủ công.";
-    case "ai_vision_timeout":
-      return "Hệ thống AI tạm thời không phản hồi. Đã chuyển sang hàng đợi duyệt thủ công.";
-  }
-}
-
 // ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
@@ -314,8 +134,6 @@ export async function POST(request: Request) {
       select: { trust_score: true, name: true }
     });
     const trustScore = userRecord?.trust_score ?? 80;
-    const userName = userRecord?.name ?? "";
-    const isHighTrust = trustScore > 92;
 
     // ── 2. Parse input — hỗ trợ cả FormData (cũ) và JSON (Uploadthing) ─────
     const contentType = request.headers.get("content-type") || "";
@@ -324,7 +142,6 @@ export async function POST(request: Request) {
     let postId: string;
     let imageUrl: string;
     let imageBuffer: Buffer | null = null;
-    let imageFileType: string = "image/jpeg";
 
     if (isJson) {
       // ── (A) JSON flow (Uploadthing: ảnh đã upload lên CDN) ────────────────
@@ -355,19 +172,16 @@ export async function POST(request: Request) {
         );
       }
 
-      // Fetch ảnh từ CDN để phân tích EXIF server-side (chỉ chạy nếu không phải High Trust)
-      if (!isHighTrust) {
-        try {
-          const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
-          if (!imgRes.ok) throw new Error(`CDN responded ${imgRes.status}`);
-          const arrayBuffer = await imgRes.arrayBuffer();
-          imageBuffer = Buffer.from(arrayBuffer);
-          imageFileType = imgRes.headers.get("content-type") || "image/jpeg";
-        } catch (fetchErr) {
-          console.warn("[checkins] Could not fetch image from CDN for EXIF:", fetchErr);
-          // Không block — vẫn tiếp tục với PENDING status
-          imageBuffer = null;
-        }
+      // Fetch ảnh từ CDN để phân tích EXIF/fingerprint trước khi đưa vào hàng chờ AI.
+      try {
+        const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
+        if (!imgRes.ok) throw new Error(`CDN responded ${imgRes.status}`);
+        const arrayBuffer = await imgRes.arrayBuffer();
+        imageBuffer = Buffer.from(arrayBuffer);
+      } catch (fetchErr) {
+        console.warn("[checkins] Could not fetch image from CDN for EXIF:", fetchErr);
+        // Không block — vẫn tiếp tục với PENDING status, worker sẽ thử tải lại ảnh.
+        imageBuffer = null;
       }
     } else {
       // ── (B) FormData flow (cũ: upload file trực tiếp) ──────────────────────
@@ -424,7 +238,6 @@ export async function POST(request: Request) {
       // Read buffer & upload to Vercel Blob
       const arrayBuffer = await imageFile.arrayBuffer();
       imageBuffer = Buffer.from(arrayBuffer);
-      imageFileType = imageFile.type;
 
       const uploadFilename = `${userId}_${postId}_${Date.now()}${
         imageFile.name ? "." + imageFile.name.split(".").pop()?.toLowerCase() : ".jpg"
@@ -433,7 +246,7 @@ export async function POST(request: Request) {
       const uploadResult = await uploadImage(
         imageBuffer,
         uploadFilename,
-        imageFileType,
+        imageFile.type,
         "checkins"
       ).catch((reason) => {
         console.error("[checkins] Upload failed:", reason instanceof Error ? reason.message : reason);
@@ -517,16 +330,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 5. Phân tích EXIF từ buffer (Bỏ qua nếu High Trust) ────────────────
-    const exif: ExifResult = (imageBuffer && !isHighTrust)
+    // ── 5. Phân tích EXIF từ buffer ───────────────────────────────────────
+    const exif: ExifResult = imageBuffer
       ? await parseExifFromBuffer(imageBuffer)
       : { exifTime: null, exifFound: false, sourceTag: null };
 
-    // ── 5b. Tính Perceptual Hash & phát hiện ảnh trùng lặp (Bỏ qua nếu High Trust) ──
+    // ── 5b. Tính Perceptual Hash & phát hiện ảnh trùng lặp ────────────────
     let imagePhash: string | null = null;
     let isDuplicate = false;
 
-    if (imageBuffer && !isHighTrust) {
+    if (imageBuffer) {
       imagePhash = await computeAHash(imageBuffer);
 
       if (imagePhash) {
@@ -550,42 +363,22 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 7. Composite scoring — xác định trạng thái cuối ──────────────────
-    const result = await determineStatus(
-      exif.exifFound,
-      exif.exifTime,
-      new Date(post.start_at),
-      trustScore,
-      imageBuffer,
-      isDuplicate,
-      imageBuffer ? {
-        expectedName: userName,
-        expectedTitle: post.title,
-        expectedUrl: post.url,
-        mimeType: imageFileType,
-      } : null
-    );
-
-    const finalStatus = result.status;
-    const finalReason = result.reason;
-
-    // ── 8. Tạo bản ghi Checkin ───────────────────────────────────────────────
+    // ── 7. Tạo bản ghi Checkin trong hàng chờ AI ──────────────────────────
     const checkin = await db.checkin.create({
       data: {
         user_id: userId,
         post_id: post.id,
         image_url: imageUrl,
         exif_time: exif.exifTime ?? null,
-        status: finalStatus,
-        ai_confidence: result.aiConfidence,
-        is_ai_flagged: finalStatus === "PENDING" && !exif.exifFound,
+        status: "PENDING",
+        ai_confidence: null,
+        is_ai_flagged: isDuplicate || !exif.exifFound,
         image_phash: imagePhash,
-        ai_analysis_reason: result.visionData?.visionReason
-          ?? (finalReason === "exif_valid_but_low_trust" ? "Độ tin cậy thấp, yêu cầu duyệt tay" : null),
-        ai_extracted_username: result.visionData?.extractedUsername ?? null,
-        ai_extracted_title: result.visionData?.extractedTitle ?? null,
-        ai_is_facebook_ui: result.visionData?.isFacebookUI ?? null,
-        ai_is_public_mode: result.visionData?.isPublicMode ?? null,
+        ai_analysis_reason: "Đã đưa vào hàng chờ AI: Kimi đọc ảnh, DeepSeek phân tích.",
+        ai_extracted_username: null,
+        ai_extracted_title: null,
+        ai_is_facebook_ui: null,
+        ai_is_public_mode: null,
       },
     });
 
@@ -594,22 +387,23 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
-    if (finalStatus === "AUTO_APPROVED") {
-      await updateUserTrustScore(userId, "AUTO_APPROVED", post.id);
-    }
+    processBackgroundCheckinReview(checkin.id)
+      .catch((err) => console.error("[checkins] Error spawning background AI review:", err));
 
-    // ── 9. Trả về kết quả ────────────────────────────────────────────────────
+    // ── 8. Trả về kết quả ────────────────────────────────────────────────────
     return NextResponse.json(
       {
         success: true,
-        status: finalStatus,
+        status: "PENDING",
         exif_time: exif.exifTime ? exif.exifTime.toISOString() : null,
         exif_found: exif.exifFound,
         exif_source_tag: exif.sourceTag,
         image_url: imageUrl,
         checkin_id: checkin.id,
-        ai_checked: !!result.visionData,
-        message: buildMessage(finalReason),
+        ai_checked: false,
+        queued_for_ai: true,
+        trust_score: trustScore,
+        message: "Đã nhận minh chứng và đưa vào hàng chờ AI duyệt. Kimi sẽ đọc ảnh, DeepSeek phân tích; nếu hợp lệ và Trust Score > 70 hệ thống sẽ tự duyệt.",
       },
       { status: 201 }
     );
