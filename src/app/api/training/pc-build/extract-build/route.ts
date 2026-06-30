@@ -6,6 +6,18 @@ import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`API call timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
 function isCodexTimeWindow(): boolean {
   try {
     const now = new Date();
@@ -78,11 +90,14 @@ export async function POST(req: Request) {
         formData.append("file", blob, "invoice.jpg");
         formData.append("purpose", "extract");
 
-        const fileRes = await fetch("https://api.moonshot.cn/v1/files", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
-          body: formData
-        });
+        const fileRes = await withTimeout(
+          fetch("https://api.moonshot.cn/v1/files", {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
+            body: formData
+          }),
+          15000 // 15s timeout
+        );
 
         if (!fileRes.ok) {
           const errText = await fileRes.text();
@@ -94,26 +109,29 @@ export async function POST(req: Request) {
         console.log(`[extract-build] Uploaded file to Moonshot, ID: ${fileId}`);
 
         try {
-          const response = await moonshotAI.chat.completions.create({
-            model: "kimi-k2.5",
-            messages: [
-              {
-                role: "system",
-                content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                If thông tin nào không rõ ràng, hãy để là null.`
-              },
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                  { type: "image_url", image_url: { url: fileId } }
-                ]
-              }
-            ],
-            max_tokens: 4000,
-          });
+          const response = await withTimeout(
+            moonshotAI.chat.completions.create({
+              model: "kimi-k2.5",
+              messages: [
+                {
+                  role: "system",
+                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                  If thông tin nào không rõ ràng, hãy để là null.`
+                },
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                    { type: "image_url", image_url: { url: fileId } }
+                  ]
+                }
+              ],
+              max_tokens: 4000,
+            }),
+            25000 // 25s timeout
+          );
 
           // Cleanup
           fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
@@ -142,26 +160,29 @@ export async function POST(req: Request) {
         for (const model of modelsToTry) {
           try {
             console.log(`[extract-build] trying model ${model} with defaultAI...`);
-            const response = await defaultAI.chat.completions.create({
-              model: model,
-              messages: [
-                {
-                  role: "system",
-                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                  If thông tin nào không rõ ràng, hãy để là null.`
-                },
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                    { type: "image_url", image_url: { url: imageUrl } }
-                  ]
-                }
-              ],
-              max_tokens: 4000,
-            });
+            const response = await withTimeout(
+              defaultAI.chat.completions.create({
+                model: model,
+                messages: [
+                  {
+                    role: "system",
+                    content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                    Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                    { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                    If thông tin nào không rõ ràng, hãy để là null.`
+                  },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl } }
+                    ]
+                  }
+                ],
+                max_tokens: 4000,
+              }),
+              25000 // 25s timeout per model
+            );
             const aiContent = response.choices[0]?.message?.content || "{}";
             const parsed = cleanAndParseJSON(aiContent);
             if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {

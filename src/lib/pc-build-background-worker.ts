@@ -90,7 +90,7 @@ export async function processBackgroundPcBuild(
             },
             body: formData
           }),
-          10000 // 10s timeout for upload
+          15000 // 15s timeout for upload
         );
 
         if (!fileRes.ok) {
@@ -124,7 +124,7 @@ export async function processBackgroundPcBuild(
               ],
               max_tokens: 4000,
             }),
-            12000 // 12s timeout
+            25000 // 25s timeout
           );
 
           // Clean up file in background
@@ -176,7 +176,7 @@ export async function processBackgroundPcBuild(
                 ],
                 max_tokens: 4000,
               }),
-              12000 // 12s timeout per model
+              25000 // 25s timeout per model
             );
             const aiContent = response.choices[0]?.message?.content || "{}";
             const parsed = cleanAndParseJSON(aiContent);
