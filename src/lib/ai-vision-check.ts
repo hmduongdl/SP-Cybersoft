@@ -48,7 +48,7 @@ export interface VisionCheckResult {
   isPublicMode: boolean;
 }
 
-const VISION_TIMEOUT_MS = 12_000;
+const VISION_TIMEOUT_MS = 25_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -100,11 +100,14 @@ export async function runVisionCheck(
       formData.append("file", blob, "screenshot.jpg");
       formData.append("purpose", "extract");
 
-      const fileRes = await fetch("https://api.moonshot.cn/v1/files", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
-        body: formData
-      });
+      const fileRes = await withTimeout(
+        fetch("https://api.moonshot.cn/v1/files", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
+          body: formData
+        }),
+        15000 // 15s timeout
+      );
 
       if (!fileRes.ok) {
         const errText = await fileRes.text();
