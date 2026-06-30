@@ -10,6 +10,8 @@ import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 60;
 
 function getEndOfDayVN(start: Date): Date {
   const end = new Date(start);

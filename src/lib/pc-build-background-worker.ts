@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
+import sharp from "sharp";
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   let timeoutId: any;
@@ -108,6 +109,69 @@ const hasExtractedItems = (raw: any): boolean => {
   return !!raw && Array.isArray(raw.items) && raw.items.length > 0;
 };
 
+const ensureCompatibilityChecks = (result: any): any => {
+  if (!result?.matched_parts) return result;
+  if (!result.checks) {
+    result.checks = {
+      socket: { status: "WARN", message: "AI chưa trả về kiểm tra socket chi tiết." },
+      ram: { status: "WARN", message: "AI chưa trả về kiểm tra RAM chi tiết." },
+      power: { status: "WARN", message: "AI chưa trả về kiểm tra nguồn chi tiết." },
+      case: { status: "WARN", message: "AI chưa trả về kiểm tra vỏ case chi tiết." },
+      budget: { status: "WARN", message: "AI chưa trả về kiểm tra ngân sách chi tiết." },
+    };
+    result.reason = result.reason || "AI đã bóc tách cấu hình nhưng chưa trả về đầy đủ báo cáo kiểm tra kỹ thuật.";
+    result.isApproved = false;
+  }
+  return result;
+};
+
+const hasFinalPcBuildResult = (result: any): boolean => {
+  return !!result?.matched_parts;
+};
+
+const envInt = (name: string, fallback: number): number => {
+  const raw = process.env[name];
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
+const IS_VERCEL = process.env.VERCEL === "1";
+const IMAGE_MAX_SIZE = envInt("PC_BUILD_IMAGE_MAX_SIZE", IS_VERCEL ? 1400 : 1600);
+const IMAGE_QUALITY = envInt("PC_BUILD_IMAGE_QUALITY", IS_VERCEL ? 78 : 82);
+const FAST_PATH_TIMEOUT_MS = IS_VERCEL ? 28_000 : 35_000;
+const VISION_EXTRACTION_TIMEOUT_MS = IS_VERCEL ? 18_000 : 60_000;
+const COMPATIBILITY_TIMEOUT_MS = IS_VERCEL ? 16_000 : 25_000;
+const ENABLE_PRO_COMPATIBILITY_FALLBACK =
+  !IS_VERCEL || process.env.PC_BUILD_ENABLE_PRO_FALLBACK === "true";
+
+async function optimizeImageForVision(imageDataUrl: string): Promise<string> {
+  const base64Data = imageDataUrl.split(",")[1] || imageDataUrl;
+  const buffer = Buffer.from(base64Data, "base64");
+  const optimizedBuffer = await sharp(buffer)
+    .rotate()
+    .resize({
+      width: IMAGE_MAX_SIZE,
+      height: IMAGE_MAX_SIZE,
+      fit: "inside",
+      withoutEnlargement: true,
+      kernel: sharp.kernel.lanczos3,
+    })
+    .normalize()
+    .sharpen({ sigma: 0.6 })
+    .jpeg({
+      quality: Math.min(92, Math.max(60, IMAGE_QUALITY)),
+      mozjpeg: true,
+      chromaSubsampling: "4:4:4",
+    })
+    .toBuffer();
+
+  console.log(
+    `[BackgroundWorker] Image optimized for OCR: ${buffer.length} bytes -> ${optimizedBuffer.length} bytes, max=${IMAGE_MAX_SIZE}, quality=${IMAGE_QUALITY}`
+  );
+
+  return `data:image/jpeg;base64,${optimizedBuffer.toString("base64")}`;
+}
+
 function isCodexTimeWindow(): boolean {
   try {
     const now = new Date();
@@ -125,8 +189,6 @@ function isCodexTimeWindow(): boolean {
   }
 }
 
-import sharp from "sharp";
-
 export async function processBackgroundPcBuild(
   id: string,
   type: "checkin" | "submission",
@@ -136,21 +198,134 @@ export async function processBackgroundPcBuild(
   console.log(`[BackgroundWorker] Starting PC Build analysis for ${type} ${id}...`);
 
   try {
+    const analysisStartedAt = Date.now();
     let imageUrl = imageBase64.startsWith("data:")
       ? imageBase64
       : `data:image/jpeg;base64,${imageBase64}`;
 
     try {
-      const base64Data = imageUrl.split(",")[1] || imageUrl;
-      const buffer = Buffer.from(base64Data, "base64");
-      const compressedBuffer = await sharp(buffer)
-        .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
-        .webp({ quality: 75 })
-        .toBuffer();
-      imageUrl = `data:image/webp;base64,${compressedBuffer.toString("base64")}`;
-      console.log("[BackgroundWorker] Image compressed successfully.");
+      imageUrl = await optimizeImageForVision(imageUrl);
     } catch (err) {
-      console.warn("[BackgroundWorker] Image compression failed, using original:", err);
+      console.warn("[BackgroundWorker] Image optimization failed, using original:", err);
+    }
+
+    // Load Task or Exercise requirements early so the Vercel fast-path can do
+    // extraction + compatibility in one vision call.
+    let expectedBudget = 0;
+    let expectedNeed = "Không có";
+    let expectedReqs = "Không có";
+
+    if (type === "checkin") {
+      const task = await db.pcBuildTask.findUnique({ where: { id: pc_task_id } });
+      if (task) {
+        expectedBudget = task.max_budget;
+        expectedNeed = task.customer_need;
+        expectedReqs = task.requirements;
+      }
+    } else {
+      const exercise = await db.pcExercise.findUnique({ where: { id: pc_task_id } });
+      if (exercise) {
+        const reqs = exercise.requirements as any;
+        expectedBudget = Number(reqs?.budget) || 0;
+        expectedNeed = `${exercise.title} - ${exercise.description} (${reqs?.useCase || ""})`;
+        expectedReqs = `Ràng buộc: ${Array.isArray(reqs?.constraints) ? reqs.constraints.join(", ") : ""}`;
+      }
+    }
+
+    let result: any = null;
+
+    const FINAL_ANALYSIS_PROMPT = `
+Bạn là hệ thống chuyên gia duyệt cấu hình PC của SP-CyberSoft.
+Hãy đọc ảnh báo giá, bóc tách linh kiện, phân loại vào các danh mục chuẩn, tính tổng giá và kiểm tra tương thích với đề bài.
+
+CHIẾN LƯỢC OCR BẮT BUỘC:
+1. Đọc bảng báo giá theo từng dòng từ trên xuống dưới.
+2. Chỉ lấy các dòng hàng hóa/linh kiện có tên sản phẩm và giá tiền; bỏ header, hotline, địa chỉ, logo, tổng phụ không phải linh kiện.
+3. Giữ nguyên mã sản phẩm quan trọng như CPU, mainboard, RAM bus/dung lượng, VGA, SSD, PSU watt, case.
+4. Giá tiền trong ảnh có thể dùng dấu "." hoặc "," để phân tách hàng nghìn; trả về số nguyên VND, không kèm ký tự tiền tệ.
+5. Nếu chữ hơi mờ, ưu tiên tên linh kiện đọc được rõ nhất và không tự bịa mã sản phẩm không thấy trong ảnh.
+
+DỮ LIỆU ĐỀ BÀI:
+- Nhu cầu khách hàng: "${expectedNeed}"
+- Ngân sách tối đa: ${expectedBudget > 0 ? expectedBudget.toLocaleString('vi-VN') + ' VNĐ' : 'Không giới hạn'}
+- Yêu cầu cấu hình khác: "${expectedReqs}"
+
+DANH MỤC CHUẨN:
+cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, headphone, desk_chair.
+
+QUY TẮC:
+- Nếu một danh mục không có trong báo giá, trả về { "name": "", "price": 0 }.
+- total_price là tổng tiền thực tế của các linh kiện.
+- Budget được WARN nếu vượt ngân sách tối đa từ 1 đến 200000 VND, FAIL nếu vượt hơn 200000 VND.
+- isApproved=true chỉ khi không có FAIL nghiêm trọng ở socket/ram/power và tổng tiền <= ngân sách + 200000 VND.
+
+BẮT BUỘC chỉ trả về JSON theo format:
+{
+  "matched_parts": {
+    "cpu": { "name": "...", "price": 0 },
+    "mainboard": { "name": "...", "price": 0 },
+    "ram": { "name": "...", "price": 0 },
+    "vga": { "name": "...", "price": 0 },
+    "ssd": { "name": "...", "price": 0 },
+    "psu": { "name": "...", "price": 0 },
+    "case": { "name": "...", "price": 0 },
+    "cooler_fan": { "name": "...", "price": 0 },
+    "monitor": { "name": "...", "price": 0 },
+    "keyboard_mouse": { "name": "...", "price": 0 },
+    "headphone": { "name": "...", "price": 0 },
+    "desk_chair": { "name": "...", "price": 0 },
+    "total_price": 0
+  },
+  "isApproved": false,
+  "reason": "Lý do ngắn gọn bằng tiếng Việt",
+  "checks": {
+    "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
+  }
+}`;
+
+    try {
+      if (process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY) {
+        console.log("[BackgroundWorker] Attempting Vercel fast-path single vision analysis...");
+        const fastResponse = await withTimeout(
+          defaultAI.chat.completions.create({
+            model: MODEL_VISION_ONLY,
+            messages: [
+              { role: "system", content: FINAL_ANALYSIS_PROMPT },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Phân tích báo giá PC này và trả về JSON kết quả cuối:" },
+                  { type: "image_url", image_url: { url: imageUrl, detail: "high" } }
+                ]
+              }
+            ],
+            response_format: { type: "json_object" },
+            max_tokens: 4000,
+          }),
+          FAST_PATH_TIMEOUT_MS
+        );
+
+        const fastContent = fastResponse.choices[0]?.message?.content || "{}";
+        console.log("[BackgroundWorker] Fast-path raw preview:", fastContent.slice(0, 500));
+        const fastResult = ensureCompatibilityChecks(cleanAndParseJSON(fastContent));
+        if (hasFinalPcBuildResult(fastResult)) {
+          result = fastResult;
+          console.log("[BackgroundWorker] Fast-path analysis completed successfully.");
+        } else {
+          console.warn("[BackgroundWorker] Fast-path returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
+        }
+      }
+    } catch (err: any) {
+      console.warn("[BackgroundWorker] Fast-path analysis failed, falling back:", err.message || err);
+    }
+
+    if (!result) {
+    if (IS_VERCEL && Date.now() - analysisStartedAt > 30_000) {
+      throw new Error("Fast-path AI không trả về kết quả kịp trong giới hạn Vercel, dừng fallback để tránh timeout và tốn thêm token.");
     }
 
     // 1. Call Kimi/Gemini Vision to extract the items as a list of raw elements
@@ -158,6 +333,8 @@ export async function processBackgroundPcBuild(
     let extractionError: any = null;
 
     const extractionPrompt = `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền.
+Đọc bảng từ trên xuống dưới, chỉ lấy dòng hàng hóa/linh kiện có tên sản phẩm và giá tiền; bỏ logo, header, hotline, địa chỉ, ghi chú.
+Giữ nguyên mã sản phẩm quan trọng, không tự bịa phần không đọc rõ. Giá tiền trả về dạng số nguyên VND.
 Trả về kết quả dưới định dạng JSON cấu trúc sau:
 { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
 Nếu thông tin nào không rõ ràng, hãy để là null.`;
@@ -178,13 +355,13 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
                 role: "user",
                 content: [
                   { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                  { type: "image_url", image_url: { url: imageUrl } }
+                  { type: "image_url", image_url: { url: imageUrl, detail: "high" } }
                 ]
               }
             ],
             max_tokens: 4000,
           }),
-          60000 // 60s timeout
+          VISION_EXTRACTION_TIMEOUT_MS
         );
 
         const aiContent = response.choices[0]?.message?.content || "{}";
@@ -210,28 +387,6 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
 
     if (!hasExtractedItems(extractedRaw)) {
       throw new Error(`Tất cả các cổng trích xuất AI Vision đều thất bại. Lỗi cuối cùng: ${extractionError?.message || "Không xác định"}`);
-    }
-
-    // 2. Load Task or Exercise requirements
-    let expectedBudget = 0;
-    let expectedNeed = "Không có";
-    let expectedReqs = "Không có";
-
-    if (type === "checkin") {
-      const task = await db.pcBuildTask.findUnique({ where: { id: pc_task_id } });
-      if (task) {
-        expectedBudget = task.max_budget;
-        expectedNeed = task.customer_need;
-        expectedReqs = task.requirements;
-      }
-    } else {
-      const exercise = await db.pcExercise.findUnique({ where: { id: pc_task_id } });
-      if (exercise) {
-        const reqs = exercise.requirements as any;
-        expectedBudget = Number(reqs?.budget) || 0;
-        expectedNeed = `${exercise.title} - ${exercise.description} (${reqs?.useCase || ""})`;
-        expectedReqs = `Ràng buộc: ${Array.isArray(reqs?.constraints) ? reqs.constraints.join(", ") : ""}`;
-      }
     }
 
     // 3. Call AI to match and perform compatibility check
@@ -310,7 +465,6 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 }
 `;
 
-    let result: any = null;
     let compatibilityError: any = null;
 
     const compatibilityAttempts = [
@@ -323,12 +477,13 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
             response_format: { type: "json_object" },
           }),
-          25000 // 25s timeout
+          COMPATIBILITY_TIMEOUT_MS
         );
         const content = response.choices[0]?.message?.content || "{}";
         console.log("[BackgroundWorker] DeepSeek Flash raw preview:", content.slice(0, 500));
         return cleanAndParseJSON(content);
       },
+      ...(ENABLE_PRO_COMPATIBILITY_FALLBACK ? [
       // Attempt 2: DeepSeek Pro (API Box) - backup if Flash is slow/failing
       async () => {
         console.log("[BackgroundWorker] Attempting compatibility check with DeepSeek Pro...");
@@ -338,29 +493,20 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
             response_format: { type: "json_object" },
           }),
-          25000 // 25s timeout
+          COMPATIBILITY_TIMEOUT_MS
         );
         const content = response.choices[0]?.message?.content || "{}";
         console.log("[BackgroundWorker] DeepSeek Pro raw preview:", content.slice(0, 500));
         return cleanAndParseJSON(content);
       }
+      ] : [])
     ];
 
     for (const attempt of compatibilityAttempts) {
       try {
         result = await attempt();
-        if (result && result.matched_parts) {
-          if (!result.checks) {
-            result.checks = {
-              socket: { status: "WARN", message: "AI chưa trả về kiểm tra socket chi tiết." },
-              ram: { status: "WARN", message: "AI chưa trả về kiểm tra RAM chi tiết." },
-              power: { status: "WARN", message: "AI chưa trả về kiểm tra nguồn chi tiết." },
-              case: { status: "WARN", message: "AI chưa trả về kiểm tra vỏ case chi tiết." },
-              budget: { status: "WARN", message: "AI chưa trả về kiểm tra ngân sách chi tiết." },
-            };
-            result.reason = result.reason || "AI đã bóc tách cấu hình nhưng chưa trả về đầy đủ báo cáo kiểm tra kỹ thuật.";
-            result.isApproved = false;
-          }
+        if (hasFinalPcBuildResult(result)) {
+          result = ensureCompatibilityChecks(result);
           compatibilityError = null;
           console.log("[BackgroundWorker] Compatibility check completed successfully.");
           break;
@@ -372,8 +518,9 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
       }
     }
 
-    if (!result || !result.matched_parts) {
+    if (!hasFinalPcBuildResult(result)) {
       throw new Error(`Tất cả các cổng phân tích tương thích AI đều thất bại. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
+    }
     }
 
     // Format output data to include partId: ""

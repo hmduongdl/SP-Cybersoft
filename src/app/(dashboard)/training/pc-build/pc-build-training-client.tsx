@@ -297,8 +297,8 @@ export default function PcBuildTrainingClient() {
         img.src = event.target?.result as string;
         img.onload = () => {
           const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
+          const MAX_WIDTH = 1600;
+          const MAX_HEIGHT = 1600;
           let width = img.width;
           let height = img.height;
 
@@ -318,7 +318,7 @@ export default function PcBuildTrainingClient() {
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
+          resolve(canvas.toDataURL("image/jpeg", 0.78));
         };
       };
       reader.onerror = (error) => reject(error);
@@ -799,27 +799,6 @@ export default function PcBuildTrainingClient() {
                              )}
                           </div>
 
-                          {hasAnalysisError && (
-                            <div className="rounded-3xl border border-rose-500/25 bg-rose-500/10 p-5 space-y-3">
-                              <div className="flex items-start gap-3">
-                                <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
-                                <div>
-                                  <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400 font-manrope">AI chưa phân tích được báo giá</h3>
-                                  <p className="text-xs text-on-muted leading-relaxed mt-1">
-                                    {analysisErrorMessage}
-                                  </p>
-                                </div>
-                              </div>
-                              <Button
-                                onClick={() => setCancelingTaskId(task.id)}
-                                variant="outline"
-                                className="w-full rounded-xl font-bold font-manrope text-xs cursor-pointer border-rose-500/30 text-rose-600 bg-rose-500/10 hover:bg-rose-500/15"
-                              >
-                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Nộp lại cấu hình mới
-                              </Button>
-                            </div>
-                          )}
-
                           {/* 2. Khối Đang kiểm tra kỹ thuật (Tuần tự) */}
                           {!state.isAnalyzing && state.compatibilityChecks && (
                             <div className="space-y-4">
@@ -884,22 +863,43 @@ export default function PcBuildTrainingClient() {
                         {/* Cột 2: Linh kiện bóc tách & Tổng hợp kết quả */}
                         <div className="lg:col-span-7 space-y-6 w-full">
                           {hasAnalysisError && (
-                            <div className="rounded-3xl border border-rose-500/25 bg-surface-container-low p-6 space-y-4">
-                              <div className="flex items-start gap-3">
-                                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                            <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-6 md:p-7 space-y-5 shadow-sm">
+                              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                                <div className="w-11 h-11 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
                                   <AlertTriangle className="h-5 w-5" />
                                 </div>
-                                <div className="space-y-1">
-                                  <h3 className="font-manrope text-base font-extrabold text-on-surface">Không có kết quả phân tích AI</h3>
-                                  <p className="text-xs text-on-muted leading-relaxed">{analysisErrorMessage}</p>
+                                <div className="space-y-2 min-w-0">
+                                  <div className="space-y-1">
+                                    <h3 className="font-manrope text-lg font-extrabold text-on-surface">AI chưa phân tích được báo giá</h3>
+                                    <p className="text-xs text-on-muted leading-relaxed max-w-xl">{analysisErrorMessage}</p>
+                                  </div>
+                                  <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                                    <XCircle className="h-3.5 w-3.5" />
+                                    Cần nộp lại
+                                  </div>
                                 </div>
                               </div>
-                              <Button
-                                onClick={() => setCancelingTaskId(task.id)}
-                                className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-none"
-                              >
-                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Xóa bản lỗi & nộp lại
-                              </Button>
+                              <div className="rounded-2xl border border-surface-container bg-surface-container-lowest/70 p-4">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-on-muted">Ảnh báo giá đã lưu</p>
+                                <p className="mt-1 text-xs text-on-surface-variant leading-relaxed">
+                                  Ảnh vẫn được giữ lại để bạn đối chiếu. Khi nộp lại, bản phân tích lỗi hiện tại sẽ được xóa trước.
+                                </p>
+                              </div>
+                              <div className="flex flex-col sm:flex-row gap-3">
+                                <Button
+                                  onClick={() => setCancelingTaskId(task.id)}
+                                  className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-none shadow-sm"
+                                >
+                                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Xóa bản lỗi & nộp lại
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setActiveTaskId(null)}
+                                  className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer"
+                                >
+                                  Đóng
+                                </Button>
+                              </div>
                             </div>
                           )}
 
@@ -1062,7 +1062,7 @@ export default function PcBuildTrainingClient() {
       {cancelingTaskId && (() => {
         const taskState = getTaskState(cancelingTaskId);
         const isDraft = taskState.isDraft;
-        const isFailedAnalysis = !!taskState.analysisError;
+        const isFailedAnalysis = !!taskState.analysisError || (!!taskState.previewImage && !taskState.isAnalyzing && !taskState.extractedParts);
         return (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-transparent animate-in fade-in duration-200">
             <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">

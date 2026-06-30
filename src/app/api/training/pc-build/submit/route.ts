@@ -5,6 +5,7 @@ import { getStartOfDayVN } from "@/lib/pc-kho";
 import { processBackgroundPcBuild } from "@/lib/pc-build-background-worker";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const DAILY_MAX = 5;
