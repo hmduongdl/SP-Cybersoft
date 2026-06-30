@@ -8,6 +8,8 @@ import { hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
 const AUTO_APPROVE_TRUST_THRESHOLD = 70;
 const AUTO_APPROVE_CONFIDENCE_THRESHOLD = 0.82;
 
+import sharp from "sharp";
+
 async function loadImageAsBase64(imageUrl: string): Promise<{ base64Image: string; mimeType: string } | null> {
   if (imageUrl.startsWith("data:image/")) {
     const match = imageUrl.match(/^data:([^;]+);base64,(.+)$/);
@@ -25,9 +27,16 @@ async function loadImageAsBase64(imageUrl: string): Promise<{ base64Image: strin
   }
 
   const arrayBuffer = await imageRes.arrayBuffer();
+  
+  // Nén ảnh bằng sharp để giảm tải cho AI và tăng tốc độ xử lý trên Vercel
+  const compressedBuffer = await sharp(Buffer.from(arrayBuffer))
+    .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 75 })
+    .toBuffer();
+
   return {
-    base64Image: Buffer.from(arrayBuffer).toString("base64"),
-    mimeType: imageRes.headers.get("content-type") || "image/jpeg",
+    base64Image: compressedBuffer.toString("base64"),
+    mimeType: "image/webp",
   };
 }
 
@@ -97,11 +106,8 @@ export async function processBackgroundCheckinReview(checkinId: string) {
 
     const canAutoApprove =
       !isDuplicateImage &&
-      trustScore > AUTO_APPROVE_TRUST_THRESHOLD &&
       visionResult.isValid &&
-      visionResult.confidence >= AUTO_APPROVE_CONFIDENCE_THRESHOLD &&
-      visionResult.isFacebookUI &&
-      visionResult.isPublicMode;
+      visionResult.confidence >= AUTO_APPROVE_CONFIDENCE_THRESHOLD;
 
     await db.checkin.update({
       where: { id: checkin.id },
@@ -114,9 +120,7 @@ export async function processBackgroundCheckinReview(checkinId: string) {
           : `[AI Reviewed - Needs Admin] ${visionResult.reason}${
               isDuplicateImage
                 ? " Ảnh có dấu hiệu trùng với minh chứng đã được duyệt trước đó."
-                : trustScore > AUTO_APPROVE_TRUST_THRESHOLD
-                ? ""
-                : ` Trust Score ${trustScore}/100 chưa vượt ngưỡng ${AUTO_APPROVE_TRUST_THRESHOLD}.`
+                : ""
             }`,
         ai_extracted_username: visionResult.extractedUsername,
         ai_extracted_title: visionResult.extractedTitle,
