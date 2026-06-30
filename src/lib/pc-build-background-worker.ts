@@ -3,6 +3,18 @@ import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MO
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`API call timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
+}
+
 const cleanAndParseJSON = (str: string): any => {
   try {
     let cleanStr = str.trim();
@@ -70,13 +82,16 @@ export async function processBackgroundPcBuild(
         formData.append("file", blob, "invoice.jpg");
         formData.append("purpose", "extract");
 
-        const fileRes = await fetch("https://api.moonshot.cn/v1/files", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}`
-          },
-          body: formData
-        });
+        const fileRes = await withTimeout(
+          fetch("https://api.moonshot.cn/v1/files", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}`
+            },
+            body: formData
+          }),
+          10000 // 10s timeout for upload
+        );
 
         if (!fileRes.ok) {
           const errText = await fileRes.text();
@@ -88,26 +103,29 @@ export async function processBackgroundPcBuild(
         console.log(`[BackgroundWorker] Uploaded file to Moonshot, ID: ${fileId}`);
 
         try {
-          const response = await moonshotAI.chat.completions.create({
-            model: "kimi-k2.5",
-            messages: [
-              {
-                role: "system",
-                content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                Nếu thông tin nào không rõ ràng, hãy để là null.`
-              },
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                  { type: "image_url", image_url: { url: fileId } }
-                ]
-              }
-            ],
-            max_tokens: 4000,
-          });
+          const response = await withTimeout(
+            moonshotAI.chat.completions.create({
+              model: "kimi-k2.5",
+              messages: [
+                {
+                  role: "system",
+                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                  Nếu thông tin nào không rõ ràng, hãy để là null.`
+                },
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                    { type: "image_url", image_url: { url: fileId } }
+                  ]
+                }
+              ],
+              max_tokens: 4000,
+            }),
+            12000 // 12s timeout
+          );
 
           // Clean up file in background
           fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
@@ -127,36 +145,39 @@ export async function processBackgroundPcBuild(
         }
       },
 
-      // Attempt 3: defaultAI (API Box default key)
+      // Attempt 2: defaultAI (API Box default key)
       async () => {
         console.log("[BackgroundWorker] Attempting extraction with defaultAI (API Box Main)...");
         
-        const modelsToTry = [MODEL_VISION_ONLY, "gpt-4o-mini", "gemini-1.5-flash"];
+        const modelsToTry = [MODEL_VISION_ONLY];
         let lastErr: any = null;
 
         for (const model of modelsToTry) {
           try {
             console.log(`[BackgroundWorker] trying model ${model} with defaultAI...`);
-            const response = await defaultAI.chat.completions.create({
-              model: model,
-              messages: [
-                {
-                  role: "system",
-                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                  Nếu thông tin nào không rõ ràng, hãy để là null.`
-                },
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                    { type: "image_url", image_url: { url: imageUrl } }
-                  ]
-                }
-              ],
-              max_tokens: 4000,
-            });
+            const response = await withTimeout(
+              defaultAI.chat.completions.create({
+                model: model,
+                messages: [
+                  {
+                    role: "system",
+                    content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                    Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                    { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                    Nếu thông tin nào không rõ ràng, hãy để là null.`
+                  },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl } }
+                    ]
+                  }
+                ],
+                max_tokens: 4000,
+              }),
+              12000 // 12s timeout per model
+            );
             const aiContent = response.choices[0]?.message?.content || "{}";
             const parsed = cleanAndParseJSON(aiContent);
             if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
@@ -294,22 +315,28 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
       // Attempt 1: DeepSeek Flash (API Box)
       async () => {
         console.log("[BackgroundWorker] Attempting compatibility check with DeepSeek Flash...");
-        const response = await defaultAI.chat.completions.create({
-          model: MODEL_CHAT_FLASH,
-          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
-          response_format: { type: "json_object" },
-        });
+        const response = await withTimeout(
+          defaultAI.chat.completions.create({
+            model: MODEL_CHAT_FLASH,
+            messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+            response_format: { type: "json_object" },
+          }),
+          12000 // 12s timeout
+        );
         const content = response.choices[0]?.message?.content || "{}";
         return JSON.parse(content);
       },
       // Attempt 2: DeepSeek Pro (API Box) - backup if Flash is slow/failing
       async () => {
         console.log("[BackgroundWorker] Attempting compatibility check with DeepSeek Pro...");
-        const response = await defaultAI.chat.completions.create({
-          model: MODEL_CHAT_PRO,
-          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
-          response_format: { type: "json_object" },
-        });
+        const response = await withTimeout(
+          defaultAI.chat.completions.create({
+            model: MODEL_CHAT_PRO,
+            messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+            response_format: { type: "json_object" },
+          }),
+          12000 // 12s timeout
+        );
         const content = response.choices[0]?.message?.content || "{}";
         return JSON.parse(content);
       },
@@ -319,11 +346,14 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
           throw new Error("No MOONSHOT_API_KEY for compatibility fallback");
         }
         console.log("[BackgroundWorker] Attempting compatibility check with direct Moonshot Kimi...");
-        const response = await moonshotAI.chat.completions.create({
-          model: "kimi-k2.5",
-          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
-          response_format: { type: "json_object" },
-        });
+        const response = await withTimeout(
+          moonshotAI.chat.completions.create({
+            model: "kimi-k2.5",
+            messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+            response_format: { type: "json_object" },
+          }),
+          12000 // 12s timeout
+        );
         const content = response.choices[0]?.message?.content || "{}";
         return JSON.parse(content);
       }

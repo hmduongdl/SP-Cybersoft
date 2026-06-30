@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 export const MODEL_CHAT_PRO = process.env.MODEL_DEEPSEEK_PRO || "deepseek-v4-pro[1m]";
 export const MODEL_CHAT_FLASH = process.env.MODEL_DEEPSEEK_FLASH || "deepseek-v4-flash[1m]";
-export const MODEL_VISION_ONLY = process.env.MODEL_GEMINI_VISION || "kimi-k2.5";
+export const MODEL_VISION_ONLY = "kimi-k2.5";
 export const MODEL_VISION_THINKING = "gemini-3-flash-thinking";
 
 // Danh sách model CHỈ được dùng cho vision (image input), không cho chat text
@@ -17,14 +17,14 @@ const globalForAI = global as unknown as {
 export const defaultAI =
   globalForAI.defaultAI ||
   new OpenAI({
-    apiKey: process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY,
+    apiKey: process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY,
     baseURL: process.env.AIBOX_BASE_URL || "https://api.ai-box.vn/v1",
   });
 
 export const codexAI =
   globalForAI.codexAI ||
   new OpenAI({
-    apiKey: process.env.AIBOX_CODEX_API_KEY || process.env.AIBOX_API_KEY,
+    apiKey: process.env.AIBOX_CODEX_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_DEFAULT_API_KEY,
     baseURL: process.env.AIBOX_BASE_URL || "https://api.ai-box.vn/v1",
   });
 

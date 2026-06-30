@@ -31,6 +31,7 @@ import { processBackgroundCheckinReview } from "@/lib/checkin-background-worker"
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

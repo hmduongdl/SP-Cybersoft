@@ -4,6 +4,7 @@ import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MO
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function isCodexTimeWindow(): boolean {
   try {
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
       async () => {
         console.log("[extract-build] Attempting extraction with defaultAI (API Box Main)...");
         
-        const modelsToTry = [MODEL_VISION_ONLY, "gpt-4o-mini", "gemini-1.5-flash"];
+        const modelsToTry = [MODEL_VISION_ONLY];
         let lastErr: any = null;
 
         for (const model of modelsToTry) {
