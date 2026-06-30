@@ -56,6 +56,8 @@ interface Part {
 interface TaskState {
   previewImage: string | null;
   isAnalyzing: boolean;
+  analysisError?: string | null;
+  submittedAt?: string | null;
   analysisStep: "idle" | "kimi" | "deepseek";
   extractedParts: Record<string, Part> | null;
   compatibilityChecks: any;
@@ -103,6 +105,8 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
 const DEFAULT_TASK_STATE: TaskState = {
   previewImage: null,
   isAnalyzing: false,
+  analysisError: null,
+  submittedAt: null,
   analysisStep: "idle",
   extractedParts: null,
   compatibilityChecks: null,
@@ -127,6 +131,7 @@ export default function PcBuildTrainingClient() {
 
   
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const ANALYSIS_STALE_MS = 2 * 60 * 1000;
 
   const getCountdownLabel = (deadlineStr: string | null | undefined) => {
     if (!deadlineStr) return "";
@@ -173,12 +178,27 @@ export default function PcBuildTrainingClient() {
         if (Array.isArray(data.submissions)) {
           data.submissions.forEach((sub: any) => {
             const buildData = sub.build_data || {};
-            const isAnalyzing = buildData.is_analyzing === true;
+            const submittedAt = sub.submitted_at || null;
+            const hasAnalysisError = typeof buildData.error === "string";
+            const staleAnalysis =
+              buildData.is_analyzing === true &&
+              submittedAt &&
+              Date.now() - new Date(submittedAt).getTime() > ANALYSIS_STALE_MS;
+            const isAnalyzing = buildData.is_analyzing === true && !hasAnalysisError && !staleAnalysis;
+            const missingAnalysisResult = !!sub.image_url && !isAnalyzing && !hasAnalysisError && !buildData.checks;
             const isDraft = buildData.is_draft !== false; // Default to draft unless explicitly false
 
             states[sub.pc_task_id] = {
               previewImage: sub.image_url || null,
               isAnalyzing,
+              analysisError: hasAnalysisError
+                ? buildData.error
+                : staleAnalysis
+                  ? "AI phân tích quá lâu hoặc đã lỗi ở phiên trước. Bạn có thể nộp lại cấu hình mới."
+                  : missingAnalysisResult
+                    ? "AI chưa trả về kết quả phân tích hợp lệ. Bạn có thể nộp lại cấu hình mới."
+                  : null,
+              submittedAt,
               analysisStep: isAnalyzing ? "deepseek" : "idle",
               extractedParts: isAnalyzing ? null : (buildData.checks ? buildData : null),
               compatibilityChecks: isAnalyzing ? null : buildData.checks,
@@ -226,12 +246,13 @@ export default function PcBuildTrainingClient() {
                   updateTaskState(taskId, {
                     isAnalyzing: false,
                     analysisStep: "idle",
-                    previewImage: null,
+                    analysisError: result.errorMsg || "Lỗi xử lý báo giá.",
                   });
                 } else {
                   updateTaskState(taskId, {
                     isAnalyzing: false,
                     analysisStep: "idle",
+                    analysisError: null,
                     extractedParts: result.data,
                     isApproved: result.status === "AUTO_APPROVED" || result.data?.is_approved === true,
                     approvalReason: result.data?.reason || "",
@@ -242,6 +263,17 @@ export default function PcBuildTrainingClient() {
                   toast.success("AI đã phân tích xong cấu hình! Hãy viết ghi chú và nộp bài để hoàn thành.");
                   fetchTasks();
                 }
+              } else if (
+                state.submittedAt &&
+                Date.now() - new Date(state.submittedAt).getTime() > ANALYSIS_STALE_MS
+              ) {
+                clearInterval(pollingIntervals[taskId]);
+                delete pollingIntervals[taskId];
+                updateTaskState(taskId, {
+                  isAnalyzing: false,
+                  analysisStep: "idle",
+                  analysisError: "AI phân tích quá lâu hoặc đã lỗi ở phiên trước. Bạn có thể nộp lại cấu hình mới.",
+                });
               }
             }
           } catch (e) {
@@ -296,7 +328,13 @@ export default function PcBuildTrainingClient() {
   const handleImageFileProcessing = async (taskId: string, file: File) => {
     try {
       const base64Image = await compressImage(file);
-      updateTaskState(taskId, { previewImage: base64Image, isAnalyzing: true, analysisStep: "kimi" });
+      updateTaskState(taskId, {
+        previewImage: base64Image,
+        isAnalyzing: true,
+        analysisError: null,
+        submittedAt: new Date().toISOString(),
+        analysisStep: "kimi",
+      });
 
       const res = await fetch("/api/training/pc-build/submit", {
         method: "POST",
@@ -313,6 +351,8 @@ export default function PcBuildTrainingClient() {
       updateTaskState(taskId, {
         checkin_id: data.checkin_id,
         isAnalyzing: true,
+        analysisError: null,
+        submittedAt: new Date().toISOString(),
         status: "PENDING",
         isDraft: true,
       });
@@ -515,6 +555,7 @@ export default function PcBuildTrainingClient() {
             {tasks.map((task, idx) => {
               const state = getTaskState(task.id);
               const isSubmitted = !!(state.previewImage && !state.isDraft);
+              const hasAnalysisError = !!state.analysisError || (!!state.previewImage && !state.isAnalyzing && !state.extractedParts);
 
               return (
                 <div
@@ -542,14 +583,18 @@ export default function PcBuildTrainingClient() {
                         {state.previewImage && (
                           <span className={cn(
                             "px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 border",
-                            state.isAnalyzing 
+                            hasAnalysisError
+                              ? "bg-rose-500/10 text-rose-600 border-rose-500/15"
+                              : state.isAnalyzing
                               ? "bg-amber-500/10 text-amber-600 border-amber-500/15 animate-pulse" 
                               : (isSubmitted 
                                   ? (state.status === "AUTO_APPROVED" || state.isApproved ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" : "bg-blue-500/10 text-blue-600 border-blue-500/15") 
                                   : "bg-indigo-500/10 text-indigo-600 border-indigo-500/15")
                           )}>
-                            {state.isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
-                            {state.isAnalyzing 
+                            {hasAnalysisError ? <AlertTriangle className="h-3.5 w-3.5" /> : state.isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                            {hasAnalysisError
+                              ? "AI lỗi - cần nộp lại"
+                              : state.isAnalyzing 
                               ? "AI Đang phân tích chạy ngầm..." 
                               : (isSubmitted 
                                   ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài") 
@@ -598,6 +643,9 @@ export default function PcBuildTrainingClient() {
             const val = parts[k] as any;
             return val && val.name;
           }) : [];
+          const hasAnalysisError = !!state.analysisError || (isResultView && !state.isAnalyzing && !parts);
+          const analysisErrorMessage =
+            state.analysisError || "AI chưa trả về kết quả phân tích hợp lệ. Bạn có thể nộp lại cấu hình mới.";
           
           const partsAnimDelay = checksAnimDelay + (checkKeys.length * 0.4) + 0.5;
           const finalResultAnimDelay = partsAnimDelay + (partsKeys.length * 0.3) + 1.0;
@@ -607,7 +655,7 @@ export default function PcBuildTrainingClient() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto"
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent p-4 overflow-y-auto"
               onClick={() => setActiveTaskId(null)}
             >
               <motion.div
@@ -722,7 +770,7 @@ export default function PcBuildTrainingClient() {
                              >
                                <img 
                                  src={state.previewImage || undefined} 
-                                 className="w-full h-full object-cover object-top filter blur-[2px] hover:blur-0 transition-all duration-300" 
+                                 className="w-full h-full object-cover object-top transition-all duration-300" 
                                  alt="Báo giá cấu hình"
                                />
                                <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors flex items-center justify-center">
@@ -750,6 +798,27 @@ export default function PcBuildTrainingClient() {
                                 </div>
                              )}
                           </div>
+
+                          {hasAnalysisError && (
+                            <div className="rounded-3xl border border-rose-500/25 bg-rose-500/10 p-5 space-y-3">
+                              <div className="flex items-start gap-3">
+                                <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+                                <div>
+                                  <h3 className="text-sm font-bold text-rose-600 dark:text-rose-400 font-manrope">AI chưa phân tích được báo giá</h3>
+                                  <p className="text-xs text-on-muted leading-relaxed mt-1">
+                                    {analysisErrorMessage}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => setCancelingTaskId(task.id)}
+                                variant="outline"
+                                className="w-full rounded-xl font-bold font-manrope text-xs cursor-pointer border-rose-500/30 text-rose-600 bg-rose-500/10 hover:bg-rose-500/15"
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Nộp lại cấu hình mới
+                              </Button>
+                            </div>
+                          )}
 
                           {/* 2. Khối Đang kiểm tra kỹ thuật (Tuần tự) */}
                           {!state.isAnalyzing && state.compatibilityChecks && (
@@ -814,6 +883,26 @@ export default function PcBuildTrainingClient() {
 
                         {/* Cột 2: Linh kiện bóc tách & Tổng hợp kết quả */}
                         <div className="lg:col-span-7 space-y-6 w-full">
+                          {hasAnalysisError && (
+                            <div className="rounded-3xl border border-rose-500/25 bg-surface-container-low p-6 space-y-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                                  <AlertTriangle className="h-5 w-5" />
+                                </div>
+                                <div className="space-y-1">
+                                  <h3 className="font-manrope text-base font-extrabold text-on-surface">Không có kết quả phân tích AI</h3>
+                                  <p className="text-xs text-on-muted leading-relaxed">{analysisErrorMessage}</p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={() => setCancelingTaskId(task.id)}
+                                className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-none"
+                              >
+                                <Plus className="w-3.5 h-3.5 mr-1.5" /> Xóa bản lỗi & nộp lại
+                              </Button>
+                            </div>
+                          )}
+
                           {/* 3. Khối Linh kiện bóc tách (Tuần tự + CountUp) */}
                           {!state.isAnalyzing && parts && partsKeys.length > 0 && (
                             <div className="space-y-4 bg-surface-container-low/40 p-5 rounded-3xl border border-surface-container">
@@ -947,7 +1036,7 @@ export default function PcBuildTrainingClient() {
       {/* Image Modal Lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-transparent p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedImage(null)}
         >
           <div
@@ -973,17 +1062,20 @@ export default function PcBuildTrainingClient() {
       {cancelingTaskId && (() => {
         const taskState = getTaskState(cancelingTaskId);
         const isDraft = taskState.isDraft;
+        const isFailedAnalysis = !!taskState.analysisError;
         return (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-transparent animate-in fade-in duration-200">
             <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
               <div className="flex items-center gap-3 text-rose-600">
                 <AlertTriangle className="h-6 w-6" />
                 <h3 className="text-sm font-bold text-on-surface font-manrope">
-                  {isDraft ? "Xác nhận hủy cấu hình" : "Nộp lại cấu hình mới"}
+                  {isFailedAnalysis ? "Nộp lại cấu hình mới" : isDraft ? "Xác nhận hủy cấu hình" : "Nộp lại cấu hình mới"}
                 </h3>
               </div>
               <p className="text-xs text-on-muted leading-relaxed font-inter">
-                {isDraft 
+                {isFailedAnalysis
+                  ? "Bạn có chắc chắn muốn xóa bản phân tích bị lỗi và nộp lại cấu hình mới không?"
+                  : isDraft 
                   ? "Bạn có chắc chắn muốn hủy quá trình hiện tại không? Mọi tiến trình phân tích báo giá sẽ bị dừng lại."
                   : "Bạn có chắc chắn muốn xóa cấu hình đã nộp và nộp lại cấu hình mới không? Dữ liệu đã nộp cũ trên hệ thống sẽ bị xóa hoàn toàn."
                 }
@@ -1001,7 +1093,7 @@ export default function PcBuildTrainingClient() {
                     setActiveTaskId(null);
                   }}
                 >
-                  {isDraft ? "Đồng ý hủy" : "Xác nhận xóa & làm lại"}
+                  {isFailedAnalysis ? "Xác nhận xóa & nộp lại" : isDraft ? "Đồng ý hủy" : "Xác nhận xóa & làm lại"}
                 </Button>
               </div>
             </div>
@@ -1011,7 +1103,7 @@ export default function PcBuildTrainingClient() {
 
       {/* Confirm Final Submit Modal */}
       {submittingTaskId && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-transparent animate-in fade-in duration-200">
           <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 text-primary">
               <Sparkles className="h-6 w-6" />

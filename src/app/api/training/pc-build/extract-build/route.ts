@@ -80,74 +80,34 @@ export async function POST(req: Request) {
         if (!process.env.MOONSHOT_API_KEY) {
           throw new Error("No MOONSHOT_API_KEY configured for extract-build");
         }
-        console.log("[extract-build] Attempting extraction with direct Moonshot Kimi API via files upload...");
+        console.log("[extract-build] Attempting extraction with direct Moonshot Kimi API via base64...");
         
-        const base64Data = imageUrl.split(",")[1] || imageUrl;
-        const buffer = Buffer.from(base64Data, "base64");
-        
-        const formData = new FormData();
-        const blob = new Blob([buffer], { type: "image/jpeg" });
-        formData.append("file", blob, "invoice.jpg");
-        formData.append("purpose", "extract");
-
-        const fileRes = await withTimeout(
-          fetch("https://api.moonshot.cn/v1/files", {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
-            body: formData
+        const response = await withTimeout(
+          moonshotAI.chat.completions.create({
+            model: "kimi-k2.5",
+            messages: [
+              {
+                role: "system",
+                content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                If thông tin nào không rõ ràng, hãy để là null.`
+              },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                  { type: "image_url", image_url: { url: imageUrl } }
+                ]
+              }
+            ],
+            max_tokens: 4000,
           }),
-          15000 // 15s timeout
+          60000 // 60s timeout
         );
 
-        if (!fileRes.ok) {
-          const errText = await fileRes.text();
-          throw new Error(`Kimi File Upload failed: ${errText}`);
-        }
-
-        const fileData = await fileRes.json();
-        const fileId = fileData.id;
-        console.log(`[extract-build] Uploaded file to Moonshot, ID: ${fileId}`);
-
-        try {
-          const response = await withTimeout(
-            moonshotAI.chat.completions.create({
-              model: "kimi-k2.5",
-              messages: [
-                {
-                  role: "system",
-                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                  If thông tin nào không rõ ràng, hãy để là null.`
-                },
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                    { type: "image_url", image_url: { url: fileId } }
-                  ]
-                }
-              ],
-              max_tokens: 4000,
-            }),
-            25000 // 25s timeout
-          );
-
-          // Cleanup
-          fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
-          }).catch(() => {});
-
-          const aiContent = response.choices[0]?.message?.content || "{}";
-          return cleanAndParseJSON(aiContent);
-        } catch (compErr) {
-          fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
-          }).catch(() => {});
-          throw compErr;
-        }
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
       }
     ];
 

@@ -24,11 +24,88 @@ const cleanAndParseJSON = (str: string): any => {
         cleanStr = match[1].trim();
       }
     }
+    if (!cleanStr.startsWith("{") && !cleanStr.startsWith("[")) {
+      const firstObject = cleanStr.indexOf("{");
+      const lastObject = cleanStr.lastIndexOf("}");
+      const firstArray = cleanStr.indexOf("[");
+      const lastArray = cleanStr.lastIndexOf("]");
+
+      if (firstObject !== -1 && lastObject > firstObject) {
+        cleanStr = cleanStr.slice(firstObject, lastObject + 1);
+      } else if (firstArray !== -1 && lastArray > firstArray) {
+        cleanStr = cleanStr.slice(firstArray, lastArray + 1);
+      }
+    }
     return JSON.parse(cleanStr);
   } catch (e) {
-    console.error("[cleanAndParseJSON] Failed to parse:", str, e);
+    console.error("[cleanAndParseJSON] Failed to parse:", str.slice(0, 1000), e);
     return {};
   }
+};
+
+const parseMoney = (value: unknown): number => {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.round(value);
+  if (typeof value === "string") {
+    const digits = value.replace(/\D/g, "");
+    return digits ? Number.parseInt(digits, 10) : 0;
+  }
+  return 0;
+};
+
+const normalizeExtractionResult = (raw: any): any => {
+  if (!raw) return raw;
+
+  if (Array.isArray(raw)) {
+    return { items: raw };
+  }
+
+  if (Array.isArray(raw.items)) {
+    return raw;
+  }
+
+  const arrayKeys = ["products", "components", "parts", "line_items", "linh_kien", "linhKien"];
+  for (const key of arrayKeys) {
+    if (Array.isArray(raw[key])) {
+      return {
+        ...raw,
+        items: raw[key],
+        total_amount: parseMoney(raw.total_amount ?? raw.total ?? raw.total_price),
+      };
+    }
+  }
+
+  const objectKeys = ["matched_parts", "components", "parts", "pc_build", "build"];
+  for (const key of objectKeys) {
+    const value = raw[key];
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const items = Object.entries(value)
+        .filter(([partKey, partValue]) => partKey !== "total_price" && partValue && typeof partValue === "object")
+        .map(([partKey, partValue]) => {
+          const part = partValue as Record<string, unknown>;
+          return {
+            name: part.name || part.product_name || part.title || partKey,
+            quantity: parseMoney(part.quantity ?? part.qty) || 1,
+            price: parseMoney(part.price ?? part.unit_price ?? part.amount),
+            total: parseMoney(part.total ?? part.total_price ?? part.price ?? part.amount),
+          };
+        })
+        .filter((item) => typeof item.name === "string" && item.name.trim().length > 0);
+
+      if (items.length > 0) {
+        return {
+          ...raw,
+          items,
+          total_amount: parseMoney(raw.total_amount ?? raw.total ?? raw.total_price ?? value.total_price),
+        };
+      }
+    }
+  }
+
+  return raw;
+};
+
+const hasExtractedItems = (raw: any): boolean => {
+  return !!raw && Array.isArray(raw.items) && raw.items.length > 0;
 };
 
 function isCodexTimeWindow(): boolean {
@@ -65,102 +142,58 @@ export async function processBackgroundPcBuild(
     let extractedRaw: any = null;
     let extractionError: any = null;
 
+    const extractionPrompt = `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền.
+Trả về kết quả dưới định dạng JSON cấu trúc sau:
+{ "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+Nếu thông tin nào không rõ ràng, hãy để là null.`;
+
     const extractionAttempts = [
-      // Attempt 1: Direct Moonshot (Kimi API) if configured (Uploads to Kimi Files API first to avoid base64 unsupported errors)
       async () => {
         if (!process.env.MOONSHOT_API_KEY) {
           throw new Error("No MOONSHOT_API_KEY configured in environment");
         }
-        console.log("[BackgroundWorker] Attempting extraction with direct Moonshot Kimi API via files upload...");
+        console.log("[BackgroundWorker] Attempting extraction with direct Moonshot Kimi API via base64...");
         
-        // Convert base64 into standard file buffer to upload
-        const base64Data = imageUrl.split(",")[1] || imageUrl;
-        const buffer = Buffer.from(base64Data, "base64");
-        
-        const formData = new FormData();
-        const blob = new Blob([buffer], { type: "image/jpeg" });
-        formData.append("file", blob, "invoice.jpg");
-        formData.append("purpose", "extract");
-
-        const fileRes = await withTimeout(
-          fetch("https://api.moonshot.cn/v1/files", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}`
-            },
-            body: formData
+        const response = await withTimeout(
+          moonshotAI.chat.completions.create({
+            model: "kimi-k2.5",
+            messages: [
+              { role: "system", content: extractionPrompt },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                  { type: "image_url", image_url: { url: imageUrl } }
+                ]
+              }
+            ],
+            max_tokens: 4000,
           }),
-          15000 // 15s timeout for upload
+          60000 // 60s timeout
         );
 
-        if (!fileRes.ok) {
-          const errText = await fileRes.text();
-          throw new Error(`Kimi File Upload failed: ${errText}`);
-        }
-
-        const fileData = await fileRes.json();
-        const fileId = fileData.id;
-        console.log(`[BackgroundWorker] Uploaded file to Moonshot, ID: ${fileId}`);
-
-        try {
-          const response = await withTimeout(
-            moonshotAI.chat.completions.create({
-              model: "kimi-k2.5",
-              messages: [
-                {
-                  role: "system",
-                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                  Nếu thông tin nào không rõ ràng, hãy để là null.`
-                },
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                    { type: "image_url", image_url: { url: fileId } }
-                  ]
-                }
-              ],
-              max_tokens: 4000,
-            }),
-            25000 // 25s timeout
-          );
-
-          // Clean up file in background
-          fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
-          }).catch(err => console.warn("[BackgroundWorker] Kimi delete file failed:", err));
-
-          const aiContent = response.choices[0]?.message?.content || "{}";
-          return cleanAndParseJSON(aiContent);
-        } catch (compErr) {
-          // Attempt deletion if chat completion failed
-          fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
-            method: "DELETE",
-            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
-          }).catch(() => {});
-          throw compErr;
-        }
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        console.log("[BackgroundWorker] Moonshot extraction raw preview:", aiContent.slice(0, 500));
+        return normalizeExtractionResult(cleanAndParseJSON(aiContent));
       }
     ];
 
     for (const attempt of extractionAttempts) {
       try {
-        extractedRaw = await attempt();
-        if (extractedRaw && Array.isArray(extractedRaw.items) && extractedRaw.items.length > 0) {
+        extractedRaw = normalizeExtractionResult(await attempt());
+        if (hasExtractedItems(extractedRaw)) {
           extractionError = null;
           console.log("[BackgroundWorker] Successfully extracted parts from image.");
           break;
         }
+        console.warn("[BackgroundWorker] Extraction returned no usable items:", JSON.stringify(extractedRaw).slice(0, 1000));
       } catch (err: any) {
         console.warn(`[BackgroundWorker] Extraction attempt failed:`, err.message || err);
         extractionError = err;
       }
     }
 
-    if (!extractedRaw || !Array.isArray(extractedRaw.items)) {
+    if (!hasExtractedItems(extractedRaw)) {
       throw new Error(`Tất cả các cổng trích xuất AI Vision đều thất bại. Lỗi cuối cùng: ${extractionError?.message || "Không xác định"}`);
     }
 
@@ -278,7 +311,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
           25000 // 25s timeout
         );
         const content = response.choices[0]?.message?.content || "{}";
-        return JSON.parse(content);
+        console.log("[BackgroundWorker] DeepSeek Flash raw preview:", content.slice(0, 500));
+        return cleanAndParseJSON(content);
       },
       // Attempt 2: DeepSeek Pro (API Box) - backup if Flash is slow/failing
       async () => {
@@ -292,25 +326,38 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
           25000 // 25s timeout
         );
         const content = response.choices[0]?.message?.content || "{}";
-        return JSON.parse(content);
+        console.log("[BackgroundWorker] DeepSeek Pro raw preview:", content.slice(0, 500));
+        return cleanAndParseJSON(content);
       }
     ];
 
     for (const attempt of compatibilityAttempts) {
       try {
         result = await attempt();
-        if (result && result.matched_parts && result.checks) {
+        if (result && result.matched_parts) {
+          if (!result.checks) {
+            result.checks = {
+              socket: { status: "WARN", message: "AI chưa trả về kiểm tra socket chi tiết." },
+              ram: { status: "WARN", message: "AI chưa trả về kiểm tra RAM chi tiết." },
+              power: { status: "WARN", message: "AI chưa trả về kiểm tra nguồn chi tiết." },
+              case: { status: "WARN", message: "AI chưa trả về kiểm tra vỏ case chi tiết." },
+              budget: { status: "WARN", message: "AI chưa trả về kiểm tra ngân sách chi tiết." },
+            };
+            result.reason = result.reason || "AI đã bóc tách cấu hình nhưng chưa trả về đầy đủ báo cáo kiểm tra kỹ thuật.";
+            result.isApproved = false;
+          }
           compatibilityError = null;
           console.log("[BackgroundWorker] Compatibility check completed successfully.");
           break;
         }
+        console.warn("[BackgroundWorker] Compatibility returned unusable result:", JSON.stringify(result).slice(0, 1000));
       } catch (err: any) {
         console.warn("[BackgroundWorker] Compatibility attempt failed:", err.message || err);
         compatibilityError = err;
       }
     }
 
-    if (!result || !result.matched_parts || !result.checks) {
+    if (!result || !result.matched_parts) {
       throw new Error(`Tất cả các cổng phân tích tương thích AI đều thất bại. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
     }
 
@@ -416,7 +463,11 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
         where: { id },
         data: {
           status: "PENDING",
-          ai_feedback: "Gặp lỗi hệ thống trong quá trình AI phân tích background."
+          ai_feedback: "Gặp lỗi hệ thống trong quá trình AI phân tích background.",
+          parts_answer: {
+            is_analyzing: false,
+            error: "Lỗi phân tích hóa đơn từ AI background."
+          }
         }
       });
     }
