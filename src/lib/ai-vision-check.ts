@@ -169,11 +169,11 @@ THÔNG TIN TRÍCH XUẤT TỪ ẢNH:
 - Giao diện trông như mạng xã hội thật: ${isFacebookUI}
 - Có hiển thị chế độ Công khai / Public: ${isPublicMode}
 
-TIÊU CHÍ ĐÁNH GIÁ:
-1. Tên người share có nét tương đồng với tên nhân viên (viết tắt, nickname hay tên khác vẫn được, miễn là hợp lý).
-2. Tiêu đề/nội dung bài trong ảnh phải khớp hoặc liên quan chặt chẽ đến bài cần share.
-3. Nếu giao diện trông giả mạo (is_social_ui = false) → isValid = false.
-4. Nếu bài không ở chế độ Công khai (is_public_mode = false) → giảm confidence xuống ≤ 60.
+TIÊU CHÍ ĐÁNH GIÁ ĐỂ DUYỆT TỰ ĐỘNG (BẮT BUỘC):
+1. TÊN NGƯỜI DÙNG: Tên người chia sẻ trong ảnh BẮT BUỘC phải trùng khớp hoặc gần giống (chứa một phần tên) với tên nhân viên (VD: "Hoang Long" với "Lê Nguyễn Hoàng Long" là HỢP LỆ). Nếu trong ảnh không có tên nhân viên này hoặc tên hoàn toàn sai lệch -> LẬP TỨC từ chối (isValid = false, confidence = 0).
+2. NỘI DUNG/TIÊU ĐỀ: Tiêu đề hoặc nội dung bài trong ảnh phải tương tự với tiêu đề bài cần share trên web hoặc có chứa nội dung liên quan.
+3. Nếu 2 điều kiện TÊN và NỘI DUNG trên đều hợp lệ, thì duyệt tự động luôn (isValid = true, confidence >= 90).
+4. Các yếu tố khác như chế độ Công khai (is_public_mode) hoặc giao diện (is_social_ui) chỉ dùng để tham khảo, nếu tên và nội dung đã khớp thì vẫn ưu tiên DUYỆT.
 
 Trả về JSON: { "isValid": boolean, "confidence": number (0–100), "reason": "Lý do ngắn gọn bằng tiếng Việt" }`,
         },

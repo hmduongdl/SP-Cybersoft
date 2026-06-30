@@ -125,6 +125,8 @@ function isCodexTimeWindow(): boolean {
   }
 }
 
+import sharp from "sharp";
+
 export async function processBackgroundPcBuild(
   id: string,
   type: "checkin" | "submission",
@@ -134,9 +136,22 @@ export async function processBackgroundPcBuild(
   console.log(`[BackgroundWorker] Starting PC Build analysis for ${type} ${id}...`);
 
   try {
-    const imageUrl = imageBase64.startsWith("data:")
+    let imageUrl = imageBase64.startsWith("data:")
       ? imageBase64
       : `data:image/jpeg;base64,${imageBase64}`;
+
+    try {
+      const base64Data = imageUrl.split(",")[1] || imageUrl;
+      const buffer = Buffer.from(base64Data, "base64");
+      const compressedBuffer = await sharp(buffer)
+        .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
+        .webp({ quality: 75 })
+        .toBuffer();
+      imageUrl = `data:image/webp;base64,${compressedBuffer.toString("base64")}`;
+      console.log("[BackgroundWorker] Image compressed successfully.");
+    } catch (err) {
+      console.warn("[BackgroundWorker] Image compression failed, using original:", err);
+    }
 
     // 1. Call Kimi/Gemini Vision to extract the items as a list of raw elements
     let extractedRaw: any = null;
