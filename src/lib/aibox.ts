@@ -11,6 +11,7 @@ export const VISION_ONLY_MODELS = [MODEL_VISION_ONLY, MODEL_VISION_THINKING];
 const globalForAI = global as unknown as {
   defaultAI?: OpenAI;
   codexAI?: OpenAI;
+  moonshotAI?: OpenAI;
 };
 
 export const defaultAI =
@@ -27,10 +28,18 @@ export const codexAI =
     baseURL: process.env.AIBOX_BASE_URL || "https://api.ai-box.vn/v1",
   });
 
+export const moonshotAI =
+  globalForAI.moonshotAI ||
+  new OpenAI({
+    apiKey: process.env.MOONSHOT_API_KEY || "dummy-key",
+    baseURL: "https://api.moonshot.cn/v1",
+  });
+
 // Backward-compatible alias for existing text/chat call sites.
 export const aibox = defaultAI;
 
 if (process.env.NODE_ENV !== "production") {
   globalForAI.defaultAI = defaultAI;
   globalForAI.codexAI = codexAI;
+  globalForAI.moonshotAI = moonshotAI;
 }

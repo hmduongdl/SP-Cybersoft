@@ -415,11 +415,8 @@ export default function PcBuildTrainingClient() {
           animation: scan 2.5s ease-in-out infinite;
         }
         .result-page {
-          max-width: 760px;
+          width: 100%;
           margin: 0 auto;
-          display: flex;
-          flex-direction: column;
-          gap: 24px;
         }
         .uploaded-image { width: 100%; height: auto; display: block; }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
@@ -547,7 +544,7 @@ export default function PcBuildTrainingClient() {
                             {state.isAnalyzing 
                               ? "AI Đang phân tích chạy ngầm..." 
                               : (isSubmitted 
-                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài (Chờ duyệt)") 
+                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài") 
                                   : "Nháp phân tích (Chưa nộp)")
                             }
                           </span>
@@ -611,7 +608,7 @@ export default function PcBuildTrainingClient() {
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className={cn(
                   "relative bg-surface-container-lowest rounded-3xl shadow-2xl w-full my-auto flex flex-col",
-                  isResultView ? "max-w-[760px] h-[90vh]" : "max-w-4xl max-h-[90vh]"
+                  isResultView ? "max-w-6xl h-[90vh]" : "max-w-4xl max-h-[90vh]"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -705,222 +702,245 @@ export default function PcBuildTrainingClient() {
                         </div>
                      </div>
                    ) : (
-                     <div className="flex flex-col gap-8 pb-10">
-                        <div className="w-full relative group">
-                           <img 
-                             src={state.previewImage || undefined} 
-                             className="uploaded-image rounded-2xl border border-surface-container-high shadow-lg cursor-zoom-in" 
-                             alt="Báo giá"
-                             onClick={() => setSelectedImage(state.previewImage || null)}
-                           />
-                           {state.isAnalyzing && (
-                              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-6 border border-white/10 z-10">
-                                <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-primary to-violet-500 shadow-[0_0_15px_rgba(99,102,241,1)] scanner-line" />
-                                <div className="bg-surface-container-lowest/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-center gap-4 text-center max-w-sm shadow-2xl">
-                                  <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                                  <h3 className="text-lg font-bold text-on-surface font-manrope">AI đang phân tích & kiểm tra</h3>
-                                  <p className="text-sm text-on-muted leading-relaxed">Đang bóc tách linh kiện và đối chiếu độ tương thích. Vui lòng chờ trong giây lát...</p>
-                                  <button
-                                    type="button"
-                                    onClick={() => setCancelingTaskId(task.id)}
-                                    className="mt-4 text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 bg-rose-500/10 px-4 py-2 rounded-xl transition-all border-none"
-                                  >
-                                    Hủy quét bài viết
-                                  </button>
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-6 items-start">
+                        {/* Cột 1: Ảnh báo giá & Kiểm tra kỹ thuật */}
+                        <div className="lg:col-span-5 space-y-6 w-full">
+                          {/* 1. Ảnh báo giá */}
+                          {/* 1. Ảnh báo giá dọc 9:16 tối ưu */}
+                          <div className="w-full relative group">
+                             <div 
+                               className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md cursor-zoom-in relative bg-black/5"
+                               onClick={() => setSelectedImage(state.previewImage || null)}
+                             >
+                               <img 
+                                 src={state.previewImage || undefined} 
+                                 className="w-full h-full object-cover object-top filter blur-[2px] hover:blur-0 transition-all duration-300" 
+                                 alt="Báo giá cấu hình"
+                               />
+                               <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors flex items-center justify-center">
+                                 <span className="bg-black/60 backdrop-blur-sm text-[10px] font-bold text-white px-3 py-1.5 rounded-full flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                   <Sparkles className="w-3 h-3 text-amber-400" /> Xem ảnh rõ nét
+                                 </span>
+                               </div>
+                             </div>
+
+                             {state.isAnalyzing && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-6 border border-white/10 z-10">
+                                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-primary to-violet-500 shadow-[0_0_15px_rgba(99,102,241,1)] scanner-line" />
+                                  <div className="bg-surface-container-lowest/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-center gap-4 text-center max-w-sm shadow-2xl">
+                                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                    <h3 className="text-lg font-bold text-on-surface font-manrope">AI đang phân tích & kiểm tra</h3>
+                                    <p className="text-sm text-on-muted leading-relaxed">Đang bóc tách linh kiện và đối chiếu độ tương thích. Vui lòng chờ trong giây lát...</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setCancelingTaskId(task.id)}
+                                      className="mt-4 text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 bg-rose-500/10 px-4 py-2 rounded-xl transition-all border-none"
+                                    >
+                                      Hủy quét bài viết
+                                    </button>
+                                  </div>
                                 </div>
+                             )}
+                          </div>
+
+                          {/* 2. Khối Đang kiểm tra kỹ thuật (Tuần tự) */}
+                          {!state.isAnalyzing && state.compatibilityChecks && (
+                            <div className="space-y-4">
+                              <motion.h3 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider"
+                              >
+                                <Sparkles className="w-4 h-4 text-violet-500" /> Kiểm tra kỹ thuật
+                              </motion.h3>
+                              
+                              <div className="flex flex-col gap-3">
+                                {checkKeys.map((key, i) => {
+                                  const check = state.compatibilityChecks[key];
+                                  if (!check) return null;
+                                  return (
+                                    <motion.div 
+                                      key={key}
+                                      initial={{ opacity: 0, scale: 0.9 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{ 
+                                        delay: checksAnimDelay + (i * 0.3), 
+                                        type: "spring", 
+                                        stiffness: 200, 
+                                        damping: 15 
+                                      }}
+                                      className="flex items-start gap-3 p-4 rounded-2xl bg-surface-container border border-surface-container-high shadow-sm"
+                                    >
+                                      <div className="mt-0.5 shrink-0">
+                                        {check.status === "PASS" ? (
+                                          <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                          </div>
+                                        ) : check.status === "FAIL" ? (
+                                          <div className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center animate-bounce">
+                                            <XCircle className="w-3.5 h-3.5" />
+                                          </div>
+                                        ) : (
+                                          <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-xs">
+                                        <p className="font-bold text-on-surface">
+                                          {key === "socket" ? "Socket CPU & Mainboard" :
+                                           key === "ram" ? "Chuẩn thế hệ RAM" :
+                                           key === "power" ? "Công suất Nguồn (PSU)" :
+                                           key === "case" ? "Kích thước vỏ máy (Case)" :
+                                           "Ràng buộc Ngân sách"}
+                                        </p>
+                                        <p className="text-on-muted mt-1 text-[11px] leading-relaxed">{check.message}</p>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
                               </div>
-                           )}
+                            </div>
+                          )}
                         </div>
 
-                        {!state.isAnalyzing && state.compatibilityChecks && (
-                          <div className="space-y-4">
-                            <motion.h3 
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              className="font-manrope text-lg font-extrabold flex items-center gap-2"
-                            >
-                              <Sparkles className="w-5 h-5 text-violet-500" /> Quá trình kiểm tra kỹ thuật
-                            </motion.h3>
-                            
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                              {checkKeys.map((key, i) => {
-                                const check = state.compatibilityChecks[key];
-                                if (!check) return null;
-                                return (
-                                  <motion.div 
-                                    key={key}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ 
-                                      delay: checksAnimDelay + (i * 0.4), 
-                                      type: "spring", 
-                                      stiffness: 200, 
-                                      damping: 15 
-                                    }}
-                                    className="flex items-start gap-3 p-4 rounded-2xl bg-surface-container border border-surface-container-high shadow-sm"
-                                  >
-                                    <div className="mt-0.5 shrink-0">
-                                      {check.status === "PASS" ? (
-                                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
-                                          <CheckCircle2 className="w-4 h-4" />
+                        {/* Cột 2: Linh kiện bóc tách & Tổng hợp kết quả */}
+                        <div className="lg:col-span-7 space-y-6 w-full">
+                          {/* 3. Khối Linh kiện bóc tách (Tuần tự + CountUp) */}
+                          {!state.isAnalyzing && parts && partsKeys.length > 0 && (
+                            <div className="space-y-4 bg-surface-container-low/40 p-5 rounded-3xl border border-surface-container">
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: partsAnimDelay - 0.2 }}
+                                className="flex items-center justify-between border-b border-surface-container-high pb-3"
+                              >
+                                <h3 className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider">
+                                  <Layers className="w-4 h-4 text-indigo-500" /> Linh kiện bóc tách
+                                </h3>
+                                <div className="text-right">
+                                  <span className="text-[10px] text-on-muted uppercase font-bold block">Tổng tiền</span>
+                                  <span className="text-lg font-extrabold text-primary font-mono bg-primary/10 px-3 py-1 rounded-lg inline-block shadow-inner mt-1">
+                                    <CountUp 
+                                      end={Number(parts.total_price?.price || parts.total_price || 0)} 
+                                      duration={partsKeys.length * 0.3} 
+                                      delay={partsAnimDelay}
+                                      separator="."
+                                      suffix="đ"
+                                      preserveValue
+                                    />
+                                  </span>
+                                </div>
+                              </motion.div>
+                              
+                              <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                                {partsKeys.map((key, i) => {
+                                  const part = parts ? (parts[key] as any) : null;
+                                  if (!part) return null;
+                                  return (
+                                    <motion.div
+                                      key={key}
+                                      initial={{ opacity: 0, x: 20 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ 
+                                        delay: partsAnimDelay + (i * 0.2),
+                                        type: "spring",
+                                        damping: 20
+                                      }}
+                                      className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest/80 border border-surface-container-high/40 hover:bg-surface-container transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2.5 w-1/3 min-w-[120px] shrink-0">
+                                        <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center">
+                                          {CATEGORY_ICONS[key] || <Box className="w-3.5 h-3.5 text-slate-400" />}
                                         </div>
-                                      ) : check.status === "FAIL" ? (
-                                        <div className="w-6 h-6 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center animate-bounce">
-                                          <XCircle className="w-4 h-4" />
-                                        </div>
-                                      ) : (
-                                        <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center">
-                                          <AlertTriangle className="w-4 h-4" />
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="text-sm">
-                                      <p className="font-bold text-on-surface">
-                                        {key === "socket" ? "Socket CPU & Mainboard" :
-                                         key === "ram" ? "Chuẩn thế hệ RAM" :
-                                         key === "power" ? "Công suất Nguồn (PSU)" :
-                                         key === "case" ? "Kích thước vỏ máy (Case)" :
-                                         "Ràng buộc Ngân sách"}
-                                      </p>
-                                      <p className="text-on-muted mt-1 text-xs">{check.message}</p>
-                                    </div>
-                                  </motion.div>
-                                );
-                              })}
+                                        <span className="font-bold text-xs text-on-surface">{CATEGORY_LABELS[key] || key}</span>
+                                      </div>
+                                      <span className="text-xs font-medium text-on-surface-variant truncate flex-1 px-3">{part.name}</span>
+                                      <span className="text-xs font-bold font-mono text-on-surface shrink-0">{part.price > 0 ? formatVND(part.price) : "—"}</span>
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
-                        {!state.isAnalyzing && parts && partsKeys.length > 0 && (
-                          <div className="space-y-4">
-                            <motion.div 
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              transition={{ delay: partsAnimDelay - 0.2 }}
-                              className="flex items-center justify-between border-b border-surface-container-high pb-2"
+                          {/* 4. Kết quả cuối & Form Submit */}
+                          {!state.isAnalyzing && parts && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              transition={{ delay: finalResultAnimDelay, type: "spring", bounce: 0.3 }}
+                              className="space-y-6"
                             >
-                              <h3 className="font-manrope text-lg font-extrabold flex items-center gap-2">
-                                <Layers className="w-5 h-5 text-indigo-500" /> Linh kiện bóc tách
-                              </h3>
-                              <div className="text-right">
-                                <span className="text-xs text-on-muted uppercase font-bold block">Tổng tiền</span>
-                                <span className="text-xl font-extrabold text-primary font-mono bg-primary/10 px-3 py-1 rounded-lg inline-block shadow-inner mt-1">
-                                  <CountUp 
-                                    end={Number(parts.total_price?.price || parts.total_price || 0)} 
-                                    duration={partsKeys.length * 0.3} 
-                                    delay={partsAnimDelay}
-                                    separator="."
-                                    suffix="đ"
-                                    preserveValue
+                              <div className={cn(
+                                "p-6 rounded-3xl border-2 text-center shadow-lg",
+                                state.isApproved
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-400"
+                                  : "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
+                              )}>
+                                 <div className="w-12 h-12 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-3">
+                                   {state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />}
+                                 </div>
+                                 <h2 className="text-xl font-black font-manrope mb-1">
+                                   {state.isApproved ? "CẤU HÌNH ĐẠT YÊU CẦU!" : "CẤU HÌNH CHƯA ĐẠT!"}
+                                 </h2>
+                                 <p className="text-xs font-medium opacity-90 max-w-md mx-auto leading-relaxed">
+                                   {state.approvalReason || "Hệ thống AI đã hoàn thành kiểm thử báo giá linh kiện."}
+                                 </p>
+                              </div>
+
+                              {/* Ghi chú & Nộp Bài */}
+                              {(!state.previewImage || state.isDraft) && (
+                                <div className="space-y-4 bg-surface-container-low p-5 rounded-3xl border border-surface-container">
+                                  <h3 className="text-xs font-bold flex items-center gap-2 uppercase tracking-wider">
+                                    <FileText className="w-3.5 h-3.5 text-primary" /> Lời nhắn gửi Admin (Tùy chọn)
+                                  </h3>
+                                  <textarea
+                                    rows={3}
+                                    value={state.explanation}
+                                    onChange={(e) => updateTaskState(task.id, { explanation: e.target.value })}
+                                    placeholder="Ví dụ: Cấu hình này đã tối ưu hiệu năng chơi game 2K trong tầm giá..."
+                                    className="w-full resize-none rounded-2xl border border-surface-container-high bg-surface-container px-4 py-3 font-inter text-xs outline-none focus:border-primary transition-all shadow-inner"
                                   />
-                                </span>
+                                  <div className="flex justify-end">
+                                    <Button
+                                      onClick={() => setSubmittingTaskId(task.id)}
+                                      disabled={state.submitting}
+                                      className="gradient-primary text-on-primary rounded-xl font-bold font-manrope text-xs px-6 py-4 cursor-pointer shadow-md hover:scale-105 transition-transform"
+                                    >
+                                      {state.submitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> Đang nộp...</> : <><Send className="w-4 h-4 mr-1.5"/> Hoàn thành & Nộp bài</>}
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Nút nộp lại cấu hình */}
+                              <div className="flex justify-center pt-4 border-t border-surface-container">
+                                  <Button
+                                    onClick={() => {
+                                      updateTaskState(task.id, {
+                                        previewImage: null,
+                                        isAnalyzing: false,
+                                        extractedParts: null,
+                                        compatibilityChecks: null,
+                                        isApproved: false,
+                                        approvalReason: "",
+                                        explanation: "",
+                                        submitting: false,
+                                        isDraft: true,
+                                        checkin_id: undefined,
+                                        status: undefined
+                                      });
+                                    }}
+                                    variant="outline"
+                                    className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-surface-container-high text-on-muted bg-surface-container-low/50 hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Nộp lại cấu hình mới
+                                  </Button>
                               </div>
                             </motion.div>
-                            
-                            <div className="flex flex-col gap-2">
-                              {partsKeys.map((key, i) => {
-                                const part = parts ? (parts[key] as any) : null;
-                                if (!part) return null;
-                                return (
-                                  <motion.div
-                                    key={key}
-                                    initial={{ opacity: 0, x: -30 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ 
-                                      delay: partsAnimDelay + (i * 0.3),
-                                      type: "spring",
-                                      damping: 20
-                                    }}
-                                    className="flex items-center justify-between p-3 rounded-xl hover:bg-surface-container transition-colors border border-transparent hover:border-surface-container-high"
-                                  >
-                                    <div className="flex items-center gap-3 w-1/3 min-w-[140px] shrink-0">
-                                      <div className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center">
-                                        {CATEGORY_ICONS[key] || <Box className="w-4 h-4 text-slate-400" />}
-                                      </div>
-                                      <span className="font-bold text-sm text-on-surface">{CATEGORY_LABELS[key] || key}</span>
-                                    </div>
-                                    <span className="text-sm font-medium text-on-surface-variant truncate flex-1 px-4">{part.name}</span>
-                                    <span className="text-sm font-bold font-mono text-on-surface shrink-0">{part.price > 0 ? formatVND(part.price) : "—"}</span>
-                                  </motion.div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {!state.isAnalyzing && parts && (
-                          <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 30 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            transition={{ delay: finalResultAnimDelay, type: "spring", bounce: 0.4 }}
-                            className="space-y-6 mt-4"
-                          >
-                            <div className={cn(
-                              "p-6 rounded-3xl border-2 text-center shadow-xl",
-                              state.isApproved
-                                ? "bg-emerald-500/10 border-emerald-500 text-emerald-800 dark:text-emerald-400"
-                                : "bg-rose-500/10 border-rose-500 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
-                            )}>
-                               <div className="w-16 h-16 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-4">
-                                 {state.isApproved ? <Award className="w-8 h-8 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-8 h-8 text-rose-600 dark:text-rose-400" />}
-                               </div>
-                               <h2 className="text-2xl font-black font-manrope mb-2">
-                                 {state.isApproved ? "CẤU HÌNH ĐẠT YÊU CẦU!" : "CẤU HÌNH CHƯA ĐẠT!"}
-                               </h2>
-                               <p className="text-sm font-medium opacity-90 max-w-md mx-auto">
-                                 {state.approvalReason || "Hệ thống AI đã hoàn thành kiểm thử báo giá linh kiện."}
-                               </p>
-                            </div>
-
-                            {(!state.previewImage || state.isDraft) && (
-                              <div className="space-y-4 bg-surface-container-low p-6 rounded-3xl border border-surface-container">
-                                <h3 className="text-sm font-bold flex items-center gap-2">
-                                  <FileText className="w-4 h-4 text-primary" /> Lời nhắn gửi Admin (Tùy chọn)
-                                </h3>
-                                <textarea
-                                  rows={3}
-                                  value={state.explanation}
-                                  onChange={(e) => updateTaskState(task.id, { explanation: e.target.value })}
-                                  placeholder="Ví dụ: Cấu hình này đã tối ưu hiệu năng chơi game 2K trong tầm giá..."
-                                  className="w-full resize-none rounded-2xl border border-surface-container-high bg-surface-container px-4 py-3 font-inter text-sm outline-none focus:border-primary transition-all shadow-inner"
-                                />
-                                <div className="flex justify-end pt-2">
-                                  <Button
-                                    onClick={() => setSubmittingTaskId(task.id)}
-                                    disabled={state.submitting}
-                                    className="gradient-primary text-on-primary rounded-xl font-bold font-manrope text-sm px-8 py-6 cursor-pointer shadow-lg shadow-primary/20 hover:scale-105 transition-transform"
-                                  >
-                                    {state.submitting ? <><Loader2 className="w-5 h-5 mr-2 animate-spin"/> Đang nộp...</> : <><Send className="w-5 h-5 mr-2"/> Hoàn thành & Nộp bài</>}
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex justify-center pt-8 border-t border-surface-container">
-                                <Button
-                                  onClick={() => {
-                                    updateTaskState(task.id, {
-                                      previewImage: null,
-                                      isAnalyzing: false,
-                                      extractedParts: null,
-                                      compatibilityChecks: null,
-                                      isApproved: false,
-                                      approvalReason: "",
-                                      explanation: "",
-                                      submitting: false,
-                                      isDraft: true,
-                                      checkin_id: undefined,
-                                      status: undefined
-                                    });
-                                  }}
-                                  variant="outline"
-                                  className="rounded-xl font-bold font-manrope text-sm px-6 py-5 cursor-pointer hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all"
-                                >
-                                  <Plus className="w-4 h-4 mr-2" /> Nộp lại cấu hình mới
-                                </Button>
-                            </div>
-                          </motion.div>
-                        )}
+                          )}
+                        </div>
                      </div>
                    )}
                 </div>
