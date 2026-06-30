@@ -341,7 +341,7 @@ export default function PcBuildTrainingClient() {
 
   const handleCancelTask = async (taskId: string) => {
     const state = getTaskState(taskId);
-    if (state.checkin_id && state.isDraft) {
+    if (state.checkin_id) {
       try {
         await fetch("/api/training/pc-build/cancel", {
           method: "POST",
@@ -407,12 +407,20 @@ export default function PcBuildTrainingClient() {
 
       <style>{`
         @keyframes scan {
-          0% { transform: translateY(-100%); }
-          50% { transform: translateY(220px); }
-          100% { transform: translateY(-100%); }
+          0% { top: -15%; }
+          50% { top: 95%; }
+          100% { top: -15%; }
         }
         .scanner-line {
-          animation: scan 2.5s ease-in-out infinite;
+          position: absolute;
+          left: 0;
+          right: 0;
+          height: 100px;
+          background: linear-gradient(to bottom, rgba(99, 102, 241, 0) 0%, rgba(99, 102, 241, 0.15) 50%, rgba(99, 102, 241, 0) 100%);
+          border-bottom: 2px solid rgba(99, 102, 241, 0.5);
+          box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+          animation: scan 3s ease-in-out infinite;
+          pointer-events: none;
         }
         .result-page {
           width: 100%;
@@ -725,8 +733,8 @@ export default function PcBuildTrainingClient() {
                              </div>
 
                              {state.isAnalyzing && (
-                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-6 border border-white/10 z-10">
-                                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-primary to-violet-500 shadow-[0_0_15px_rgba(99,102,241,1)] scanner-line" />
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl overflow-hidden flex flex-col items-center justify-center p-6 border border-white/10 z-10">
+                                  <div className="scanner-line" />
                                   <div className="bg-surface-container-lowest/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-center gap-4 text-center max-w-sm shadow-2xl">
                                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
                                     <h3 className="text-lg font-bold text-on-surface font-manrope">AI đang phân tích & kiểm tra</h3>
@@ -917,21 +925,7 @@ export default function PcBuildTrainingClient() {
                               {/* Nút nộp lại cấu hình */}
                               <div className="flex justify-center pt-4 border-t border-surface-container">
                                   <Button
-                                    onClick={() => {
-                                      updateTaskState(task.id, {
-                                        previewImage: null,
-                                        isAnalyzing: false,
-                                        extractedParts: null,
-                                        compatibilityChecks: null,
-                                        isApproved: false,
-                                        approvalReason: "",
-                                        explanation: "",
-                                        submitting: false,
-                                        isDraft: true,
-                                        checkin_id: undefined,
-                                        status: undefined
-                                      });
-                                    }}
+                                    onClick={() => setCancelingTaskId(task.id)}
                                     variant="outline"
                                     className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-surface-container-high text-on-muted bg-surface-container-low/50 hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all"
                                   >
@@ -976,35 +970,44 @@ export default function PcBuildTrainingClient() {
       )}
 
       {/* Confirm Cancel Scanning / Config Modal */}
-      {cancelingTaskId && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3 text-rose-600">
-              <AlertTriangle className="h-6 w-6" />
-              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận hủy cấu hình</h3>
-            </div>
-            <p className="text-xs text-on-muted leading-relaxed font-inter">
-              Bạn có chắc chắn muốn hủy quá trình hiện tại không? Mọi tiến trình phân tích báo giá sẽ bị dừng lại.
-            </p>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setCancelingTaskId(null)}>
-                Quay lại
-              </Button>
-              <Button
-                className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-xs font-bold font-manrope cursor-pointer border-none"
-                onClick={async () => {
-                  const taskId = cancelingTaskId;
-                  setCancelingTaskId(null);
-                  await handleCancelTask(taskId);
-                  setActiveTaskId(null);
-                }}
-              >
-                Đồng ý hủy
-              </Button>
+      {cancelingTaskId && (() => {
+        const taskState = getTaskState(cancelingTaskId);
+        const isDraft = taskState.isDraft;
+        return (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-3 text-rose-600">
+                <AlertTriangle className="h-6 w-6" />
+                <h3 className="text-sm font-bold text-on-surface font-manrope">
+                  {isDraft ? "Xác nhận hủy cấu hình" : "Nộp lại cấu hình mới"}
+                </h3>
+              </div>
+              <p className="text-xs text-on-muted leading-relaxed font-inter">
+                {isDraft 
+                  ? "Bạn có chắc chắn muốn hủy quá trình hiện tại không? Mọi tiến trình phân tích báo giá sẽ bị dừng lại."
+                  : "Bạn có chắc chắn muốn xóa cấu hình đã nộp và nộp lại cấu hình mới không? Dữ liệu đã nộp cũ trên hệ thống sẽ bị xóa hoàn toàn."
+                }
+              </p>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setCancelingTaskId(null)}>
+                  Quay lại
+                </Button>
+                <Button
+                  className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-xs font-bold font-manrope cursor-pointer border-none"
+                  onClick={async () => {
+                    const taskId = cancelingTaskId;
+                    setCancelingTaskId(null);
+                    await handleCancelTask(taskId);
+                    setActiveTaskId(null);
+                  }}
+                >
+                  {isDraft ? "Đồng ý hủy" : "Xác nhận xóa & làm lại"}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Confirm Final Submit Modal */}
       {submittingTaskId && (

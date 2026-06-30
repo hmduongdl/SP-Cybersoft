@@ -87,112 +87,128 @@ export async function runVisionCheck(
   let extractionError: any = null;
 
   const extractionAttempts = [
-    // Attempt 1: codexAI (API Box Codex Key) inside time window
-    async () => {
-      if (!isCodexTimeWindow()) {
-        throw new Error("Codex API is restricted outside of 18:00 - 20:00 GMT+7");
-      }
-      console.log("[ai-vision-check] Attempting extraction with codexAI (API Box)...");
-      const res = await withTimeout(
-        codexAI.chat.completions.create({
-          model: MODEL_VISION_ONLY,
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
-1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
-2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
-3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
-4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
-Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
-                },
-              ],
-            },
-          ],
-          max_tokens: 1500,
-        }),
-        VISION_TIMEOUT_MS
-      );
-      const aiContent = res.choices[0]?.message?.content || "{}";
-      return cleanAndParseJSON(aiContent);
-    },
-
-    // Attempt 2: Direct Moonshot (Kimi) if configured
+    // Attempt 1: Direct Moonshot (Kimi) if configured (Uploads to Kimi Files API first to avoid base64 unsupported errors)
     async () => {
       if (!process.env.MOONSHOT_API_KEY) {
         throw new Error("No MOONSHOT_API_KEY configured for vision check");
       }
-      console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API...");
-      const res = await withTimeout(
-        moonshotAI.chat.completions.create({
-          model: "kimi-k2.5",
-          messages: [
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+      console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API via files upload...");
+      
+      const buffer = Buffer.from(base64Image, "base64");
+      const formData = new FormData();
+      const blob = new Blob([buffer], { type: mimeType });
+      formData.append("file", blob, "screenshot.jpg");
+      formData.append("purpose", "extract");
+
+      const fileRes = await fetch("https://api.moonshot.cn/v1/files", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
+        body: formData
+      });
+
+      if (!fileRes.ok) {
+        const errText = await fileRes.text();
+        throw new Error(`Kimi File Upload failed: ${errText}`);
+      }
+
+      const fileData = await fileRes.json();
+      const fileId = fileData.id;
+      console.log(`[ai-vision-check] Uploaded file to Moonshot, ID: ${fileId}`);
+
+      try {
+        const res = await withTimeout(
+          moonshotAI.chat.completions.create({
+            model: "kimi-k2.5",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
 1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
 Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
-                },
-              ],
-            },
-          ],
-          max_tokens: 1500,
-        }),
-        VISION_TIMEOUT_MS
-      );
-      const aiContent = res.choices[0]?.message?.content || "{}";
-      return cleanAndParseJSON(aiContent);
+                  },
+                  {
+                    type: "image_url",
+                    image_url: { url: fileId },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 1500,
+          }),
+          VISION_TIMEOUT_MS
+        );
+
+        // Cleanup
+        fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
+        }).catch(() => {});
+
+        const aiContent = res.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      } catch (compErr) {
+        fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
+        }).catch(() => {});
+        throw compErr;
+      }
     },
 
     // Attempt 3: defaultAI (API Box default key)
     async () => {
       console.log("[ai-vision-check] Attempting extraction with defaultAI (API Box Main)...");
-      const res = await withTimeout(
-        defaultAI.chat.completions.create({
-          model: MODEL_VISION_ONLY,
-          messages: [
-            {
-              role: "user",
-              content: [
+      
+      const modelsToTry = [MODEL_VISION_ONLY, "gpt-4o-mini", "gemini-1.5-flash"];
+      let lastErr: any = null;
+
+      for (const model of modelsToTry) {
+        try {
+          console.log(`[ai-vision-check] trying model ${model} with defaultAI...`);
+          const res = await withTimeout(
+            defaultAI.chat.completions.create({
+              model: model,
+              messages: [
                 {
-                  type: "text",
-                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+                  role: "user",
+                  content: [
+                    {
+                      type: "text",
+                      text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
 1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
 Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-                },
-                {
-                  type: "image_url",
-                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                    },
+                    {
+                      type: "image_url",
+                      image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          max_tokens: 1500,
-        }),
-        VISION_TIMEOUT_MS
-      );
-      const aiContent = res.choices[0]?.message?.content || "{}";
-      return cleanAndParseJSON(aiContent);
+              max_tokens: 1500,
+            }),
+            VISION_TIMEOUT_MS
+          );
+          const aiContent = res.choices[0]?.message?.content || "{}";
+          const parsed = cleanAndParseJSON(aiContent);
+          if (parsed && (parsed.extracted_username || parsed.extracted_title)) {
+            return parsed;
+          }
+        } catch (e: any) {
+          console.warn(`[ai-vision-check] defaultAI model ${model} failed:`, e.message || e);
+          lastErr = e;
+        }
+      }
+      throw lastErr || new Error("All models failed on defaultAI");
     }
   ];
 

@@ -19,20 +19,14 @@ export async function POST(req: Request) {
         where: { id, user_id: session.user.id }
       });
       if (checkin) {
-        const isDraft = (checkin.build_data as any)?.is_draft === true;
-        if (isDraft) {
-          await db.checkin.delete({ where: { id } });
-        }
+        await db.checkin.delete({ where: { id } });
       }
     } else {
       const submission = await db.pcSubmission.findFirst({
         where: { id, user_id: session.user.id }
       });
       if (submission) {
-        const isDraft = (submission.parts_answer as any)?.is_draft === true;
-        if (isDraft) {
-          await db.pcSubmission.delete({ where: { id } });
-        }
+        await db.pcSubmission.delete({ where: { id } });
       }
     }
     return NextResponse.json({ success: true });
