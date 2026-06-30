@@ -148,52 +148,6 @@ export async function POST(req: Request) {
           }).catch(() => {});
           throw compErr;
         }
-      },
-
-      // Attempt 3: defaultAI (API Box default key)
-      async () => {
-        console.log("[extract-build] Attempting extraction with defaultAI (API Box Main)...");
-        
-        const modelsToTry = [MODEL_VISION_ONLY];
-        let lastErr: any = null;
-
-        for (const model of modelsToTry) {
-          try {
-            console.log(`[extract-build] trying model ${model} with defaultAI...`);
-            const response = await withTimeout(
-              defaultAI.chat.completions.create({
-                model: model,
-                messages: [
-                  {
-                    role: "system",
-                    content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-                    Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-                    { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-                    If thông tin nào không rõ ràng, hãy để là null.`
-                  },
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl } }
-                    ]
-                  }
-                ],
-                max_tokens: 4000,
-              }),
-              25000 // 25s timeout per model
-            );
-            const aiContent = response.choices[0]?.message?.content || "{}";
-            const parsed = cleanAndParseJSON(aiContent);
-            if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
-              return parsed;
-            }
-          } catch (e: any) {
-            console.warn(`[extract-build] defaultAI model ${model} failed:`, e.message || e);
-            lastErr = e;
-          }
-        }
-        throw lastErr || new Error("All models failed on defaultAI");
       }
     ];
 
