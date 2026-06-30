@@ -18,6 +18,7 @@ import {
   X,
   Cpu,
   FileText,
+  FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -61,7 +62,7 @@ interface Part {
 interface ExerciseState {
   previewImage: string | null;
   isAnalyzing: boolean;
-  analysisStep: "idle" | "kimi" | "deepseek";
+  analysisStep: "idle" | "vision" | "deepseek" | "done";
   extractedParts: Record<string, Part> | null;
   compatibilityChecks: any;
   isApproved: boolean;
@@ -84,7 +85,7 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; clas
   APPROVED: { label: "Đã duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-success-text bg-success-bg" },
   REJECTED: { label: "Từ chối", icon: <XCircle className="h-3.5 w-3.5" />, className: "text-error-text bg-error-bg" },
   AUTO_APPROVED: { label: "Tự duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-success-text bg-success-bg" },
-  ANALYZING: { label: "AI Đang quét...", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: "text-amber-700 bg-amber-50" },
+  ANALYZING: { label: "Đang xử lý...", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: "text-amber-700 bg-amber-50" },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -134,7 +135,7 @@ const PC_GUIDES = [
   {
     id: "guide-4",
     title: "Cách nộp bài tập hàng ngày",
-    content: "Đọc đề bài AI giao → tự chọn linh kiện → giải thích lý do chọn cấu hình phù hợp → đính kèm ảnh minh chứng (nếu có) → Gửi duyệt. Tối thiểu 1, tối đa 5 bài/ngày."
+    content: "Nhận đề → chọn đồ → chụp ảnh → gửi bài. Làm ít nhất 1 bài/ngày, tối đa 5 bài là nghỉ. Dễ như ăn bánh!"
   }
 ];
 
@@ -239,7 +240,7 @@ export default function BuildPcClient() {
                 delete pollingIntervals[exId];
 
                 if (result.hasError) {
-                  toast.error(result.errorMsg || "Lỗi xử lý báo giá bài tập.");
+                  toast.error(result.errorMsg || "Bị lỗi xử lý ảnh rồi, thử lại nha.");
                   updateExerciseState(exId, {
                     isAnalyzing: false,
                     analysisStep: "idle",
@@ -256,7 +257,7 @@ export default function BuildPcClient() {
                     status: result.status,
                     isDraft: result.data?.is_draft !== false,
                   });
-                  toast.success("AI đã phân tích xong cấu hình! Hãy viết giải thích và nộp bài để hoàn thành.");
+                  toast.success("Xong phần check rồi! Vô viết vài dòng giải thích rồi gửi bài thôi.");
                   fetchData();
                 }
               }
@@ -315,15 +316,28 @@ export default function BuildPcClient() {
     if (!file) return;
 
     try {
-      const base64Image = await compressImage(file);
-      updateExerciseState(exId, { previewImage: base64Image, isAnalyzing: true, analysisStep: "kimi" });
+      const nameLower = file.name.toLowerCase();
+      const typeLower = (file.type || "").toLowerCase();
+      const isExcel = nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls") || typeLower.includes("spreadsheetml") || typeLower.includes("excel");
+      let base64Data = "";
+      if (isExcel) {
+        base64Data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = (error) => reject(error);
+        });
+      } else {
+        base64Data = await compressImage(file);
+      }
+      updateExerciseState(exId, { previewImage: base64Data, isAnalyzing: true, analysisStep: "vision" });
 
       const res = await fetch("/api/build-pc/submissions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           exercise_id: exId,
-          image_urls: [base64Image],
+          image_urls: [base64Data],
           explanation: "Bản nháp phân tích cấu hình cho bài tập...", // Temporary placeholder (>=20 chars)
         }),
       });
@@ -337,10 +351,10 @@ export default function BuildPcClient() {
         isDraft: true,
       });
 
-      toast.success("Đang tải báo giá lên & phân tích chạy ngầm...");
+	      toast.success("Đang tải lên, chút xíu nha...");
       fetchData();
     } catch (err: any) {
-      toast.error(err.message || "Tải ảnh thất bại.");
+      toast.error(err.message || "Tải ảnh bị lỗi, thử lại nha.");
       updateExerciseState(exId, { previewImage: null, isAnalyzing: false });
     }
   };
@@ -375,12 +389,12 @@ export default function BuildPcClient() {
     if (!state.submission_id) return;
 
     if (state.explanation.trim().length < 20) {
-      toast.error("Giải thích phải có ít nhất 20 ký tự.");
+      toast.error("Viết dài dài tí nha, 20 ký tự trở lên á.");
       return;
     }
 
     updateExerciseState(exId, { submitting: true });
-    const loadingToastId = toast.loading("Đang nộp bài...");
+    const loadingToastId = toast.loading("Đang gửi bài nè...");
 
     try {
       const res = await fetch("/api/training/pc-build/finalize", {
@@ -395,10 +409,10 @@ export default function BuildPcClient() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      toast.success("Đã nộp bài thành công! 🎉", { id: loadingToastId });
+      toast.success("Đã gửi bài thành công! 🔥 🎉", { id: loadingToastId });
       fetchData();
     } catch (err: any) {
-      toast.error(err.message || "Nộp bài thất bại.", { id: loadingToastId });
+      toast.error(err.message || "Gửi bài thất bại.", { id: loadingToastId });
       updateExerciseState(exId, { submitting: false });
     }
   };
@@ -421,7 +435,7 @@ export default function BuildPcClient() {
           </div>
           <div>
             <h1 className="font-manrope text-xl font-bold text-on-surface">Thực hành Build PC</h1>
-            <p className="font-inter text-xs text-on-muted">Làm bài tập hàng ngày — Phân tích tương thích qua ảnh hóa đơn</p>
+            <p className="font-inter text-xs text-on-muted">Thực chiến build PC mỗi ngày — Quẹo ảnh linh kiện là có review liền</p>
           </div>
         </div>
       </div>
@@ -471,7 +485,7 @@ export default function BuildPcClient() {
         <div className="space-y-4">
           <div className="rounded-2xl border border-surface-container-high bg-surface-mid p-4 flex flex-col justify-between sm:flex-row sm:items-center gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-on-muted">Đã nộp hôm nay:</span>
+              <span className="text-xs text-on-muted">Đã làm hôm nay:</span>
               <span className="font-manrope text-sm font-extrabold text-primary">{todayCount} / {DAILY_PC_SUBMISSION_MAX}</span>
             </div>
             <p className="text-xs text-on-muted italic">Mỗi ngày cần hoàn thành ít nhất {DAILY_PC_SUBMISSION_MIN} bài tập để đạt KPI.</p>
@@ -482,7 +496,7 @@ export default function BuildPcClient() {
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : exercises.length === 0 ? (
-            <p className="py-8 text-center text-sm text-on-muted">Hôm nay không có bài tập nào.</p>
+            <p className="py-8 text-center text-sm text-on-muted">Hôm nay không có đề, rảnh thì mai làm nha ✨</p>
           ) : (
             <div className="space-y-4">
               {exercises.map((ex) => {
@@ -502,7 +516,7 @@ export default function BuildPcClient() {
                     <div
                       onClick={() => {
                         if (remaining <= 0) {
-                          toast.error("Đã hết lượt nộp bài hôm nay.");
+                          toast.error("Hết lượt gửi bài hôm nay rồi, mai quay lại nha.");
                           return;
                         }
                         setExpandedExerciseId(isExpanded ? null : ex.id);
@@ -527,17 +541,17 @@ export default function BuildPcClient() {
                                 : (isSubmitted ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600")
                             )}>
                               {state.isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                              {state.isAnalyzing 
-                                ? "AI Đang phân tích chạy ngầm..." 
-                                : (isSubmitted 
-                                    ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài") 
-                                    : "Nháp phân tích (Chưa nộp)")
+                              {state.isAnalyzing
+                                ? "Đang soi..."
+                                : (isSubmitted
+                                    ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Oke nha 🎉" : "Đã gửi")
+                                    : "Mới nháp")
                               }
                             </span>
                           )}
                         </div>
                         <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.description}</p>
-                        <p className="font-inter text-[11px] text-on-muted">💰 Ngân sách tối đa: <span className="font-bold text-on-surface">{formatVND(ex.requirements.budget)}</span></p>
+                        <p className="font-inter text-[11px] text-on-muted">💰 Tiền tối đa: <span className="font-bold text-on-surface">{formatVND(ex.requirements.budget)}</span></p>
                       </div>
                       <div>
                         {isExpanded ? <ChevronUp className="h-5 w-5 text-on-muted" /> : <ChevronDown className="h-5 w-5 text-on-muted" />}
@@ -549,7 +563,7 @@ export default function BuildPcClient() {
                       <div className="border-t border-surface-container-high px-4 md:px-6 py-5 bg-surface-container-lowest space-y-6 animate-in slide-in-from-top-2 duration-200">
                         {/* Constraints detail list */}
                         <div className="rounded-lg bg-surface-container-low p-3.5 text-xs text-on-muted font-inter space-y-1">
-                          <span className="font-bold text-on-surface uppercase tracking-wider block text-[10px] mb-1">Ràng buộc & Gợi ý:</span>
+                          <span className="font-bold text-on-surface uppercase tracking-wider block text-[10px] mb-1">Yêu cầu Ràng buộc & Gợi ý: Mẹo:</span>
                           <ul className="list-disc pl-4 space-y-0.5">
                             {ex.requirements.constraints?.map((c, i) => <li key={i}>{c}</li>)}
                             {ex.requirements.hints?.map((h, i) => <li key={i} className="text-primary italic">💡 Gợi ý: {h}</li>)}
@@ -567,19 +581,35 @@ export default function BuildPcClient() {
                                 className="flex flex-col items-center justify-center border-2 border-dashed border-surface-container-high rounded-2xl bg-surface-container-low p-6 text-center cursor-pointer transition-all hover:border-primary/50 hover:bg-primary/5/20 min-h-[180px]"
                               >
                                 <UploadCloud className="h-8 w-8 text-on-muted mb-2 animate-bounce" />
-                                <p className="text-xs font-semibold text-on-surface">Nhấp để tải ảnh báo giá lên</p>
-                                <p className="text-[10px] text-on-muted mt-1">Hỗ trợ JPG, PNG, WEBP</p>
+                                <p className="text-xs font-semibold text-on-surface">Thả ảnh hoặc Excel vô đây nè</p>
+                                <p className="text-[10px] text-on-muted mt-1">Chấp hết JPG, PNG, WEBP, Excel luôn nha ✌️</p>
                                 <input
                                   type="file"
                                   ref={(el) => { fileInputRefs.current[ex.id] = el; }}
                                   onChange={(e) => handleImageSelect(ex.id, e)}
-                                  accept="image/*"
+                                  accept="image/*,.xls,.xlsx"
                                   className="hidden"
                                 />
                               </div>
                             ) : (
-                              <div className="relative rounded-2xl overflow-hidden border border-surface-container-high bg-black/5 group">
-                                <img src={state.previewImage} alt="Quote" className="w-full object-contain max-h-[260px]" />
+                              <div className="relative rounded-2xl overflow-hidden border border-surface-container-high bg-black/5 group p-4 min-h-[120px] flex items-center justify-center">
+                                {(() => {
+                                  const isExcel = state.previewImage?.startsWith("data:application/vnd") || state.previewImage?.includes("spreadsheetml") || state.previewImage?.includes("excel");
+                                  if (isExcel) {
+                                    return (
+                                      <div className="flex flex-col items-center gap-2 p-2 text-center w-full">
+                                        <div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner">
+                                          <FileSpreadsheet className="h-6 w-6" />
+                                        </div>
+                                        <div className="space-y-0.5">
+                                          <p className="text-xs font-bold text-on-surface">File Excel (.xlsx)</p>
+                                          <p className="text-[10px] text-on-muted">Đã tải lên và sẵn sàng xử lý</p>
+                                        </div>
+                                      </div>
+                                    );
+                                  }
+                                  return <img src={state.previewImage} alt="Quote" className="w-full object-contain max-h-[260px]" />;
+                                })()}
                                 {!state.isAnalyzing && !isSubmitted && (
                                   <button
                                     onClick={() => handleCancelExercise(ex.id)}
@@ -595,8 +625,8 @@ export default function BuildPcClient() {
                               <div className="flex flex-col items-center justify-center p-5 border border-surface-container-high rounded-2xl bg-surface-container-low/50 space-y-3">
                                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                 <div className="text-center">
-                                  <p className="text-xs font-bold text-on-surface">AI Đang phân tích chạy ngầm...</p>
-                                  <p className="text-[10px] text-on-muted mt-0.5">Bạn có thể chuyển trang, AI vẫn tiếp tục xử lý.</p>
+                                  <p className="text-xs font-bold text-on-surface">Đang check ảnh cho bạn...</p>
+                                  <p className="text-[10px] text-on-muted mt-0.5">Bạn có thể chuyển sang tab khác và quay lại sau.</p>
                                 </div>
                               </div>
                             )}
@@ -615,7 +645,7 @@ export default function BuildPcClient() {
                                 )}>
                                   {state.isApproved ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <XCircle className="h-5 w-5 shrink-0" />}
                                   <div>
-                                    <p className="font-bold">{state.isApproved ? "ĐẠT - Cấu hình hợp lệ!" : "KHÔNG ĐẠT - Phát hiện lỗi kỹ thuật!"}</p>
+                                    <p className="font-bold">{state.isApproved ? "NGON — Cấu hình chuẩn lun!" : "CHỊU — Coi lại mấy món kia đi!"}</p>
                                     {state.approvalReason && <p className="text-[10px] font-normal mt-0.5">{state.approvalReason}</p>}
                                   </div>
                                 </div>
@@ -623,13 +653,13 @@ export default function BuildPcClient() {
                                 {/* Compatibility checklist */}
                                 {state.compatibilityChecks && (
                                   <div className="rounded-xl border border-surface-container-high bg-surface-mid/40 p-3.5 space-y-2">
-                                    <h4 className="font-manrope text-[10px] font-bold text-on-surface uppercase tracking-wider">Báo cáo kiểm tra AI</h4>
+                                    <h4 className="font-manrope text-[10px] font-bold text-on-surface uppercase tracking-wider">Check tương thích</h4>
                                     
                                     <div className="space-y-2">
                                       <div className="flex gap-2 text-[11px]">
                                         {renderCheckIcon(state.compatibilityChecks.socket?.status)}
                                         <div>
-                                          <span className="font-bold text-on-surface">Socket CPU & Main: </span>
+                                          <span className="font-bold text-on-surface">CPU Socket CPU & Main:  Mainboard: </span>
                                           <span className="text-on-muted">{state.compatibilityChecks.socket?.message}</span>
                                         </div>
                                       </div>
@@ -657,7 +687,7 @@ export default function BuildPcClient() {
                                       <div className="flex gap-2 text-[11px]">
                                         {renderCheckIcon(state.compatibilityChecks.budget?.status)}
                                         <div>
-                                          <span className="font-bold text-on-surface">Ngân sách thực tế: </span>
+                                          <span className="font-bold text-on-surface">💰 Tiền thực tế: </span>
                                           <span className="text-on-muted">{state.compatibilityChecks.budget?.message}</span>
                                         </div>
                                       </div>
@@ -668,7 +698,7 @@ export default function BuildPcClient() {
                                 {/* Extracted parts list */}
                                 <div className="rounded-xl border border-surface-container-high overflow-hidden">
                                   <div className="bg-surface-mid/80 px-3 py-1.5 border-b border-surface-container-high flex justify-between items-center text-[10px]">
-                                    <span className="font-bold text-on-surface">Linh kiện trích xuất</span>
+                                    <span className="font-bold text-on-surface">Linh kiện có trong phiếu</span>
                                     <span className="font-bold text-primary">
                                       Tổng: {formatVND(Number(state.extractedParts.total_price?.price || state.extractedParts.total_price || 0))}
                                     </span>
@@ -690,23 +720,23 @@ export default function BuildPcClient() {
                               <div className="flex flex-col items-center justify-center py-10 text-center text-on-muted space-y-2 border border-surface-container-high border-dashed rounded-2xl min-h-[220px]">
                                 <FileText className="h-8 w-8 text-outline" />
                                 <p className="text-xs">
-                                  {state.isAnalyzing ? "AI đang tiến hành phân tích..." : "Vui lòng tải ảnh báo giá ở cột bên trái"}
+                                  {state.isAnalyzing ? "Đang check ảnh cho bạn..." : "Vui lòng tải ảnh linh kiện ở cột bên trái"}
                                 </p>
                                 <p className="text-[10px]">
-                                  {state.isAnalyzing ? "Kết quả kiểm tra tương thích sẽ tự động hiện lên khi xong." : "AI sẽ tự động phân tích và hiển thị kết quả tại đây"}
+                                  {state.isAnalyzing ? "Kết quả sẽ hiển thị tự động sau khi kiểm tra." : "Kết quả đánh giá bộ linh kiện sẽ hiện ra tại đây"}
                                 </p>
                               </div>
                             )}
 
                             {/* Explanation input */}
                             <div className="space-y-1">
-                              <label className="block font-manrope text-[10px] font-bold text-on-surface uppercase">Giải thích lựa chọn cấu hình (Bắt buộc tối thiểu 20 ký tự)</label>
+                              <label className="block font-manrope text-[10px] font-bold text-on-surface uppercase">Kể admin nghe vì sao bạn chọn mấy món này (tối thiểu 20 ký tự)</label>
                               <textarea
                                 rows={2}
                                 value={state.explanation}
                                 disabled={isSubmitted}
                                 onChange={(e) => updateExerciseState(ex.id, { explanation: e.target.value })}
-                                placeholder="Giải thích tại sao lựa chọn CPU, Main, RAM, nguồn này và tính tương thích..."
+                                placeholder="Ví dụ: con CPU với main này socket khớp nhau, RAM đủ mạnh cho tác vụ A, nguồn đủ công suất..."
                                 className="w-full resize-none rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-2 font-inter text-xs text-on-surface outline-none focus:border-primary disabled:opacity-60"
                               />
                             </div>
@@ -717,14 +747,14 @@ export default function BuildPcClient() {
                         {!isSubmitted && (
                           <div className="border-t border-surface-container-high pt-4 flex justify-end gap-2">
                             <Button variant="outline" onClick={() => handleCancelExercise(ex.id)} disabled={state.submitting}>
-                              Hủy / Xóa ảnh
+                              Hủy bỏ
                             </Button>
                             <Button
                               onClick={() => handleSubmit(ex.id)}
                               disabled={state.submitting || state.isAnalyzing || !state.previewImage || state.explanation.trim().length < 20}
                             >
                               {state.submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                              Nộp bài
+                              Gửi bài
                             </Button>
                           </div>
                         )}
@@ -775,7 +805,7 @@ export default function BuildPcClient() {
                   </div>
                   {s.ai_score !== null && (
                     <div className="rounded-xl bg-surface-container-low p-3 space-y-1 text-xs">
-                      <p className="font-bold text-primary">Điểm AI: {s.ai_score}/100</p>
+                      <p className="font-bold text-primary">Điểm đánh giá: {s.ai_score}/100</p>
                       {s.ai_feedback && <p className="text-on-muted font-inter leading-relaxed">{s.ai_feedback}</p>}
                     </div>
                   )}
