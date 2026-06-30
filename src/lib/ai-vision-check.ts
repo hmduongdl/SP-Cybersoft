@@ -162,56 +162,6 @@ Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không k
         }).catch(() => {});
         throw compErr;
       }
-    },
-
-    // Attempt 3: defaultAI (API Box default key)
-    async () => {
-      console.log("[ai-vision-check] Attempting extraction with defaultAI (API Box Main)...");
-      
-      const modelsToTry = [MODEL_VISION_ONLY];
-      let lastErr: any = null;
-
-      for (const model of modelsToTry) {
-        try {
-          console.log(`[ai-vision-check] trying model ${model} with defaultAI...`);
-          const res = await withTimeout(
-            defaultAI.chat.completions.create({
-              model: model,
-              messages: [
-                {
-                  role: "user",
-                  content: [
-                    {
-                      type: "text",
-                      text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
-1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
-2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
-3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
-4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
-Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-                    },
-                    {
-                      type: "image_url",
-                      image_url: { url: `data:${mimeType};base64,${base64Image}` },
-                    },
-                  ],
-                },
-              ],
-              max_tokens: 1500,
-            }),
-            VISION_TIMEOUT_MS
-          );
-          const aiContent = res.choices[0]?.message?.content || "{}";
-          const parsed = cleanAndParseJSON(aiContent);
-          if (parsed && (parsed.extracted_username || parsed.extracted_title)) {
-            return parsed;
-          }
-        } catch (e: any) {
-          console.warn(`[ai-vision-check] defaultAI model ${model} failed:`, e.message || e);
-          lastErr = e;
-        }
-      }
-      throw lastErr || new Error("All models failed on defaultAI");
     }
   ];
 
