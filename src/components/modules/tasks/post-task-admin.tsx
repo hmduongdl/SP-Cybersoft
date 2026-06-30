@@ -23,7 +23,8 @@ import {
   Clock,
   XCircle,
   Eye,
-  CheckCircle2
+  CheckCircle2,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateTime, formatDateTimeWithTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
@@ -172,6 +173,32 @@ export function PostTaskAdmin() {
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [generatingAi, setGeneratingAi] = useState(false);
+
+  const handleGenerateAiTask = async () => {
+    setGeneratingAi(true);
+    try {
+      const res = await fetch("/api/admin/tasks/generate-pc-build", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gặp lỗi khi gọi AI.");
+
+      if (data.task) {
+        setFormData((prev) => ({
+          ...prev,
+          customer_need: data.task.customer_need,
+          max_budget: String(data.task.max_budget),
+          requirements: data.task.requirements,
+        }));
+        toast.success("Sinh đề bằng AI thành công!");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Không sinh được đề bài.");
+    } finally {
+      setGeneratingAi(false);
+    }
+  };
 
   async function loadPosts(page = 1, status?: string) {
     setLoadingPosts(true);
@@ -354,7 +381,7 @@ export function PostTaskAdmin() {
         payload.customer_need = formData.customer_need.trim();
         payload.max_budget = Number(formData.max_budget);
         payload.requirements = formData.requirements.trim();
-        payload.deadline = formData.deadline ? toDateTimeValue(formData.deadline) : null;
+        payload.deadline = `${formData.date}T23:59:59`;
       } else {
         payload.title = formData.title.trim();
         payload.url = formData.url.trim();
@@ -704,6 +731,29 @@ export function PostTaskAdmin() {
                 {formData.task_type === "PC_BUILD" ? (
                   // PC BUILD FORM FIELDS
                   <div className="space-y-4">
+                    {/* AI Generator Button */}
+                    <div className="flex items-center justify-between border-b border-surface-container pb-3 mb-2">
+                      <span className="text-xs font-bold text-on-surface uppercase tracking-wider">Bài Tập Build PC</span>
+                      <button
+                        type="button"
+                        onClick={handleGenerateAiTask}
+                        disabled={generatingAi || saving}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary/10 text-primary border-none hover:bg-primary/20 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        {generatingAi ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Đang tạo đề bằng AI...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Tạo đề bằng AI
+                          </>
+                        )}
+                      </button>
+                    </div>
+
                     {/* Customer Need */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-need">
@@ -726,17 +776,25 @@ export function PostTaskAdmin() {
                     {/* Max Budget */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-budget">
-                        Ngân sách tối đa (VNĐ)
+                        Ngân sách tối đa
                       </label>
-                      <input
-                        id="pc-budget"
-                        type="number"
-                        placeholder="Ví dụ: 20000000"
-                        value={formData.max_budget}
-                        onChange={(e) => setFormData({ ...formData, max_budget: e.target.value })}
-                        disabled={saving}
-                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
-                      />
+                      <div className="relative rounded-xl">
+                        <input
+                          id="pc-budget"
+                          type="text"
+                          placeholder="Ví dụ: 20.000.000"
+                          value={formData.max_budget ? Number(formData.max_budget).toLocaleString("vi-VN") : ""}
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/\D/g, "");
+                            setFormData({ ...formData, max_budget: raw });
+                          }}
+                          disabled={saving}
+                          className="w-full pl-4 pr-12 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface font-semibold"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-on-muted select-none">
+                          VNĐ
+                        </span>
+                      </div>
                       {formErrors.max_budget && (
                         <p className="text-[10px] text-error-text font-semibold">{formErrors.max_budget}</p>
                       )}
@@ -749,43 +807,13 @@ export function PostTaskAdmin() {
                       </label>
                       <textarea
                         id="pc-reqs"
-                        rows={3}
+                        rows={4}
                         placeholder="Ví dụ: Dùng CPU Intel Core i5 thế hệ 13 trở lên, RAM DDR5..."
                         value={formData.requirements}
                         onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
                         disabled={saving}
                         className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface resize-none"
                       />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Date */}
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold text-on-surface uppercase">
-                          Ngày giao bài
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.date}
-                          onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                          disabled={saving}
-                          className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
-                        />
-                      </div>
-
-                      {/* Deadline */}
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold text-on-surface uppercase">
-                          Hạn nộp bài
-                        </label>
-                        <input
-                          type="date"
-                          value={formData.deadline}
-                          onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                          disabled={saving}
-                          className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
-                        />
-                      </div>
                     </div>
                   </div>
                 ) : (

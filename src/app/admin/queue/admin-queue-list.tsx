@@ -23,6 +23,11 @@ function isSubmittedPcSubmission(submission: { parts_answer: unknown }) {
   return parts?.is_draft === false && parts?.is_analyzing !== true;
 }
 
+function getExerciseTime(submission: { exercise?: { exercise_date?: Date | string | null } | null }) {
+  const exerciseDate = submission.exercise?.exercise_date;
+  return exerciseDate ? new Date(exerciseDate).getTime() : 0;
+}
+
 export default async function AdminQueueList(props: {
   searchParams?: Promise<{ page?: string; tab?: string; search?: string; dept?: string; module?: string }>;
 }) {
@@ -62,6 +67,14 @@ export default async function AdminQueueList(props: {
     if (deptFilter !== "ALL") {
       filtered = filtered.filter((s) => s.user?.department === deptFilter);
     }
+
+    filtered = [...filtered].sort((a, b) => {
+      const exerciseDiff = getExerciseTime(b) - getExerciseTime(a);
+      if (exerciseDiff !== 0) return exerciseDiff;
+      const titleDiff = (a.exercise?.title || "").localeCompare(b.exercise?.title || "", "vi");
+      if (titleDiff !== 0) return titleDiff;
+      return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
+    });
 
     const totalPages = Math.ceil(filtered.length / PER_PAGE);
     const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);

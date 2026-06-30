@@ -78,6 +78,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
                             <span className="break-all">{error.message}</span>
                         </div>
                     )}
+                    {error?.digest && (
+                        <div className="mt-2 px-4 py-3 rounded-xl bg-surface-container-high text-xs font-mono text-on-surface-variant font-inter flex items-start gap-2 text-left">
+                            <span>Digest: {error.digest}</span>
+                        </div>
+                    )}
 
                     {/* Divider */}
                     <div className="my-8 h-px bg-outline-variant" />

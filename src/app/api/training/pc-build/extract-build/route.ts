@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
+
+function isCodexTimeWindow(): boolean {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      hour12: false,
+    });
+    const hourStr = formatter.format(now);
+    const hour = parseInt(hourStr, 10);
+    return hour >= 18 && hour < 20;
+  } catch (e) {
+    console.error("[isCodexTimeWindow] Error parsing timezone:", e);
+    return false;
+  }
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -40,30 +57,116 @@ export async function POST(req: Request) {
       }
     };
 
-    // 1. Call Kimi Vision to extract the items as a list of raw elements (Accountant Role)
-    const response = await aibox.chat.completions.create({
-      model: MODEL_VISION_ONLY,
-      messages: [
-        {
-          role: "system",
-          content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-          Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-          { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-          If thông tin nào không rõ ràng, hãy để là null.`
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-            { type: "image_url", image_url: { url: imageUrl } }
-          ]
-        }
-      ],
-      max_tokens: 4000,
-    });
+    // 1. Call Kimi/Gemini Vision to extract the items as a list of raw elements (Accountant Role)
+    let extractedRaw: any = null;
+    let extractionError: any = null;
 
-    const aiContent = response.choices[0]?.message?.content || "{}";
-    const extractedRaw = cleanAndParseJSON(aiContent);
+    const extractionAttempts = [
+      // Attempt 1: codexAI (API Box Codex Key) inside time window
+      async () => {
+        if (!isCodexTimeWindow()) {
+          throw new Error("Codex API is restricted outside of 18:00 - 20:00 GMT+7");
+        }
+        console.log("[extract-build] Attempting extraction with codexAI (API Box)...");
+        const response = await codexAI.chat.completions.create({
+          model: MODEL_VISION_ONLY,
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+              If thông tin nào không rõ ràng, hãy để là null.`
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                { type: "image_url", image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          max_tokens: 4000,
+        });
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      },
+
+      // Attempt 2: Direct Moonshot (Kimi) if configured
+      async () => {
+        if (!process.env.MOONSHOT_API_KEY) {
+          throw new Error("No MOONSHOT_API_KEY configured for extract-build");
+        }
+        console.log("[extract-build] Attempting extraction with direct Moonshot Kimi API...");
+        const response = await moonshotAI.chat.completions.create({
+          model: "kimi-k2.5",
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+              If thông tin nào không rõ ràng, hãy để là null.`
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                { type: "image_url", image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          max_tokens: 4000,
+        });
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      },
+
+      // Attempt 3: defaultAI (API Box default key)
+      async () => {
+        console.log("[extract-build] Attempting extraction with defaultAI (API Box Main)...");
+        const response = await defaultAI.chat.completions.create({
+          model: MODEL_VISION_ONLY,
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+              If thông tin nào không rõ ràng, hãy để là null.`
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                { type: "image_url", image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          max_tokens: 4000,
+        });
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      }
+    ];
+
+    for (const attempt of extractionAttempts) {
+      try {
+        extractedRaw = await attempt();
+        if (extractedRaw && Array.isArray(extractedRaw.items) && extractedRaw.items.length > 0) {
+          extractionError = null;
+          console.log("[extract-build] Successfully extracted raw parts from image.");
+          break;
+        }
+      } catch (err: any) {
+        console.warn("[extract-build] Extraction attempt failed:", err.message || err);
+        extractionError = err;
+      }
+    }
+
+    if (!extractedRaw || !Array.isArray(extractedRaw.items)) {
+      throw new Error(`Tất cả các cổng trích xuất AI Vision đều thất bại. Lỗi cuối cùng: ${extractionError?.message || "Không xác định"}`);
+    }
 
     // 2. Load Task or Exercise requirements
     let expectedBudget = 0;
@@ -151,14 +254,65 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 }
 `;
 
-    const deepseekResponse = await aibox.chat.completions.create({
-      model: MODEL_CHAT_FLASH,
-      messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
-      response_format: { type: "json_object" },
-    });
+    let result: any = null;
+    let compatibilityError: any = null;
 
-    const deepseekContent = deepseekResponse.choices[0]?.message?.content || "{}";
-    const result = JSON.parse(deepseekContent);
+    const compatibilityAttempts = [
+      // Attempt 1: DeepSeek Flash (API Box)
+      async () => {
+        console.log("[extract-build] Attempting compatibility check with DeepSeek Flash...");
+        const response = await defaultAI.chat.completions.create({
+          model: MODEL_CHAT_FLASH,
+          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+          response_format: { type: "json_object" },
+        });
+        const content = response.choices[0]?.message?.content || "{}";
+        return JSON.parse(content);
+      },
+      // Attempt 2: DeepSeek Pro (API Box)
+      async () => {
+        console.log("[extract-build] Attempting compatibility check with DeepSeek Pro...");
+        const response = await defaultAI.chat.completions.create({
+          model: MODEL_CHAT_PRO,
+          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+          response_format: { type: "json_object" },
+        });
+        const content = response.choices[0]?.message?.content || "{}";
+        return JSON.parse(content);
+      },
+      // Attempt 3: Direct Moonshot (Kimi) if configured
+      async () => {
+        if (!process.env.MOONSHOT_API_KEY) {
+          throw new Error("No MOONSHOT_API_KEY for compatibility fallback");
+        }
+        console.log("[extract-build] Attempting compatibility check with direct Moonshot Kimi...");
+        const response = await moonshotAI.chat.completions.create({
+          model: "kimi-k2.5",
+          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+          response_format: { type: "json_object" },
+        });
+        const content = response.choices[0]?.message?.content || "{}";
+        return JSON.parse(content);
+      }
+    ];
+
+    for (const attempt of compatibilityAttempts) {
+      try {
+        result = await attempt();
+        if (result && result.matched_parts && result.checks) {
+          compatibilityError = null;
+          console.log("[extract-build] Compatibility check completed successfully.");
+          break;
+        }
+      } catch (err: any) {
+        console.warn("[extract-build] Compatibility attempt failed:", err.message || err);
+        compatibilityError = err;
+      }
+    }
+
+    if (!result || !result.matched_parts || !result.checks) {
+      throw new Error(`Tất cả các cổng phân tích tương thích AI đều thất bại. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
+    }
 
     // Format output data to include partId: "" to satisfy client types
     const formattedData: any = {};

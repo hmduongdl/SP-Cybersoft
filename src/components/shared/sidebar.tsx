@@ -60,12 +60,12 @@ export function Sidebar() {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
         { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
-        { label: "Bài tập Build PC", href: "/training/pc-build", icon: "computer", adminOnly: false },
+        { label: "Build PC", href: "/training/pc-build", icon: "computer", adminOnly: false },
         { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "AI Studio", href: "/seo-tools", icon: "trending_up", adminOnly: false },
         { label: "AI Chat", href: "/ai-chat", icon: "forum", adminOnly: false, devOnly: false },
-        { label: "Báo cáo cá nhân", href: "/reports", icon: "bar_chart", adminOnly: false },
+        { label: "Báo Cáo", href: "/reports", icon: "bar_chart", adminOnly: false },
       ]
     },
     {

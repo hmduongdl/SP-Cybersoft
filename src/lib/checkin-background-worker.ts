@@ -111,7 +111,7 @@ export async function processBackgroundCheckinReview(checkinId: string) {
         ai_confidence: visionResult.confidence,
         ai_analysis_reason: canAutoApprove
           ? `[AI Auto] ${visionResult.reason}`
-          : `[AI Pending] ${visionResult.reason}${
+          : `[AI Reviewed - Needs Admin] ${visionResult.reason}${
               isDuplicateImage
                 ? " Ảnh có dấu hiệu trùng với minh chứng đã được duyệt trước đó."
                 : trustScore > AUTO_APPROVE_TRUST_THRESHOLD

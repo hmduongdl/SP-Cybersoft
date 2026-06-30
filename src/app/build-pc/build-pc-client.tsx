@@ -530,7 +530,7 @@ export default function BuildPcClient() {
                               {state.isAnalyzing 
                                 ? "AI Đang phân tích chạy ngầm..." 
                                 : (isSubmitted 
-                                    ? (state.status === "AUTO_APPROVED" ? "Đã duyệt tự động 🎉" : "Đã nộp bài (Chờ duyệt)") 
+                                    ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài") 
                                     : "Nháp phân tích (Chưa nộp)")
                               }
                             </span>

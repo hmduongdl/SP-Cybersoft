@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import { toast, Toaster } from "sonner";
+import { AnimatePresence, motion } from "framer-motion";
+import CountUp from "react-countup";
 import {
   Loader2,
   Send,
@@ -13,7 +15,24 @@ import {
   XCircle,
   AlertTriangle,
   X,
+  Plus,
   FileText,
+  Zap,
+  Database,
+  HardDrive,
+  Layers,
+  Monitor,
+  Box,
+  Wind,
+  Tv,
+  Award,
+  TrendingUp,
+  Coins,
+  Clock,
+  Sparkles,
+  CheckCircle,
+  MousePointer,
+  Headphones
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +83,23 @@ const CATEGORY_LABELS: Record<string, string> = {
   desk_chair: "Bàn ghế (Furniture)",
 };
 
+
+const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  cpu: <Cpu className="h-3.5 w-3.5 text-violet-500" />,
+  mainboard: <Layers className="h-3.5 w-3.5 text-indigo-500" />,
+  ram: <Database className="h-3.5 w-3.5 text-blue-500" />,
+  vga: <Monitor className="h-3.5 w-3.5 text-cyan-500" />,
+  ssd: <HardDrive className="h-3.5 w-3.5 text-teal-500" />,
+  psu: <Zap className="h-3.5 w-3.5 text-amber-500" />,
+  case: <Box className="h-3.5 w-3.5 text-slate-500" />,
+  cooler_fan: <Wind className="h-3.5 w-3.5 text-emerald-500" />,
+  cooler: <Wind className="h-3.5 w-3.5 text-emerald-500" />,
+  monitor: <Tv className="h-3.5 w-3.5 text-rose-500" />,
+  keyboard_mouse: <MousePointer className="h-3.5 w-3.5 text-pink-500" />,
+  headphone: <Headphones className="h-3.5 w-3.5 text-purple-500" />,
+  desk_chair: <FileText className="h-3.5 w-3.5 text-orange-500" />,
+};
+
 const DEFAULT_TASK_STATE: TaskState = {
   previewImage: null,
   isAnalyzing: false,
@@ -82,10 +118,33 @@ export default function PcBuildTrainingClient() {
   const [loading, setLoading] = useState(true);
   const [remaining, setRemaining] = useState(5);
 
-  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [cancelingTaskId, setCancelingTaskId] = useState<string | null>(null);
+  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
   const [taskStates, setTaskStates] = useState<Record<string, TaskState>>({});
 
+  
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const getCountdownLabel = (deadlineStr: string | null | undefined) => {
+    if (!deadlineStr) return "";
+    const deadlineDate = new Date(deadlineStr);
+    deadlineDate.setHours(23, 59, 59, 999);
+    const now = new Date();
+    const diffMs = deadlineDate.getTime() - now.getTime();
+    if (diffMs <= 0) return "Đã hết hạn";
+    
+    const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (diffHrs >= 24) {
+      const days = Math.floor(diffHrs / 24);
+      return `Còn ${days} ngày`;
+    }
+    return `Còn ${diffHrs}g ${diffMins}p`;
+  };
+
 
   const getTaskState = (taskId: string): TaskState => {
     return taskStates[taskId] || DEFAULT_TASK_STATE;
@@ -234,10 +293,7 @@ export default function PcBuildTrainingClient() {
     });
   };
 
-  const handleImageSelect = async (taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleImageFileProcessing = async (taskId: string, file: File) => {
     try {
       const base64Image = await compressImage(file);
       updateTaskState(taskId, { previewImage: base64Image, isAnalyzing: true, analysisStep: "kimi" });
@@ -267,6 +323,12 @@ export default function PcBuildTrainingClient() {
       toast.error(err.message || "Tải ảnh thất bại.");
       updateTaskState(taskId, { previewImage: null, isAnalyzing: false });
     }
+  };
+
+  const handleImageSelect = async (taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleImageFileProcessing(taskId, file);
   };
 
   const clearTask = (taskId: string) => {
@@ -328,118 +390,306 @@ export default function PcBuildTrainingClient() {
     return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />;
   };
 
+  // Stats calculation
+  const completedCount = tasks.filter(t => {
+    const state = getTaskState(t.id);
+    return state.previewImage && !state.isDraft;
+  }).length;
+
+  const approvedCount = tasks.filter(t => {
+    const state = getTaskState(t.id);
+    return state.isApproved;
+  }).length;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-7xl mx-auto px-4 md:px-6 py-6 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors />
 
-      {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="gradient-primary flex h-10 w-10 items-center justify-center rounded-2xl shadow-sm">
-            <Cpu className="h-5 w-5 text-on-primary" />
+      <style>{`
+        @keyframes scan {
+          0% { transform: translateY(-100%); }
+          50% { transform: translateY(220px); }
+          100% { transform: translateY(-100%); }
+        }
+        .scanner-line {
+          animation: scan 2.5s ease-in-out infinite;
+        }
+        .result-page {
+          width: 100%;
+          margin: 0 auto;
+        }
+        .uploaded-image { width: 100%; height: auto; display: block; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 10px; }
+      `}</style>
+
+      {/* Header Section */}
+      <div className="relative overflow-hidden rounded-3xl border border-surface-container bg-surface-mid/40 backdrop-blur-md p-6 md:p-8 shadow-ambient">
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
+        
+        <div className="flex items-center gap-4 relative z-10">
+          <div className="bg-gradient-to-tr from-primary to-indigo-600 flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg shadow-primary/20">
+            <Cpu className="h-7 w-7 text-on-primary animate-pulse" />
           </div>
           <div>
-            <h1 className="font-manrope text-xl font-bold text-on-surface">Đào tạo Build PC</h1>
-            <p className="font-inter text-xs text-on-muted">
-              Chọn đề bài → Upload ảnh báo giá (AI phân tích chạy ngầm, lưu lịch sử nháp chưa nộp)
+            <h1 className="font-manrope text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+              Đào tạo Build PC
+            </h1>
+            <p className="font-inter text-xs text-on-muted mt-1.5 max-w-2xl leading-relaxed">
+              Thực hành lắp cấu hình theo nhu cầu thực tế của khách hàng. AI sẽ tự động phân tích độ tương thích và chỉ bạn cách tối ưu cấu hình nếu có thể.
             </p>
           </div>
         </div>
-        <div className="rounded-xl border border-surface-container-high bg-surface-mid px-4 py-2 text-center shadow-sm">
-          <span className="font-manrope text-xs font-bold text-on-surface">Còn </span>
-          <span className="font-manrope text-sm font-extrabold text-primary">{remaining}</span>
-          <span className="font-manrope text-xs font-bold text-on-surface"> / 5 lượt hôm nay</span>
+      </div>
+
+      {/* Statistics Dashboard Overview */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Số đề bài hôm nay</p>
+            <p className="text-2xl font-extrabold font-manrope text-on-surface">{tasks.length}</p>
+          </div>
+          <div className="p-3 rounded-xl bg-violet-500/10 text-violet-600">
+            <Award className="h-6 w-6" />
+          </div>
+        </div>
+
+        <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã hoàn thành</p>
+            <p className="text-2xl font-extrabold font-manrope text-on-surface">
+              {completedCount} <span className="text-xs font-normal text-on-muted">/ {tasks.length} đề</span>
+            </p>
+          </div>
+          <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-600">
+            <TrendingUp className="h-6 w-6" />
+          </div>
+        </div>
+
+        <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã được phê duyệt</p>
+            <p className="text-2xl font-extrabold font-manrope text-emerald-600 dark:text-emerald-400">
+              {approvedCount} <span className="text-xs font-normal text-on-muted">đề</span>
+            </p>
+          </div>
+          <div className="p-3 rounded-xl bg-emerald-500/10 text-emerald-600">
+            <CheckCircle className="h-6 w-6" />
+          </div>
         </div>
       </div>
 
-      {/* Tasks List */}
-      <section className="space-y-4">
-        <h2 className="font-manrope text-sm font-bold text-on-surface">Danh sách đề bài hôm nay</h2>
+      {/* Main Content Area */}
+      <section className="space-y-6">
+        <div className="flex items-center justify-between border-b border-surface-container pb-3">
+          <h2 className="font-manrope text-base font-bold text-on-surface flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-violet-500" />
+            Nhiệm vụ đào tạo hàng ngày
+          </h2>
+        </div>
+
         {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-xs text-on-muted font-medium">Đang tải danh sách bài tập...</p>
           </div>
         ) : tasks.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-on-muted">
-              Chưa có đề bài của hôm nay. Vui lòng tải lại trang.
+          <Card className="border-dashed border-2 border-surface-container bg-surface-mid/10 rounded-3xl">
+            <CardContent className="py-16 text-center space-y-3">
+              <FileText className="h-12 w-12 text-on-muted mx-auto" />
+              <p className="text-sm font-semibold text-on-surface">Chưa có đề bài nào được giao hôm nay</p>
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-4">
             {tasks.map((task, idx) => {
-              const isExpanded = expandedTaskId === task.id;
               const state = getTaskState(task.id);
               const isSubmitted = !!(state.previewImage && !state.isDraft);
 
               return (
-                <Card
+                <div
                   key={task.id}
+                  onClick={() => setActiveTaskId(task.id)}
                   className={cn(
-                    "transition-all border hover:shadow-card duration-200 overflow-hidden",
-                    isExpanded ? "ring-1 ring-primary/30 border-primary/30 shadow-md" : "border-surface-container-high"
+                    "group rounded-3xl border transition-all duration-300 overflow-hidden bg-surface-container-lowest cursor-pointer hover:-translate-y-0.5",
+                    "border-surface-container hover:border-primary/50 shadow-sm hover:shadow-md"
                   )}
                 >
-                  {/* Card Title Box */}
-                  <div
-                    onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
-                    className="px-4 md:px-6 py-4 flex items-center justify-between cursor-pointer bg-surface-mid/20 hover:bg-surface-mid/40 transition-all select-none"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="font-manrope font-bold text-sm text-on-surface">Đề bài #{idx + 1}</span>
+                  <div className="px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-manrope font-extrabold text-xs text-primary bg-primary/10 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                          Đề bài #{idx + 1}
+                        </span>
+                        
                         {task.deadline && (
-                          <span className="bg-rose-50 text-rose-600 px-2 py-0.5 rounded text-[10px] font-bold">
-                            Hạn nộp: {new Date(task.deadline).toLocaleDateString()}
+                          <span className="bg-rose-500/10 text-rose-600 px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border border-rose-500/10">
+                            <Clock className="h-3 w-3" />
+                            Hạn nộp: {getCountdownLabel(task.deadline)}
                           </span>
                         )}
+
                         {state.previewImage && (
                           <span className={cn(
-                            "px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1",
+                            "px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 border",
                             state.isAnalyzing 
-                              ? "bg-amber-50 text-amber-600 animate-pulse" 
-                              : (isSubmitted ? "bg-emerald-50 text-emerald-600" : "bg-indigo-50 text-indigo-600")
-                          )}>
-                            {state.isAnalyzing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3 w-3" />}
-                            {state.isAnalyzing 
-                              ? "AI Đang xử lý chạy ngầm..." 
+                              ? "bg-amber-500/10 text-amber-600 border-amber-500/15 animate-pulse" 
                               : (isSubmitted 
-                                  ? (state.status === "AUTO_APPROVED" ? "Đã duyệt tự động 🎉" : "Đã nộp bài (Chờ duyệt)") 
+                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" : "bg-blue-500/10 text-blue-600 border-blue-500/15") 
+                                  : "bg-indigo-500/10 text-indigo-600 border-indigo-500/15")
+                          )}>
+                            {state.isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                            {state.isAnalyzing 
+                              ? "AI Đang phân tích chạy ngầm..." 
+                              : (isSubmitted 
+                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Đạt bài tập 🎉" : "Đã nộp bài") 
                                   : "Nháp phân tích (Chưa nộp)")
                             }
                           </span>
                         )}
                       </div>
-                      <p className="font-inter text-xs text-on-surface font-semibold line-clamp-1">🎯 Nhu cầu: {task.customer_need}</p>
-                      <p className="font-inter text-[11px] text-on-muted">💰 Ngân sách: <span className="font-bold text-on-surface">{formatVND(task.max_budget)}</span></p>
+                      
+                      <h3 className="font-manrope text-base font-bold text-on-surface line-clamp-1 group-hover:text-primary transition-colors">
+                        🎯 Nhu cầu: {task.customer_need}
+                      </h3>
+                      
+                      <div className="flex flex-wrap items-center gap-4 text-xs text-on-muted">
+                        <span className="flex items-center gap-1">
+                          <Coins className="h-3.5 w-3.5 text-amber-500" />
+                          Ngân sách tối đa: <span className="font-bold text-on-surface text-sm">{formatVND(task.max_budget)}</span>
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      {isExpanded ? <ChevronUp className="h-5 w-5 text-on-muted" /> : <ChevronDown className="h-5 w-5 text-on-muted" />}
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+                      <Plus className="w-5 h-5" />
                     </div>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-                  {/* Expanded Submit Content */}
-                  {isExpanded && (
-                    <div className="border-t border-surface-container-high px-4 md:px-6 py-5 bg-surface-container-lowest space-y-6 animate-in slide-in-from-top-2 duration-200">
-                      {/* Requirements detail */}
-                      <div className="rounded-lg bg-surface-container-low p-3.5 text-xs text-on-muted font-inter space-y-1">
-                        <span className="font-bold text-on-surface uppercase tracking-wider block text-[10px] mb-1">Yêu cầu kỹ thuật khác:</span>
-                        <p>{task.requirements || "Không có yêu cầu đặc biệt."}</p>
-                      </div>
+      {/* FULLSCREEN OVERLAY MODAL */}
+      <AnimatePresence>
+        {activeTaskId && (() => {
+          const task = tasks.find(t => t.id === activeTaskId);
+          if (!task) return null;
+          const state = getTaskState(task.id);
+          const isResultView = !!state.previewImage;
 
-                      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                        {/* Left upload column */}
-                        <div className="md:col-span-5 space-y-3">
-                          <label className="block font-manrope text-xs font-bold text-on-surface">Hình ảnh báo giá / Cấu hình</label>
-
-                          {!state.previewImage ? (
+          const checksAnimDelay = 0.5;
+          const checkKeys = ["socket", "ram", "power", "case", "budget"];
+          
+          const parts = state.extractedParts;
+          const partsKeys = parts ? Object.keys(parts).filter(k => {
+            if (["total_price", "checks", "reason", "is_analyzing", "explanation", "is_draft", "is_approved", "temp_ai_score", "temp_ai_feedback"].includes(k)) return false;
+            const val = parts[k] as any;
+            return val && val.name;
+          }) : [];
+          
+          const partsAnimDelay = checksAnimDelay + (checkKeys.length * 0.4) + 0.5;
+          const finalResultAnimDelay = partsAnimDelay + (partsKeys.length * 0.3) + 1.0;
+          
+          return (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto"
+              onClick={() => setActiveTaskId(null)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className={cn(
+                  "relative bg-surface-container-lowest rounded-3xl shadow-2xl w-full my-auto flex flex-col",
+                  isResultView ? "max-w-6xl h-[90vh]" : "max-w-4xl max-h-[90vh]"
+                )}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setActiveTaskId(null)}
+                  className="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/80 text-white rounded-full transition-all cursor-pointer border-none shadow-md"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                
+                <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 result-page relative">
+                   {!isResultView ? (
+                     <div className="space-y-6">
+                        <div className="text-center space-y-2 mb-8">
+                          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                            <Sparkles className="w-8 h-8" />
+                          </div>
+                          <h2 className="text-2xl font-bold font-manrope">Nộp cấu hình PC</h2>
+                          <p className="text-on-muted text-sm">Vui lòng xem kỹ yêu cầu và tải lên ảnh báo giá linh kiện.</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                            <div className="relative rounded-2xl bg-surface-mid/85 p-5 border border-surface-container space-y-3 shadow-inner">
+                              <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider">
+                                <FileText className="w-4 h-4 text-violet-500" /> Nhu cầu khách hàng
+                              </h3>
+                              <p className="text-sm font-semibold text-on-surface">{task.customer_need}</p>
+                              
+                              <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider mt-4">
+                                <Coins className="w-4 h-4 text-amber-500" /> Ngân sách tối đa
+                              </h3>
+                              <p className="text-lg font-extrabold text-emerald-500">{formatVND(task.max_budget)}</p>
+                              
+                              <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider mt-4">
+                                <AlertTriangle className="w-4 h-4 text-rose-500" /> Yêu cầu chi tiết
+                              </h3>
+                              <p className="text-sm text-on-surface-variant leading-relaxed">
+                                {task.requirements || "Không có yêu cầu ràng buộc cụ thể."}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-4 flex flex-col">
                             <div
                               onClick={() => fileInputRefs.current[task.id]?.click()}
-                              className="flex flex-col items-center justify-center border-2 border-dashed border-surface-container-high rounded-2xl bg-surface-container-low p-6 text-center cursor-pointer transition-all hover:border-primary/50 hover:bg-primary/5/20 min-h-[180px]"
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                setDraggingTaskId(task.id);
+                              }}
+                              onDragLeave={(e) => {
+                                e.preventDefault();
+                                setDraggingTaskId(null);
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                setDraggingTaskId(null);
+                                const file = e.dataTransfer.files?.[0];
+                                if (file) handleImageFileProcessing(task.id, file);
+                              }}
+                              className={cn(
+                                "flex-1 group/drop flex flex-col items-center justify-center border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-all min-h-[260px] relative overflow-hidden",
+                                draggingTaskId === task.id
+                                  ? "border-primary bg-primary/10 scale-[0.98] ring-2 ring-primary/20"
+                                  : "border-surface-container-high hover:border-primary/50 bg-surface-mid/30 hover:bg-primary/5"
+                              )}
                             >
-                              <UploadCloud className="h-8 w-8 text-on-muted mb-2 animate-bounce" />
-                              <p className="text-xs font-semibold text-on-surface">Nhấp để tải ảnh báo giá lên</p>
-                              <p className="text-[10px] text-on-muted mt-1">Hỗ trợ JPG, PNG, WEBP</p>
+                              <div className={cn(
+                                "w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-200",
+                                draggingTaskId === task.id
+                                  ? "bg-primary text-on-primary scale-110"
+                                  : "bg-primary/10 text-primary group-hover/drop:scale-110"
+                              )}>
+                                <UploadCloud className="h-8 w-8" />
+                              </div>
+                              <p className="text-sm font-bold text-on-surface">
+                                {draggingTaskId === task.id ? "Thả ảnh vào đây" : "Kéo thả hoặc nhấn để tải ảnh"}
+                              </p>
+                              <p className="text-xs text-on-muted mt-2 max-w-[220px] leading-relaxed font-medium">
+                                Hỗ trợ các định dạng JPG, PNG. Đảm bảo ảnh rõ nét để AI đọc bảng giá tốt nhất.
+                              </p>
                               <input
                                 type="file"
                                 ref={(el) => { fileInputRefs.current[task.id] = el; }}
@@ -448,169 +698,344 @@ export default function PcBuildTrainingClient() {
                                 className="hidden"
                               />
                             </div>
-                          ) : (
-                            <div className="relative rounded-2xl overflow-hidden border border-surface-container-high bg-black/5 group">
-                              <img src={state.previewImage} alt="Quote" className="w-full object-contain max-h-[260px]" />
-                              {!state.isAnalyzing && !isSubmitted && (
-                                <button
-                                  onClick={() => handleCancelTask(task.id)}
-                                  className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white hover:bg-black/80 transition-colors"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          )}
+                          </div>
+                        </div>
+                     </div>
+                   ) : (
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-6 items-start">
+                        {/* Cột 1: Ảnh báo giá & Kiểm tra kỹ thuật */}
+                        <div className="lg:col-span-5 space-y-6 w-full">
+                          {/* 1. Ảnh báo giá */}
+                          {/* 1. Ảnh báo giá dọc 9:16 tối ưu */}
+                          <div className="w-full relative group">
+                             <div 
+                               className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md cursor-zoom-in relative bg-black/5"
+                               onClick={() => setSelectedImage(state.previewImage || null)}
+                             >
+                               <img 
+                                 src={state.previewImage || undefined} 
+                                 className="w-full h-full object-cover object-top filter blur-[2px] hover:blur-0 transition-all duration-300" 
+                                 alt="Báo giá cấu hình"
+                               />
+                               <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors flex items-center justify-center">
+                                 <span className="bg-black/60 backdrop-blur-sm text-[10px] font-bold text-white px-3 py-1.5 rounded-full flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                                   <Sparkles className="w-3 h-3 text-amber-400" /> Xem ảnh rõ nét
+                                 </span>
+                               </div>
+                             </div>
 
-                          {state.isAnalyzing && (
-                            <div className="flex flex-col items-center justify-center p-5 border border-surface-container-high rounded-2xl bg-surface-container-low/50 space-y-3">
-                              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                              <div className="text-center">
-                                <p className="text-xs font-bold text-on-surface">AI Đang phân tích chạy ngầm...</p>
-                                <p className="text-[10px] text-on-muted mt-0.5">Bạn có thể chuyển trang, AI vẫn tiếp tục xử lý.</p>
+                             {state.isAnalyzing && (
+                                <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-6 border border-white/10 z-10">
+                                  <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-primary to-violet-500 shadow-[0_0_15px_rgba(99,102,241,1)] scanner-line" />
+                                  <div className="bg-surface-container-lowest/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-center gap-4 text-center max-w-sm shadow-2xl">
+                                    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                                    <h3 className="text-lg font-bold text-on-surface font-manrope">AI đang phân tích & kiểm tra</h3>
+                                    <p className="text-sm text-on-muted leading-relaxed">Đang bóc tách linh kiện và đối chiếu độ tương thích. Vui lòng chờ trong giây lát...</p>
+                                    <button
+                                      type="button"
+                                      onClick={() => setCancelingTaskId(task.id)}
+                                      className="mt-4 text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 bg-rose-500/10 px-4 py-2 rounded-xl transition-all border-none"
+                                    >
+                                      Hủy quét bài viết
+                                    </button>
+                                  </div>
+                                </div>
+                             )}
+                          </div>
+
+                          {/* 2. Khối Đang kiểm tra kỹ thuật (Tuần tự) */}
+                          {!state.isAnalyzing && state.compatibilityChecks && (
+                            <div className="space-y-4">
+                              <motion.h3 
+                                initial={{ opacity: 0, x: -20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider"
+                              >
+                                <Sparkles className="w-4 h-4 text-violet-500" /> Kiểm tra kỹ thuật
+                              </motion.h3>
+                              
+                              <div className="flex flex-col gap-3">
+                                {checkKeys.map((key, i) => {
+                                  const check = state.compatibilityChecks[key];
+                                  if (!check) return null;
+                                  return (
+                                    <motion.div 
+                                      key={key}
+                                      initial={{ opacity: 0, scale: 0.9 }}
+                                      animate={{ opacity: 1, scale: 1 }}
+                                      transition={{ 
+                                        delay: checksAnimDelay + (i * 0.3), 
+                                        type: "spring", 
+                                        stiffness: 200, 
+                                        damping: 15 
+                                      }}
+                                      className="flex items-start gap-3 p-4 rounded-2xl bg-surface-container border border-surface-container-high shadow-sm"
+                                    >
+                                      <div className="mt-0.5 shrink-0">
+                                        {check.status === "PASS" ? (
+                                          <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-500 flex items-center justify-center">
+                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                          </div>
+                                        ) : check.status === "FAIL" ? (
+                                          <div className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center animate-bounce">
+                                            <XCircle className="w-3.5 h-3.5" />
+                                          </div>
+                                        ) : (
+                                          <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-500 flex items-center justify-center">
+                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                          </div>
+                                        )}
+                                      </div>
+                                      <div className="text-xs">
+                                        <p className="font-bold text-on-surface">
+                                          {key === "socket" ? "Socket CPU & Mainboard" :
+                                           key === "ram" ? "Chuẩn thế hệ RAM" :
+                                           key === "power" ? "Công suất Nguồn (PSU)" :
+                                           key === "case" ? "Kích thước vỏ máy (Case)" :
+                                           "Ràng buộc Ngân sách"}
+                                        </p>
+                                        <p className="text-on-muted mt-1 text-[11px] leading-relaxed">{check.message}</p>
+                                      </div>
+                                    </motion.div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
                         </div>
 
-                        {/* Right analysis results column */}
-                        <div className="md:col-span-7 space-y-4">
-                          {state.extractedParts ? (
-                            <div className="space-y-4 animate-in fade-in duration-300">
-                              {/* Status badge */}
-                              <div className={cn(
-                                "flex items-center gap-2 p-3 rounded-xl border text-xs font-semibold",
-                                state.isApproved
-                                  ? "bg-success-bg/30 border-success-bg text-success-text"
-                                  : "bg-error-bg/30 border-error-bg text-error-text"
-                              )}>
-                                {state.isApproved ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <XCircle className="h-5 w-5 shrink-0" />}
-                                <div>
-                                  <p className="font-bold">{state.isApproved ? "ĐẠT - Cấu hình hợp lệ!" : "KHÔNG ĐẠT - Phát hiện lỗi tương thích!"}</p>
-                                  {state.approvalReason && <p className="text-[10px] font-normal mt-0.5">{state.approvalReason}</p>}
+                        {/* Cột 2: Linh kiện bóc tách & Tổng hợp kết quả */}
+                        <div className="lg:col-span-7 space-y-6 w-full">
+                          {/* 3. Khối Linh kiện bóc tách (Tuần tự + CountUp) */}
+                          {!state.isAnalyzing && parts && partsKeys.length > 0 && (
+                            <div className="space-y-4 bg-surface-container-low/40 p-5 rounded-3xl border border-surface-container">
+                              <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ delay: partsAnimDelay - 0.2 }}
+                                className="flex items-center justify-between border-b border-surface-container-high pb-3"
+                              >
+                                <h3 className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider">
+                                  <Layers className="w-4 h-4 text-indigo-500" /> Linh kiện bóc tách
+                                </h3>
+                                <div className="text-right">
+                                  <span className="text-[10px] text-on-muted uppercase font-bold block">Tổng tiền</span>
+                                  <span className="text-lg font-extrabold text-primary font-mono bg-primary/10 px-3 py-1 rounded-lg inline-block shadow-inner mt-1">
+                                    <CountUp 
+                                      end={Number(parts.total_price?.price || parts.total_price || 0)} 
+                                      duration={partsKeys.length * 0.3} 
+                                      delay={partsAnimDelay}
+                                      separator="."
+                                      suffix="đ"
+                                      preserveValue
+                                    />
+                                  </span>
                                 </div>
+                              </motion.div>
+                              
+                              <div className="flex flex-col gap-2 max-h-[350px] overflow-y-auto pr-1 custom-scrollbar">
+                                {partsKeys.map((key, i) => {
+                                  const part = parts ? (parts[key] as any) : null;
+                                  if (!part) return null;
+                                  return (
+                                    <motion.div
+                                      key={key}
+                                      initial={{ opacity: 0, x: 20 }}
+                                      animate={{ opacity: 1, x: 0 }}
+                                      transition={{ 
+                                        delay: partsAnimDelay + (i * 0.2),
+                                        type: "spring",
+                                        damping: 20
+                                      }}
+                                      className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest/80 border border-surface-container-high/40 hover:bg-surface-container transition-colors"
+                                    >
+                                      <div className="flex items-center gap-2.5 w-1/3 min-w-[120px] shrink-0">
+                                        <div className="w-7 h-7 rounded-lg bg-surface-container-high flex items-center justify-center">
+                                          {CATEGORY_ICONS[key] || <Box className="w-3.5 h-3.5 text-slate-400" />}
+                                        </div>
+                                        <span className="font-bold text-xs text-on-surface">{CATEGORY_LABELS[key] || key}</span>
+                                      </div>
+                                      <span className="text-xs font-medium text-on-surface-variant truncate flex-1 px-3">{part.name}</span>
+                                      <span className="text-xs font-bold font-mono text-on-surface shrink-0">{part.price > 0 ? formatVND(part.price) : "—"}</span>
+                                    </motion.div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 4. Kết quả cuối & Form Submit */}
+                          {!state.isAnalyzing && parts && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              transition={{ delay: finalResultAnimDelay, type: "spring", bounce: 0.3 }}
+                              className="space-y-6"
+                            >
+                              <div className={cn(
+                                "p-6 rounded-3xl border-2 text-center shadow-lg",
+                                state.isApproved
+                                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-400"
+                                  : "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
+                              )}>
+                                 <div className="w-12 h-12 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-3">
+                                   {state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />}
+                                 </div>
+                                 <h2 className="text-xl font-black font-manrope mb-1">
+                                   {state.isApproved ? "CẤU HÌNH ĐẠT YÊU CẦU!" : "CẤU HÌNH CHƯA ĐẠT!"}
+                                 </h2>
+                                 <p className="text-xs font-medium opacity-90 max-w-md mx-auto leading-relaxed">
+                                   {state.approvalReason || "Hệ thống AI đã hoàn thành kiểm thử báo giá linh kiện."}
+                                 </p>
                               </div>
 
-                              {/* Checks report */}
-                              {state.compatibilityChecks && (
-                                <div className="rounded-xl border border-surface-container-high bg-surface-mid/40 p-3.5 space-y-2">
-                                  <h4 className="font-manrope text-[10px] font-bold text-on-surface uppercase tracking-wider">Báo cáo tương thích AI</h4>
-                                  
-                                  <div className="space-y-2">
-                                    <div className="flex gap-2 text-[11px]">
-                                      {renderCheckIcon(state.compatibilityChecks.socket?.status)}
-                                      <div>
-                                        <span className="font-bold text-on-surface">Socket CPU & Main: </span>
-                                        <span className="text-on-muted">{state.compatibilityChecks.socket?.message}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2 text-[11px]">
-                                      {renderCheckIcon(state.compatibilityChecks.ram?.status)}
-                                      <div>
-                                        <span className="font-bold text-on-surface">Thế hệ RAM: </span>
-                                        <span className="text-on-muted">{state.compatibilityChecks.ram?.message}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2 text-[11px]">
-                                      {renderCheckIcon(state.compatibilityChecks.power?.status)}
-                                      <div>
-                                        <span className="font-bold text-on-surface">Bộ nguồn (PSU): </span>
-                                        <span className="text-on-muted">{state.compatibilityChecks.power?.message}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2 text-[11px]">
-                                      {renderCheckIcon(state.compatibilityChecks.case?.status)}
-                                      <div>
-                                        <span className="font-bold text-on-surface">Vỏ máy (Case): </span>
-                                        <span className="text-on-muted">{state.compatibilityChecks.case?.message}</span>
-                                      </div>
-                                    </div>
-                                    <div className="flex gap-2 text-[11px]">
-                                      {renderCheckIcon(state.compatibilityChecks.budget?.status)}
-                                      <div>
-                                        <span className="font-bold text-on-surface">Ngân sách: </span>
-                                        <span className="text-on-muted">{state.compatibilityChecks.budget?.message}</span>
-                                      </div>
-                                    </div>
+                              {/* Ghi chú & Nộp Bài */}
+                              {(!state.previewImage || state.isDraft) && (
+                                <div className="space-y-4 bg-surface-container-low p-5 rounded-3xl border border-surface-container">
+                                  <h3 className="text-xs font-bold flex items-center gap-2 uppercase tracking-wider">
+                                    <FileText className="w-3.5 h-3.5 text-primary" /> Lời nhắn gửi Admin (Tùy chọn)
+                                  </h3>
+                                  <textarea
+                                    rows={3}
+                                    value={state.explanation}
+                                    onChange={(e) => updateTaskState(task.id, { explanation: e.target.value })}
+                                    placeholder="Ví dụ: Cấu hình này đã tối ưu hiệu năng chơi game 2K trong tầm giá..."
+                                    className="w-full resize-none rounded-2xl border border-surface-container-high bg-surface-container px-4 py-3 font-inter text-xs outline-none focus:border-primary transition-all shadow-inner"
+                                  />
+                                  <div className="flex justify-end">
+                                    <Button
+                                      onClick={() => setSubmittingTaskId(task.id)}
+                                      disabled={state.submitting}
+                                      className="gradient-primary text-on-primary rounded-xl font-bold font-manrope text-xs px-6 py-4 cursor-pointer shadow-md hover:scale-105 transition-transform"
+                                    >
+                                      {state.submitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> Đang nộp...</> : <><Send className="w-4 h-4 mr-1.5"/> Hoàn thành & Nộp bài</>}
+                                    </Button>
                                   </div>
                                 </div>
                               )}
 
-                              {/* Parts table */}
-                              <div className="rounded-xl border border-surface-container-high overflow-hidden">
-                                <div className="bg-surface-mid/80 px-3 py-1.5 border-b border-surface-container-high flex justify-between items-center text-[10px]">
-                                  <span className="font-bold text-on-surface">Linh kiện trích xuất</span>
-                                  <span className="font-bold text-primary">
-                                    Tổng: {formatVND(Number(state.extractedParts.total_price?.price || state.extractedParts.total_price || 0))}
-                                  </span>
-                                </div>
-                                <div className="max-h-[140px] overflow-y-auto divide-y divide-surface-container-high/60 bg-surface-container-lowest font-inter text-[10px]">
-                                  {Object.entries(state.extractedParts)
-                                    .filter(([k, v]) => k !== "total_price" && k !== "checks" && k !== "reason" && k !== "is_analyzing" && k !== "explanation" && k !== "is_draft" && k !== "is_approved" && k !== "temp_ai_score" && k !== "temp_ai_feedback" && v && (v as any).name)
-                                    .map(([k, v]) => (
-                                      <div key={k} className="flex justify-between px-3 py-1.5 hover:bg-surface-container-low/30">
-                                        <span className="font-semibold text-on-surface shrink-0 w-24">{CATEGORY_LABELS[k] || k}</span>
-                                        <span className="text-on-surface-variant truncate pr-2 flex-1 text-left">{(v as any).name}</span>
-                                        <span className="text-on-surface font-bold shrink-0">{(v as any).price > 0 ? formatVND((v as any).price) : "-"}</span>
-                                      </div>
-                                    ))}
-                                </div>
+                              {/* Nút nộp lại cấu hình */}
+                              <div className="flex justify-center pt-4 border-t border-surface-container">
+                                  <Button
+                                    onClick={() => {
+                                      updateTaskState(task.id, {
+                                        previewImage: null,
+                                        isAnalyzing: false,
+                                        extractedParts: null,
+                                        compatibilityChecks: null,
+                                        isApproved: false,
+                                        approvalReason: "",
+                                        explanation: "",
+                                        submitting: false,
+                                        isDraft: true,
+                                        checkin_id: undefined,
+                                        status: undefined
+                                      });
+                                    }}
+                                    variant="outline"
+                                    className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-surface-container-high text-on-muted bg-surface-container-low/50 hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Nộp lại cấu hình mới
+                                  </Button>
                               </div>
-                            </div>
-                          ) : (
-                            <div className="flex flex-col items-center justify-center py-10 text-center text-on-muted space-y-2 border border-surface-container-high border-dashed rounded-2xl min-h-[220px]">
-                              <FileText className="h-8 w-8 text-outline" />
-                              <p className="text-xs">
-                                {state.isAnalyzing ? "AI đang tiến hành phân tích..." : "Vui lòng tải ảnh báo giá ở cột bên trái"}
-                              </p>
-                              <p className="text-[10px]">
-                                {state.isAnalyzing ? "Kết quả kiểm tra tương thích sẽ tự động hiện lên khi xong." : "AI sẽ tự động phân tích và hiển thị kết quả tại đây"}
-                              </p>
-                            </div>
+                            </motion.div>
                           )}
-
-                          {/* Explanation */}
-                          <div className="space-y-1">
-                            <label className="block font-manrope text-[10px] font-bold text-on-surface uppercase">Ghi chú của bạn</label>
-                            <textarea
-                              rows={1.5}
-                              value={state.explanation}
-                              disabled={isSubmitted}
-                              onChange={(e) => updateTaskState(task.id, { explanation: e.target.value })}
-                              placeholder="Nhập ý kiến/ghi chú..."
-                              className="w-full resize-none rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-2 font-inter text-xs text-on-surface outline-none focus:border-primary disabled:opacity-60"
-                            />
-                          </div>
                         </div>
-                      </div>
+                     </div>
+                   )}
+                </div>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
-                      {/* Footer Actions inside Card */}
-                      {!isSubmitted && (
-                        <div className="border-t border-surface-container-high pt-4 flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => handleCancelTask(task.id)}
-                            disabled={state.submitting}
-                          >
-                            Hủy / Xóa ảnh
-                          </Button>
-                          <Button
-                            onClick={() => handleSubmit(task.id)}
-                            disabled={state.submitting || state.isAnalyzing || !state.previewImage}
-                          >
-                            {state.submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                            Nộp bài
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
+      {/* Image Modal Lightbox */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div
+            className="relative max-w-5xl max-h-[95vh] bg-transparent rounded-3xl overflow-hidden p-2 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/40 text-white rounded-full transition-all cursor-pointer shadow-md border-none backdrop-blur-sm"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <img
+              src={selectedImage}
+              alt="Bản xem trước hóa đơn"
+              className="w-full h-auto max-h-[90vh] object-contain rounded-2xl"
+            />
           </div>
-        )}
-      </section>
+        </div>
+      )}
+
+      {/* Confirm Cancel Scanning / Config Modal */}
+      {cancelingTaskId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-rose-600">
+              <AlertTriangle className="h-6 w-6" />
+              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận hủy cấu hình</h3>
+            </div>
+            <p className="text-xs text-on-muted leading-relaxed font-inter">
+              Bạn có chắc chắn muốn hủy quá trình hiện tại không? Mọi tiến trình phân tích báo giá sẽ bị dừng lại.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setCancelingTaskId(null)}>
+                Quay lại
+              </Button>
+              <Button
+                className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-xs font-bold font-manrope cursor-pointer border-none"
+                onClick={async () => {
+                  const taskId = cancelingTaskId;
+                  setCancelingTaskId(null);
+                  await handleCancelTask(taskId);
+                  setActiveTaskId(null);
+                }}
+              >
+                Đồng ý hủy
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Final Submit Modal */}
+      {submittingTaskId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-primary">
+              <Sparkles className="h-6 w-6" />
+              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận nộp bài</h3>
+            </div>
+            <p className="text-xs text-on-muted leading-relaxed font-inter">
+              Bạn có chắc chắn muốn nộp cấu hình này để Admin phê duyệt không? Sau khi nộp, bạn vẫn có thể nộp lại cấu hình mới nếu cần thiết.
+            </p>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setSubmittingTaskId(null)}>
+                Quay lại
+              </Button>
+              <Button
+                className="gradient-primary text-on-primary rounded-xl text-xs font-bold font-manrope cursor-pointer border-none shadow-md shadow-primary/10"
+                onClick={async () => {
+                  const taskId = submittingTaskId;
+                  setSubmittingTaskId(null);
+                  await handleSubmit(taskId);
+                  setActiveTaskId(null);
+                }}
+              >
+                Xác nhận nộp bài
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

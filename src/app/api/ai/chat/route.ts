@@ -11,6 +11,12 @@ import {
   mergeTaskNoteWithAI,
   rewriteTaskNoteWithAI,
 } from "@/lib/task-note-ai";
+import { generateSeoText } from "@/lib/openai-client";
+import {
+  buildArticlePrompt,
+  buildSpecSummaryPrompt,
+  buildTablePrompt,
+} from "@/lib/seo-prompts";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const CHARACTER_LIMIT = 16000;
@@ -384,6 +390,11 @@ LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
      * Khi hỏi "Chỉ số hiệu suất hiện tại của tôi?": Tóm tắt ngắn gọn.
      * Khi hỏi "Có task nào khẩn cấp cần xử lý không?": Quét các task quá hạn hoặc deadline gần nhất.
 
+8. AI STUDIO TOOLS TRONG CHAT:
+   - Khi người dùng yêu cầu viết mô tả sản phẩm chuẩn SEO, tạo bảng thông số kỹ thuật, hoặc tóm tắt thông số sản phẩm, hãy dùng các công cụ AI Studio tương ứng thay vì tự trả lời thủ công.
+   - Nếu dữ liệu sản phẩm/thông số chưa đủ rõ, hỏi lại ngắn gọn để người dùng cung cấp thêm trước khi gọi công cụ.
+   - Sau khi công cụ trả về kết quả, trả kết quả trực tiếp cho người dùng, giữ nguyên Markdown/bảng/dòng thông số do công cụ tạo ra, không thêm lời dẫn dài.
+
 PHONG CÁCH TRẢ LỜI:
 - Quyết đoán, ngắn gọn, dùng gạch đầu dòng rõ ràng.
 - Nếu không chắc chắn người dùng muốn xóa task nào, BẮT BUỘC phải hỏi lại để xác nhận tên task trước khi gọi hàm xóa.`;
@@ -532,6 +543,62 @@ PHONG CÁCH TRẢ LỜI:
               date_range: { type: "string", enum: ["today", "week", "month"], description: "Khoảng thời gian muốn xem" }
             },
             required: ["date_range"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "seo_article_writer",
+          description: "AI Studio: viết mô tả sản phẩm chuẩn SEO/RankMath cho máy tính, laptop, linh kiện, màn hình hoặc gaming gear.",
+          parameters: {
+            type: "object",
+            properties: {
+              topic: {
+                type: "string",
+                description: "Tên sản phẩm và thông số/điểm nổi bật do người dùng cung cấp."
+              },
+              tone: {
+                type: "string",
+                enum: ["Chuyên nghiệp", "Thân thiện", "Khuyến mãi/Bán hàng"],
+                description: "Giọng văn mong muốn. Mặc định dùng Chuyên nghiệp nếu người dùng không chỉ định."
+              }
+            },
+            required: ["topic"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "seo_table_generator",
+          description: "AI Studio: chuyển thông số thô thành bảng thông số kỹ thuật Markdown 2 cột để đăng website.",
+          parameters: {
+            type: "object",
+            properties: {
+              inputText: {
+                type: "string",
+                description: "Thông số thô, mô tả sản phẩm hoặc dữ liệu kỹ thuật cần chuẩn hóa thành bảng."
+              }
+            },
+            required: ["inputText"]
+          }
+        }
+      },
+      {
+        type: "function",
+        function: {
+          name: "seo_spec_summary",
+          description: "AI Studio: tóm tắt thông số sản phẩm thành các dòng 'Tên thông số: Giá trị' phục vụ catalog/trang chi tiết.",
+          parameters: {
+            type: "object",
+            properties: {
+              inputText: {
+                type: "string",
+                description: "Thông số thô hoặc mô tả sản phẩm cần rút gọn."
+              }
+            },
+            required: ["inputText"]
           }
         }
       }
@@ -780,6 +847,42 @@ PHONG CÁCH TRẢ LỜI:
                 workspace: t.workspace.name
               }))
             });
+          } else if (fnName === "seo_article_writer") {
+            const topic = String(fnArgs.topic || "").trim();
+            const tone = String(fnArgs.tone || "Chuyên nghiệp").trim();
+            if (topic.length < 5) {
+              result = JSON.stringify({ error: "Vui lòng cung cấp tên sản phẩm hoặc thông số cụ thể hơn." });
+            } else {
+              const content = await generateSeoText({
+                prompt: buildArticlePrompt(topic, tone),
+                maxTokens: 2500,
+              });
+              result = JSON.stringify({ tool: "Mô tả sản phẩm SEO", content });
+            }
+          } else if (fnName === "seo_table_generator") {
+            const inputText = String(fnArgs.inputText || "").trim();
+            if (inputText.length < 5) {
+              result = JSON.stringify({ error: "Vui lòng cung cấp thông số thô cụ thể hơn để tạo bảng." });
+            } else {
+              const content = await generateSeoText({
+                prompt: buildTablePrompt(inputText),
+                maxTokens: 3500,
+                temperature: 0.3,
+              });
+              result = JSON.stringify({ tool: "Bảng thông số kỹ thuật", content });
+            }
+          } else if (fnName === "seo_spec_summary") {
+            const inputText = String(fnArgs.inputText || "").trim();
+            if (inputText.length < 5) {
+              result = JSON.stringify({ error: "Vui lòng cung cấp thông số sản phẩm cụ thể hơn để tóm tắt." });
+            } else {
+              const content = await generateSeoText({
+                prompt: buildSpecSummaryPrompt(inputText),
+                maxTokens: 1500,
+                temperature: 0.2,
+              });
+              result = JSON.stringify({ tool: "Tóm tắt thông số", content });
+            }
           }
         } catch (err: any) {
           result = JSON.stringify({ error: err.message });

@@ -8,7 +8,24 @@
  * Dùng chung cho cả /api/checkins (auto-approve) và /api/admin/ai-scan (on-demand).
  */
 
-import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
+
+function isCodexTimeWindow(): boolean {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      hour12: false,
+    });
+    const hourStr = formatter.format(now);
+    const hour = parseInt(hourStr, 10);
+    return hour >= 18 && hour < 20;
+  } catch (e) {
+    console.error("[isCodexTimeWindow] Error parsing timezone:", e);
+    return false;
+  }
+}
 
 export interface VisionCheckInput {
   base64Image: string;
@@ -65,37 +82,136 @@ export async function runVisionCheck(
   };
 
   // ── Bước 1: Kimi/Gemini trích xuất thông tin từ ảnh ─────────────────────────
-  const geminiResponse = await withTimeout(
-    aibox.chat.completions.create({
-      model: MODEL_VISION_ONLY,
-      messages: [
-        {
-          role: "user",
-          content: [
+  // ── Bước 1: Kimi/Gemini trích xuất thông tin từ ảnh ─────────────────────────
+  let extracted: any = null;
+  let extractionError: any = null;
+
+  const extractionAttempts = [
+    // Attempt 1: codexAI (API Box Codex Key) inside time window
+    async () => {
+      if (!isCodexTimeWindow()) {
+        throw new Error("Codex API is restricted outside of 18:00 - 20:00 GMT+7");
+      }
+      console.log("[ai-vision-check] Attempting extraction with codexAI (API Box)...");
+      const res = await withTimeout(
+        codexAI.chat.completions.create({
+          model: MODEL_VISION_ONLY,
+          messages: [
             {
-              type: "text",
-              text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
 1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
 Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-            },
-            {
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                },
+              ],
             },
           ],
-        },
-      ],
-      max_tokens: 1500,
-    }),
-    VISION_TIMEOUT_MS
-  );
+          max_tokens: 1500,
+        }),
+        VISION_TIMEOUT_MS
+      );
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
+    },
 
-  const extracted = cleanAndParseJSON(
-    geminiResponse.choices[0]?.message?.content || "{}"
-  );
+    // Attempt 2: Direct Moonshot (Kimi) if configured
+    async () => {
+      if (!process.env.MOONSHOT_API_KEY) {
+        throw new Error("No MOONSHOT_API_KEY configured for vision check");
+      }
+      console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API...");
+      const res = await withTimeout(
+        moonshotAI.chat.completions.create({
+          model: "kimi-k2.5",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
+2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
+3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
+4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
+Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                },
+              ],
+            },
+          ],
+          max_tokens: 1500,
+        }),
+        VISION_TIMEOUT_MS
+      );
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
+    },
+
+    // Attempt 3: defaultAI (API Box default key)
+    async () => {
+      console.log("[ai-vision-check] Attempting extraction with defaultAI (API Box Main)...");
+      const res = await withTimeout(
+        defaultAI.chat.completions.create({
+          model: MODEL_VISION_ONLY,
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
+2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
+3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
+4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
+Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                },
+              ],
+            },
+          ],
+          max_tokens: 1500,
+        }),
+        VISION_TIMEOUT_MS
+      );
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
+    }
+  ];
+
+  for (const attempt of extractionAttempts) {
+    try {
+      extracted = await attempt();
+      if (extracted && (extracted.extracted_username || extracted.extracted_title)) {
+        extractionError = null;
+        break;
+      }
+    } catch (err: any) {
+      console.warn("[ai-vision-check] Vision extraction attempt failed:", err.message || err);
+      extractionError = err;
+    }
+  }
+
+  if (!extracted) {
+    throw new Error(`Tất cả các cổng AI Vision check đều thất bại. Lỗi cuối cùng: ${extractionError?.message || "Không xác định"}`);
+  }
 
   const extractedUsername: string | null = extracted.extracted_username || null;
   const extractedTitle: string | null = extracted.extracted_title || null;
@@ -104,7 +220,7 @@ Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không k
 
   // ── Bước 2: Flash đánh giá mức khớp ───────────────────────────────────
   const decisionResponse = await withTimeout(
-    aibox.chat.completions.create({
+    defaultAI.chat.completions.create({
       model: MODEL_CHAT_FLASH,
       messages: [
         {

@@ -15,6 +15,7 @@ import {
   Search,
   Table2,
   Wrench,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SpecSummary } from "@/components/modules/seo/SpecSummary";
@@ -37,32 +38,32 @@ const SEO_TOOLS: SeoTool[] = [
     title: "Mô tả sản phẩm SEO",
     description: "Soạn mô tả bán hàng chuẩn RankMath cho máy tính, laptop và linh kiện.",
     icon: <PenLine className="w-5 h-5" />,
-    iconBg: "bg-indigo-50",
-    iconColor: "text-indigo-600",
+    iconBg: "bg-indigo-500/10",
+    iconColor: "text-indigo-600 dark:text-indigo-400",
   },
   {
     id: "table-generator",
     title: "Bảng thông số kỹ thuật",
     description: "Chuẩn hóa thông số thô thành bảng Markdown hai cột, sẵn sàng đăng website.",
     icon: <Table2 className="w-5 h-5" />,
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
+    iconBg: "bg-emerald-500/10",
+    iconColor: "text-emerald-600 dark:text-emerald-400",
   },
   {
     id: "spec-summary",
     title: "Tóm tắt thông số",
     description: "Rút gọn thông số sản phẩm theo format đồng bộ, phục vụ catalog và trang chi tiết.",
     icon: <AlignLeft className="w-5 h-5" />,
-    iconBg: "bg-amber-50",
-    iconColor: "text-amber-600",
+    iconBg: "bg-amber-500/10",
+    iconColor: "text-amber-600 dark:text-amber-400",
   },
   {
     id: "category-content",
     title: "Viết nội dung danh mục",
     description: "Soạn mô tả và nội dung SEO cho trang danh mục sản phẩm trên website Song Phương.",
     icon: <FolderTree className="w-5 h-5" />,
-    iconBg: "bg-violet-50",
-    iconColor: "text-violet-600",
+    iconBg: "bg-violet-500/10",
+    iconColor: "text-violet-600 dark:text-violet-400",
     comingSoon: true,
   },
   {
@@ -70,8 +71,8 @@ const SEO_TOOLS: SeoTool[] = [
     title: "Viết bài viết news",
     description: "Tạo bài tin tức, khuyến mãi và thông báo theo giọng văn thương hiệu Song Phương.",
     icon: <Newspaper className="w-5 h-5" />,
-    iconBg: "bg-sky-50",
-    iconColor: "text-sky-600",
+    iconBg: "bg-sky-500/10",
+    iconColor: "text-sky-600 dark:text-sky-400",
     comingSoon: true,
   },
   {
@@ -79,8 +80,8 @@ const SEO_TOOLS: SeoTool[] = [
     title: "Báo cáo công việc hàng tuần",
     description: "Tổng hợp tiến độ công việc tuần thành báo cáo ngắn gọn, sẵn sàng gửi nội bộ.",
     icon: <CalendarDays className="w-5 h-5" />,
-    iconBg: "bg-rose-50",
-    iconColor: "text-rose-600",
+    iconBg: "bg-rose-500/10",
+    iconColor: "text-rose-600 dark:text-rose-400",
     comingSoon: true,
   },
   {
@@ -88,8 +89,8 @@ const SEO_TOOLS: SeoTool[] = [
     title: "Check giá sản phẩm",
     description: "Đối chiếu giá sản phẩm với thị trường và đề xuất mức giá cạnh tranh.",
     icon: <DollarSign className="w-5 h-5" />,
-    iconBg: "bg-lime-50",
-    iconColor: "text-lime-700",
+    iconBg: "bg-lime-500/10",
+    iconColor: "text-lime-700 dark:text-lime-400",
     comingSoon: true,
   },
   {
@@ -97,8 +98,8 @@ const SEO_TOOLS: SeoTool[] = [
     title: "Check sản phẩm trên web Song Phương",
     description: "Kiểm tra thông tin, giá và trạng thái hiển thị sản phẩm trên songphuong.vn.",
     icon: <Search className="w-5 h-5" />,
-    iconBg: "bg-cyan-50",
-    iconColor: "text-cyan-700",
+    iconBg: "bg-cyan-500/10",
+    iconColor: "text-cyan-700 dark:text-cyan-400",
     comingSoon: true,
   },
   {
@@ -106,8 +107,8 @@ const SEO_TOOLS: SeoTool[] = [
     title: "Viết lại nội dung web",
     description: "Copy nội dung trang web nào đó và viết lại cho page Song Phương.",
     icon: <Copy className="w-5 h-5" />,
-    iconBg: "bg-orange-50",
-    iconColor: "text-orange-600",
+    iconBg: "bg-orange-500/10",
+    iconColor: "text-orange-600 dark:text-orange-400",
     comingSoon: true,
   },
 ];
@@ -119,70 +120,72 @@ const TOOL_HEADERS: Record<
   "article-writer": {
     title: "Mô tả sản phẩm SEO",
     description: "Nhập thông tin sản phẩm để AI soạn mô tả bán hàng ngắn gọn, chuẩn SEO và phù hợp danh mục Song Phương.",
-    icon: <FileText className="w-6 h-6 text-indigo-600" />,
-    iconBg: "bg-indigo-50",
+    icon: <FileText className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />,
+    iconBg: "bg-indigo-500/10",
   },
   "table-generator": {
     title: "Bảng thông số kỹ thuật",
     description: "Chuyển đổi dữ liệu thô thành bảng thông số Markdown, tối ưu hiển thị trên WordPress.",
-    icon: <Table2 className="w-6 h-6 text-emerald-600" />,
-    iconBg: "bg-emerald-50",
+    icon: <Table2 className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />,
+    iconBg: "bg-emerald-500/10",
   },
   "spec-summary": {
     title: "Tóm tắt thông số",
     description: "Tổng hợp thông số theo định dạng \"Tên thông số: Giá trị\", thống nhất trên toàn hệ thống.",
-    icon: <AlignLeft className="w-6 h-6 text-amber-600" />,
-    iconBg: "bg-amber-50",
+    icon: <AlignLeft className="w-6 h-6 text-amber-600 dark:text-amber-400" />,
+    iconBg: "bg-amber-500/10",
   },
   "category-content": {
     title: "Viết nội dung danh mục",
     description: "Soạn mô tả và nội dung SEO cho trang danh mục sản phẩm trên website Song Phương.",
-    icon: <FolderTree className="w-6 h-6 text-violet-600" />,
-    iconBg: "bg-violet-50",
+    icon: <FolderTree className="w-6 h-6 text-violet-600 dark:text-violet-400" />,
+    iconBg: "bg-violet-500/10",
   },
   "news-writer": {
     title: "Viết bài viết news",
     description: "Tạo bài tin tức, khuyến mãi và thông báo theo giọng văn thương hiệu Song Phương.",
-    icon: <Newspaper className="w-6 h-6 text-sky-600" />,
-    iconBg: "bg-sky-50",
+    icon: <Newspaper className="w-6 h-6 text-sky-600 dark:text-sky-400" />,
+    iconBg: "bg-sky-500/10",
   },
   "weekly-report": {
     title: "Báo cáo công việc hàng tuần",
     description: "Tổng hợp tiến độ công việc tuần thành báo cáo ngắn gọn, sẵn sàng gửi nội bộ.",
-    icon: <CalendarDays className="w-6 h-6 text-rose-600" />,
-    iconBg: "bg-rose-50",
+    icon: <CalendarDays className="w-6 h-6 text-rose-600 dark:text-rose-400" />,
+    iconBg: "bg-rose-500/10",
   },
   "price-check": {
     title: "Check giá sản phẩm",
     description: "Đối chiếu giá sản phẩm với thị trường và đề xuất mức giá cạnh tranh.",
-    icon: <DollarSign className="w-6 h-6 text-lime-700" />,
-    iconBg: "bg-lime-50",
+    icon: <DollarSign className="w-6 h-6 text-lime-700 dark:text-lime-400" />,
+    iconBg: "bg-lime-500/10",
   },
   "sp-product-check": {
     title: "Check sản phẩm trên web Song Phương",
     description: "Kiểm tra thông tin, giá và trạng thái hiển thị sản phẩm trên songphuong.vn.",
-    icon: <Globe className="w-6 h-6 text-cyan-700" />,
-    iconBg: "bg-cyan-50",
+    icon: <Globe className="w-6 h-6 text-cyan-700 dark:text-cyan-400" />,
+    iconBg: "bg-cyan-500/10",
   },
   "content-rewrite": {
     title: "Viết lại nội dung web",
     description: "Copy nội dung trang web nào đó và viết lại cho page Song Phương.",
-    icon: <Copy className="w-6 h-6 text-orange-600" />,
-    iconBg: "bg-orange-50",
+    icon: <Copy className="w-6 h-6 text-orange-600 dark:text-orange-400" />,
+    iconBg: "bg-orange-500/10",
   },
 };
 
 function ComingSoonPanel({ title }: { title: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-outline/30 bg-surface-container-low/60 px-6 py-10 text-center">
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-        <Wrench className="h-7 w-7 text-primary" />
+    <div className="rounded-3xl border border-dashed border-surface-container-high bg-surface-mid/20 px-6 py-12 text-center max-w-xl mx-auto space-y-4">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <Wrench className="h-7 w-7" />
       </div>
-      <p className="font-manrope text-base font-bold text-on-surface">{title}</p>
-      <p className="mt-2 text-sm text-on-surface-variant font-inter max-w-md mx-auto leading-relaxed">
-        Công cụ này đang được phát triển và sẽ sớm ra mắt trên AI Studio. Vui lòng quay lại sau.
-      </p>
-      <span className="mt-4 inline-flex items-center rounded-full bg-amber-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 font-inter">
+      <div className="space-y-1">
+        <p className="font-manrope text-base font-bold text-on-surface">{title}</p>
+        <p className="text-xs text-on-muted font-inter leading-relaxed max-w-sm mx-auto">
+          Công cụ này đang được phát triển và sẽ sớm ra mắt trên AI Studio. Vui lòng quay lại sau.
+        </p>
+      </div>
+      <span className="inline-flex items-center rounded-full bg-amber-500/10 px-3.5 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-600 border border-amber-500/15 font-inter">
         Đang phát triển
       </span>
     </div>
@@ -224,29 +227,31 @@ export default function SeoToolsClient() {
   };
 
   return (
-    <div className="w-full space-y-6 animate-in fade-in duration-300">
+    <div className="w-full space-y-8 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors duration={2000} closeButton />
 
-      <div>
-        <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
-          <span>Dashboard</span>
-          <span>/</span>
-          <span className="text-primary font-semibold">AI Studio</span>
-        </nav>
-        <div>
-          <p className="text-[9px] font-inter font-semibold tracking-[.1em] uppercase text-primary mb-1">
-            Song Phương · AI
-          </p>
-          <h1 className="font-manrope font-bold text-2xl sm:text-headline-lg text-on-surface">
-            AI Studio
-          </h1>
-          <p className="mt-1 text-sm text-on-surface-variant font-inter max-w-2xl">
-            Bộ công cụ AI hỗ trợ các công việc kinh doanh của công ty Song Phương.
-          </p>
+      {/* Header Section */}
+      <div className="bg-surface-mid/40 backdrop-blur-md border border-surface-container rounded-3xl p-6 md:p-8 shadow-ambient relative overflow-hidden">
+        {/* Glow effect background */}
+        <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+          <div className="space-y-1">
+            <p className="text-[9px] font-inter font-bold tracking-[.15em] uppercase text-primary">
+              Song Phương · AI Workspace
+            </p>
+            <h1 className="font-manrope text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+              AI Studio
+            </h1>
+            <p className="font-inter text-xs text-on-muted max-w-xl">
+              Bộ công cụ AI hỗ trợ các tác vụ content chuẩn SEO, xử lý thông số kỹ thuật và báo cáo công việc hàng tuần cho nhân sự Song Phương.
+            </p>
+          </div>
         </div>
       </div>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Grid Menu of Tools */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {SEO_TOOLS.map((tool) => {
           const isActive = activeTool === tool.id;
           return (
@@ -255,35 +260,35 @@ export default function SeoToolsClient() {
               type="button"
               onClick={() => handleSelectTool(tool)}
               className={cn(
-                "text-left bg-surface-container-lowest rounded-2xl p-5 shadow-ambient border transition-all duration-150 group hover:-translate-y-0.5",
+                "text-left bg-surface-container-lowest rounded-2xl p-5 shadow-sm border transition-all duration-200 group hover:-translate-y-0.5 hover:shadow-md cursor-pointer",
                 isActive
-                  ? "border-primary/30 ring-2 ring-primary/10"
-                  : "border-transparent hover:border-outline/20",
-                tool.comingSoon && !isActive && "opacity-90"
+                  ? "border-primary/40 ring-2 ring-primary/10"
+                  : "border-surface-container hover:border-surface-container-high",
+                tool.comingSoon && !isActive && "opacity-85"
               )}
             >
               <div className="flex items-start gap-4">
                 <div
                   className={cn(
-                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0",
+                    "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105",
                     tool.iconBg,
                     tool.iconColor
                   )}
                 >
                   {tool.icon}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2 mb-1">
-                    <p className="font-inter text-[14px] font-bold text-on-surface leading-snug flex-1">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-inter text-xs font-bold text-on-surface leading-tight">
                       {tool.title}
                     </p>
                     {tool.comingSoon && (
-                      <span className="shrink-0 rounded-md bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 font-inter">
-                        Sắp ra mắt
+                      <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[8px] font-extrabold uppercase tracking-wide text-amber-600 border border-amber-500/10 font-inter">
+                        Sắp có
                       </span>
                     )}
                   </div>
-                  <p className="text-[12px] text-on-surface-variant font-inter leading-relaxed">
+                  <p className="text-[10px] text-on-muted font-medium font-inter leading-relaxed line-clamp-2">
                     {tool.description}
                   </p>
                 </div>
@@ -293,12 +298,13 @@ export default function SeoToolsClient() {
         })}
       </section>
 
+      {/* Tool Workspace Card */}
       {activeHeader && (
-        <section className="bg-surface-container-lowest rounded-2xl shadow-ambient p-4 sm:p-6 space-y-6">
-          <div className="flex items-start gap-4">
+        <section className="bg-surface-container-lowest rounded-3xl border border-surface-container shadow-sm p-6 md:p-8 space-y-6">
+          <div className="flex items-start gap-4 pb-4 border-b border-surface-container">
             <div
               className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+                "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
                 activeHeader.iconBg
               )}
             >
@@ -306,22 +312,24 @@ export default function SeoToolsClient() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="font-manrope font-bold text-lg text-on-surface">
+                <h2 className="font-manrope font-extrabold text-base text-on-surface">
                   {activeHeader.title}
                 </h2>
                 {isComingSoon && (
-                  <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 font-inter">
+                  <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wide text-amber-600 border border-amber-500/10 font-inter">
                     Đang phát triển
                   </span>
                 )}
               </div>
-              <p className="text-sm text-on-surface-variant font-inter mt-0.5">
+              <p className="text-xs text-on-muted font-medium font-inter mt-1 leading-relaxed">
                 {activeHeader.description}
               </p>
             </div>
           </div>
 
-          {renderWorkspace()}
+          <div className="animate-in fade-in duration-300">
+            {renderWorkspace()}
+          </div>
         </section>
       )}
     </div>

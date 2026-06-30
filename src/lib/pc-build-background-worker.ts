@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
@@ -19,6 +19,23 @@ const cleanAndParseJSON = (str: string): any => {
   }
 };
 
+function isCodexTimeWindow(): boolean {
+  try {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      hour: "2-digit",
+      hour12: false,
+    });
+    const hourStr = formatter.format(now);
+    const hour = parseInt(hourStr, 10);
+    return hour >= 18 && hour < 20;
+  } catch (e) {
+    console.error("[isCodexTimeWindow] Error parsing timezone:", e);
+    return false;
+  }
+}
+
 export async function processBackgroundPcBuild(
   id: string,
   type: "checkin" | "submission",
@@ -32,30 +49,116 @@ export async function processBackgroundPcBuild(
       ? imageBase64
       : `data:image/jpeg;base64,${imageBase64}`;
 
-    // 1. Call Kimi Vision to extract the items as a list of raw elements
-    const response = await aibox.chat.completions.create({
-      model: MODEL_VISION_ONLY,
-      messages: [
-        {
-          role: "system",
-          content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-          Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-          { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-          Nếu thông tin nào không rõ ràng, hãy để là null.`
-        },
-        {
-          role: "user",
-          content: [
-            { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-            { type: "image_url", image_url: { url: imageUrl } }
-          ]
-        }
-      ],
-      max_tokens: 4000,
-    });
+    // 1. Call Kimi/Gemini Vision to extract the items as a list of raw elements
+    let extractedRaw: any = null;
+    let extractionError: any = null;
 
-    const aiContent = response.choices[0]?.message?.content || "{}";
-    const extractedRaw = cleanAndParseJSON(aiContent);
+    const extractionAttempts = [
+      // Attempt 1: codexAI (API Box Codex Key)
+      async () => {
+        if (!isCodexTimeWindow()) {
+          throw new Error("Codex API is restricted outside of 18:00 - 20:00 GMT+7");
+        }
+        console.log("[BackgroundWorker] Attempting extraction with codexAI (API Box)...");
+        const response = await codexAI.chat.completions.create({
+          model: MODEL_VISION_ONLY,
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+              Nếu thông tin nào không rõ ràng, hãy để là null.`
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                { type: "image_url", image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          max_tokens: 4000,
+        });
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      },
+
+      // Attempt 2: Direct Moonshot (Kimi API) if configured
+      async () => {
+        if (!process.env.MOONSHOT_API_KEY) {
+          throw new Error("No MOONSHOT_API_KEY configured in environment");
+        }
+        console.log("[BackgroundWorker] Attempting extraction with direct Moonshot Kimi API...");
+        const response = await moonshotAI.chat.completions.create({
+          model: "kimi-k2.5",
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+              Nếu thông tin nào không rõ ràng, hãy để là null.`
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                { type: "image_url", image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          max_tokens: 4000,
+        });
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      },
+
+      // Attempt 3: defaultAI (API Box default key)
+      async () => {
+        console.log("[BackgroundWorker] Attempting extraction with defaultAI (API Box Main)...");
+        const response = await defaultAI.chat.completions.create({
+          model: MODEL_VISION_ONLY,
+          messages: [
+            {
+              role: "system",
+              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+              Nếu thông tin nào không rõ ràng, hãy để là null.`
+            },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                { type: "image_url", image_url: { url: imageUrl } }
+              ]
+            }
+          ],
+          max_tokens: 4000,
+        });
+        const aiContent = response.choices[0]?.message?.content || "{}";
+        return cleanAndParseJSON(aiContent);
+      }
+    ];
+
+    for (const attempt of extractionAttempts) {
+      try {
+        extractedRaw = await attempt();
+        if (extractedRaw && Array.isArray(extractedRaw.items) && extractedRaw.items.length > 0) {
+          extractionError = null;
+          console.log("[BackgroundWorker] Successfully extracted parts from image.");
+          break;
+        }
+      } catch (err: any) {
+        console.warn(`[BackgroundWorker] Extraction attempt failed:`, err.message || err);
+        extractionError = err;
+      }
+    }
+
+    if (!extractedRaw || !Array.isArray(extractedRaw.items)) {
+      throw new Error(`Tất cả các cổng trích xuất AI Vision đều thất bại. Lỗi cuối cùng: ${extractionError?.message || "Không xác định"}`);
+    }
 
     // 2. Load Task or Exercise requirements
     let expectedBudget = 0;
@@ -79,10 +182,10 @@ export async function processBackgroundPcBuild(
       }
     }
 
-    // 3. Call DeepSeek to match and perform compatibility check
+    // 3. Call AI to match and perform compatibility check
     const DEEPSEEK_PROMPT = `
-Bạn là hệ thống tự động hóa phân loại và duyệt cấu hình PC của công ty SP-CyberSoft.
-Nhiệm vụ của bạn là phân tích danh sách linh kiện thô trích xuất từ hóa đơn (dưới dạng JSON), phân loại chúng vào các danh mục biểu mẫu chuẩn, tính toán tổng giá tiền và kiểm tra kỹ thuật khả năng tương thích của cấu hình, so sánh với đề bài.
+Bạn là hệ thống chuyên gia tự động hóa phân loại và duyệt cấu hình PC chuyên nghiệp của công ty SP-CyberSoft.
+Nhiệm vụ của bạn là phân tích danh sách linh kiện thô trích xuất từ hóa đơn (dưới dạng JSON), phân loại chúng vào các danh mục biểu mẫu chuẩn, tính toán tổng giá tiền và kiểm tra kỹ thuật khả năng tương thích của cấu hình, đối chiếu chặt chẽ với nhu cầu và ngân sách của đề bài.
 
 DỮ LIỆU ĐỀ BÀI (NẾU CÓ):
 - Nhu cầu khách hàng: "${expectedNeed}"
@@ -92,22 +195,37 @@ DỮ LIỆU ĐỀ BÀI (NẾU CÓ):
 LINH KIỆN THÔ TRÍCH XUẤT TỪ HÓA ĐƠN:
 ${JSON.stringify(extractedRaw, null, 2)}
 
-NHIỆM VỤ CỦA BẠN:
-1. Phân loại linh kiện:
-   Duyệt qua danh sách linh kiện thô từ hóa đơn và phân loại chuẩn xác vào các danh mục sau:
-   - cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, headphone, desk_chair.
-   Trả về thông tin dưới dạng: { "name": "Tên chi tiết linh kiện", "price": số_tiền (chỉ lấy số nguyên, ví dụ: 2500000) }.
-   Nếu danh mục nào không có hoặc không được đề cập trong hóa đơn, hãy để mặc định là { "name": "", "price": 0 }.
-2. Kiểm tra kỹ thuật tương thích phần cứng:
-   Hãy đánh giá tính tương thích và hợp lệ dựa trên các yếu tố sau:
-   a. Socket (CPU & Mainboard): Socket CPU và Mainboard có tương thích không? (ví dụ Intel LGA1700, AMD AM5).
-   b. RAM (DDR4/DDR5 & Mainboard): RAM và khe RAM trên mainboard có khớp thế hệ DDR không?
-   c. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ cấp điện cho CPU + VGA không?
-   d. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không?
-   e. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế có vượt ngân sách tối đa không?
-3. Đánh giá duyệt cấu hình:
-   - Đặt "isApproved": true nếu thỏa mãn: tổng giá <= ngân sách, các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu), và đáp ứng được nhu cầu khách hàng. Ngược lại đặt false.
-   - Ghi nhận xét ngắn gọn trong "reason".
+QUY TẮC PHÂN LOẠI LINH KIỆN:
+Phân loại chuẩn xác vào các danh mục sau: cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan (tản nhiệt khí/nước hoặc quạt case), monitor, keyboard_mouse, headphone, desk_chair.
+Nếu một danh mục không có trong hóa đơn, hãy trả về: { "name": "", "price": 0 }.
+
+QUY TẮC KIỂM TRA TƯƠNG THÍCH KỸ THUẬT (HÃY ĐÁNH GIÁ CHÍNH XÁC):
+1. Socket (CPU & Mainboard):
+   - CPU Intel Core thế hệ 12, 13, 14 (LGA1700) tương thích với Mainboard H610, B660, B760, Z690, Z790.
+   - CPU Intel Core thế hệ 10, 11 (LGA1200) tương thích với Mainboard H410, H510, B460, B560, Z490, Z590.
+   - CPU AMD Ryzen socket AM4 (Ryzen 1000 - 5000) đi với Mainboard A320, B450, B550, X570.
+   - CPU AMD Ryzen socket AM5 (Ryzen 7000 - 9000) đi với Mainboard A620, B650, X670.
+2. RAM (DDR4 / DDR5 & Mainboard):
+   - RAM DDR4 tương thích với Mainboard hỗ trợ DDR4. RAM DDR5 tương thích với Mainboard hỗ trợ DDR5.
+   - Nếu Mainboard hỗ trợ DDR4 nhưng chọn RAM DDR5 (hoặc ngược lại) -> Báo FAIL.
+3. Power (Nguồn PSU & VGA/CPU):
+   - Đảm bảo công suất nguồn (Watts) đủ tải cho CPU + VGA và có khoảng an toàn tối thiểu 100W-150W.
+   - RTX 3050/4060: tối thiểu 450W - 500W.
+   - RTX 3060/4060 Ti: tối thiểu 550W.
+   - RTX 3070/4070: tối thiểu 650W.
+   - RTX 3080/4080/4090: tối thiểu 750W - 850W.
+4. Case Size & Mainboard:
+   - Vỏ case Mini-Tower hoặc ITX nhỏ gọn có thể không vừa Mainboard ATX lớn (chỉ vừa m-ATX, ITX).
+   - Vỏ case Mid-Tower / Full-Tower thông thường đều vừa tất cả kích thước Mainboard (ATX, m-ATX, ITX).
+5. Budget (Ngân sách):
+   - Tổng tiền thực tế của cấu hình (matched_parts.total_price) KHÔNG ĐƯỢC vượt quá ngân sách tối đa của đề bài. Nếu vượt quá dù chỉ 1 đồng -> Báo FAIL ở phần budget.
+
+QUY TẮC DUYỆT BÀI (isApproved):
+- Đặt "isApproved": true nếu thỏa mãn:
+  - Tổng giá (total_price) <= Ngân sách đề bài (nếu có ngân sách).
+  - Không bị FAIL ở bất kỳ kiểm tra kỹ thuật nghiêm trọng nào (Socket, RAM, Power).
+  - Cấu hình đáp ứng tốt nhu cầu khách hàng (Ví dụ: nhu cầu thiết kế đồ họa 3D nhưng không có VGA rời hoặc CPU quá yếu -> FAIL).
+- Ngược lại đặt "isApproved": false.
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 {
@@ -138,14 +256,65 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 }
 `;
 
-    const deepseekResponse = await aibox.chat.completions.create({
-      model: MODEL_CHAT_FLASH,
-      messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
-      response_format: { type: "json_object" },
-    });
+    let result: any = null;
+    let compatibilityError: any = null;
 
-    const deepseekContent = deepseekResponse.choices[0]?.message?.content || "{}";
-    const result = JSON.parse(deepseekContent);
+    const compatibilityAttempts = [
+      // Attempt 1: DeepSeek Flash (API Box)
+      async () => {
+        console.log("[BackgroundWorker] Attempting compatibility check with DeepSeek Flash...");
+        const response = await defaultAI.chat.completions.create({
+          model: MODEL_CHAT_FLASH,
+          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+          response_format: { type: "json_object" },
+        });
+        const content = response.choices[0]?.message?.content || "{}";
+        return JSON.parse(content);
+      },
+      // Attempt 2: DeepSeek Pro (API Box) - backup if Flash is slow/failing
+      async () => {
+        console.log("[BackgroundWorker] Attempting compatibility check with DeepSeek Pro...");
+        const response = await defaultAI.chat.completions.create({
+          model: MODEL_CHAT_PRO,
+          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+          response_format: { type: "json_object" },
+        });
+        const content = response.choices[0]?.message?.content || "{}";
+        return JSON.parse(content);
+      },
+      // Attempt 3: Direct Moonshot if configured
+      async () => {
+        if (!process.env.MOONSHOT_API_KEY) {
+          throw new Error("No MOONSHOT_API_KEY for compatibility fallback");
+        }
+        console.log("[BackgroundWorker] Attempting compatibility check with direct Moonshot Kimi...");
+        const response = await moonshotAI.chat.completions.create({
+          model: "kimi-k2.5",
+          messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+          response_format: { type: "json_object" },
+        });
+        const content = response.choices[0]?.message?.content || "{}";
+        return JSON.parse(content);
+      }
+    ];
+
+    for (const attempt of compatibilityAttempts) {
+      try {
+        result = await attempt();
+        if (result && result.matched_parts && result.checks) {
+          compatibilityError = null;
+          console.log("[BackgroundWorker] Compatibility check completed successfully.");
+          break;
+        }
+      } catch (err: any) {
+        console.warn("[BackgroundWorker] Compatibility attempt failed:", err.message || err);
+        compatibilityError = err;
+      }
+    }
+
+    if (!result || !result.matched_parts || !result.checks) {
+      throw new Error(`Tất cả các cổng phân tích tương thích AI đều thất bại. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
+    }
 
     // Format output data to include partId: ""
     const formattedData: any = {};

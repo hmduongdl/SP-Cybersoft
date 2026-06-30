@@ -19,7 +19,7 @@
  * 11. Trả về JSON { success, status, exif_time, message }
  */
 
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { uploadImage, deleteImage } from "@/lib/upload";
@@ -374,7 +374,7 @@ export async function POST(request: Request) {
         ai_confidence: null,
         is_ai_flagged: isDuplicate || !exif.exifFound,
         image_phash: imagePhash,
-        ai_analysis_reason: "Đã đưa vào hàng chờ AI: Kimi đọc ảnh, DeepSeek phân tích.",
+        ai_analysis_reason: "AI đang duyệt: Kimi đọc ảnh, DeepSeek phân tích.",
         ai_extracted_username: null,
         ai_extracted_title: null,
         ai_is_facebook_ui: null,
@@ -387,8 +387,10 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
-    processBackgroundCheckinReview(checkin.id)
-      .catch((err) => console.error("[checkins] Error spawning background AI review:", err));
+    after(() => {
+      processBackgroundCheckinReview(checkin.id)
+        .catch((err) => console.error("[checkins] Error running background AI review:", err));
+    });
 
     // ── 8. Trả về kết quả ────────────────────────────────────────────────────
     return NextResponse.json(
@@ -403,7 +405,7 @@ export async function POST(request: Request) {
         ai_checked: false,
         queued_for_ai: true,
         trust_score: trustScore,
-        message: "Đã nhận minh chứng và đưa vào hàng chờ AI duyệt. Kimi sẽ đọc ảnh, DeepSeek phân tích; nếu hợp lệ và Trust Score > 70 hệ thống sẽ tự duyệt.",
+        message: "Bài viết đang được AI duyệt. Hệ thống sẽ thông báo sau khi AI duyệt xong.",
       },
       { status: 201 }
     );
@@ -455,6 +457,9 @@ export async function GET(request: Request) {
         image_url: true,
         reject_reason: true,
         ai_confidence: true,
+        ai_analysis_reason: true,
+        ai_is_facebook_ui: true,
+        ai_is_public_mode: true,
         post: {
           select: { id: true, title: true, start_at: true },
         },

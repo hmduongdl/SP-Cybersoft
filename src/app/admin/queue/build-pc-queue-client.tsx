@@ -13,7 +13,6 @@ import {
   ChevronDown,
   ImageIcon,
   Sparkles,
-  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -46,10 +45,12 @@ interface PcSubmissionItem {
     department: string | null;
   };
   exercise: {
+    id: string;
     title: string;
     description: string;
     difficulty: string;
     requirements: { budget?: number; useCase?: string };
+    exercise_date?: string | Date;
   };
 }
 
@@ -78,6 +79,22 @@ function getSubmissionTotal(partsAnswer: PcSubmissionItem["parts_answer"], parts
   return parts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
 }
 
+function groupSubmissionsByExercise(submissions: PcSubmissionItem[]) {
+  const groups: Array<{ key: string; exercise: PcSubmissionItem["exercise"]; items: PcSubmissionItem[] }> = [];
+
+  submissions.forEach((submission) => {
+    const key = submission.exercise.id || submission.exercise.title;
+    const group = groups.find((item) => item.key === key);
+    if (group) {
+      group.items.push(submission);
+    } else {
+      groups.push({ key, exercise: submission.exercise, items: [submission] });
+    }
+  });
+
+  return groups;
+}
+
 export default function BuildPcQueueClient({
   initialSubmissions,
   currentPage = 1,
@@ -96,7 +113,6 @@ export default function BuildPcQueueClient({
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDept);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
@@ -148,20 +164,7 @@ export default function BuildPcQueueClient({
     }
   };
 
-  const handleGenerateExercises = async () => {
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/admin/build-pc/generate-exercises", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      toast.success(`Đã tạo ${data.count} bài tập mới cho hôm nay.`);
-      router.refresh();
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Lỗi sinh bài tập.");
-    } finally {
-      setGenerating(false);
-    }
-  };
+  const groupedSubmissions = groupSubmissionsByExercise(submissions);
 
   return (
     <div className="space-y-6">
@@ -177,14 +180,6 @@ export default function BuildPcQueueClient({
             <p className="font-inter text-xs text-on-muted">Bài tập lắp PC nộp hàng ngày</p>
           </div>
         </div>
-        <button
-          onClick={handleGenerateExercises}
-          disabled={generating}
-          className="flex items-center gap-2 rounded-xl bg-primary px-4 py-2 font-manrope text-xs font-bold text-on-primary transition-all hover:opacity-90 cursor-pointer disabled:opacity-50"
-        >
-          <RefreshCw className={cn("h-4 w-4", generating && "animate-spin")} />
-          {generating ? "Đang tạo..." : "Sinh bài tập"}
-        </button>
       </div>
 
       {/* Tabs */}
@@ -249,139 +244,178 @@ export default function BuildPcQueueClient({
         {submissions.length === 0 ? (
           <p className="py-12 text-center text-sm text-on-muted">Không có bài nộp.</p>
         ) : (
-          submissions.map((s) => {
-            const parts = getSubmissionParts(s.parts_answer);
-            const images = (s.image_urls as string[]) || [];
-            const totalPrice = getSubmissionTotal(s.parts_answer, parts);
-            const isExpanded = expandedId === s.id;
-            const aiScore = s.ai_score ?? (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_score ?? null : null);
-            const aiFeedback = s.ai_feedback || (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_feedback || null : null);
+          groupedSubmissions.map((group) => (
+            <div key={group.key} className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-surface-container-high bg-surface-container-low px-3 py-2">
+                <span className="rounded-lg bg-primary-container/30 px-2 py-1 font-manrope text-[10px] font-bold uppercase text-primary">
+                  Đề bài
+                </span>
+                <span className="min-w-0 flex-1 truncate font-manrope text-xs font-bold text-on-surface">
+                  {group.exercise.title}
+                </span>
+                <span className="font-inter text-[10px] text-on-muted">{group.items.length} bài</span>
+              </div>
 
-            return (
-              <div key={s.id} className="rounded-2xl border border-surface-container-high bg-surface-mid overflow-hidden">
-                <div className="flex items-start gap-3 p-4">
-                  {activeTab === "PENDING" && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(s.id)}
-                      onChange={(e) => {
-                        const next = new Set(selectedIds);
-                        if (e.target.checked) next.add(s.id);
-                        else next.delete(s.id);
-                        setSelectedIds(next);
-                      }}
-                      className="mt-1"
-                    />
-                  )}
-                  <UserAvatar name={s.user.name} src={s.user.avatar_url} size="sm" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-manrope text-sm font-bold text-on-surface">{s.user.name}</span>
-                      <span className="rounded-full bg-surface-container-high px-2 py-0.5 font-inter text-[10px] text-on-muted">
-                        {s.user.department}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 font-manrope text-xs font-semibold text-primary">{s.exercise.title}</p>
-                    <p className="font-inter text-[10px] text-on-muted">
-                      {new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
-                    </p>
-                    {aiScore != null && (
-                      <p className="mt-1 flex items-center gap-1 font-inter text-[10px] text-on-muted">
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        AI: {Math.round(aiScore)}đ — {aiFeedback}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {activeTab === "PENDING" && (
-                      <>
-                        <button
-                          onClick={() => handleAction([s.id], "APPROVE")}
-                          disabled={loading}
-                          className="rounded-xl bg-success-bg p-2 text-success-text hover:opacity-80 cursor-pointer"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => setRejectingId(s.id)}
-                          className="rounded-xl bg-error-bg p-2 text-error-text hover:opacity-80 cursor-pointer"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => setExpandedId(isExpanded ? null : s.id)}
-                      className="rounded-xl p-2 text-on-muted hover:bg-surface-container-low cursor-pointer"
-                    >
-                      <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                    </button>
-                  </div>
-                </div>
+              {group.items.map((s) => {
+                const parts = getSubmissionParts(s.parts_answer);
+                const images = (s.image_urls as string[]) || [];
+                const totalPrice = getSubmissionTotal(s.parts_answer, parts);
+                const isExpanded = expandedId === s.id;
+                const aiScore = s.ai_score ?? (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_score ?? null : null);
+                const aiFeedback = s.ai_feedback || (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_feedback || null : null);
 
-                {isExpanded && (
-                  <div className="border-t border-surface-container-high bg-surface-container-low/30 px-4 py-4 space-y-3">
-                    <p className="font-inter text-xs text-on-muted">{s.exercise.description}</p>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {parts.map((p, i) => (
-                        <div key={i} className="rounded-xl bg-surface-mid px-3 py-2">
-                          <p className="font-manrope text-[10px] font-bold uppercase text-on-muted">{p.category}</p>
-                          <p className="font-inter text-xs text-on-surface">{p.name}</p>
-                          <p className="font-inter text-[10px] text-primary">{formatVND(p.price)}</p>
+                return (
+                  <div key={s.id} className="overflow-hidden rounded-2xl border border-surface-container-high bg-surface-mid">
+                    <div className="flex items-start gap-3 p-4">
+                      {activeTab === "PENDING" && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(s.id)}
+                          onChange={(e) => {
+                            const next = new Set(selectedIds);
+                            if (e.target.checked) next.add(s.id);
+                            else next.delete(s.id);
+                            setSelectedIds(next);
+                          }}
+                          className="mt-1"
+                        />
+                      )}
+                      <UserAvatar name={s.user.name} src={s.user.avatar_url} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-manrope text-sm font-bold text-on-surface">{s.user.name}</span>
+                          <span className="rounded-full bg-surface-container-high px-2 py-0.5 font-inter text-[10px] text-on-muted">
+                            {s.user.department}
+                          </span>
                         </div>
-                      ))}
+                        <p className="mt-0.5 font-manrope text-xs font-semibold text-primary">{s.exercise.title}</p>
+                        <p className="font-inter text-[10px] text-on-muted">
+                          {new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
+                        </p>
+                        {aiScore != null && (
+                          <p className="mt-1 flex items-center gap-1 font-inter text-[10px] text-on-muted">
+                            <Sparkles className="h-3 w-3 text-primary" />
+                            AI: {Math.round(aiScore)}đ — {aiFeedback}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {activeTab === "PENDING" && (
+                          <>
+                            <button
+                              onClick={() => handleAction([s.id], "APPROVE")}
+                              disabled={loading}
+                              className="rounded-xl bg-success-bg p-2 text-success-text hover:opacity-80 cursor-pointer"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => setRejectingId(s.id)}
+                              className="rounded-xl bg-error-bg p-2 text-error-text hover:opacity-80 cursor-pointer"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : s.id)}
+                          className="rounded-xl p-2 text-on-muted hover:bg-surface-container-low cursor-pointer"
+                        >
+                          <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                        </button>
+                      </div>
                     </div>
-                    <div className="rounded-xl bg-surface-mid p-3">
-                      <p className="mb-1 font-manrope text-[10px] font-bold text-on-muted">Giải thích</p>
-                      <p className="font-inter text-xs leading-relaxed text-on-surface">{s.explanation}</p>
-                    </div>
-                    {images.length > 0 && (
-                      <div className="flex gap-2">
-                        {images.map((url, i) => (
-                          <div key={i} className="relative h-20 w-20 overflow-hidden rounded-xl border border-surface-container-high">
-                            <Image src={url} alt="" fill className="object-cover" />
+
+                    {isExpanded && (
+                      <div className="space-y-3 border-t border-surface-container-high bg-surface-container-low/30 px-4 py-4">
+                        <div className="flex items-center gap-3 rounded-xl bg-surface-mid p-3">
+                          <UserAvatar name={s.user.name} src={s.user.avatar_url} size="md" />
+                          <div className="min-w-0">
+                            <p className="truncate font-manrope text-sm font-bold text-on-surface">{s.user.name || s.user.email}</p>
+                            <p className="font-inter text-[10px] text-on-muted">{s.user.department || "Chưa có phòng ban"} · Người nộp</p>
                           </div>
-                        ))}
+                        </div>
+                        <p className="font-inter text-xs text-on-muted">{s.exercise.description}</p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {parts.map((p, i) => (
+                            <div key={i} className="rounded-xl bg-surface-mid px-3 py-2">
+                              <p className="font-manrope text-[10px] font-bold uppercase text-on-muted">{p.category}</p>
+                              <p className="font-inter text-xs text-on-surface">{p.name}</p>
+                              <p className="font-inter text-[10px] text-primary">{formatVND(p.price)}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="rounded-xl bg-surface-mid p-3">
+                          <p className="mb-1 font-manrope text-[10px] font-bold text-on-muted">Giải thích</p>
+                          <p className="font-inter text-xs leading-relaxed text-on-surface">{s.explanation}</p>
+                        </div>
+                        {images.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="flex items-center gap-1 font-manrope text-[10px] font-bold uppercase text-on-muted">
+                              <ImageIcon className="h-3 w-3" />
+                              Ảnh minh chứng
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              {images.map((url, i) => (
+                                <a
+                                  key={i}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="relative aspect-[4/3] min-h-[140px] overflow-hidden rounded-xl border border-surface-container-high bg-surface-mid"
+                                >
+                                  <Image
+                                    src={url}
+                                    alt={`Ảnh bài nộp ${i + 1}`}
+                                    fill
+                                    sizes="(min-width: 640px) 30vw, 100vw"
+                                    className="object-contain"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {s.status === "REJECTED" && s.reject_reason && (
+                          <p className="font-inter text-xs text-error-text">Lý do từ chối: {s.reject_reason}</p>
+                        )}
                       </div>
                     )}
-                    {s.status === "REJECTED" && s.reject_reason && (
-                      <p className="font-inter text-xs text-error-text">Lý do từ chối: {s.reject_reason}</p>
+
+                    {rejectingId === s.id && (
+                      <div className="space-y-2 border-t border-surface-container-high bg-error-bg/30 px-4 py-3">
+                        <input
+                          value={rejectReason}
+                          onChange={(e) => setRejectReason(e.target.value)}
+                          placeholder="Lý do từ chối..."
+                          className="w-full rounded-xl border border-surface-container-high bg-surface-mid px-3 py-2 font-inter text-xs outline-none"
+                        />
+                        <div className="flex flex-wrap gap-1.5">
+                          {presetReasons.map((r) => (
+                            <button key={r} onClick={() => setRejectReason(r)} className="rounded-lg bg-surface-mid px-2 py-1 font-inter text-[10px] text-on-muted cursor-pointer">
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAction([s.id], "REJECT", rejectReason)}
+                            disabled={!rejectReason || loading}
+                            className="rounded-xl bg-error-text px-4 py-1.5 font-manrope text-xs font-bold text-on-primary cursor-pointer disabled:opacity-50"
+                          >
+                            Xác nhận từ chối
+                          </button>
+                          <button onClick={() => setRejectingId(null)} className="rounded-xl px-4 py-1.5 font-inter text-xs text-on-muted cursor-pointer">
+                            Hủy
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
-                )}
-
-                {rejectingId === s.id && (
-                  <div className="border-t border-surface-container-high bg-error-bg/30 px-4 py-3 space-y-2">
-                    <input
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="Lý do từ chối..."
-                      className="w-full rounded-xl border border-surface-container-high bg-surface-mid px-3 py-2 font-inter text-xs outline-none"
-                    />
-                    <div className="flex flex-wrap gap-1.5">
-                      {presetReasons.map((r) => (
-                        <button key={r} onClick={() => setRejectReason(r)} className="rounded-lg bg-surface-mid px-2 py-1 font-inter text-[10px] text-on-muted cursor-pointer">
-                          {r}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAction([s.id], "REJECT", rejectReason)}
-                        disabled={!rejectReason || loading}
-                        className="rounded-xl bg-error-text px-4 py-1.5 font-manrope text-xs font-bold text-on-primary cursor-pointer disabled:opacity-50"
-                      >
-                        Xác nhận từ chối
-                      </button>
-                      <button onClick={() => setRejectingId(null)} className="rounded-xl px-4 py-1.5 font-inter text-xs text-on-muted cursor-pointer">
-                        Hủy
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                );
+              })}
+            </div>
+          ))
         )}
       </div>
 
