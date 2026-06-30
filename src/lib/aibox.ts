@@ -32,7 +32,7 @@ export const moonshotAI =
   globalForAI.moonshotAI ||
   new OpenAI({
     apiKey: process.env.MOONSHOT_API_KEY || "dummy-key",
-    baseURL: "https://api.moonshot.cn/v1",
+    baseURL: "https://api.ai-box.vn/v1",
   });
 
 // Backward-compatible alias for existing text/chat call sites.

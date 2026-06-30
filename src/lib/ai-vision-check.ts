@@ -48,7 +48,7 @@ export interface VisionCheckResult {
   isPublicMode: boolean;
 }
 
-const VISION_TIMEOUT_MS = 25_000;
+const VISION_TIMEOUT_MS = 60_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -92,76 +92,38 @@ export async function runVisionCheck(
       if (!process.env.MOONSHOT_API_KEY) {
         throw new Error("No MOONSHOT_API_KEY configured for vision check");
       }
-      console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API via files upload...");
+      console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API via base64...");
       
-      const buffer = Buffer.from(base64Image, "base64");
-      const formData = new FormData();
-      const blob = new Blob([buffer], { type: mimeType });
-      formData.append("file", blob, "screenshot.jpg");
-      formData.append("purpose", "extract");
-
-      const fileRes = await withTimeout(
-        fetch("https://api.moonshot.cn/v1/files", {
-          method: "POST",
-          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
-          body: formData
-        }),
-        15000 // 15s timeout
-      );
-
-      if (!fileRes.ok) {
-        const errText = await fileRes.text();
-        throw new Error(`Kimi File Upload failed: ${errText}`);
-      }
-
-      const fileData = await fileRes.json();
-      const fileId = fileData.id;
-      console.log(`[ai-vision-check] Uploaded file to Moonshot, ID: ${fileId}`);
-
-      try {
-        const res = await withTimeout(
-          moonshotAI.chat.completions.create({
-            model: "kimi-k2.5",
-            messages: [
-              {
-                role: "user",
-                content: [
-                  {
-                    type: "text",
-                    text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+      const res = await withTimeout(
+        moonshotAI.chat.completions.create({
+          model: "kimi-k2.5",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
 1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
 Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
-                  },
-                  {
-                    type: "image_url",
-                    image_url: { url: fileId },
-                  },
-                ],
-              },
-            ],
-            max_tokens: 1500,
-          }),
-          VISION_TIMEOUT_MS
-        );
+                },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                },
+              ],
+            },
+          ],
+          max_tokens: 1500,
+        }),
+        VISION_TIMEOUT_MS
+      );
 
-        // Cleanup
-        fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
-          method: "DELETE",
-          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
-        }).catch(() => {});
-
-        const aiContent = res.choices[0]?.message?.content || "{}";
-        return cleanAndParseJSON(aiContent);
-      } catch (compErr) {
-        fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
-          method: "DELETE",
-          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
-        }).catch(() => {});
-        throw compErr;
-      }
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
     }
   ];
 
