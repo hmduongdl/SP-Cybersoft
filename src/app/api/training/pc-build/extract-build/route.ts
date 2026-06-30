@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { codexAI, defaultAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     };
 
     // 1. Call Kimi Vision to extract the items as a list of raw elements (Accountant Role)
-    const response = await aibox.chat.completions.create({
+    const response = await codexAI.chat.completions.create({
       model: MODEL_VISION_ONLY,
       messages: [
         {
@@ -151,7 +151,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 }
 `;
 
-    const deepseekResponse = await aibox.chat.completions.create({
+    const deepseekResponse = await defaultAI.chat.completions.create({
       model: MODEL_CHAT_FLASH,
       messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
       response_format: { type: "json_object" },

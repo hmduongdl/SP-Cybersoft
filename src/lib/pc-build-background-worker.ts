@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { codexAI, defaultAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
@@ -33,7 +33,7 @@ export async function processBackgroundPcBuild(
       : `data:image/jpeg;base64,${imageBase64}`;
 
     // 1. Call Kimi Vision to extract the items as a list of raw elements
-    const response = await aibox.chat.completions.create({
+    const response = await codexAI.chat.completions.create({
       model: MODEL_VISION_ONLY,
       messages: [
         {
@@ -138,7 +138,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 }
 `;
 
-    const deepseekResponse = await aibox.chat.completions.create({
+    const deepseekResponse = await defaultAI.chat.completions.create({
       model: MODEL_CHAT_FLASH,
       messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
       response_format: { type: "json_object" },

@@ -8,7 +8,7 @@
  * Dùng chung cho cả /api/checkins (auto-approve) và /api/admin/ai-scan (on-demand).
  */
 
-import { aibox, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
+import { codexAI, defaultAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH } from "@/lib/aibox";
 
 export interface VisionCheckInput {
   base64Image: string;
@@ -66,7 +66,7 @@ export async function runVisionCheck(
 
   // ── Bước 1: Kimi/Gemini trích xuất thông tin từ ảnh ─────────────────────────
   const geminiResponse = await withTimeout(
-    aibox.chat.completions.create({
+    codexAI.chat.completions.create({
       model: MODEL_VISION_ONLY,
       messages: [
         {
@@ -104,7 +104,7 @@ Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không k
 
   // ── Bước 2: Flash đánh giá mức khớp ───────────────────────────────────
   const decisionResponse = await withTimeout(
-    aibox.chat.completions.create({
+    defaultAI.chat.completions.create({
       model: MODEL_CHAT_FLASH,
       messages: [
         {

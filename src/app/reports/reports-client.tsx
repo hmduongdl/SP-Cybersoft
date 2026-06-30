@@ -5,6 +5,21 @@ import { Toaster } from "sonner";
 import { clsx } from "clsx";
 import { MonthWeekFilter } from "@/components/shared/month-week-filter";
 import { useMonthWeekFilter, isInRange } from "@/hooks/use-month-week-filter";
+import {
+  History,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Search,
+  Eye,
+  X,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  FolderOpen,
+  Clock
+} from "lucide-react";
 
 type CheckinItem = {
   id: string;
@@ -96,20 +111,22 @@ export default function ReportsClient({ checkins }: Props) {
   };
 
   return (
-    <div className="w-full h-auto space-y-6 animate-in fade-in duration-300">
+    <div className="w-full h-auto space-y-8 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors duration={1500} />
 
       {/* Header Section */}
-      <div>
-        <nav className="flex gap-2 text-xs font-inter text-on-surface-variant/70 mb-2">
-          <span>Dashboard</span>
-          <span>/</span>
-          <span className="text-primary font-semibold">Báo cáo cá nhân</span>
-        </nav>
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h1 className="font-manrope font-bold text-headline-lg text-on-surface">Báo cáo cá nhân</h1>
-            <p className="mt-1 text-sm text-on-surface-variant font-inter">Xem lại toàn bộ lịch sử share bài và trạng thái duyệt check-in.</p>
+      <div className="bg-surface-mid/40 backdrop-blur-md border border-surface-container rounded-3xl p-6 md:p-8 shadow-ambient relative overflow-hidden">
+        {/* Glow effect background */}
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl" />
+        
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+          <div className="space-y-1">
+            <h1 className="font-manrope text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-600 bg-clip-text text-transparent">
+              Báo cáo cá nhân
+            </h1>
+            <p className="font-inter text-xs text-on-muted max-w-xl">
+              Xem lại toàn bộ lịch sử nộp minh chứng (Check-in Like/Share, Build PC) và theo dõi trạng thái phê duyệt thực tế của bạn.
+            </p>
           </div>
           {/* Bộ lọc tháng / khoảng ngày */}
           <MonthWeekFilter
@@ -119,79 +136,78 @@ export default function ReportsClient({ checkins }: Props) {
         </div>
       </div>
 
-      {/* Stats KPI Cards — dựa trên range hiện tại */}
+      {/* Stats KPI Cards */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 w-full">
         {/* Card 1: Total */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Tổng bài đã nộp</p>
-            <h3 className="text-[28px] font-bold text-on-surface font-manrope leading-tight">{stats.total}</h3>
-            <p className="text-[11px] text-outline mt-1.5 truncate">{filter.rangeLabel}</p>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container/60 shadow-sm flex items-center justify-between group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Tổng bài đã nộp</p>
+            <h3 className="text-2xl font-extrabold text-on-surface font-manrope leading-tight">{stats.total}</h3>
+            <p className="text-[10px] text-outline truncate font-medium">{filter.rangeLabel}</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0 ml-3">
-            <span className="material-symbols-outlined text-2xl">history</span>
+          <div className="w-12 h-12 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-600 shrink-0 ml-3">
+            <History className="w-6 h-6" />
           </div>
         </div>
 
         {/* Card 2: Approved */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Đã phê duyệt</p>
-            <h3 className="text-[28px] font-bold text-emerald-600 font-manrope leading-tight">{stats.approved}</h3>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container/60 shadow-sm flex items-center justify-between group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã phê duyệt</p>
+            <h3 className="text-2xl font-extrabold text-emerald-600 font-manrope leading-tight">{stats.approved}</h3>
+            <p className="text-[10px] text-emerald-500/80 truncate font-medium">Được duyệt thành công</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 shrink-0 ml-3">
-            <span className="material-symbols-outlined text-2xl">verified</span>
+          <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shrink-0 ml-3">
+            <CheckCircle2 className="w-6 h-6" />
           </div>
         </div>
 
         {/* Card 3: Pending */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Đang chờ duyệt</p>
-            <h3 className="text-[28px] font-bold text-indigo-600 font-manrope leading-tight">{stats.pending}</h3>
-            <p className="text-[11px] text-indigo-500/85 mt-1.5 truncate font-medium">Chờ Admin kiểm tra</p>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container/60 shadow-sm flex items-center justify-between group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đang chờ duyệt</p>
+            <h3 className="text-2xl font-extrabold text-indigo-600 font-manrope leading-tight">{stats.pending}</h3>
+            <p className="text-[10px] text-indigo-500/80 truncate font-medium">Chờ Admin kiểm tra</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 ml-3">
-            <span className="material-symbols-outlined text-2xl">pending</span>
+          <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 shrink-0 ml-3 animate-pulse">
+            <Clock className="w-6 h-6" />
           </div>
         </div>
 
         {/* Card 4: Rejected */}
-        <div className="bg-surface-container-lowest p-5 rounded-2xl shadow-ambient flex items-center justify-between group hover:-translate-y-0.5 transition-all duration-150">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider mb-0.5 truncate">Bị từ chối</p>
-            <h3 className="text-[28px] font-bold text-rose-600 font-manrope leading-tight">{stats.rejected}</h3>
-            <p className="text-[11px] text-rose-500/85 mt-1.5 truncate font-medium">Cần kiểm tra &amp; nộp lại</p>
+        <div className="bg-surface-container-lowest p-5 rounded-2xl border border-surface-container/60 shadow-sm flex items-center justify-between group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <div className="min-w-0 space-y-1">
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Bị từ chối</p>
+            <h3 className="text-2xl font-extrabold text-rose-600 font-manrope leading-tight">{stats.rejected}</h3>
+            <p className="text-[10px] text-rose-500/80 truncate font-medium">Cần kiểm tra nộp lại</p>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 shrink-0 ml-3">
-            <span className="material-symbols-outlined text-2xl">cancel</span>
+          <div className="w-12 h-12 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-600 shrink-0 ml-3">
+            <XCircle className="w-6 h-6" />
           </div>
         </div>
       </section>
 
       {/* Main Filter & Table Section */}
-      <section className="bg-surface-container-lowest rounded-2xl card-shadow border-none p-lg space-y-md">
+      <section className="bg-surface-container-lowest rounded-3xl border border-surface-container p-6 md:p-8 space-y-6 shadow-sm">
         {/* Filter Toolbar */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center pb-2">
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center pb-2">
           {/* Search Bar */}
           <div className="relative flex-1 max-w-md">
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-xl">
-              search
-            </span>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-on-muted w-4 h-4" />
             <input
               type="text"
-              placeholder="Tìm theo tên bài viết..."
+              placeholder="Tìm theo tiêu đề nhiệm vụ..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-xl text-sm focus:outline-none focus:border-indigo-500 focus:bg-surface-container-lowest transition-all duration-150 text-on-surface placeholder-slate-400"
+              className="w-full pl-10 pr-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs focus:outline-none focus:border-primary focus:bg-surface-container-lowest transition-all text-on-surface placeholder:text-on-muted/80"
             />
           </div>
 
           {/* Status Tabs */}
-          <div className="flex bg-surface-container-low p-1 rounded-xl border-none self-start sm:self-auto overflow-x-auto max-w-full">
+          <div className="flex bg-surface-container-low p-1 rounded-2xl border border-surface-container-high self-start md:self-auto overflow-x-auto max-w-full">
             {[
               { label: "Tất cả", value: "ALL" },
               { label: "Đã duyệt", value: "APPROVED" },
@@ -205,10 +221,10 @@ export default function ReportsClient({ checkins }: Props) {
                   setCurrentPage(1);
                 }}
                 className={clsx(
-                  "px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer",
+                  "px-4 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 cursor-pointer border-none",
                   statusFilter === tab.value
-                    ? "bg-surface-container-lowest text-indigo-600 shadow-ambient border-none/50"
-                    : "text-on-surface-variant hover:text-on-surface"
+                    ? "bg-surface-container-lowest text-primary shadow-sm"
+                    : "text-on-muted hover:text-on-surface"
                 )}
               >
                 {tab.label}
@@ -218,18 +234,18 @@ export default function ReportsClient({ checkins }: Props) {
         </div>
 
         {/* Data Table */}
-        <div className="overflow-x-auto rounded-xl border-none">
+        <div className="overflow-x-auto rounded-2xl border border-surface-container">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-surface-container-low border-none text-on-surface-variant font-semibold text-xs tracking-wider uppercase">
-                <th className="p-4 w-[40%]">Bài viết</th>
-                <th className="p-4 w-[15%]">Ảnh Check-in</th>
+              <tr className="bg-surface-mid/60 border-b border-surface-container text-on-surface-variant font-bold text-[10px] tracking-wider uppercase font-manrope">
+                <th className="p-4 w-[40%]">Nhiệm vụ / Bài viết</th>
+                <th className="p-4 w-[15%]">Hình ảnh minh chứng</th>
                 <th className="p-4 w-[20%]">Thời gian nộp</th>
                 <th className="p-4 w-[15%]">Trạng thái</th>
                 <th className="p-4 w-[10%] text-right">Chi tiết</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 text-sm">
+            <tbody className="divide-y divide-surface-container/60 text-xs font-inter">
               {paginatedCheckins.length > 0 ? (
                 paginatedCheckins.map((item) => {
                   const isApproved = item.status === "APPROVED" || item.status === "AUTO_APPROVED";
@@ -237,47 +253,46 @@ export default function ReportsClient({ checkins }: Props) {
                   const isRejected = item.status === "REJECTED";
 
                   return (
-                    <tr key={item.id} className="hover:bg-surface-container-low/50 transition-all duration-150">
+                    <tr key={item.id} className="hover:bg-surface-mid/10 transition-colors">
                       {/* Post Title & Author */}
                       <td className="p-4">
-                        <div className="flex flex-col">
+                        <div className="flex flex-col space-y-1 max-w-sm">
                           <a
                             href={item.postUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm font-bold text-slate-800 dark:text-white hover:text-indigo-600 hover:underline transition-all cursor-pointer flex items-center gap-1.5"
+                            className="font-bold text-on-surface hover:text-primary transition-colors flex items-center gap-1.5 group w-fit"
                             title={item.postTitle}
                           >
                             <span className="line-clamp-2">{item.postTitle}</span>
-                            <span className="material-symbols-outlined text-[14px] text-slate-400 shrink-0">open_in_new</span>
+                            <ExternalLink className="h-3 w-3 text-on-muted shrink-0 group-hover:text-primary transition-colors" />
                           </a>
-                          <span className="text-xs text-slate-400 mt-1">
-                            Tác giả: {item.postAuthor || "Ban truyền thông"}
+                          <span className="text-[10px] text-on-muted font-medium">
+                            Nguồn: {item.postAuthor || "Ban truyền thông"}
                           </span>
                         </div>
                       </td>
 
                       {/* Image Thumbnail */}
                       <td className="p-4">
-                        <div className="relative w-12 h-12 bg-surface-container rounded-lg overflow-hidden border-none/60 shadow-ambient cursor-zoom-in group">
+                        <div 
+                          onClick={() => setSelectedImage(item.imageUrl)}
+                          className="relative w-12 h-12 bg-surface-container rounded-xl overflow-hidden border border-surface-container-high shadow-sm cursor-zoom-in group shrink-0"
+                        >
                           <img
                             src={item.imageUrl}
-                            alt="Check-in"
+                            alt="Minh chứng check-in"
                             referrerPolicy="no-referrer"
-                            className="w-full h-full object-cover transition-all duration-150"
-                            onClick={() => setSelectedImage(item.imageUrl)}
+                            className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
                           />
-                          <div
-                            onClick={() => setSelectedImage(item.imageUrl)}
-                            className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-all duration-150 flex items-center justify-center text-white"
-                          >
-                            <span className="material-symbols-outlined text-sm">zoom_in</span>
+                          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center text-white">
+                            <Eye className="h-4 w-4" />
                           </div>
                         </div>
                       </td>
 
                       {/* Submitted Time */}
-                      <td className="p-4 text-on-surface-variant text-xs font-medium">
+                      <td className="p-4 text-on-surface-variant font-medium">
                         {formatDate(item.submittedAt)}
                       </td>
 
@@ -286,10 +301,10 @@ export default function ReportsClient({ checkins }: Props) {
                         <div className="flex flex-col gap-1.5 items-start">
                           <span
                             className={clsx(
-                              "inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold border",
-                               isApproved && "bg-emerald-50 text-emerald-700 border-emerald-100",
-                               isPending && "bg-amber-50 text-amber-700 border-amber-100",
-                               isRejected && "bg-rose-50 text-rose-700 border-rose-100"
+                              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold border",
+                               isApproved && "bg-emerald-500/10 text-emerald-600 border-emerald-500/15",
+                               isPending && "bg-amber-500/10 text-amber-600 border-amber-500/15",
+                               isRejected && "bg-rose-500/10 text-rose-600 border-rose-500/15"
                             )}
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -299,7 +314,7 @@ export default function ReportsClient({ checkins }: Props) {
                           </span>
                           
                           {isRejected && item.rejectReason && (
-                            <p className="text-[11px] text-rose-600 font-medium max-w-[200px] leading-tight">
+                            <p className="text-[10px] text-rose-600 font-bold max-w-[200px] leading-tight pl-1 border-l-2 border-rose-500/40">
                               Lý do: {item.rejectReason}
                             </p>
                           )}
@@ -310,10 +325,10 @@ export default function ReportsClient({ checkins }: Props) {
                       <td className="p-4 text-right">
                         <button
                           onClick={() => setSelectedImage(item.imageUrl)}
-                          className="p-1 rounded-xl text-outline hover:text-indigo-600 hover:bg-surface-container transition-all duration-150 cursor-pointer"
+                          className="p-2 rounded-xl text-on-muted hover:text-primary hover:bg-surface-container transition-all cursor-pointer border-none"
                           title="Xem ảnh check-in"
                         >
-                          <span className="material-symbols-outlined text-[20px]">visibility</span>
+                          <Eye className="h-4 w-4" />
                         </button>
                       </td>
                     </tr>
@@ -321,13 +336,11 @@ export default function ReportsClient({ checkins }: Props) {
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-outline">
+                  <td colSpan={5} className="p-16 text-center text-on-muted bg-surface-mid/10">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <span className="material-symbols-outlined text-4xl text-outline">
-                        database_off
-                      </span>
-                      <p className="text-sm">Không có dữ liệu trong khoảng thời gian đã chọn.</p>
-                      <p className="text-xs text-outline/70">{filter.rangeLabel}</p>
+                      <FolderOpen className="h-10 w-10 text-on-muted animate-bounce" />
+                      <p className="text-xs font-semibold text-on-surface">Không tìm thấy báo cáo nào</p>
+                      <p className="text-[10px] text-on-muted/80">{filter.rangeLabel}</p>
                     </div>
                   </td>
                 </tr>
@@ -338,42 +351,46 @@ export default function ReportsClient({ checkins }: Props) {
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-none text-xs">
-            <p className="text-on-surface-variant">
-              Hiển thị <span className="font-semibold text-on-surface-variant">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
-              <span className="font-semibold text-on-surface-variant">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-none text-xs">
+            <p className="text-on-muted font-medium">
+              Hiển thị <span className="font-bold text-on-surface">{(currentPage - 1) * itemsPerPage + 1}</span> -{" "}
+              <span className="font-bold text-on-surface">
                 {Math.min(currentPage * itemsPerPage, filteredCheckins.length)}
               </span>{" "}
-              trong tổng số <span className="font-semibold text-on-surface-variant">{filteredCheckins.length}</span> báo cáo
+              trong số <span className="font-bold text-on-surface">{filteredCheckins.length}</span> báo cáo
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1">
               <button
                 disabled={currentPage === 1}
                 onClick={() => handlePageChange(currentPage - 1)}
-                className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl border-none text-on-surface-variant bg-surface-container-lowest hover:bg-surface-container-low disabled:opacity-40 disabled:hover:bg-surface-container-lowest transition-all duration-150 shadow-ambient cursor-pointer disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container hover:text-on-surface disabled:opacity-40 disabled:hover:bg-surface-container-low transition-all cursor-pointer disabled:cursor-not-allowed border-none text-on-muted"
+                title="Trang trước"
               >
-                Trước
+                <ChevronLeft className="h-4 w-4" />
               </button>
-              {[...Array(Math.min(totalPages, 7))].map((_, i) => (
+              
+              {[...Array(Math.min(totalPages, 5))].map((_, i) => (
                 <button
                   key={i}
                   onClick={() => handlePageChange(i + 1)}
                   className={clsx(
-                    "inline-flex items-center justify-center w-8 h-8 rounded-xl font-semibold border shadow-ambient transition-all duration-150 cursor-pointer",
+                    "inline-flex items-center justify-center w-8 h-8 rounded-xl font-bold transition-all cursor-pointer border-none text-xs",
                     currentPage === i + 1
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-surface-container-lowest text-on-surface-variant border-outline-variant/10 hover:bg-surface-container-low"
+                      ? "bg-primary text-on-primary shadow-sm shadow-primary/10"
+                      : "bg-surface-container-low text-on-muted hover:bg-surface-container"
                   )}
                 >
                   {i + 1}
                 </button>
               ))}
+              
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => handlePageChange(currentPage + 1)}
-                className="inline-flex items-center justify-center px-3 py-1.5 rounded-xl border-none text-on-surface-variant bg-surface-container-lowest hover:bg-surface-container-low disabled:opacity-40 disabled:hover:bg-surface-container-lowest transition-all duration-150 shadow-ambient cursor-pointer disabled:cursor-not-allowed"
+                className="inline-flex items-center justify-center p-2 rounded-xl bg-surface-container-low hover:bg-surface-container hover:text-on-surface disabled:opacity-40 disabled:hover:bg-surface-container-low transition-all cursor-pointer disabled:cursor-not-allowed border-none text-on-muted"
+                title="Trang sau"
               >
-                Sau
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -383,24 +400,24 @@ export default function ReportsClient({ checkins }: Props) {
       {/* Image Modal Lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedImage(null)}
         >
           <div
-            className="relative max-w-3xl max-h-[85vh] bg-surface-container-lowest rounded-2xl overflow-hidden shadow-[0_32px_64px_rgba(19,27,46,0.12)] p-2 animate-in zoom-in-95 duration-200"
+            className="relative max-w-4xl max-h-[90vh] bg-surface-container-lowest rounded-3xl overflow-hidden shadow-2xl p-2 animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-inverse-surface/60 hover:bg-inverse-surface text-white rounded-full transition-all duration-150 cursor-pointer shadow-ambient"
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-black/60 hover:bg-black text-white rounded-full transition-all cursor-pointer shadow-md border-none"
             >
-              <span className="material-symbols-outlined text-[20px]">close</span>
+              <X className="h-4 w-4" />
             </button>
             <img
               src={selectedImage}
-              alt="Bản xem trước kích thước đầy đủ"
+              alt="Bản xem trước minh chứng"
               referrerPolicy="no-referrer"
-              className="w-full h-auto max-h-[80vh] object-contain rounded-xl"
+              className="w-full h-auto max-h-[85vh] object-contain rounded-2xl"
             />
           </div>
         </div>

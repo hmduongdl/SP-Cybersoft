@@ -26,6 +26,7 @@ export async function getCachedUserCompletedCount(userId: string) {
 
 export async function getCachedRecentCheckins(userId: string) {
   return db.checkin.findMany({
+    where: { task_type: "SHARE_POST" },
     take: 5,
     orderBy: { submitted_at: "desc" },
     select: {
@@ -235,6 +236,7 @@ export async function getCachedPostParticipants(): Promise<Record<string, PostPa
 
 export async function getCachedAllCheckins() {
   return db.checkin.findMany({
+    where: { task_type: "SHARE_POST" },
     include: {
       user: {
         select: {

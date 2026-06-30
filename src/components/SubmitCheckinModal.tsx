@@ -43,6 +43,8 @@ interface SubmitCheckinModalProps {
 
 type ExifStatus = "idle" | "scanning" | "valid" | "invalid" | "no_exif";
 type SubmitStatus = "idle" | "loading" | "success" | "error";
+type CheckinStatus = "AUTO_APPROVED" | "PENDING" | "APPROVED" | "REJECTED";
+type AiReviewState = "PROCESSING" | "COMPLETED";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -190,7 +192,10 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
   const [submitResult, setSubmitResult] = useState<{
     message: string;
-    status?: "AUTO_APPROVED" | "PENDING";
+    status?: CheckinStatus;
+    checkinId?: string;
+    aiReviewState?: AiReviewState;
+    aiReason?: string | null;
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [exifStatus, setExifStatus] = useState<ExifStatus>("idle");
@@ -206,6 +211,7 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
     id: string;
     status: string;
     reject_reason?: string | null;
+    ai_analysis_reason?: string | null;
   } | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const [thumbError, setThumbError] = useState(false);
@@ -218,6 +224,11 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
 
   const windowEndMs = new Date(postStartAt).getTime() + 24 * 60 * 60 * 1000;
   const isWindowOpen = Date.now() <= windowEndMs || !!(post as any).allow_late_submit;
+  const isExistingAiReviewing =
+    existingCheckin?.status === "PENDING" &&
+    (!existingCheckin.ai_analysis_reason || existingCheckin.ai_analysis_reason.startsWith("AI đang duyệt"));
+  const isSubmitAiReviewing =
+    submitResult?.status === "PENDING" && submitResult.aiReviewState !== "COMPLETED";
 
   // ── Reset & fetch existing checkin on open ──
   useEffect(() => {
@@ -279,6 +290,51 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
         });
     }
   }, [imageUrl, post.id]);
+
+  useEffect(() => {
+    const checkinId = submitResult?.checkinId;
+    if (submitStatus !== "success" || !checkinId || submitResult.aiReviewState === "COMPLETED") return;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/checkins/status?id=${checkinId}`, { cache: "no-store" });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Không thể kiểm tra trạng thái AI.");
+
+        const checkin = data.checkin;
+        setSubmitResult((current) => {
+          if (!current || current.checkinId !== checkinId) return current;
+          return {
+            ...current,
+            status: checkin.status,
+            aiReviewState: checkin.ai_review_state,
+            aiReason: checkin.ai_analysis_reason,
+            message:
+              checkin.status === "AUTO_APPROVED"
+                ? "AI đã duyệt xong và tự động phê duyệt minh chứng của bạn."
+                : checkin.ai_review_state === "COMPLETED"
+                ? "AI đã duyệt xong. Minh chứng cần quản trị viên xác nhận thêm."
+                : "Bài viết đang được AI duyệt. Hệ thống sẽ thông báo sau khi AI duyệt xong.",
+          };
+        });
+
+        if (checkin.ai_review_state === "COMPLETED") {
+          onSuccess();
+          if (checkin.status === "AUTO_APPROVED") {
+            toast.success("AI đã tự động duyệt minh chứng của bạn.");
+          } else {
+            toast.info("AI đã duyệt xong. Bài cần quản trị viên xác nhận thêm.");
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi polling trạng thái AI:", err);
+      }
+    };
+
+    const id = window.setInterval(poll, 3000);
+    poll();
+    return () => window.clearInterval(id);
+  }, [submitStatus, submitResult?.checkinId, submitResult?.aiReviewState, onSuccess]);
 
   if (!isOpen) return null;
 
@@ -428,6 +484,8 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
       setSubmitResult({
         message: data.message || "Nộp bài thành công!",
         status: data.status,
+        checkinId: data.checkin_id,
+        aiReviewState: data.status === "PENDING" ? "PROCESSING" : "COMPLETED",
       });
       onSuccess();
     } catch (err: any) {
@@ -493,12 +551,16 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               ) : (
                 <>
                   <div className="w-20 h-20 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
-                    <Clock className="w-10 h-10" />
+                    {isExistingAiReviewing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Clock className="w-10 h-10" />}
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">Chờ kiểm duyệt</h3>
+                    <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">
+                      {isExistingAiReviewing ? "AI đang duyệt bài" : "AI đã duyệt xong"}
+                    </h3>
                     <p className="text-sm text-on-surface-variant font-inter">
-                      Bài nộp hiện tại đang trong trạng thái chờ quản trị viên phê duyệt.
+                      {isExistingAiReviewing
+                        ? "Bài nộp hiện tại đang được AI kiểm tra. Hệ thống sẽ cập nhật sau khi AI duyệt xong."
+                        : "AI đã kiểm tra minh chứng. Bài này cần quản trị viên xác nhận thêm trước khi hoàn tất."}
                     </p>
                   </div>
                 </>
@@ -532,14 +594,16 @@ export function SubmitCheckinModal({ post, isOpen, onClose, onSuccess }: SubmitC
               ) : (
                 <>
                   <div className="w-20 h-20 rounded-full flex items-center justify-center bg-secondary-container text-on-secondary-container">
-                    <Clock className="w-10 h-10" />
+                    {isSubmitAiReviewing ? <Loader2 className="w-10 h-10 animate-spin" /> : <Clock className="w-10 h-10" />}
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-on-surface mb-2 font-manrope">
-                      Chờ kiểm duyệt
+                      {isSubmitAiReviewing ? "AI đang duyệt bài" : "AI đã duyệt xong"}
                     </h3>
                     <p className="text-sm text-on-surface-variant max-w-xs mx-auto leading-relaxed font-inter">
-                      Minh chứng của bạn đã được nhận và đang chờ quản trị viên phê duyệt.
+                      {isSubmitAiReviewing
+                        ? "Bài viết đang được AI duyệt. Hệ thống sẽ thông báo sau khi AI duyệt xong."
+                        : "AI đã kiểm tra minh chứng. Bài này cần quản trị viên xác nhận thêm trước khi hoàn tất."}
                     </p>
                   </div>
                 </>

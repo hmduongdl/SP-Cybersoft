@@ -3,7 +3,6 @@ import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import fs from "fs";
 import path from "path";
-import { aibox, MODEL_VISION_ONLY } from "@/lib/aibox";
 import { runVisionCheck } from "@/lib/ai-vision-check";
 
 export const dynamic = "force-dynamic";
@@ -183,4 +182,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

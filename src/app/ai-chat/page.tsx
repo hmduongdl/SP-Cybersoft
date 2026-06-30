@@ -57,6 +57,7 @@ interface Suggestion {
   desc: string;
   prompt: string;
   icon: string;
+  fillOnly?: boolean;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -79,6 +80,27 @@ const SUGGESTIONS: Suggestion[] = [
     desc: "Lấy các task DONE trong ngày để soạn báo cáo.",
     prompt: "Giúp tôi soạn báo cáo công việc cuối ngày hôm nay.",
     icon: "📝",
+  },
+  {
+    title: "Mô tả sản phẩm SEO",
+    desc: "Dùng AI Studio viết mô tả chuẩn RankMath.",
+    prompt: "Dùng AI Studio viết mô tả sản phẩm SEO cho nội dung sau:\n\n",
+    icon: "✍️",
+    fillOnly: true,
+  },
+  {
+    title: "Bảng thông số kỹ thuật",
+    desc: "Chuẩn hóa thông số thô thành bảng Markdown.",
+    prompt: "Dùng AI Studio tạo bảng thông số kỹ thuật từ dữ liệu sau:\n\n",
+    icon: "📋",
+    fillOnly: true,
+  },
+  {
+    title: "Tóm tắt thông số",
+    desc: "Rút gọn spec thành format catalog đồng bộ.",
+    prompt: "Dùng AI Studio tóm tắt thông số sản phẩm sau:\n\n",
+    icon: "🔎",
+    fillOnly: true,
   },
   {
     title: "Quản lý quá tải",
@@ -713,7 +735,7 @@ export default function AIChatPage() {
                     Xin chào, {userName}!
                   </h3>
                   <p className="mx-auto max-w-md font-inter text-sm leading-relaxed text-[var(--ai-text-secondary)]">
-                    Trợ lý AI nội bộ SPS — quản lý task, phân tích hiệu suất và soạn báo cáo.
+                    Trợ lý AI nội bộ SPS — quản lý task, phân tích hiệu suất và dùng nhanh công cụ AI Studio.
                     Chọn gợi ý hoặc nhập câu hỏi.
                   </p>
                 </div>
@@ -723,12 +745,19 @@ export default function AIChatPage() {
                 {...(reducedMotion
                   ? { initial: false as const, animate: { opacity: 1 } }
                   : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.08 } })}
-                className="mt-8 grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2"
+                className="mt-8 grid w-full max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {SUGGESTIONS.map((item, idx) => (
                   <button
                     key={idx}
-                    onClick={() => handleSend(undefined, item.prompt)}
+                    onClick={() => {
+                      if (item.fillOnly) {
+                        setInput(item.prompt);
+                        setTimeout(() => textareaRef.current?.focus(), 50);
+                        return;
+                      }
+                      handleSend(undefined, item.prompt);
+                    }}
                     disabled={isLoading}
                     className="group flex gap-3 rounded-2xl border border-[var(--ai-border)] bg-[var(--ai-bg-surface)] p-4 text-left transition-all hover:border-[var(--ai-accent)]/40 hover:bg-[var(--ai-bg-elevated)] disabled:opacity-50 cursor-pointer"
                   >
@@ -858,7 +887,7 @@ export default function AIChatPage() {
                     handleSend(e);
                   }
                 }}
-                placeholder="Hỏi về task, hiệu suất, báo cáo..."
+                placeholder="Hỏi về task, hiệu suất, báo cáo hoặc dùng AI Studio..."
                 rows={1}
                 className="max-h-32 min-h-[24px] w-full resize-none overflow-y-auto border-none bg-transparent py-1 font-inter text-[13px] text-[var(--ai-text)] outline-none placeholder:text-[var(--ai-text-muted)] focus:ring-0"
               />

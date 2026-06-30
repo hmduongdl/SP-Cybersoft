@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
@@ -79,19 +79,7 @@ export async function POST(request: Request) {
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
 
-  const todayCount = await db.pcSubmission.count({
-    where: {
-      user_id: session.user.id,
-      submitted_at: { gte: today, lt: tomorrow },
-    },
-  });
-
-  if (todayCount >= DAILY_PC_SUBMISSION_MAX) {
-    return NextResponse.json(
-      { error: `Đã đạt giới hạn ${DAILY_PC_SUBMISSION_MAX} bài/ngày.` },
-      { status: 429 }
-    );
-  }
+  // Daily submission limit disabled per request
 
   const exercise = await db.pcExercise.findUnique({ where: { id: exercise_id } });
   if (!exercise) {
@@ -117,9 +105,10 @@ export async function POST(request: Request) {
     },
   });
 
-  // Spawn background worker process
-  processBackgroundPcBuild(submission.id, "submission", image_urls[0], exercise_id)
-    .catch((err) => console.error("[submissions/route] Error spawning background task:", err));
+  after(() => {
+    processBackgroundPcBuild(submission.id, "submission", image_urls[0], exercise_id)
+      .catch((err) => console.error("[submissions/route] Error running background task:", err));
+  });
 
   revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 

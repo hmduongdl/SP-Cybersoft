@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { deleteImage } from "@/lib/upload";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
+import { optimizeApprovedPcSubmissionImages } from "@/lib/pc-submission-images";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +30,53 @@ export async function POST(request: Request) {
     }
 
     if (action === "APPROVE") {
-      await db.pcSubmission.updateMany({
+      const subs = await db.pcSubmission.findMany({
         where: { id: { in: submissionIds } },
-        data: {
-          status: "APPROVED",
-          reject_reason: null,
-          reviewed_by: session.user.id,
-        },
+        select: { id: true, image_urls: true, parts_answer: true, exercise_id: true, user_id: true },
       });
+
+      await Promise.all(
+        subs.map(async (submission) => {
+          const originalImageUrls = Array.isArray(submission.image_urls)
+            ? submission.image_urls.filter((url): url is string => typeof url === "string")
+            : [];
+          const optimizedImageUrls = await optimizeApprovedPcSubmissionImages(
+            submission.id,
+            submission.image_urls
+          );
+          const partsAnswer =
+            submission.parts_answer &&
+            typeof submission.parts_answer === "object" &&
+            !Array.isArray(submission.parts_answer)
+              ? submission.parts_answer
+              : { parts: submission.parts_answer };
+
+          await db.pcSubmission.update({
+            where: { id: submission.id },
+            data: {
+              status: "APPROVED",
+              reject_reason: null,
+              reviewed_by: session.user.id,
+              image_urls: optimizedImageUrls,
+              parts_answer: {
+                ...partsAnswer,
+                is_draft: false,
+                approved_image_count: optimizedImageUrls.length,
+                approved_image_format: "webp",
+                storage_optimized_at: new Date().toISOString(),
+                exercise_id: submission.exercise_id,
+                submitter_id: submission.user_id,
+              },
+            },
+          });
+
+          await Promise.all(
+            originalImageUrls
+              .filter((url) => !optimizedImageUrls.includes(url))
+              .map((url) => deleteImage(url))
+          );
+        })
+      );
     } else {
       const subs = await db.pcSubmission.findMany({
         where: { id: { in: submissionIds } },

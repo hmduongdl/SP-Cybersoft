@@ -1,6 +1,9 @@
-"use client";
+const fs = require('fs');
+const file = 'src/app/(dashboard)/training/pc-build/pc-build-training-client.tsx';
+let code = fs.readFileSync(file, 'utf8');
 
-import React, { useEffect, useState, useRef } from "react";
+// Update imports at the top
+const newImports = `import React, { useEffect, useState, useRef } from "react";
 import { toast, Toaster } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import CountUp from "react-countup";
@@ -33,57 +36,12 @@ import {
   CheckCircle,
   MousePointer,
   Headphones
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { formatVND } from "@/lib/pc-kho";
+} from "lucide-react";`;
 
-interface PcBuildTask {
-  id: string;
-  customer_need: string;
-  max_budget: number;
-  requirements: string;
-  deadline?: string | null;
-}
+code = code.replace(/import React[\s\S]*?from "lucide-react";/, newImports);
 
-interface Part {
-  name: string;
-  price: number;
-  partId: string;
-}
-
-interface TaskState {
-  previewImage: string | null;
-  isAnalyzing: boolean;
-  analysisStep: "idle" | "kimi" | "deepseek";
-  extractedParts: Record<string, Part> | null;
-  compatibilityChecks: any;
-  isApproved: boolean;
-  approvalReason: string;
-  explanation: string;
-  submitting: boolean;
-  checkin_id?: string;
-  status?: string;
-  isDraft?: boolean;
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  cpu: "Bộ vi xử lý (CPU)",
-  mainboard: "Bo mạch chủ (Mainboard)",
-  ram: "Bộ nhớ trong (RAM)",
-  vga: "Card đồ họa (VGA)",
-  ssd: "Ổ cứng (SSD/HDD)",
-  psu: "Nguồn máy tính (PSU)",
-  case: "Vỏ máy tính (Case)",
-  cooler_fan: "Tản nhiệt & Quạt (Cooling)",
-  monitor: "Màn hình (Monitor)",
-  keyboard_mouse: "Bàn phím & Chuột",
-  headphone: "Tai nghe (Headphone)",
-  desk_chair: "Bàn ghế (Furniture)",
-};
-
-
+// Inject CATEGORY_ICONS definition right after CATEGORY_LABELS (before DEFAULT_TASK_STATE)
+const categoryIconsDef = `
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   cpu: <Cpu className="h-3.5 w-3.5 text-violet-500" />,
   mainboard: <Layers className="h-3.5 w-3.5 text-indigo-500" />,
@@ -99,33 +57,24 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   headphone: <Headphones className="h-3.5 w-3.5 text-purple-500" />,
   desk_chair: <FileText className="h-3.5 w-3.5 text-orange-500" />,
 };
+`;
 
-const DEFAULT_TASK_STATE: TaskState = {
-  previewImage: null,
-  isAnalyzing: false,
-  analysisStep: "idle",
-  extractedParts: null,
-  compatibilityChecks: null,
-  isApproved: false,
-  approvalReason: "",
-  explanation: "",
-  submitting: false,
-  isDraft: true,
-};
+const targetState = 'const DEFAULT_TASK_STATE: TaskState = {';
+code = code.replace(targetState, categoryIconsDef + '\n' + targetState);
 
-export default function PcBuildTrainingClient() {
-  const [tasks, setTasks] = useState<PcBuildTask[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [remaining, setRemaining] = useState(5);
-
-  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+// Replace expandedTaskId hook and add missing hooks
+const targetHookDecl = 'const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);';
+const replacementHooks = `const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [cancelingTaskId, setCancelingTaskId] = useState<string | null>(null);
-  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);
-  const [taskStates, setTaskStates] = useState<Record<string, TaskState>>({});
+  const [submittingTaskId, setSubmittingTaskId] = useState<string | null>(null);`;
 
-  
+code = code.replace(targetHookDecl, replacementHooks);
+
+// Inject helper countdown function inside component
+const targetRefs = 'const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});';
+const helperFunc = `
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const getCountdownLabel = (deadlineStr: string | null | undefined) => {
@@ -140,160 +89,50 @@ export default function PcBuildTrainingClient() {
     const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     if (diffHrs >= 24) {
       const days = Math.floor(diffHrs / 24);
-      return `Còn ${days} ngày`;
+      return \`Còn \${days} ngày\`;
     }
-    return `Còn ${diffHrs}g ${diffMins}p`;
+    return \`Còn \${diffHrs}g \${diffMins}p\`;
   };
+`;
+code = code.replace(targetRefs, helperFunc);
 
+// Extract handleImageSelect and rewrite it with handleImageFileProcessing
+const targetImageSelect = `  const handleImageSelect = async (taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const getTaskState = (taskId: string): TaskState => {
-    return taskStates[taskId] || DEFAULT_TASK_STATE;
-  };
-
-  const updateTaskState = (taskId: string, updates: Partial<TaskState>) => {
-    setTaskStates((prev) => ({
-      ...prev,
-      [taskId]: {
-        ...(prev[taskId] || DEFAULT_TASK_STATE),
-        ...updates,
-      },
-    }));
-  };
-
-  const fetchTasks = async () => {
     try {
-      const response = await fetch("/api/training/pc-build/tasks");
-      const data = await response.json();
-      if (response.ok) {
-        setTasks(data.tasks || []);
-        setRemaining(data.remaining !== undefined ? data.remaining : 5);
+      const base64Image = await compressImage(file);
+      updateTaskState(taskId, { previewImage: base64Image, isAnalyzing: true, analysisStep: "kimi" });
 
-        // Restore task states from today's submissions (both drafts and completed)
-        const states: Record<string, TaskState> = {};
-        if (Array.isArray(data.submissions)) {
-          data.submissions.forEach((sub: any) => {
-            const buildData = sub.build_data || {};
-            const isAnalyzing = buildData.is_analyzing === true;
-            const isDraft = buildData.is_draft !== false; // Default to draft unless explicitly false
+      const res = await fetch("/api/training/pc-build/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pc_task_id: taskId,
+          image_url: base64Image,
+          explanation: "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
 
-            states[sub.pc_task_id] = {
-              previewImage: sub.image_url || null,
-              isAnalyzing,
-              analysisStep: isAnalyzing ? "deepseek" : "idle",
-              extractedParts: isAnalyzing ? null : (buildData.checks ? buildData : null),
-              compatibilityChecks: isAnalyzing ? null : buildData.checks,
-              isApproved: sub.status === "AUTO_APPROVED" || buildData.is_approved === true,
-              approvalReason: buildData.reason || "",
-              explanation: buildData.explanation || "",
-              submitting: false,
-              checkin_id: sub.id,
-              status: sub.status,
-              isDraft: isDraft,
-            };
-          });
-          setTaskStates(states);
-        }
-      }
-    } catch {
-      toast.error("Không tải được đề bài hôm nay.");
-    } finally {
-      setLoading(false);
+      updateTaskState(taskId, {
+        checkin_id: data.checkin_id,
+        isAnalyzing: true,
+        status: "PENDING",
+        isDraft: true,
+      });
+
+      toast.success("Đang tải báo giá lên & phân tích chạy ngầm...");
+      fetchTasks();
+    } catch (err: any) {
+      toast.error(err.message || "Tải ảnh thất bại.");
+      updateTaskState(taskId, { previewImage: null, isAnalyzing: false });
     }
-  };
+  };`;
 
-  useEffect(() => {
-    fetchTasks();
-  }, []);
-
-  // Poll for background worker updates dynamically
-  useEffect(() => {
-    const pollingIntervals: Record<string, NodeJS.Timeout> = {};
-
-    Object.entries(taskStates).forEach(([taskId, state]) => {
-      const checkinId = state.checkin_id;
-      if (state.isAnalyzing && checkinId && !pollingIntervals[taskId]) {
-        pollingIntervals[taskId] = setInterval(async () => {
-          try {
-            const res = await fetch(`/api/training/pc-build/status?id=${checkinId}&type=checkin`);
-            if (res.ok) {
-              const result = await res.json();
-              if (!result.isAnalyzing) {
-                clearInterval(pollingIntervals[taskId]);
-                delete pollingIntervals[taskId];
-
-                if (result.hasError) {
-                  toast.error(result.errorMsg || "Lỗi xử lý báo giá.");
-                  updateTaskState(taskId, {
-                    isAnalyzing: false,
-                    analysisStep: "idle",
-                    previewImage: null,
-                  });
-                } else {
-                  updateTaskState(taskId, {
-                    isAnalyzing: false,
-                    analysisStep: "idle",
-                    extractedParts: result.data,
-                    isApproved: result.status === "AUTO_APPROVED" || result.data?.is_approved === true,
-                    approvalReason: result.data?.reason || "",
-                    compatibilityChecks: result.data?.checks || null,
-                    status: result.status,
-                    isDraft: result.data?.is_draft !== false,
-                  });
-                  toast.success("AI đã phân tích xong cấu hình! Hãy viết ghi chú và nộp bài để hoàn thành.");
-                  fetchTasks();
-                }
-              }
-            }
-          } catch (e) {
-            console.error("Lỗi polling checkin:", e);
-          }
-        }, 4000);
-      }
-    });
-
-    return () => {
-      Object.values(pollingIntervals).forEach(clearInterval);
-    };
-  }, [taskStates]);
-
-  const compressImage = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d");
-          ctx?.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.75));
-        };
-      };
-      reader.onerror = (error) => reject(error);
-    });
-  };
-
-  const handleImageFileProcessing = async (taskId: string, file: File) => {
+const replacementImageSelect = `  const handleImageFileProcessing = async (taskId: string, file: File) => {
     try {
       const base64Image = await compressImage(file);
       updateTaskState(taskId, { previewImage: base64Image, isAnalyzing: true, analysisStep: "kimi" });
@@ -329,68 +168,21 @@ export default function PcBuildTrainingClient() {
     const file = e.target.files?.[0];
     if (!file) return;
     await handleImageFileProcessing(taskId, file);
-  };
+  };`;
 
-  const clearTask = (taskId: string) => {
-    setTaskStates((prev) => {
-      const copy = { ...prev };
-      delete copy[taskId];
-      return copy;
-    });
-  };
+code = code.replace(targetImageSelect, replacementImageSelect);
 
-  const handleCancelTask = async (taskId: string) => {
-    const state = getTaskState(taskId);
-    if (state.checkin_id && state.isDraft) {
-      try {
-        await fetch("/api/training/pc-build/cancel", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: state.checkin_id, type: "checkin" }),
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    clearTask(taskId);
-    fetchTasks();
-  };
+// Locate return statement to rewrite UI
+const returnStr = '  return (\n    <div className="space-y-6">';
+const returnStart = code.indexOf(returnStr);
 
-  const handleSubmit = async (taskId: string) => {
-    const state = getTaskState(taskId);
-    if (!state.checkin_id) return;
+if (returnStart === -1) {
+  console.error("Could not find return statement");
+  process.exit(1);
+}
 
-    updateTaskState(taskId, { submitting: true });
-    const loadingToastId = toast.loading("Đang nộp bài...");
-
-    try {
-      const res = await fetch("/api/training/pc-build/finalize", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: state.checkin_id,
-          type: "checkin",
-          explanation: state.explanation.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      toast.success("Đã nộp bài thành công! 🎉", { id: loadingToastId });
-      fetchTasks();
-    } catch (err: any) {
-      toast.error(err.message || "Nộp bài thất bại.", { id: loadingToastId });
-      updateTaskState(taskId, { submitting: false });
-    }
-  };
-
-  const renderCheckIcon = (status: string) => {
-    if (status === "PASS") return <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />;
-    if (status === "FAIL") return <XCircle className="h-4 w-4 text-rose-500 shrink-0 mt-0.5" />;
-    return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />;
-  };
-
-  // Stats calculation
+// Inject stats calculation before returnCode
+const returnCode = `  // Stats calculation
   const completedCount = tasks.filter(t => {
     const state = getTaskState(t.id);
     return state.previewImage && !state.isDraft;
@@ -405,7 +197,7 @@ export default function PcBuildTrainingClient() {
     <div className="space-y-8 max-w-7xl mx-auto px-4 md:px-6 py-6 animate-in fade-in duration-300">
       <Toaster position="top-right" richColors />
 
-      <style>{`
+      <style>{\`
         @keyframes scan {
           0% { transform: translateY(-100%); }
           50% { transform: translateY(220px); }
@@ -425,7 +217,7 @@ export default function PcBuildTrainingClient() {
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 10px; }
-      `}</style>
+      \`}</style>
 
       {/* Header Section */}
       <div className="relative overflow-hidden rounded-3xl border border-surface-container bg-surface-mid/40 backdrop-blur-md p-6 md:p-8 shadow-ambient">
@@ -1019,3 +811,7 @@ export default function PcBuildTrainingClient() {
     </div>
   );
 }
+`;
+
+code = code.substring(0, returnStart) + returnCode;
+fs.writeFileSync(file, code);

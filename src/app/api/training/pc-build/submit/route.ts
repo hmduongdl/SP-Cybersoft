@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getStartOfDayVN } from "@/lib/pc-kho";
@@ -35,17 +35,7 @@ export async function POST(request: Request) {
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
 
-  const todayCount = await db.checkin.count({
-    where: {
-      user_id: session.user.id,
-      task_type: "BUILD_PC",
-      submitted_at: { gte: today, lt: tomorrow },
-    },
-  });
-
-  if (todayCount >= DAILY_MAX) {
-    return NextResponse.json({ error: `Đã nộp đủ ${DAILY_MAX} bài hôm nay.` }, { status: 429 });
-  }
+  // Daily submission limit disabled per request
 
   // Create immediate Checkin record with is_analyzing flag
   const checkin = await db.checkin.create({
@@ -62,9 +52,10 @@ export async function POST(request: Request) {
     },
   });
 
-  // Spawn background worker process without awaiting it
-  processBackgroundPcBuild(checkin.id, "checkin", image_url, pc_task_id)
-    .catch((err) => console.error("[submit/route] Error spawning background task:", err));
+  after(() => {
+    processBackgroundPcBuild(checkin.id, "checkin", image_url, pc_task_id)
+      .catch((err) => console.error("[submit/route] Error running background task:", err));
+  });
 
   return NextResponse.json({
     success: true,

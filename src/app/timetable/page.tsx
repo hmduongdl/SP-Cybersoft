@@ -832,11 +832,6 @@ export default function TimetablePage() {
       {/* ── Header ───────────────────────────────────────────── */}
       <header className="sticky top-0 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-b border-outline/40 px-3 sm:px-5 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
         <div className="min-w-0">
-          <nav className="hidden sm:flex items-center gap-1.5 text-xs text-on-surface-variant/70 mb-1">
-            <span className="hover:text-on-surface cursor-pointer transition-colors">Dashboard</span>
-            <ChevronRight className="w-3 h-3" />
-            <span className="text-primary font-semibold">Thời khóa biểu</span>
-          </nav>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="font-manrope font-bold text-base sm:text-lg text-on-surface leading-tight truncate">
               Thời khóa biểu tuần
