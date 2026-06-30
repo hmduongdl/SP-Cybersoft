@@ -62,91 +62,116 @@ export async function POST(req: Request) {
     let extractionError: any = null;
 
     const extractionAttempts = [
-      // Attempt 1: codexAI (API Box Codex Key) inside time window
-      async () => {
-        if (!isCodexTimeWindow()) {
-          throw new Error("Codex API is restricted outside of 18:00 - 20:00 GMT+7");
-        }
-        console.log("[extract-build] Attempting extraction with codexAI (API Box)...");
-        const response = await codexAI.chat.completions.create({
-          model: MODEL_VISION_ONLY,
-          messages: [
-            {
-              role: "system",
-              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-              If thông tin nào không rõ ràng, hãy để là null.`
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                { type: "image_url", image_url: { url: imageUrl } }
-              ]
-            }
-          ],
-          max_tokens: 4000,
-        });
-        const aiContent = response.choices[0]?.message?.content || "{}";
-        return cleanAndParseJSON(aiContent);
-      },
-
-      // Attempt 2: Direct Moonshot (Kimi) if configured
+      // Attempt 1: Direct Moonshot (Kimi) if configured (Uploads to Kimi Files API first to avoid base64 unsupported errors)
       async () => {
         if (!process.env.MOONSHOT_API_KEY) {
           throw new Error("No MOONSHOT_API_KEY configured for extract-build");
         }
-        console.log("[extract-build] Attempting extraction with direct Moonshot Kimi API...");
-        const response = await moonshotAI.chat.completions.create({
-          model: "kimi-k2.5",
-          messages: [
-            {
-              role: "system",
-              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-              If thông tin nào không rõ ràng, hãy để là null.`
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                { type: "image_url", image_url: { url: imageUrl } }
-              ]
-            }
-          ],
-          max_tokens: 4000,
+        console.log("[extract-build] Attempting extraction with direct Moonshot Kimi API via files upload...");
+        
+        const base64Data = imageUrl.split(",")[1] || imageUrl;
+        const buffer = Buffer.from(base64Data, "base64");
+        
+        const formData = new FormData();
+        const blob = new Blob([buffer], { type: "image/jpeg" });
+        formData.append("file", blob, "invoice.jpg");
+        formData.append("purpose", "extract");
+
+        const fileRes = await fetch("https://api.moonshot.cn/v1/files", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` },
+          body: formData
         });
-        const aiContent = response.choices[0]?.message?.content || "{}";
-        return cleanAndParseJSON(aiContent);
+
+        if (!fileRes.ok) {
+          const errText = await fileRes.text();
+          throw new Error(`Kimi File Upload failed: ${errText}`);
+        }
+
+        const fileData = await fileRes.json();
+        const fileId = fileData.id;
+        console.log(`[extract-build] Uploaded file to Moonshot, ID: ${fileId}`);
+
+        try {
+          const response = await moonshotAI.chat.completions.create({
+            model: "kimi-k2.5",
+            messages: [
+              {
+                role: "system",
+                content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                If thông tin nào không rõ ràng, hãy để là null.`
+              },
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                  { type: "image_url", image_url: { url: fileId } }
+                ]
+              }
+            ],
+            max_tokens: 4000,
+          });
+
+          // Cleanup
+          fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
+          }).catch(() => {});
+
+          const aiContent = response.choices[0]?.message?.content || "{}";
+          return cleanAndParseJSON(aiContent);
+        } catch (compErr) {
+          fetch(`https://api.moonshot.cn/v1/files/${fileId}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${process.env.MOONSHOT_API_KEY}` }
+          }).catch(() => {});
+          throw compErr;
+        }
       },
 
       // Attempt 3: defaultAI (API Box default key)
       async () => {
         console.log("[extract-build] Attempting extraction with defaultAI (API Box Main)...");
-        const response = await defaultAI.chat.completions.create({
-          model: MODEL_VISION_ONLY,
-          messages: [
-            {
-              role: "system",
-              content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
-              Trả về kết quả dưới định dạng JSON cấu trúc sau: 
-              { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
-              If thông tin nào không rõ ràng, hãy để là null.`
-            },
-            {
-              role: "user",
-              content: [
-                { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                { type: "image_url", image_url: { url: imageUrl } }
-              ]
+        
+        const modelsToTry = [MODEL_VISION_ONLY, "gpt-4o-mini", "gemini-1.5-flash"];
+        let lastErr: any = null;
+
+        for (const model of modelsToTry) {
+          try {
+            console.log(`[extract-build] trying model ${model} with defaultAI...`);
+            const response = await defaultAI.chat.completions.create({
+              model: model,
+              messages: [
+                {
+                  role: "system",
+                  content: `Bạn là trợ lý kế toán chuyên nghiệp. Hãy phân tích hình ảnh báo giá này, trích xuất tất cả các mục linh kiện, đơn giá, số lượng và thành tiền. 
+                  Trả về kết quả dưới định dạng JSON cấu trúc sau: 
+                  { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
+                  If thông tin nào không rõ ràng, hãy để là null.`
+                },
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                    { type: "image_url", image_url: { url: imageUrl } }
+                  ]
+                }
+              ],
+              max_tokens: 4000,
+            });
+            const aiContent = response.choices[0]?.message?.content || "{}";
+            const parsed = cleanAndParseJSON(aiContent);
+            if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+              return parsed;
             }
-          ],
-          max_tokens: 4000,
-        });
-        const aiContent = response.choices[0]?.message?.content || "{}";
-        return cleanAndParseJSON(aiContent);
+          } catch (e: any) {
+            console.warn(`[extract-build] defaultAI model ${model} failed:`, e.message || e);
+            lastErr = e;
+          }
+        }
+        throw lastErr || new Error("All models failed on defaultAI");
       }
     ];
 
@@ -220,9 +245,9 @@ NHIỆM VỤ CỦA BẠN:
    b. RAM (DDR4/DDR5 & Mainboard): RAM DDR4 chỉ lắp được mainboard DDR4, RAM DDR5 chỉ lắp được mainboard DDR5. Đọc tên mainboard và RAM xem có bị lệch thế hệ DDR không?
    c. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ tải cho CPU + VGA không? (Ví dụ: i5 + RTX 4060 cần nguồn từ 550W trở lên; i7 + RTX 4070 cần nguồn từ 650W trở lên; cấu hình văn phòng không VGA rời cần nguồn 350W-450W trở lên).
    d. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không? (Ví dụ main ATX lắp vào case Mini-ITX là không vừa).
-   e. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế có vượt ngân sách tối đa không? Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
+   e. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế có vượt ngân sách tối đa không? Cho phép vượt quá ngân sách tối đa của đề bài một chút từ 100,000 VND đến 200,000 VND (nếu vượt trong khoảng này đặt trạng thái check budget là "WARN" kèm giải thích, nếu vượt quá 200,000 VND mới đặt là "FAIL"). Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
 3. Đánh giá duyệt cấu hình (chỉ áp dụng nếu có đề bài):
-   - Đặt "isApproved": true nếu thỏa mãn: tổng giá <= ngân sách, các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu), và đáp ứng được nhu cầu khách hàng. Ngược lại đặt false.
+   - Đặt "isApproved": true nếu thỏa mãn: tổng giá <= ngân sách + 200,000 VND (cho phép chênh lệch vượt tối đa 200k), các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu), và đáp ứng được nhu cầu khách hàng. Ngược lại đặt false.
    - Ghi nhận xét ngắn gọn trong "reason".
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
