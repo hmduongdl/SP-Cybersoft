@@ -353,12 +353,12 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
               </p>
             </div>
           </div>
-        ) : over ? (
+        ) : overBudget ? (
           <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 px-4 py-3 mx-5 mt-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5"/>
             <div>
               <p className="text-[13px] font-medium text-amber-700 dark:text-amber-300">
-                Vượt ngân sách {delta.toLocaleString("vi-VN")}₫
+                Vượt ngân sách {Math.abs(remaining).toLocaleString("vi-VN")}₫
               </p>
               <p className="text-[12px] text-amber-600 dark:text-amber-400 mt-0.5">
                 Cân nhắc đổi PSU hoặc Case nhỏ hơn để tiết kiệm chi phí.
@@ -448,10 +448,10 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
             {/* Total row */}
             <div className={cn(
               "flex items-center justify-between rounded-xl px-4 py-2.5 mx-5 mt-1.5",
-              over ? "bg-red-50 dark:bg-red-950" : "bg-neutral-50 dark:bg-neutral-800"
+              overBudget ? "bg-red-50 dark:bg-red-950" : "bg-neutral-50 dark:bg-neutral-800"
             )}>
               <p className="text-[13px] font-medium text-on-surface dark:text-neutral-100">Tổng linh kiện</p>
-              <p className={cn("text-[14px] font-medium", over ? "text-red-500" : "text-on-surface dark:text-neutral-100")}>
+              <p className={cn("text-[14px] font-medium", overBudget ? "text-red-500" : "text-on-surface dark:text-neutral-100")}>
                 <AnimatedPrice target={total} delay={parts.length*60+100}/>
               </p>
             </div>

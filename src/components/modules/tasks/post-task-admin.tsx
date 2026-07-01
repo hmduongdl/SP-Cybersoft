@@ -311,6 +311,7 @@ export function PostTaskAdmin() {
       max_budget: "",
       requirements: "",
       deadline: "",
+      difficulty: "",
     });
     setFormErrors({});
     setIsModalOpen(true);

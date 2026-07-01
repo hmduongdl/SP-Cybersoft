@@ -62,7 +62,7 @@ ${contextString}
           for await (const chunk of response) {
             const chunkText = chunk.choices?.[0]?.delta?.content || "";
             if (chunkText) {
-              controller.enqueue(\`data: \${JSON.stringify({ content: chunkText })}\n\n\`);
+              controller.enqueue(`data: ${JSON.stringify({ content: chunkText })}\n\n`);
             }
           }
           controller.enqueue("data: [DONE]\n\n");
