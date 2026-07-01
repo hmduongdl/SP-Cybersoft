@@ -5,7 +5,7 @@ import {
   getStartOfDayVN,
   DAILY_PC_SUBMISSION_MAX,
 } from "@/lib/pc-kho";
-import { processPcBuildVision } from "@/lib/pc-build-background-worker";
+import { processPcBuildVision, getPcBuildWorkerSecret } from "@/lib/pc-build-background-worker";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { exercise_id, image_urls, explanation } = body;
+  const { exercise_id, image_urls, explanation, extracted_items } = body;
 
   if (!exercise_id || !Array.isArray(image_urls) || image_urls.length === 0) {
     return NextResponse.json(
@@ -85,10 +85,59 @@ export async function POST(request: Request) {
 
   const exercise = await db.pcExercise.findUnique({ where: { id: exercise_id } });
   if (!exercise) {
-    return NextResponse.json({ error: "Bài tập không tồn tại." }, { status: 404 });
+    return NextResponse.json({ error: "Bài tập không tồn tại." }, { status: 404 } );
   }
 
-  // Create immediate submission record with status ANALYZING
+  // === EXCEL FAST PATH: extracted_items already parsed by client ===
+  if (extracted_items && Array.isArray(extracted_items.items) && extracted_items.items.length > 0) {
+    const submission = await db.pcSubmission.create({
+      data: {
+        user_id: session.user.id,
+        exercise_id,
+        parts_answer: {
+          is_analyzing: true,
+          analysis_step: "deepseek",
+          analysis_message: "AI đang phân loại linh kiện và kiểm tra tương thích...",
+          extracted_raw: extracted_items,
+        },
+        explanation: explanation.trim(),
+        image_urls: ["excel-parsed"],
+        status: "PENDING",
+        ai_score: null,
+        ai_feedback: null,
+      },
+      include: { exercise: { select: { title: true } } },
+    });
+
+    after(async () => {
+      try {
+        const secret = getPcBuildWorkerSecret();
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
+          || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+        await fetch(`${baseUrl}/api/training/pc-build/analyze-compatibility`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-pc-build-worker-secret": secret,
+          },
+          body: JSON.stringify({ id: submission.id, type: "submission" }),
+        });
+      } catch (err) {
+        console.error("[submissions/route] Error triggering compat job for Excel:", err);
+      }
+    });
+
+    try { revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default"); } catch (_) {}
+
+    return NextResponse.json({
+      success: true,
+      submission,
+      status: "ANALYZING",
+      message: "Đã đọc dữ liệu Excel. AI đang kiểm tra tương thích...",
+    });
+  }
+
+  // === IMAGE PATH: normal Vision flow ===
   const submission = await db.pcSubmission.create({
     data: {
       user_id: session.user.id,

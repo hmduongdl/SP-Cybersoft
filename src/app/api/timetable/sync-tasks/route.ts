@@ -27,21 +27,41 @@ const FOCUS_ROW_TYPES = new Set([
   "custom",
 ]);
 
-// ─── Helper: get the current ISO week boundaries (Mon 00:00 – Sun 23:59) ──────
+// ─── Helper: get the current ISO week boundaries in Vietnam time (UTC+7) ───────
 
 function getCurrentWeekRange(): { weekStart: Date; weekEnd: Date } {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sun, 1 = Mon, …
+  // Convert "now" to VN local time (UTC+7) before computing week boundaries
+  const nowUtc = Date.now();
+  const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const nowVn = new Date(nowUtc + VN_OFFSET_MS);
+
+  // dayOfWeek in VN time (0=Sun, 1=Mon, ...)
+  const dayOfWeek = nowVn.getUTCDay();
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diffToMonday);
-  monday.setHours(0, 0, 0, 0);
+
+  // Build Monday 00:00 VN = Monday 00:00 UTC+7 = Monday -7h UTC
+  const monday = new Date(nowVn);
+  monday.setUTCDate(nowVn.getUTCDate() + diffToMonday);
+  monday.setUTCHours(0, 0, 0, 0);
+  // Convert back to UTC for DB comparison
+  const weekStart = new Date(monday.getTime() - VN_OFFSET_MS);
 
   const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  sunday.setUTCHours(23, 59, 59, 999);
+  const weekEnd = new Date(sunday.getTime() - VN_OFFSET_MS);
 
-  return { weekStart: monday, weekEnd: sunday };
+  return { weekStart, weekEnd };
+}
+
+// Get "today" start in VN time as UTC, for filtering past-deadline tasks
+function getTodayStartUtc(): Date {
+  const nowUtc = Date.now();
+  const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const nowVn = new Date(nowUtc + VN_OFFSET_MS);
+  const todayVn = new Date(nowVn);
+  todayVn.setUTCHours(0, 0, 0, 0);
+  return new Date(todayVn.getTime() - VN_OFFSET_MS);
 }
 
 // ─── Helper: merge task title into an existing JSON content array ─────────────
@@ -194,11 +214,26 @@ export async function POST() {
     return patchMap.get(k)!;
   };
 
-  // ── 2.5 Clean up stale (DONE) tasks from existing cells ────────────────
-  // The loop below only adds tasks; without cleanup, DONE/removed tasks from
+  // ── 2.5 Clean up stale (DONE) and past-deadline tasks from existing cells ──
+  // The loop below only adds tasks; without cleanup, DONE/expired tasks from
   // previous syncs remain in cells permanently.
-  const activeIds = new Set(tasks.map((t) => t.id));
-  const activeTitles = new Set(tasks.map((t) => t.title));
+  const todayStart = getTodayStartUtc();
+
+  // Tasks that are past their deadline should NOT appear on the current week.
+  // "Past deadline" = has a due_date strictly before today (VN midnight).
+  const pastDeadlineIds = new Set(
+    tasks
+      .filter((t) => t.due_date && new Date(t.due_date) < todayStart)
+      .map((t) => t.id)
+  );
+
+  // Only show tasks that have no deadline yet, or deadline is today or later
+  const activeTasks = tasks.filter((t) => !pastDeadlineIds.has(t.id));
+
+  const activeIds = new Set(activeTasks.map((t) => t.id));
+  const activeTitles = new Set(activeTasks.map((t) => t.title));
+  // All task IDs (including past-deadline) for removal from cells
+  const allTaskIds = new Set(tasks.map((t) => t.id));
 
   for (const row of targetRows) {
     for (const cell of row.cells) {
@@ -207,9 +242,12 @@ export async function POST() {
         : [];
       if (existingIds.length === 0) continue;
 
-      if (existingIds.some((id) => !activeIds.has(id))) {
-        // Cell has stale (DONE/removed) tasks — clean them up
-        cell.task_ids = existingIds.filter((id) => activeIds.has(id));
+      const hasStaleTasks = existingIds.some(
+        (id) => !activeIds.has(id) || pastDeadlineIds.has(id)
+      );
+      if (hasStaleTasks) {
+        // Remove DONE, archived, and past-deadline tasks
+        cell.task_ids = existingIds.filter((id) => activeIds.has(id) && !pastDeadlineIds.has(id));
 
         if (Array.isArray(cell.content)) {
           cell.content = (cell.content as string[]).filter((item) => {
@@ -217,27 +255,35 @@ export async function POST() {
             const stripped = item.startsWith("[DEADLINE] ")
               ? item.slice(11)
               : item;
-            // Remove if it matches an active task (will be re-added by loop)
-            // Keep manual entries (don't match any title)
-            return !activeTitles.has(stripped);
+            // Remove entries matching any task title (active tasks will be re-added by loop)
+            // Keep purely manual entries (don't match any task title ever fetched)
+            return !activeTitles.has(stripped) && !Array.from(allTaskIds).some(() => false);
+          });
+          // More precise: remove any title that was part of any task (incl past-deadline)
+          const allTitles = new Set(tasks.map((t) => t.title));
+          cell.content = (cell.content as string[]).filter((item) => {
+            const stripped = item.startsWith("[DEADLINE] ") ? item.slice(11) : item;
+            return !allTitles.has(stripped);
           });
         }
       }
     }
   }
 
-  for (const task of tasks) {
+  for (const task of activeTasks) {
     const dueDate = task.due_date ? new Date(task.due_date) : null;
-    const isThisWeek =
-      dueDate && dueDate >= weekStart && dueDate <= weekEnd;
+    const isThisWeek = dueDate && dueDate >= weekStart && dueDate <= weekEnd;
 
     if (isThisWeek && dueDate) {
       // ── Case A: Task has deadline within this week ─────────────────────
-      const dayCol = DAY_INDEX_TO_COL[dueDate.getDay()];
+      // Convert dueDate to VN time to get the correct day-of-week column
+      const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+      const dueDateVn = new Date(dueDate.getTime() + VN_OFFSET_MS);
+      const dayCol = DAY_INDEX_TO_COL[dueDateVn.getUTCDay()];
       for (const row of targetRows) {
         const existingCell = row.cells.find((c: { column_name: string }) => c.column_name === dayCol);
         const patch = getOrInit(row.id, dayCol, existingCell);
-        
+
         const titleWithMarker = `[DEADLINE] ${task.title}`;
         const existingIdx = patch.content.indexOf(task.title);
         if (existingIdx >= 0) {
@@ -245,23 +291,23 @@ export async function POST() {
         } else if (!patch.content.includes(titleWithMarker)) {
           patch.content.push(titleWithMarker);
         }
-        
+
         if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
         patch.is_deadline = true; // mark red
       }
-    } else {
-      // ── Case B: No deadline or deadline outside this week ──────────────
-      // Spread task across Mon–Fri (Google Calendar "all-week" style)
+    } else if (!dueDate) {
+      // ── Case B: No deadline → spread across Mon–Fri (floating task) ────
       for (const col of WEEKDAY_COLS) {
         for (const row of targetRows) {
           const existingCell = row.cells.find((c: { column_name: string }) => c.column_name === col);
           const patch = getOrInit(row.id, col, existingCell);
           if (!patch.content.includes(task.title)) patch.content.push(task.title);
           if (!patch.task_ids.includes(task.id)) patch.task_ids.push(task.id);
-          // Don't set is_deadline — this is a floating task
         }
       }
     }
+    // ── Case C: deadline is in a FUTURE week → do NOT place on current week ─
+    // These tasks will show up when that week's sync runs.
   }
 
   // ── 4. Persist all mutations in a transaction ─────────────────────────────
