@@ -78,6 +78,7 @@ export async function GET(request: Request) {
             task_type: "PC_BUILD",
             max_budget: task.max_budget,
             requirements: task.requirements,
+	            difficulty: task.difficulty || "medium",
             deadline: task.deadline ? task.deadline.toISOString() : null,
             successfulCheckins,
             totalEmployees: totalNonAdminEmployees,
@@ -124,6 +125,7 @@ export async function POST(request: Request) {
                 customer_need: body.customer_need || body.title || '',
                 max_budget: Number(body.max_budget) || 0,
                 requirements: body.requirements || body.description || '',
+                difficulty: body.difficulty || "medium",
                 deadline: body.deadline ? new Date(body.deadline) : null,
                 date: body.start_at ? new Date(body.start_at) : new Date(),
             }

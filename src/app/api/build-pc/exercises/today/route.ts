@@ -38,8 +38,22 @@ export async function GET() {
               constraints: task.requirements ? task.requirements.split("\n").filter(Boolean) : [],
               hints: [],
             },
-            difficulty: "medium",
+            difficulty: task.difficulty || "medium",
             order_index: countForDate,
+          },
+        });
+      } else {
+        // Sync updates from admin task (difficulty, description, requirements)
+        await db.pcExercise.update({
+          where: { id: task.id },
+          data: {
+            difficulty: task.difficulty || "medium",
+            description: task.customer_need,
+            requirements: {
+              budget: task.max_budget,
+              constraints: task.requirements ? task.requirements.split("\n").filter(Boolean) : [],
+              hints: [],
+            },
           },
         });
       }

@@ -30,6 +30,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
                 customer_need: body.customer_need || body.title || '',
                 max_budget: Number(body.max_budget) || 0,
                 requirements: body.requirements || body.description || '',
+                difficulty: body.difficulty || "medium",
                 deadline: body.deadline ? new Date(body.deadline) : null,
                 date: body.start_at ? new Date(body.start_at) : new Date(),
             }

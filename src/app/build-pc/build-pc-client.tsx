@@ -29,6 +29,7 @@ interface Exercise {
   id: string;
   title: string;
   description: string;
+  exercise_date?: string;
   requirements: {
     budget: number;
     useCase: string;
@@ -91,6 +92,9 @@ const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; clas
   AUTO_APPROVED: { label: "Tự duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-success-text bg-success-bg" },
   ANALYZING: { label: "Đang xử lý...", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: "text-amber-700 bg-amber-50" },
 };
+
+const isApprovedStatus = (status?: string) => status === "APPROVED" || status === "AUTO_APPROVED";
+const isRejectedStatus = (status?: string) => status === "REJECTED";
 
 const CATEGORY_LABELS: Record<string, string> = {
   cpu: "Bộ vi xử lý (CPU)",
@@ -522,10 +526,17 @@ export default function BuildPcClient() {
                           )}>
                             {DIFFICULTY_LABEL[ex.difficulty] || ex.difficulty}
                           </span>
-                          <span className="font-manrope text-xs font-extrabold text-primary">{ex.title}</span>
+                          <span className="font-manrope text-xs font-extrabold text-primary">
+                            {(function() {
+                              if (!ex.exercise_date) return ex.title;
+                              const d = new Date(ex.exercise_date);
+                              const day = String(d.getDate()).padStart(2, "0");
+                              const month = String(d.getMonth() + 1).padStart(2, "0");
+                              const year = d.getFullYear();
+                              return `${day}/${month}/${year} - ${ex.description}`;
+                            })()}
+                          </span>
                           {(() => {
-                            const isGraded = !!(state.extractedParts || state.compatibilityChecks || state.status === "APPROVED" || state.status === "REJECTED");
-
                             if (state.isAnalyzing) {
                               return (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200 animate-pulse flex items-center gap-1">
@@ -535,31 +546,29 @@ export default function BuildPcClient() {
                               );
                             }
                             if (isSubmitted) {
-                              if (isGraded) {
-                                const isApproved = state.status === "APPROVED" && state.isApproved;
-                                if (isApproved) {
-                                  return (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1">
-                                      <CheckCircle2 className="h-3 w-3" />
-                                      Hoàn thành
-                                    </span>
-                                  );
-                                } else {
-                                  return (
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1">
-                                      <XCircle className="h-3 w-3" />
-                                      Cần điều chỉnh
-                                    </span>
-                                  );
-                                }
-                              } else {
+                              const isApproved = isApprovedStatus(state.status) || state.isApproved;
+                              if (isApproved) {
                                 return (
-                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    Đang chờ duyệt
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Hoàn thành
                                   </span>
                                 );
                               }
+                              if (isRejectedStatus(state.status)) {
+                                return (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    Cần điều chỉnh
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  Đang chờ duyệt
+                                </span>
+                              );
                             }
                             if (state.previewImage && state.isDraft) {
                               return (
@@ -571,7 +580,7 @@ export default function BuildPcClient() {
                             return null;
                           })()}
                         </div>
-                        <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.description}</p>
+                        <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.requirements.constraints?.join(" • ") || "Không có ràng buộc"}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-on-muted font-medium opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline">

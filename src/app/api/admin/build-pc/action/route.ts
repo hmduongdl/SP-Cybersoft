@@ -9,6 +9,7 @@ import {
   processPcBuildCompatibilityFromStored,
   processPcBuildVision,
 } from "@/lib/pc-build-background-worker";
+import { createNotification } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
       const subs = pcSubmissionIds.length
         ? await db.pcSubmission.findMany({
             where: { id: { in: pcSubmissionIds } },
-            select: { id: true, image_urls: true, parts_answer: true },
+            select: { id: true, user_id: true, exercise_id: true, image_urls: true, parts_answer: true },
           })
         : [];
 
@@ -145,6 +146,31 @@ export async function POST(request: Request) {
               reviewed_locally_at: new Date().toISOString(),
             },
           },
+        });
+      }
+
+      // Gửi thông báo cho các bài nộp đã được AI xử lý
+      const processedSubs = subs.length > 0 ? await db.pcSubmission.findMany({
+        where: { id: { in: pcSubmissionIds } },
+        select: { id: true, user_id: true, status: true },
+      }) : [];
+      const exerciseTitles = subs.length > 0 ? await db.pcExercise.findMany({
+        where: { id: { in: subs.map(s => s.exercise_id) } },
+        select: { id: true, title: true },
+      }) : [];
+      const titleMap = new Map(exerciseTitles.map(e => [e.id, e.title]));
+      for (const ps of processedSubs) {
+        const isApproved = ps.status === "AUTO_APPROVED";
+        const exTitle = titleMap.get(subs.find(s => s.id === ps.id)?.exercise_id || "") || "Build PC";
+        await createNotification({
+          userId: ps.user_id,
+          type: isApproved ? "PC_BUILD_AUTO_APPROVED" : "PC_BUILD_REJECTED",
+          title: isApproved ? "✅ Bài tập Build PC đã được duyệt" : "❌ Bài tập Build PC cần điều chỉnh",
+          message: isApproved
+            ? `Bài tập "${exTitle}" của bạn đã được AI duyệt tự động.`
+            : `Bài tập "${exTitle}" của bạn cần điều chỉnh: Vui lòng xem lại và nộp lại.`,
+          referenceId: ps.id,
+          referenceType: "pc_submission",
         });
       }
 
@@ -327,6 +353,28 @@ export async function POST(request: Request) {
         })
       );
 
+      // Gửi thông báo duyệt thủ công cho submissions
+      if (subs.length > 0) {
+        const exIds = [...new Set(subs.map(s => s.exercise_id))];
+        const exercises = exIds.length > 0 ? await db.pcExercise.findMany({
+          where: { id: { in: exIds } },
+          select: { id: true, title: true },
+        }) : [];
+        const titleMap = new Map(exercises.map(e => [e.id, e.title]));
+        await Promise.all(
+          subs.map(sub =>
+            createNotification({
+              userId: sub.user_id,
+              type: "PC_BUILD_APPROVED",
+              title: "✅ Bài tập Build PC đã được duyệt",
+              message: `Bài tập "${titleMap.get(sub.exercise_id) || 'Build PC'}" của bạn đã được quản trị viên duyệt.`,
+              referenceId: sub.id,
+              referenceType: "pc_submission",
+            })
+          )
+        );
+      }
+
       if (pcCheckinIds.length > 0) {
         const checkins = await db.checkin.findMany({
           where: { id: { in: pcCheckinIds }, task_type: "BUILD_PC" },
@@ -357,7 +405,7 @@ export async function POST(request: Request) {
       const subs = pcSubmissionIds.length
         ? await db.pcSubmission.findMany({
             where: { id: { in: pcSubmissionIds } },
-            select: { image_urls: true },
+            select: { id: true, user_id: true, exercise_id: true, image_urls: true },
           })
         : [];
 
@@ -381,6 +429,26 @@ export async function POST(request: Request) {
             reviewed_by: session.user.id,
           },
         });
+
+        // Gửi thông báo từ chối cho submissions
+        const exIds = [...new Set(subs.map(s => s.exercise_id))];
+        const exercises = exIds.length > 0 ? await db.pcExercise.findMany({
+          where: { id: { in: exIds } },
+          select: { id: true, title: true },
+        }) : [];
+        const titleMap = new Map(exercises.map(e => [e.id, e.title]));
+        await Promise.all(
+          subs.map(sub =>
+            createNotification({
+              userId: sub.user_id,
+              type: "PC_BUILD_REJECTED",
+              title: "❌ Bài tập Build PC cần điều chỉnh",
+              message: `Bài tập "${titleMap.get(sub.exercise_id) || 'Build PC'}" của bạn đã bị từ chối. Lý do: ${rejectReason || "Không đạt yêu cầu."}`,
+              referenceId: sub.id,
+              referenceType: "pc_submission",
+            })
+          )
+        );
       }
 
       if (pcCheckinIds.length > 0) {

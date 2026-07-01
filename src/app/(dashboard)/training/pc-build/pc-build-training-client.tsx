@@ -88,6 +88,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   desk_chair: "Bàn ghế (Furniture)",
 };
 
+const isApprovedStatus = (status?: string) => status === "APPROVED" || status === "AUTO_APPROVED";
+const isRejectedStatus = (status?: string) => status === "REJECTED";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   cpu: <Cpu className="h-3.5 w-3.5 text-violet-500" />,
@@ -441,7 +443,7 @@ export default function PcBuildTrainingClient() {
 
   const approvedCount = tasks.filter(t => {
     const state = getTaskState(t.id);
-    return state.isApproved;
+    return isApprovedStatus(state.status) || state.isApproved;
   }).length;
 
   return (
@@ -591,7 +593,7 @@ export default function PcBuildTrainingClient() {
                               : state.isAnalyzing
                               ? "bg-amber-500/10 text-amber-600 border-amber-500/15 animate-pulse" 
                               : (isSubmitted 
-                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" : "bg-blue-500/10 text-blue-600 border-blue-500/15") 
+                                  ? (isApprovedStatus(state.status) || state.isApproved ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" : "bg-blue-500/10 text-blue-600 border-blue-500/15") 
                                   : "bg-indigo-500/10 text-indigo-600 border-indigo-500/15")
                           )}>
                             {hasAnalysisError ? <AlertTriangle className="h-3.5 w-3.5" /> : state.isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -1041,15 +1043,17 @@ export default function PcBuildTrainingClient() {
                             >
                               <div className={cn(
                                 "p-6 rounded-3xl border-2 text-center shadow-lg",
-                                state.isApproved
+                                isApprovedStatus(state.status) || state.isApproved
                                   ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-400"
-                                  : "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
+                                  : isRejectedStatus(state.status)
+                                  ? "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
+                                  : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-400"
                               )}>
                                  <div className="w-12 h-12 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-3">
-                                   {state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />}
+                                   {isApprovedStatus(state.status) || state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : isRejectedStatus(state.status) ? <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" /> : <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />}
                                  </div>
                                  <h2 className="text-xl font-black font-manrope mb-1">
-                                   {state.isApproved ? "Hoàn thành" : "Cần điều chỉnh"}
+                                   {isApprovedStatus(state.status) || state.isApproved ? "Hoàn thành" : isRejectedStatus(state.status) ? "Cần điều chỉnh" : "Đang chờ duyệt"}
                                  </h2>
                                  <p className="text-xs font-medium opacity-90 max-w-md mx-auto leading-relaxed">
                                    {state.approvalReason || "Kết quả đánh giá đã được cập nhật."}

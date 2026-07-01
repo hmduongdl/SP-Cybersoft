@@ -53,6 +53,7 @@ interface ManagedPost {
   task_type?: "SHARE_POST" | "PC_BUILD";
   max_budget?: number;
   requirements?: string;
+  difficulty?: string;
   deadline?: string | null;
 }
 
@@ -311,7 +312,7 @@ export function PostTaskAdmin() {
       max_budget: "",
       requirements: "",
       deadline: "",
-      difficulty: "",
+      difficulty: "medium",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -384,6 +385,7 @@ export function PostTaskAdmin() {
         payload.customer_need = formData.customer_need.trim();
         payload.max_budget = Number(formData.max_budget);
         payload.requirements = formData.requirements.trim();
+        payload.difficulty = formData.difficulty || "medium";
         payload.deadline = `${formData.date}T23:59:59`;
       } else {
         payload.title = formData.title.trim();
@@ -760,7 +762,7 @@ export function PostTaskAdmin() {
                     {/* Customer Need */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-need">
-                        Nhu cầu của khách hàng
+                        Mô tả đề bài
                       </label>
                       <input
                         id="pc-need"
@@ -779,7 +781,7 @@ export function PostTaskAdmin() {
                     {/* Max Budget */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-budget">
-                        Ngân sách tối đa
+                        Ngân sách
                       </label>
                       <div className="relative rounded-xl">
                         <input
@@ -824,7 +826,7 @@ export function PostTaskAdmin() {
                     {/* Requirements */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-reqs">
-                        Các ràng buộc / Yêu cầu chi tiết
+                        Ghi chú ràng buộc
                       </label>
                       <textarea
                         id="pc-reqs"
