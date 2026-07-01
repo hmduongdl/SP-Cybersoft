@@ -160,6 +160,12 @@ function getSuggestions(pathname: string | null): string[] {
       "Quy tắc tạo bảng tự động là gì thế?",
       "Giúp tôi soạn báo cáo công việc cuối ngày của hôm nay"
     ];
+  } else if (pathname.includes("/build-pc")) {
+    return [
+      "Hướng dẫn tôi cách chọn CPU và Mainboard tương thích?",
+      "Công thức tính công suất nguồn PSU như thế nào?",
+      "Các bước lắp ráp PC chi tiết từ A-Z?"
+    ];
   }
 
   // Default suggestions for dashboard or general pages
@@ -210,6 +216,7 @@ export function AIAssistant() {
     else if (pathname.includes("/tasks")) pageName = "Quản lý công việc (Task Manager)";
     else if (pathname.includes("/reports")) pageName = "Báo cáo thống kê";
     else if (pathname.includes("/timetable")) pageName = "Lịch biểu (Timetable)";
+    else if (pathname.includes("/build-pc")) pageName = "Thực hành Build PC";
 
     if (pageName) {
       setBubbleText(`Bạn có thắc mắc gì không? Tôi có thể giúp bạn về trang ${pageName}`);

@@ -22,6 +22,7 @@ export function Sidebar() {
   
   // Local profile state to display up-to-date data
   const [profile, setProfile] = useState<any>(null);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
 
   const fetchProfile = () => {
@@ -33,15 +34,42 @@ export function Sidebar() {
       .catch(console.error);
   };
 
+  const fetchPendingCount = () => {
+    const isAdmin = session?.user?.role === "ADMIN" || profile?.role === "ADMIN";
+    if (!isAdmin) return;
+
+    fetch("/api/admin/pending-count")
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.pendingCount === "number") {
+          setPendingCount(data.pendingCount);
+        }
+      })
+      .catch(console.error);
+  };
+
   useEffect(() => {
     fetchProfile();
   }, [session]);
 
+  useEffect(() => {
+    const isAdmin = session?.user?.role === "ADMIN" || profile?.role === "ADMIN";
+    if (isAdmin) {
+      fetchPendingCount();
+      const interval = setInterval(fetchPendingCount, 15000); // 15s polling
+      return () => clearInterval(interval);
+    }
+  }, [session, profile]);
+
   // Re-fetch profile when profile-updated event fires (e.g. after modal save)
   useEffect(() => {
     window.addEventListener("profile-updated", fetchProfile);
-    return () => window.removeEventListener("profile-updated", fetchProfile);
-  }, []);
+    window.addEventListener("pending-count-updated", fetchPendingCount);
+    return () => {
+      window.removeEventListener("profile-updated", fetchProfile);
+      window.removeEventListener("pending-count-updated", fetchPendingCount);
+    };
+  }, [profile]);
 
   const sectionedItems: Array<{
     title: string;
@@ -60,7 +88,7 @@ export function Sidebar() {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: "dashboard", adminOnly: false },
         { label: "Like - Share", href: "/like-share", icon: "task_alt", adminOnly: false },
-        { label: "Build PC", href: "/training/pc-build", icon: "computer", adminOnly: false },
+        { label: "Build PC", href: "/build-pc", icon: "computer", adminOnly: false },
         { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "AI Studio", href: "/seo-tools", icon: "trending_up", adminOnly: false },
@@ -175,21 +203,44 @@ export function Sidebar() {
                           title={collapsed ? label : undefined}
                         >
                           {typeof icon === 'string' ? (
-                            <span className={clsx(
-                              "material-symbols-outlined text-[22px]",
-                              isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
-                            )}>
-                              {icon}
-                            </span>
+                            <div className="relative">
+                              <span className={clsx(
+                                "material-symbols-outlined text-[22px]",
+                                isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+                              )}>
+                                {icon}
+                              </span>
+                              {label === "Duyệt Bài" && pendingCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-white dark:border-slate-950"></span>
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <div className={clsx(
-                              "flex items-center justify-center shrink-0",
+                              "relative flex items-center justify-center shrink-0",
                               isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
                             )}>
                               {icon}
+                              {label === "Duyệt Bài" && pendingCount > 0 && (
+                                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500 border-2 border-white dark:border-slate-950"></span>
+                                </span>
+                              )}
                             </div>
                           )}
-                          {!collapsed && <span className="text-sm font-medium font-inter">{label}</span>}
+                          {!collapsed && (
+                            <span className="text-sm font-medium font-inter flex-1 flex justify-between items-center">
+                              {label}
+                              {label === "Duyệt Bài" && pendingCount > 0 && (
+                                <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                                  {pendingCount}
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </button>
 
                         {/* Task Manager Dynamic Submenu */}

@@ -203,6 +203,12 @@ export async function DELETE(request: Request) {
             where: { pc_task_id: { in: ids } }
         });
 
+        // Also clean up PcExercise records that were synced from PcBuildTask
+        // (PcSubmission will cascade-delete along with PcExercise)
+        await db.pcExercise.deleteMany({
+            where: { id: { in: ids } }
+        });
+
         await db.pcBuildTask.deleteMany({
             where: { id: { in: ids } }
         });

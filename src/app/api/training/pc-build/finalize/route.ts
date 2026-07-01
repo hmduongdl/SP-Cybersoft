@@ -21,24 +21,18 @@ export async function POST(req: Request) {
         where: { id, user_id: session.user.id }
       });
       if (!checkin) {
-        return NextResponse.json({ error: "Không tìm thấy checkin" }, { status: 404 });
+        return NextResponse.json({ error: "Không tìm thấy bài nộp." }, { status: 404 });
       }
 
       const buildData = (checkin.build_data as any) || {};
-      if (buildData.is_analyzing) {
-        return NextResponse.json({ error: "AI vẫn đang phân tích cấu hình." }, { status: 400 });
-      }
-
-      const isApproved = buildData.is_approved === true;
-      const finalStatus = isApproved ? "AUTO_APPROVED" : "PENDING";
-
       await db.checkin.update({
         where: { id },
         data: {
-          status: finalStatus,
+          status: "PENDING",
           build_data: {
             ...buildData,
             is_draft: false,
+            is_analyzing: false,
             explanation: explanation || "",
           }
         }
@@ -52,24 +46,18 @@ export async function POST(req: Request) {
       }
 
       const parts = (submission.parts_answer as any) || {};
-      if (parts.is_analyzing) {
-        return NextResponse.json({ error: "AI vẫn đang phân tích cấu hình." }, { status: 400 });
-      }
-
-      const isApproved = parts.is_approved === true;
-      const finalStatus = isApproved ? "AUTO_APPROVED" : "PENDING";
-
       await db.pcSubmission.update({
         where: { id },
         data: {
-          status: finalStatus,
+          status: "PENDING",
           explanation: explanation || "",
           parts_answer: {
             ...parts,
-            is_draft: false
+            is_draft: false,
+            is_analyzing: false,
+            analysis_step: parts.analysis_step || "waiting_admin",
+            analysis_message: parts.analysis_message || "Bài nộp đã được ghi nhận và đang chờ phản hồi.",
           },
-          ai_score: parts.temp_ai_score !== undefined ? parts.temp_ai_score : (isApproved ? 100 : 70),
-          ai_feedback: parts.temp_ai_feedback || "",
         }
       });
     }

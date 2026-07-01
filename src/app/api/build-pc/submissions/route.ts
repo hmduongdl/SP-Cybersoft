@@ -1,11 +1,10 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import {
   getStartOfDayVN,
   DAILY_PC_SUBMISSION_MAX,
 } from "@/lib/pc-kho";
-import { processPcBuildVision, getPcBuildWorkerSecret } from "@/lib/pc-build-background-worker";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 
@@ -28,12 +27,13 @@ export async function GET() {
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
 
-  const [todayCount, submissions] = await Promise.all([
-    db.pcSubmission.count({
+  const [todaySubmissions, submissions] = await Promise.all([
+    db.pcSubmission.findMany({
       where: {
         user_id: session.user.id,
         submitted_at: { gte: today, lt: tomorrow },
       },
+      select: { parts_answer: true },
     }),
     db.pcSubmission.findMany({
       where: { user_id: session.user.id },
@@ -46,6 +46,11 @@ export async function GET() {
       },
     }),
   ]);
+
+  const todayCount = todaySubmissions.filter((submission) => {
+    const parts = submission.parts_answer as { is_draft?: unknown } | null;
+    return parts?.is_draft !== true;
+  }).length;
 
   return NextResponse.json({
     todayCount,
@@ -71,12 +76,8 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!explanation || typeof explanation !== "string" || explanation.trim().length < 20) {
-    return NextResponse.json(
-      { error: "Giải thích phải có ít nhất 20 ký tự." },
-      { status: 400 }
-    );
-  }
+  // Allow empty explanation or short ones
+  const explanationStr = typeof explanation === "string" ? explanation.trim() : "";
 
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
@@ -88,19 +89,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bài tập không tồn tại." }, { status: 404 } );
   }
 
-  // === EXCEL FAST PATH: extracted_items already parsed by client ===
+  // Draft-only path: Vercel only receives the submission data. Reading/checking happens later in admin queue on localhost.
   if (extracted_items && Array.isArray(extracted_items.items) && extracted_items.items.length > 0) {
     const submission = await db.pcSubmission.create({
       data: {
         user_id: session.user.id,
         exercise_id,
         parts_answer: {
-          is_analyzing: true,
-          analysis_step: "deepseek",
-          analysis_message: "AI đang phân loại linh kiện và kiểm tra tương thích...",
+          is_draft: false,
+          is_analyzing: false,
+          analysis_step: "waiting_admin",
+          analysis_message: "Bài nộp đã được ghi nhận và đang chờ phản hồi.",
           extracted_raw: extracted_items,
         },
-        explanation: explanation.trim(),
+        explanation: explanationStr,
         image_urls: ["excel-parsed"],
         status: "PENDING",
         ai_score: null,
@@ -109,45 +111,28 @@ export async function POST(request: Request) {
       include: { exercise: { select: { title: true } } },
     });
 
-    after(async () => {
-      try {
-        const secret = getPcBuildWorkerSecret();
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
-          || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-        await fetch(`${baseUrl}/api/training/pc-build/analyze-compatibility`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-pc-build-worker-secret": secret,
-          },
-          body: JSON.stringify({ id: submission.id, type: "submission" }),
-        });
-      } catch (err) {
-        console.error("[submissions/route] Error triggering compat job for Excel:", err);
-      }
-    });
-
     try { revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default"); } catch (_) {}
 
     return NextResponse.json({
       success: true,
       submission,
-      status: "ANALYZING",
-      message: "Đã đọc dữ liệu Excel. AI đang kiểm tra tương thích...",
+      status: "PENDING",
+      message: "Đã nhận file Excel. Bài đã được nộp và chờ admin duyệt.",
     });
   }
 
-  // === IMAGE PATH: normal Vision flow ===
+  // Image path: store evidence only, no AI work on submit.
   const submission = await db.pcSubmission.create({
     data: {
       user_id: session.user.id,
       exercise_id,
       parts_answer: {
-        is_analyzing: true,
-        analysis_step: "vision",
-        analysis_message: "Đang đọc ảnh báo giá và bóc tách linh kiện..."
+        is_draft: false,
+        is_analyzing: false,
+        analysis_step: "waiting_admin",
+        analysis_message: "Bài nộp đã được ghi nhận và đang chờ phản hồi."
       },
-      explanation: explanation.trim(),
+      explanation: explanationStr,
       image_urls: image_urls.slice(0, 3),
       status: "PENDING",
       ai_score: null,
@@ -158,17 +143,12 @@ export async function POST(request: Request) {
     },
   });
 
-  after(() => {
-    processPcBuildVision(submission.id, "submission", image_urls[0])
-      .catch((err) => console.error("[submissions/route] Error running vision task:", err));
-  });
-
   revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
   return NextResponse.json({
     success: true,
     submission,
-    status: "ANALYZING",
-    message: "Đang phân tích cấu hình trong nền. Bạn có thể rời trang hoặc nộp bài mới.",
+    status: "PENDING",
+    message: "Đã nhận bài. Bài đã được nộp và chờ admin duyệt.",
   });
 }

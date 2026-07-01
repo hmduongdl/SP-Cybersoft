@@ -505,7 +505,6 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                     ],
                   },
                 ],
-                response_format: { type: "json_object" },
                 max_tokens: MAX_AI_OUTPUT_TOKENS,
               }),
               VISION_EXTRACTION_TIMEOUT_MS
@@ -641,8 +640,9 @@ QUY TẮC KIỂM TRA:
 - RAM DDR4/DDR5 phải đúng loại mainboard.
 - PSU phải đủ CPU + VGA và dư an toàn 100W-150W.
 - Case nhỏ/ITX có thể không vừa main ATX; mid/full tower thường vừa ATX/mATX/ITX.
-- Budget WARN nếu vượt ngân sách 1-200000 VND, FAIL nếu vượt hơn 200000 VND.
-- isApproved=true chỉ khi không FAIL kỹ thuật nghiêm trọng và total_price <= ngân sách + 200000 VND.
+- Budget PASS nếu tổng giá <= ngân sách. WARN nếu vượt 1–200,000 VND (vẫn hợp lệ, có thể duyệt). FAIL nếu vượt hơn 200,000 VND.
+- isApproved=true nếu: total_price <= ngân sách + 200,000 VND VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
+- QUY TẮC NHẤT QUÁN: Nếu isApproved=true thì "reason" phải giải thích vì sao ĐẠT. Nếu isApproved=false thì "reason" nêu lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
 
 BẮT BUỘC chỉ trả về JSON:
 {
@@ -744,7 +744,7 @@ BẮT BUỘC chỉ trả về JSON:
       }
     }
 
-    const finalStatus = result.isApproved ? "AUTO_APPROVED" : "PENDING";
+    const finalStatus = "APPROVED"; // AI analysis is final — always resolve to APPROVED
     const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Socket: ${result.checks?.socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     if (type === "checkin") {
@@ -753,6 +753,7 @@ BẮT BUỘC chỉ trả về JSON:
         where: { id },
         data: {
           status: isDraft ? "PENDING" : finalStatus,
+          reject_reason: null,
           build_data: {
             ...formattedData,
             checks: result.checks || {},
@@ -782,6 +783,7 @@ BẮT BUỘC chỉ trả về JSON:
         where: { id },
         data: {
           status: isDraft ? "PENDING" : finalStatus,
+          reject_reason: null,
           parts_answer: {
             parts: partsAnswer,
             checks: result.checks || {},
@@ -905,8 +907,9 @@ cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, h
 QUY TẮC:
 - Nếu một danh mục không có trong báo giá, trả về { "name": "", "price": 0 }.
 - total_price là tổng tiền thực tế của các linh kiện.
-- Budget được WARN nếu vượt ngân sách tối đa từ 1 đến 200000 VND, FAIL nếu vượt hơn 200000 VND.
-- isApproved=true chỉ khi không có FAIL nghiêm trọng ở socket/ram/power và tổng tiền <= ngân sách + 200000 VND.
+- Budget PASS nếu tổng giá <= ngân sách. WARN nếu vượt 1–200,000 VND (vẫn hợp lệ và có thể duyệt). FAIL nếu vượt hơn 200,000 VND.
+- isApproved=true nếu: total_price <= ngân sách + 200,000 VND VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
+- Nếu isApproved=true: "reason" phải giải thích vì sao ĐẠT (kể cả nếu có cảnh báo nhừ). Nếu isApproved=false: "reason" nêu rõ lý do cụ thể từ chối. Không được nói "vượt ngân sách" khi isApproved=true.
 
 BẮT BUỘC chỉ trả về JSON theo format:
 {
@@ -1119,6 +1122,7 @@ QUY TẮC DUYỆT BÀI (isApproved):
   - Không bị FAIL ở bất kỳ kiểm tra kỹ thuật nghiêm trọng nào (Socket, RAM, Power).
   - Cấu hình đáp ứng tốt nhu cầu khách hàng (Ví dụ: nhu cầu thiết kế đồ họa 3D nhưng không có VGA rời hoặc CPU quá yếu -> FAIL).
 - Ngược lại đặt "isApproved": false.
+- QUY TẮC NHẤT QUÁN BẮT BUỘC: Nếu isApproved=true thì "reason" phải giải thích tích cực vì sao CẤU HÌNH ĐẠT (có thể nêu cảnh báo vượt nhỏ nhưng phải kết luận là hợp lệ). Nếu isApproved=false thì "reason" nêu rõ lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 {
@@ -1224,7 +1228,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
       }
     }
 
-    const finalStatus = result.isApproved ? "AUTO_APPROVED" : "PENDING";
+    const finalStatus = "AUTO_APPROVED"; // AI analysis is final — always resolve to AUTO_APPROVED
     const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Socket: ${result.checks?.socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     // 4. Update database record

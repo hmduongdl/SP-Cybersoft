@@ -163,7 +163,7 @@ export function PostTaskAdmin() {
     thumbnail_url: "",
     description: "",
     date: getLocalDateKey(new Date()),
-    team: "ALL" as "ALL" | "TECH" | "SALES" | "MARKETING",
+    team: "TECH" as "TECH" | "SALES" | "MARKETING",
     author_id: "",
     // PC Build specific
     customer_need: "",
@@ -304,7 +304,7 @@ export function PostTaskAdmin() {
       thumbnail_url: "",
       description: "",
       date: getLocalDateKey(new Date()),
-      team: "ALL",
+      team: "TECH",
       author_id: "",
       customer_need: "",
       max_budget: "",
@@ -327,7 +327,7 @@ export function PostTaskAdmin() {
       thumbnail_url: post.thumbnail_url ?? "",
       description: post.description || "",
       date: dateKey,
-      team: post.team || "ALL",
+      team: post.team === "ALL" ? "TECH" : (post.team || "TECH"),
       author_id: post.author || "",
       customer_need: post.task_type === "PC_BUILD" ? post.description : "",
       max_budget: post.max_budget ? String(post.max_budget) : "",
@@ -898,7 +898,7 @@ export function PostTaskAdmin() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Date */}
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-on-surface uppercase">
@@ -913,21 +913,20 @@ export function PostTaskAdmin() {
                         />
                       </div>
 
-                      {/* Team */}
+                      {/* Author */}
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-on-surface uppercase">
-                          Phòng ban tham gia
+                          Tác giả
                         </label>
                         <select
-                          value={formData.team}
-                          onChange={(e) => setFormData({ ...formData, team: e.target.value as any })}
+                          value={formData.author_id}
+                          onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
                           disabled={saving}
                           className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface focus:outline-none"
                         >
-                          <option value="ALL">Tất cả phòng ban</option>
-                          <option value="TECH">Khối Kỹ Thuật (Tech)</option>
-                          <option value="SALES">Khối Kinh Doanh (Sales)</option>
-                          <option value="MARKETING">Marketing</option>
+                          <option value="">Không có</option>
+                          <option value="Song Phương Tech">Song Phương Tech</option>
+                          <option value="Song Phương">Song Phương</option>
                         </select>
                       </div>
                     </div>

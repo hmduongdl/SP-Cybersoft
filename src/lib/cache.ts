@@ -286,6 +286,26 @@ export async function getCachedAllPcSubmissions() {
   });
 }
 
+export async function getCachedAllPcBuildCheckins() {
+  return db.checkin.findMany({
+    where: { task_type: "BUILD_PC" },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar_url: true,
+          department: true,
+          trust_score: true,
+        },
+      },
+      pc_task: true,
+    },
+    orderBy: { submitted_at: "desc" },
+  });
+}
+
 // ─── Admin Analytics ─────────────────────────────────────
 
 export async function getCachedAnalyticsPostsThisMonth(monthStart: Date, monthEnd: Date) {

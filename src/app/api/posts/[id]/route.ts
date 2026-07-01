@@ -82,6 +82,8 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     if (buildTask) {
         // First delete dependent checkins
         await db.checkin.deleteMany({ where: { pc_task_id: id } });
+        // Also clean up PcExercise that was synced from PcBuildTask
+        await db.pcExercise.deleteMany({ where: { id } });
         await db.pcBuildTask.delete({ where: { id } });
     } else {
         await db.post.delete({ where: { id } });
