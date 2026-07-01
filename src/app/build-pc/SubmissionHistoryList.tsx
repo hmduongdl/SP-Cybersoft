@@ -243,8 +243,11 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
 
   const budget = submission.exercise?.requirements?.budget ?? 0;
   const hasBudget = budget > 0;
-  const remaining = hasBudget ? budget - total : 0;
-  const overBudget = hasBudget && remaining < 0;
+  const budgetLimit = hasBudget ? Math.floor(budget * 1.02) : 0;
+  const overBaseBudget = hasBudget && total > budget;
+  const overBudget = hasBudget && total > budgetLimit;
+  const overBaseAmount = hasBudget ? Math.max(total - budget, 0) : 0;
+  const overLimitAmount = hasBudget ? Math.max(total - budgetLimit, 0) : 0;
   const imageUrl = Array.isArray(submission.image_urls) ? submission.image_urls[0] : null;
 
   const approved  = isApproved(submission.status);
@@ -260,8 +263,8 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
   const diffConf = DIFFICULTY_CONFIG[submission.exercise.difficulty] || DIFFICULTY_CONFIG.medium;
 
   const scoreColor = score == null ? "" : score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-500" : "text-red-500";
-  const totalColor = overBudget ? "text-amber-500" : "text-on-surface";
-  const remainingColor = !hasBudget ? "text-neutral-400" : overBudget ? "text-red-500" : "text-emerald-600";
+  const totalColor = overBudget ? "text-red-500" : overBaseBudget ? "text-amber-500" : "text-on-surface";
+  const remainingColor = !hasBudget ? "text-neutral-400" : overBudget ? "text-red-500" : overBaseBudget ? "text-amber-500" : "text-emerald-600";
 
   // Close on Escape
   useEffect(() => {
@@ -300,7 +303,7 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
                 {submission.exercise.title}
               </h2>
               <p className="text-[13px] text-neutral-400 dark:text-neutral-500 truncate">
-                {diffConf.label} · tối đa {budget>0 ? budget.toLocaleString("vi-VN")+"₫" : "—"}
+                {diffConf.label} · tối đa {budget>0 ? budget.toLocaleString("vi-VN")+"₫ (+2%)" : "—"}
               </p>
             </div>
           </div>
@@ -334,10 +337,10 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
           {/* Card 3 — Budget comparison */}
           <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800 p-3 text-center">
             <p className={cn("text-lg font-bold leading-none", remainingColor)}>
-              {!hasBudget ? "—" : overBudget ? Math.abs(remaining).toLocaleString("vi-VN")+"₫" : "0₫"}
+              {!hasBudget ? "—" : overBudget ? overLimitAmount.toLocaleString("vi-VN")+"₫" : overBaseBudget ? overBaseAmount.toLocaleString("vi-VN")+"₫" : "0₫"}
             </p>
             <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-              {!hasBudget ? "Không có ngân sách" : overBudget ? "Vượt ngân sách" : "Trong ngân sách"}
+              {!hasBudget ? "Không có ngân sách" : overBudget ? "Vượt giới hạn 2%" : overBaseBudget ? "Trong ngưỡng 2%" : "Trong ngân sách"}
             </p>
           </div>
         </div>
@@ -354,14 +357,26 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
             </div>
           </div>
         ) : overBudget ? (
+          <div className="flex items-start gap-2.5 rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950 px-4 py-3 mx-5 mt-3">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-red-500 mt-0.5"/>
+            <div>
+              <p className="text-[13px] font-medium text-red-700 dark:text-red-300">
+                Vượt giới hạn 2% {overLimitAmount.toLocaleString("vi-VN")}₫
+              </p>
+              <p className="text-[12px] text-red-600 dark:text-red-400 mt-0.5">
+                Cấu hình cần giảm chi phí để được duyệt tự động.
+              </p>
+            </div>
+          </div>
+        ) : overBaseBudget ? (
           <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 px-4 py-3 mx-5 mt-3">
             <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500 mt-0.5"/>
             <div>
               <p className="text-[13px] font-medium text-amber-700 dark:text-amber-300">
-                Vượt ngân sách {Math.abs(remaining).toLocaleString("vi-VN")}₫
+                Vượt nhẹ ngân sách {overBaseAmount.toLocaleString("vi-VN")}₫
               </p>
               <p className="text-[12px] text-amber-600 dark:text-amber-400 mt-0.5">
-                Cân nhắc đổi PSU hoặc Case nhỏ hơn để tiết kiệm chi phí.
+                Mức này vẫn nằm trong ngưỡng cho phép 2%.
               </p>
             </div>
           </div>
@@ -448,10 +463,10 @@ function DetailModal({submission, onClose, onCancelExercise}:{submission:Submiss
             {/* Total row */}
             <div className={cn(
               "flex items-center justify-between rounded-xl px-4 py-2.5 mx-5 mt-1.5",
-              overBudget ? "bg-red-50 dark:bg-red-950" : "bg-neutral-50 dark:bg-neutral-800"
+              overBudget ? "bg-red-50 dark:bg-red-950" : overBaseBudget ? "bg-amber-50 dark:bg-amber-950" : "bg-neutral-50 dark:bg-neutral-800"
             )}>
               <p className="text-[13px] font-medium text-on-surface dark:text-neutral-100">Tổng linh kiện</p>
-              <p className={cn("text-[14px] font-medium", overBudget ? "text-red-500" : "text-on-surface dark:text-neutral-100")}>
+              <p className={cn("text-[14px] font-medium", overBudget ? "text-red-500" : overBaseBudget ? "text-amber-500" : "text-on-surface dark:text-neutral-100")}>
                 <AnimatedPrice target={total} delay={parts.length*60+100}/>
               </p>
             </div>

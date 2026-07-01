@@ -84,11 +84,11 @@ const DIFFICULTY_LABEL: Record<string, string> = {
 };
 
 const STATUS_CONFIG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
-  PENDING: { label: "Chờ duyệt", icon: <Clock className="h-3.5 w-3.5" />, className: "text-amber-200 bg-amber-400/10" },
-  APPROVED: { label: "Đã duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-emerald-200 bg-emerald-400/10" },
-  REJECTED: { label: "Từ chối", icon: <XCircle className="h-3.5 w-3.5" />, className: "text-rose-200 bg-rose-400/10" },
-  AUTO_APPROVED: { label: "Tự duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-emerald-200 bg-emerald-400/10" },
-  ANALYZING: { label: "Đang xử lý...", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: "text-amber-200 bg-amber-400/10" },
+  PENDING: { label: "Chờ duyệt", icon: <Clock className="h-3.5 w-3.5" />, className: "text-warn-text bg-warn-bg dark:text-amber-200 dark:bg-amber-400/10" },
+  APPROVED: { label: "Đã duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-success-text bg-success-bg dark:text-emerald-200 dark:bg-emerald-400/10" },
+  REJECTED: { label: "Từ chối", icon: <XCircle className="h-3.5 w-3.5" />, className: "text-error-text bg-error-bg dark:text-rose-200 dark:bg-rose-400/10" },
+  AUTO_APPROVED: { label: "Tự duyệt", icon: <CheckCircle2 className="h-3.5 w-3.5" />, className: "text-success-text bg-success-bg dark:text-emerald-200 dark:bg-emerald-400/10" },
+  ANALYZING: { label: "Đang xử lý...", icon: <Loader2 className="h-3.5 w-3.5 animate-spin" />, className: "text-amber-700 bg-amber-50 dark:text-amber-200 dark:bg-amber-400/10" },
 };
 
 const isApprovedStatus = (status?: string) => status === "APPROVED" || status === "AUTO_APPROVED";
@@ -137,26 +137,26 @@ function renderCheckIcon(status: string) {
 function OverviewSlide({ exercise }: { exercise: Exercise }) {
   return (
     <motion.div variants={FADE_UP} className="space-y-5">
-      <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-4 space-y-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-        <h4 className="font-manrope text-xs font-bold text-cyan-200 uppercase tracking-wider flex items-center gap-1.5">
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-3 dark:border-cyan-300/20 dark:bg-cyan-300/10 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+        <h4 className="font-manrope text-xs font-bold text-indigo-700 uppercase tracking-wider flex items-center gap-1.5 dark:text-cyan-200">
           <ClipboardList className="h-3.5 w-3.5" />
           Mô tả đề bài
         </h4>
-        <p className="font-inter text-sm text-slate-100/85 leading-relaxed">{exercise.description}</p>
+        <p className="font-inter text-sm text-indigo-900/80 leading-relaxed dark:text-slate-100/85">{exercise.description}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <motion.div variants={FADE_UP} className="rounded-xl border border-white/10 bg-white/[0.06] p-3.5">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Ngân sách</p>
-          <p className="font-manrope text-lg font-extrabold text-cyan-200">{formatVND(exercise.requirements.budget)}</p>
+        <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 dark:border-white/10 dark:bg-white/[0.06]">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted mb-1 dark:text-slate-400">Ngân sách</p>
+          <p className="font-manrope text-lg font-extrabold text-primary dark:text-cyan-200">{formatVND(exercise.requirements.budget)}</p>
         </motion.div>
-        <motion.div variants={FADE_UP} className="rounded-xl border border-white/10 bg-white/[0.06] p-3.5">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1">Độ khó</p>
+        <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 dark:border-white/10 dark:bg-white/[0.06]">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted mb-1 dark:text-slate-400">Độ khó</p>
           <span className={cn(
             "inline-block rounded-md px-2 py-0.5 text-[11px] font-extrabold border",
-            exercise.difficulty === "easy" ? "border-emerald-300/30 text-emerald-200 bg-emerald-400/10" :
-            exercise.difficulty === "medium" ? "border-amber-300/30 text-amber-200 bg-amber-400/10" :
-            "border-rose-300/30 text-rose-200 bg-rose-400/10"
+            exercise.difficulty === "easy" ? "border-emerald-200 text-emerald-600 bg-emerald-50 dark:border-emerald-300/30 dark:text-emerald-200 dark:bg-emerald-400/10" :
+            exercise.difficulty === "medium" ? "border-amber-200 text-amber-600 bg-amber-50 dark:border-amber-300/30 dark:text-amber-200 dark:bg-amber-400/10" :
+            "border-rose-200 text-rose-600 bg-rose-50 dark:border-rose-300/30 dark:text-rose-200 dark:bg-rose-400/10"
           )}>
             {DIFFICULTY_LABEL[exercise.difficulty] || exercise.difficulty}
           </span>
@@ -164,9 +164,9 @@ function OverviewSlide({ exercise }: { exercise: Exercise }) {
       </div>
 
       {exercise.requirements.constraints.length > 0 && (
-        <motion.div variants={FADE_UP} className="rounded-xl border border-white/10 bg-white/[0.06] p-3.5 space-y-1.5">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-            <AlertTriangle className="h-3 w-3 text-amber-300" />
+        <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 space-y-1.5 dark:border-white/10 dark:bg-white/[0.06]">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted flex items-center gap-1 dark:text-slate-400">
+            <AlertTriangle className="h-3 w-3 text-amber-500 dark:text-amber-300" />
             Ghi chú ràng buộc
           </p>
           <ul className="space-y-1">
@@ -174,9 +174,9 @@ function OverviewSlide({ exercise }: { exercise: Exercise }) {
               <motion.li
                 key={i}
                 variants={FADE_UP}
-                className="flex items-start gap-2 text-xs text-slate-200/80"
+                className="flex items-start gap-2 text-xs text-on-surface-variant dark:text-slate-200/80"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-300/70 mt-1.5 shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/40 mt-1.5 shrink-0 dark:bg-cyan-300/70" />
                 {c}
               </motion.li>
             ))}
@@ -185,15 +185,15 @@ function OverviewSlide({ exercise }: { exercise: Exercise }) {
       )}
 
       {exercise.requirements.hints.length > 0 && (
-        <motion.div variants={FADE_UP} className="rounded-xl border border-amber-300/25 bg-amber-300/10 p-3.5 space-y-1.5">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-200 flex items-center gap-1">
+        <motion.div variants={FADE_UP} className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-1.5 dark:border-amber-300/25 dark:bg-amber-300/10">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-700 flex items-center gap-1 dark:text-amber-200">
             <Sparkles className="h-3 w-3" />
             Gợi ý
           </p>
           <ul className="space-y-1">
             {exercise.requirements.hints.map((h, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs text-amber-100/85 italic">
-                <span className="text-amber-300 mt-0.5">💡</span>
+              <li key={i} className="flex items-start gap-2 text-xs text-amber-800/80 italic dark:text-amber-100/85">
+                <span className="text-amber-500 mt-0.5 dark:text-amber-300">💡</span>
                 {h}
               </li>
             ))}
@@ -237,19 +237,19 @@ function UploadSlide({
         <motion.div
           variants={FADE_UP}
           onClick={() => fileInputRefInner.current?.click()}
-          className="flex flex-col items-center justify-center border-2 border-dashed border-cyan-300/25 rounded-2xl bg-cyan-300/[0.07] hover:bg-cyan-300/[0.11] p-8 text-center cursor-pointer transition-all hover:border-cyan-300/55 min-h-[200px] group"
+          className="flex flex-col items-center justify-center border-2 border-dashed border-indigo-200 rounded-2xl bg-indigo-50/30 hover:bg-indigo-50/60 p-8 text-center cursor-pointer transition-all hover:border-indigo-400 min-h-[200px] group dark:border-cyan-300/25 dark:bg-cyan-300/[0.07] dark:hover:bg-cyan-300/[0.11] dark:hover:border-cyan-300/55"
         >
           <motion.div
             animate={{ y: [0, -6, 0] }}
             transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
           >
-            <UploadCloud className="h-10 w-10 text-cyan-300/80 group-hover:text-cyan-200 transition-colors mb-3" />
+            <UploadCloud className="h-10 w-10 text-indigo-400 group-hover:text-indigo-500 transition-colors mb-3 dark:text-cyan-300/80 dark:group-hover:text-cyan-200" />
           </motion.div>
-          <p className="text-sm font-bold text-slate-50 mb-1">Tải lên ảnh cấu hình máy tính</p>
-          <p className="text-xs text-slate-400 mb-4">Chọn ảnh chụp báo giá</p>
+          <p className="text-sm font-bold text-on-surface mb-1 dark:text-slate-50">Tải lên ảnh cấu hình máy tính</p>
+          <p className="text-xs text-on-muted mb-4 dark:text-slate-400">Chọn ảnh chụp báo giá</p>
 
           <div className="flex gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-white/[0.08] border border-white/10 px-3 py-1.5 text-[10px] font-semibold text-slate-300 shadow-sm">
+            <span className="inline-flex items-center gap-1 rounded-full bg-white border border-surface-container-high px-3 py-1.5 text-[10px] font-semibold text-on-muted shadow-sm dark:bg-white/[0.08] dark:border-white/10 dark:text-slate-300">
               <ImageIcon className="h-3 w-3" />
               Ảnh (JPG, PNG)
             </span>
@@ -265,7 +265,7 @@ function UploadSlide({
       ) : (
         <motion.div
           variants={FADE_UP}
-          className="relative rounded-2xl overflow-hidden border border-white/10 bg-slate-950/45 p-2 min-h-[200px] flex items-center justify-center"
+          className="relative rounded-2xl overflow-hidden border border-surface-container-high bg-black/5 p-2 min-h-[200px] flex items-center justify-center dark:border-white/10 dark:bg-slate-950/45"
         >
           <img src={state.previewImage} alt="Quote" className="w-full object-contain max-h-[220px]" />
           {!state.isAnalyzing && (
@@ -290,7 +290,7 @@ function UploadSlide({
               window.dispatchEvent(event);
             }}
             placeholder="Giải thích ngắn về cấu hình của bạn (tùy chọn)..."
-            className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3.5 py-2.5 text-xs font-inter text-slate-100 placeholder:text-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-cyan-300/30 min-h-[60px]"
+            className="w-full rounded-xl border border-surface-container-high bg-surface-container-lowest px-3.5 py-2.5 text-xs font-inter text-on-surface placeholder:text-on-muted/50 resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 min-h-[60px] dark:border-white/10 dark:bg-white/[0.06] dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-cyan-300/30"
           />
         </motion.div>
       )}
@@ -301,7 +301,7 @@ function UploadSlide({
           <button
             onClick={() => onCancel(exercise.id)}
             disabled={state.submitting}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-slate-200 hover:bg-white/10 transition-all cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-surface-container text-on-surface hover:bg-surface-container-low transition-all cursor-pointer disabled:opacity-50 dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Chọn lại
@@ -309,7 +309,7 @@ function UploadSlide({
           <button
             onClick={() => onSubmit(exercise.id)}
             disabled={state.submitting || state.isAnalyzing}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all shadow-[0_12px_30px_rgba(34,211,238,0.24)] cursor-pointer disabled:opacity-50"
+            className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white transition-all shadow-sm cursor-pointer disabled:opacity-50 dark:bg-cyan-400 dark:bg-none dark:text-slate-950 dark:hover:bg-cyan-300 dark:shadow-[0_12px_30px_rgba(34,211,238,0.24)]"
           >
             {state.submitting ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -346,9 +346,9 @@ function AnalyzingSlide() {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-20 h-20 rounded-2xl bg-cyan-300/10 flex items-center justify-center ring-4 ring-cyan-300/10 border border-cyan-300/20"
+        className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center ring-4 ring-indigo-50 dark:bg-cyan-300/10 dark:bg-none dark:ring-cyan-300/10 dark:border dark:border-cyan-300/20"
       >
-        <Loader2 className="w-10 h-10 text-cyan-300 animate-spin" />
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin dark:text-cyan-300" />
       </motion.div>
 
       <div className="space-y-3 w-full max-w-sm">
@@ -367,26 +367,26 @@ function AnalyzingSlide() {
               className={cn(
                 "flex items-center gap-3 p-3 rounded-xl border transition-all",
                 isActive
-                  ? "border-cyan-300/25 bg-cyan-300/10 shadow-sm"
+                  ? "border-indigo-200 bg-indigo-50 shadow-sm dark:border-cyan-300/25 dark:bg-cyan-300/10"
                   : isDone
-                  ? "border-emerald-300/25 bg-emerald-300/10"
-                  : "border-white/10 bg-white/[0.05]"
+                  ? "border-emerald-200 bg-emerald-50 dark:border-emerald-300/25 dark:bg-emerald-300/10"
+                  : "border-surface-container-high bg-surface-container-low dark:border-white/10 dark:bg-white/[0.05]"
               )}
             >
               <div className={cn(
                 "w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all",
-                isActive ? "bg-cyan-300/15" : isDone ? "bg-emerald-300/15" : "bg-white/10"
+                isActive ? "bg-indigo-100 dark:bg-cyan-300/15" : isDone ? "bg-emerald-100 dark:bg-emerald-300/15" : "bg-surface-mid dark:bg-white/10"
               )}>
                 {isDone ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                 ) : (
-                  <step.icon className={cn("w-4 h-4", isActive ? step.color : "text-slate-500")} />
+                  <step.icon className={cn("w-4 h-4", isActive ? step.color : "text-on-muted dark:text-slate-500")} />
                 )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className={cn(
                   "text-xs font-bold transition-all",
-                  isActive ? "text-cyan-100" : isDone ? "text-emerald-100" : "text-slate-500"
+                  isActive ? "text-indigo-700 dark:text-cyan-100" : isDone ? "text-emerald-700 dark:text-emerald-100" : "text-on-muted dark:text-slate-500"
                 )}>
                   {step.label}
                 </p>
@@ -396,7 +396,7 @@ function AnalyzingSlide() {
                   animate={{ opacity: [1, 0, 1] }}
                   transition={{ repeat: Infinity, duration: 1.5 }}
                 >
-                  <Loader2 className="w-3.5 h-3.5 text-cyan-300 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin dark:text-cyan-300" />
                 </motion.div>
               )}
               {isDone && (
@@ -411,7 +411,7 @@ function AnalyzingSlide() {
         key={progressIndex}
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-xs text-slate-400 text-center max-w-xs"
+        className="text-xs text-on-muted text-center max-w-xs dark:text-slate-400"
       >
         {progressIndex === 0 && "Đang đọc thông tin linh kiện từ ảnh/file của bạn..."}
         {progressIndex === 1 && "AI đang phân loại và xác định từng linh kiện..."}
@@ -446,41 +446,41 @@ function ResultSlide({
         className={cn(
           "flex items-center justify-between gap-3 p-4 rounded-xl border",
           isApproved
-            ? "bg-emerald-300/10 border-emerald-300/25"
+            ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-300/10 dark:border-emerald-300/25"
             : isRejected
-            ? "bg-rose-300/10 border-rose-300/25"
-            : "bg-amber-300/10 border-amber-300/25"
+            ? "bg-rose-50 border-rose-200 dark:bg-rose-300/10 dark:border-rose-300/25"
+            : "bg-amber-50 border-amber-200 dark:bg-amber-300/10 dark:border-amber-300/25"
         )}
       >
         <div className="flex items-center gap-3">
           <div className={cn(
             "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-            isApproved ? "bg-emerald-300/15" : isRejected ? "bg-rose-300/15" : "bg-amber-300/15"
+            isApproved ? "bg-emerald-100 dark:bg-emerald-300/15" : isRejected ? "bg-rose-100 dark:bg-rose-300/15" : "bg-amber-100 dark:bg-amber-300/15"
           )}>
             {isApproved ? (
-              <Trophy className="h-5 w-5 text-emerald-300" />
+              <Trophy className="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
             ) : isRejected ? (
-              <AlertTriangle className="h-5 w-5 text-rose-300" />
+              <AlertTriangle className="h-5 w-5 text-rose-600 dark:text-rose-300" />
             ) : (
-              <AlertTriangle className="h-5 w-5 text-amber-300" />
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-300" />
             )}
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-50">
+            <p className="text-sm font-bold text-on-surface dark:text-slate-50">
               {isApproved ? "Hoàn thành" : isRejected ? "Cần điều chỉnh" : "Đang chờ duyệt"}
             </p>
             {state.approvalReason && (
-              <p className="text-xs text-slate-300/85 mt-0.5 leading-relaxed">{state.approvalReason}</p>
+              <p className="text-xs text-on-muted mt-0.5 leading-relaxed dark:text-slate-300/85">{state.approvalReason}</p>
             )}
           </div>
         </div>
         <span className={cn(
           "inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase border shrink-0",
           isApproved
-            ? "bg-emerald-300/15 text-emerald-100 border-emerald-300/25"
+            ? "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-300/15 dark:text-emerald-100 dark:border-emerald-300/25"
             : isRejected
-            ? "bg-rose-300/15 text-rose-100 border-rose-300/25"
-            : "bg-amber-300/15 text-amber-100 border-amber-300/25"
+            ? "bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-300/15 dark:text-rose-100 dark:border-rose-300/25"
+            : "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-300/15 dark:text-amber-100 dark:border-amber-300/25"
         )}>
           {st.icon}
           {st.label}
@@ -489,16 +489,16 @@ function ResultSlide({
 
       {/* Image preview */}
       {state.previewImage && (
-        <motion.div variants={FADE_UP} className="rounded-xl overflow-hidden border border-white/10 bg-slate-950/45 flex items-center justify-center">
+        <motion.div variants={FADE_UP} className="rounded-xl overflow-hidden border border-surface-container-high bg-black/5 flex items-center justify-center dark:border-white/10 dark:bg-slate-950/45">
           <img src={state.previewImage} alt="Submitted" className="w-full object-contain max-h-[160px]" />
         </motion.div>
       )}
 
       {/* Compatibility checklist */}
       {hasCompatibilityChecks && (
-        <motion.div variants={FADE_UP} className="rounded-xl border border-white/10 bg-white/[0.06] p-3.5 space-y-2">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-            <ShieldCheck className="h-3 w-3 text-emerald-300" />
+        <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 space-y-2 dark:border-white/10 dark:bg-white/[0.06]">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted flex items-center gap-1 dark:text-slate-400">
+            <ShieldCheck className="h-3 w-3 text-emerald-500 dark:text-emerald-300" />
             Kiểm tra tương thích
           </p>
           <div className="space-y-1.5">
@@ -511,7 +511,7 @@ function ResultSlide({
                 className="flex gap-2 items-start text-xs"
               >
                 {renderCheckIcon(check.status)}
-                <span className="text-slate-300">{check.message}</span>
+                <span className="text-on-muted dark:text-slate-300">{check.message}</span>
               </motion.div>
             ))}
           </div>
@@ -520,8 +520,8 @@ function ResultSlide({
 
       {/* Parts list */}
       {state.extractedParts && (Array.isArray(state.extractedParts) ? state.extractedParts.length > 0 : Object.keys(state.extractedParts).length > 0) && (
-        <motion.div variants={FADE_UP} className="rounded-xl border border-white/10 bg-white/[0.06] p-3.5 space-y-2">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+        <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 space-y-2 dark:border-white/10 dark:bg-white/[0.06]">
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted dark:text-slate-400">
             Linh kiện ({Array.isArray(state.extractedParts) ? state.extractedParts.length : Object.keys(state.extractedParts).length})
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -534,16 +534,16 @@ function ResultSlide({
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className="flex items-center justify-between rounded-lg bg-slate-950/35 border border-white/10 px-3 py-2"
+                  className="flex items-center justify-between rounded-lg bg-white border border-surface-container-high px-3 py-2 dark:bg-slate-950/35 dark:border-white/10"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-on-muted truncate dark:text-slate-500">
                       {CATEGORY_LABELS[cat] || cat}
                     </p>
-                    <p className="text-xs font-semibold text-slate-100 truncate">{p.name}</p>
+                    <p className="text-xs font-semibold text-on-surface truncate dark:text-slate-100">{p.name}</p>
                   </div>
                   {p.price > 0 && (
-                    <p className="text-xs font-bold text-cyan-200 ml-2 shrink-0">{formatVND(p.price)}</p>
+                    <p className="text-xs font-bold text-primary ml-2 shrink-0 dark:text-cyan-200">{formatVND(p.price)}</p>
                   )}
                 </motion.div>
               );
@@ -557,14 +557,14 @@ function ResultSlide({
         <motion.div variants={FADE_UP} className="flex justify-end gap-2 pt-1">
           <button
             onClick={() => onCancel(exercise.id)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-slate-200 hover:bg-white/10 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-surface-container text-on-surface hover:bg-surface-container-low transition-all cursor-pointer dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             Làm lại bài này
           </button>
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-white transition-all cursor-pointer dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
           >
             Đóng
             <ChevronRight className="h-3.5 w-3.5" />
@@ -577,7 +577,7 @@ function ResultSlide({
         <motion.div variants={FADE_UP} className="flex justify-end pt-1">
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-white transition-all cursor-pointer dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
           >
             Hoàn tất
             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -600,14 +600,14 @@ function PendingSlide({ state, exercise, onCancel, onClose }: {
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ type: "spring", stiffness: 200, damping: 15 }}
-        className="w-20 h-20 rounded-2xl bg-amber-300/[0.12] flex items-center justify-center ring-4 ring-amber-300/10 border border-amber-300/25"
+        className="w-20 h-20 rounded-2xl bg-amber-100 flex items-center justify-center ring-4 ring-amber-50 dark:bg-amber-300/[0.12] dark:ring-amber-300/10 dark:border dark:border-amber-300/25"
       >
-        <Clock className="w-10 h-10 text-amber-300" />
+        <Clock className="w-10 h-10 text-amber-600 dark:text-amber-300" />
       </motion.div>
 
       <div className="text-center space-y-2">
-        <h3 className="text-lg font-bold text-slate-50">Đang chờ duyệt</h3>
-        <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+        <h3 className="text-lg font-bold text-on-surface dark:text-slate-50">Đang chờ duyệt</h3>
+        <p className="text-xs text-on-muted max-w-xs mx-auto leading-relaxed dark:text-slate-400">
           Cấu hình của bạn đã được ghi nhận và đang chờ hệ thống AI xem xét. Bạn sẽ nhận được thông báo khi có kết quả.
         </p>
       </div>
@@ -615,14 +615,14 @@ function PendingSlide({ state, exercise, onCancel, onClose }: {
       <div className="flex gap-2">
         <button
           onClick={() => onCancel(exercise.id)}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-white/10 text-slate-200 hover:bg-white/10 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border border-surface-container text-on-surface hover:bg-surface-container-low transition-all cursor-pointer dark:border-white/10 dark:text-slate-200 dark:hover:bg-white/10"
         >
           <RotateCcw className="h-3.5 w-3.5" />
           Sửa cấu hình
         </button>
         <button
           onClick={onClose}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all cursor-pointer"
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-primary hover:bg-primary/90 text-white transition-all cursor-pointer dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
         >
           Đóng
         </button>
@@ -639,9 +639,9 @@ function GeneratingAnimation() {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-16 h-16 rounded-2xl bg-cyan-300/10 flex items-center justify-center ring-4 ring-cyan-300/10 border border-cyan-300/20"
+        className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center ring-4 ring-indigo-50 dark:bg-cyan-300/10 dark:ring-cyan-300/10 dark:border dark:border-cyan-300/20"
       >
-        <Sparkles className="w-8 h-8 text-cyan-300 animate-pulse" />
+        <Sparkles className="w-8 h-8 text-indigo-600 animate-pulse dark:text-cyan-300" />
       </motion.div>
 
       <div className="w-full max-w-xs space-y-3">
@@ -653,8 +653,8 @@ function GeneratingAnimation() {
             transition={{ duration: 0.6, delay: i * 0.3, ease: "circOut" }}
             className="flex gap-3 items-center"
           >
-            <div className="h-4 w-1/4 rounded-md bg-white/10" />
-            <div className="h-4 w-3/4 rounded-md bg-cyan-300/10 border border-cyan-300/20" />
+            <div className="h-4 w-1/4 rounded-md bg-slate-200 dark:bg-white/10" />
+            <div className="h-4 w-3/4 rounded-md bg-indigo-100 border border-indigo-200 dark:bg-cyan-300/10 dark:border-cyan-300/20" />
           </motion.div>
         ))}
       </div>
@@ -739,31 +739,31 @@ export default function PcExerciseModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 dark:bg-slate-950/75 dark:backdrop-blur-md">
       <motion.div
         initial={{ scale: 0.93, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.93, opacity: 0, y: 20 }}
         transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-        className="relative w-full max-w-xl overflow-hidden rounded-2xl border border-white/10 bg-[#101a35] text-slate-100 shadow-[0_24px_80px_rgba(0,0,0,0.55)] max-h-[90vh] flex flex-col"
+        className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col dark:border dark:border-white/10 dark:bg-[#101a35] dark:text-slate-100 dark:shadow-[0_24px_80px_rgba(0,0,0,0.55)]"
       >
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_46%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_42%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-40 opacity-0 dark:opacity-100 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.18),transparent_46%),radial-gradient(circle_at_top_right,rgba(99,102,241,0.18),transparent_42%)]" />
         {/* ── Header ── */}
-        <div className="relative shrink-0 flex items-center justify-between px-6 pt-5 pb-3 border-b border-white/10">
+        <div className="relative shrink-0 flex items-center justify-between px-6 pt-5 pb-3 border-b border-slate-100 dark:border-white/10">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-cyan-300/15 border border-cyan-300/25 flex items-center justify-center shrink-0 shadow-sm">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shrink-0 shadow-sm dark:bg-cyan-300/15 dark:bg-none dark:border dark:border-cyan-300/25">
               <Cpu className="h-4 w-4 text-white" />
             </div>
             <div className="min-w-0">
-              <h2 className="text-sm font-extrabold text-slate-50 truncate font-manrope">{exercise.title}</h2>
-              <p className="text-[10px] text-slate-400 truncate">
+              <h2 className="text-sm font-extrabold text-on-surface truncate font-manrope dark:text-slate-50">{exercise.title}</h2>
+              <p className="text-[10px] text-on-muted truncate dark:text-slate-400">
                 {DIFFICULTY_LABEL[exercise.difficulty] || exercise.difficulty} · {formatVND(exercise.requirements.budget)}
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-50 hover:bg-white/10 transition-all cursor-pointer shrink-0"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-on-muted hover:text-on-surface hover:bg-surface-mid transition-all cursor-pointer shrink-0 dark:text-slate-400 dark:hover:text-slate-50 dark:hover:bg-white/10"
           >
             <X className="h-4 w-4" />
           </button>
@@ -843,11 +843,11 @@ export default function PcExerciseModal({
 
         {/* ── Navigation (onboarding only) ── */}
         {showNavigator && (
-          <div className="relative shrink-0 flex items-center justify-between px-6 py-4 border-t border-white/10 bg-slate-950/20">
+          <div className="relative shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-100 dark:border-white/10 dark:bg-slate-950/20">
             <button
               onClick={() => navigate(-1)}
               disabled={step === 0}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-50 hover:bg-white/10 transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium text-on-muted hover:text-on-surface hover:bg-surface-mid transition-all disabled:opacity-30 disabled:pointer-events-none cursor-pointer dark:text-slate-400 dark:hover:text-slate-50 dark:hover:bg-white/10"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
               Quay lại
@@ -860,7 +860,7 @@ export default function PcExerciseModal({
                   key={i}
                   className={cn(
                     "h-1.5 rounded-full transition-all duration-300",
-                    i === step ? "w-5 bg-cyan-300" : "w-1.5 bg-white/20"
+                    i === step ? "w-5 bg-indigo-500 dark:bg-cyan-300" : "w-1.5 bg-slate-200 dark:bg-white/20"
                   )}
                 />
               ))}
@@ -871,7 +871,7 @@ export default function PcExerciseModal({
             ) : (
               <button
                 onClick={() => navigate(1)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-cyan-400 text-slate-950 hover:bg-cyan-300 transition-all shadow-sm cursor-pointer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-sm cursor-pointer dark:bg-cyan-400 dark:text-slate-950 dark:hover:bg-cyan-300"
               >
                 Tiếp theo
                 <ChevronRight className="w-3.5 h-3.5" />
