@@ -765,7 +765,7 @@ export default function PcBuildTrainingClient() {
                             Đã gửi bài thành công
                           </h3>
                           <p className="text-xs text-on-muted max-w-xs mx-auto leading-relaxed font-inter">
-                            Cấu hình của bạn đang trong hàng đợi kiểm tra. Kết quả sẽ được cập nhật sau khi Ban chuyên môn hoàn tất duyệt.
+                            Cấu hình của bạn đang trong hàng đợi kiểm tra. Kết quả sẽ được cập nhật sau khi hệ thống AI hoàn tất duyệt.
                           </p>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-2 w-full pt-2">

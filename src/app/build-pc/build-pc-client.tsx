@@ -227,7 +227,7 @@ export default function BuildPcClient() {
               previewImage: Array.isArray(sub.image_urls) ? sub.image_urls[0] || null : null,
               isAnalyzing,
               analysisStep: isAnalyzing ? "deepseek" : "idle",
-              extractedParts: isAnalyzing ? null : (parts.checks ? parts : null),
+              extractedParts: isAnalyzing ? null : getSubmissionParts(parts),
               compatibilityChecks: isAnalyzing ? null : parts.checks,
               isApproved: sub.status === "APPROVED" || sub.status === "AUTO_APPROVED" || parts.is_approved === true,
               approvalReason: parts.reason || "",
@@ -279,7 +279,7 @@ export default function BuildPcClient() {
                   updateExerciseState(exId, {
                     isAnalyzing: false,
                     analysisStep: "idle",
-                    extractedParts: result.data,
+                    extractedParts: getSubmissionParts(result.data),
                     isApproved: result.status === "AUTO_APPROVED" || result.data?.is_approved === true,
                     approvalReason: result.data?.reason || "",
                     compatibilityChecks: result.data?.checks || null,
@@ -369,7 +369,7 @@ export default function BuildPcClient() {
 
   const handleCancelExercise = async (exId: string) => {
     const state = getExerciseState(exId);
-    if (state.submission_id && state.isDraft) {
+    if (state.submission_id) {
       try {
         await fetch("/api/training/pc-build/cancel", {
           method: "POST",

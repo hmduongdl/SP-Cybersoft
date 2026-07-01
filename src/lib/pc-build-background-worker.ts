@@ -463,33 +463,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
 
     const visionAttempts = [
       {
-        name: "Moonshot Kimi direct",
-        run: async () => {
-          const response = await retryWithBackoff(() =>
-            withTimeout(
-              moonshotAI.chat.completions.create({
-                model: "kimi-k2.5",
-                messages: [
-                  { role: "system", content: extractionPrompt },
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-                    ],
-                  },
-                ],
-                max_tokens: MAX_AI_OUTPUT_TOKENS,
-              }),
-              VISION_EXTRACTION_TIMEOUT_MS
-            ),
-            AI_RETRY_COUNT
-          );
-          return response.choices[0]?.message?.content || "{}";
-        },
-      },
-      {
-        name: "AIBOX vision fallback",
+        name: "AIBOX vision",
         run: async () => {
           const response = await retryWithBackoff(() =>
             withTimeout(
@@ -546,7 +520,11 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
     });
 
     try {
-      await triggerPcBuildCompatibilityJob(id, type);
+      if (IS_VERCEL) {
+        await triggerPcBuildCompatibilityJob(id, type);
+      } else {
+        await processPcBuildCompatibilityFromStored(id, type);
+      }
     } catch (err) {
       if (IS_VERCEL) throw err;
       console.warn("[PcBuildVisionWorker] DeepSeek queue trigger failed locally, running inline:", err);
@@ -795,7 +773,16 @@ BẮT BUỘC chỉ trả về JSON:
             analysis_step: "done",
             analysis_message: "Hoàn tất phân tích cấu hình.",
             extracted_raw: extractedRaw,
-            temp_ai_score: result.isApproved ? 100 : 70,
+            temp_ai_score: result.isApproved ? 100 : (() => {
+              const c = result.checks || {};
+              const entries = Object.values(c) as Array<{ status: string }>;
+              const pass = entries.filter((x: any) => x.status === "PASS").length;
+              const fail = entries.filter((x: any) => x.status === "FAIL").length;
+              const total = entries.length || 1;
+              if (fail === 0 && pass === total) return 45;
+              if (fail >= total / 2) return 25;
+              return 35;
+            })(),
             temp_ai_feedback: feedback,
           },
           ai_score: isDraft ? null : result.isApproved ? 100 : 70,
@@ -1029,7 +1016,7 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
             throw new Error("No MOONSHOT_API_KEY configured in environment");
           }
           console.log("[BackgroundWorker] Attempting extraction with direct Moonshot Kimi API via base64...");
-          
+
           const response = await retryWithBackoff(() =>
             withTimeout(
               moonshotAI.chat.completions.create({
@@ -1053,7 +1040,31 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
           const aiContent = response.choices[0]?.message?.content || "{}";
           console.log("[BackgroundWorker] Moonshot extraction raw preview:", aiContent.slice(0, 500));
           return normalizeExtractionResult(cleanAndParseJSON(aiContent));
-        }
+        },
+        async () => {
+          console.log("[BackgroundWorker] Falling back to AIBOX vision extraction...");
+          const response = await retryWithBackoff(() =>
+            withTimeout(
+              defaultAI.chat.completions.create({
+                model: MODEL_VISION_ONLY,
+                messages: [
+                  { role: "system", content: extractionPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
+                ],
+                max_tokens: 4000,
+              }),
+              VISION_EXTRACTION_TIMEOUT_MS
+            )
+          );
+          const aiContent = response.choices[0]?.message?.content || "{}";
+          return normalizeExtractionResult(cleanAndParseJSON(aiContent));
+        },
       ];
 
       for (const attempt of extractionAttempts) {
@@ -1282,7 +1293,16 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             temp_ai_score: result.isApproved ? 100 : 70,
             temp_ai_feedback: feedback,
           },
-          ai_score: isDraft ? null : (result.isApproved ? 100 : 70),
+          ai_score: isDraft ? null : (result.isApproved ? 100 : (() => {
+              const c = result.checks || {};
+              const entries = Object.values(c) as Array<{ status: string }>;
+              const pass = entries.filter((x: any) => x.status === "PASS").length;
+              const fail = entries.filter((x: any) => x.status === "FAIL").length;
+              const total = entries.length || 1;
+              if (fail === 0 && pass === total) return 45;
+              if (fail >= total / 2) return 25;
+              return 35;
+            })()),
           ai_feedback: isDraft ? null : feedback,
         },
       });

@@ -170,6 +170,7 @@ export function PostTaskAdmin() {
     max_budget: "",
     requirements: "",
     deadline: "",
+    difficulty: "medium",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -333,6 +334,7 @@ export function PostTaskAdmin() {
       max_budget: post.max_budget ? String(post.max_budget) : "",
       requirements: post.requirements || "",
       deadline: post.deadline ? getLocalDateKey(new Date(post.deadline)) : "",
+      difficulty: (post as any).difficulty || "medium",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -798,6 +800,24 @@ export function PostTaskAdmin() {
                       {formErrors.max_budget && (
                         <p className="text-[10px] text-error-text font-semibold">{formErrors.max_budget}</p>
                       )}
+                    </div>
+
+                    {/* Difficulty */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-difficulty">
+                        Độ khó
+                      </label>
+                      <select
+                        id="pc-difficulty"
+                        value={formData.difficulty}
+                        onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
+                      >
+                        <option value="easy">Dễ</option>
+                        <option value="medium">Trung bình</option>
+                        <option value="hard">Khó</option>
+                      </select>
                     </div>
 
                     {/* Requirements */}

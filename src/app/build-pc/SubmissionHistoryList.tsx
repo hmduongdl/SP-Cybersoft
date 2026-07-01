@@ -35,6 +35,7 @@ interface Part {
 
 interface Submission {
   id: string;
+  exercise_id: string;
   status: string;
   submitted_at: string;
   ai_score: number | null;
@@ -231,7 +232,7 @@ function MiniScoreRing({score}:{score:number}) {
 /* ─────────────────────────────────────────
    Detail Modal (redesigned)
    ───────────────────────────────────────── */
-function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>void}) {
+function DetailModal({submission, onClose, onCancelExercise}:{submission:Submission;onClose:()=>void;onCancelExercise?:(exerciseId:string)=>void}) {
   const [lightbox, setLightbox] = useState<string|null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -241,8 +242,9 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
     ? submission.parts_answer as any : null;
 
   const budget = submission.exercise?.requirements?.budget ?? 0;
-  const over   = budget>0&&total>budget;
-  const delta  = total - budget;
+  const hasBudget = budget > 0;
+  const remaining = hasBudget ? budget - total : 0;
+  const overBudget = hasBudget && remaining < 0;
   const imageUrl = Array.isArray(submission.image_urls) ? submission.image_urls[0] : null;
 
   const approved  = isApproved(submission.status);
@@ -258,8 +260,8 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
   const diffConf = DIFFICULTY_CONFIG[submission.exercise.difficulty] || DIFFICULTY_CONFIG.medium;
 
   const scoreColor = score == null ? "" : score >= 80 ? "text-emerald-600" : score >= 60 ? "text-amber-500" : "text-red-500";
-  const totalColor = over ? "text-amber-500" : "text-on-surface";
-  const deltaColor = delta > 0 ? "text-red-500" : "text-emerald-600";
+  const totalColor = overBudget ? "text-amber-500" : "text-on-surface";
+  const remainingColor = !hasBudget ? "text-neutral-400" : overBudget ? "text-red-500" : "text-emerald-600";
 
   // Close on Escape
   useEffect(() => {
@@ -309,6 +311,7 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
         </div>
 
         {/* ══ Section 2 — 3 Metric cards ══ */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
         <div className="grid grid-cols-3 gap-2 px-5 pt-4">
           {/* Card 1 — Score */}
           <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800 p-3 text-center">
@@ -330,11 +333,11 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
 
           {/* Card 3 — Budget comparison */}
           <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800 p-3 text-center">
-            <p className={cn("text-lg font-bold leading-none", deltaColor)}>
-              {delta > 0 ? "+" : ""}{delta.toLocaleString("vi-VN")}₫
+            <p className={cn("text-lg font-bold leading-none", remainingColor)}>
+              {!hasBudget ? "—" : overBudget ? Math.abs(remaining).toLocaleString("vi-VN")+"₫" : "0₫"}
             </p>
             <p className="text-[11px] text-neutral-400 dark:text-neutral-500 mt-1">
-              {delta > 0 ? "Vượt ngân sách" : "Còn lại"}
+              {!hasBudget ? "Không có ngân sách" : overBudget ? "Vượt ngân sách" : "Trong ngân sách"}
             </p>
           </div>
         </div>
@@ -344,7 +347,7 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
           <div className="flex items-start gap-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950 px-4 py-3 mx-5 mt-3">
             <Info className="h-4 w-4 shrink-0 text-blue-500 mt-0.5"/>
             <div>
-              <p className="text-[13px] font-medium text-blue-700 dark:text-blue-300">Đang chờ chuyên môn duyệt</p>
+              <p className="text-[13px] font-medium text-blue-700 dark:text-blue-300">Đang chờ hệ thống AI duyệt</p>
               <p className="text-[12px] text-blue-600 dark:text-blue-400 mt-0.5">
                 Kết quả và điểm số sẽ xuất hiện sau khi được phê duyệt.
               </p>
@@ -467,6 +470,8 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
           </>
         )}
 
+        </div> {/* end scrollable body */}
+
         {/* ══ Footer (sticky) ══ */}
         <div className="sticky bottom-0 bg-white dark:bg-neutral-900 border-t border-neutral-200 dark:border-neutral-800 px-5 py-3 flex items-center justify-between mt-2">
           {/* Status badge */}
@@ -491,7 +496,13 @@ function DetailModal({submission, onClose}:{submission:Submission;onClose:()=>vo
               Đóng
             </button>
             {(pending||rejected) && (
-              <button className="inline-flex items-center gap-1.5 text-[13px] px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer">
+              <button
+                onClick={() => {
+                  onCancelExercise?.(submission.exercise_id);
+                  onClose();
+                }}
+                className="inline-flex items-center gap-1.5 text-[13px] px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors cursor-pointer"
+              >
                 <Pencil className="h-[13px] w-[13px]"/>
                 Sửa cấu hình
               </button>
@@ -660,6 +671,7 @@ export default function SubmissionHistoryList({history, onCancelExercise}: Props
           <DetailModal
             submission={modalSubmission}
             onClose={()=>setModalSubmission(null)}
+            onCancelExercise={onCancelExercise}
           />
         )}
       </AnimatePresence>

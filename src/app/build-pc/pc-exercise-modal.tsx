@@ -508,31 +508,35 @@ function ResultSlide({
       )}
 
       {/* Parts list */}
-      {state.extractedParts && Object.keys(state.extractedParts).length > 0 && (
+      {state.extractedParts && (Array.isArray(state.extractedParts) ? state.extractedParts.length > 0 : Object.keys(state.extractedParts).length > 0) && (
         <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 space-y-2">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted">
-            Linh kiện ({Object.keys(state.extractedParts).length})
+            Linh kiện ({Array.isArray(state.extractedParts) ? state.extractedParts.length : Object.keys(state.extractedParts).length})
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-            {Object.entries(state.extractedParts).map(([category, part]: any, i) => (
-              <motion.div
-                key={category}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="flex items-center justify-between rounded-lg bg-white border border-surface-container-high px-3 py-2"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-on-muted truncate">
-                    {CATEGORY_LABELS[category] || category}
-                  </p>
-                  <p className="text-xs font-semibold text-on-surface truncate">{part.name}</p>
-                </div>
-                {part.price > 0 && (
-                  <p className="text-xs font-bold text-primary ml-2 shrink-0">{formatVND(part.price)}</p>
-                )}
-              </motion.div>
-            ))}
+            {(Array.isArray(state.extractedParts) ? state.extractedParts : Object.entries(state.extractedParts)).map((part: any, i: number) => {
+              const cat = Array.isArray(state.extractedParts) ? part.category || "" : part[0];
+              const p = Array.isArray(state.extractedParts) ? part : part[1];
+              return (
+                <motion.div
+                  key={cat || i}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                  className="flex items-center justify-between rounded-lg bg-white border border-surface-container-high px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[9px] font-bold uppercase tracking-wider text-on-muted truncate">
+                      {CATEGORY_LABELS[cat] || cat}
+                    </p>
+                    <p className="text-xs font-semibold text-on-surface truncate">{p.name}</p>
+                  </div>
+                  {p.price > 0 && (
+                    <p className="text-xs font-bold text-primary ml-2 shrink-0">{formatVND(p.price)}</p>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       )}
@@ -593,7 +597,7 @@ function PendingSlide({ state, exercise, onCancel, onClose }: {
       <div className="text-center space-y-2">
         <h3 className="text-lg font-bold text-on-surface">Đang chờ duyệt</h3>
         <p className="text-xs text-on-muted max-w-xs mx-auto leading-relaxed">
-          Cấu hình của bạn đã được ghi nhận và đang chờ ban chuyên môn xem xét. Bạn sẽ nhận được thông báo khi có kết quả.
+          Cấu hình của bạn đã được ghi nhận và đang chờ hệ thống AI xem xét. Bạn sẽ nhận được thông báo khi có kết quả.
         </p>
       </div>
 

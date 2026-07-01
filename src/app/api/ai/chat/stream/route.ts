@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { searchSimilarNotes } from "@/lib/rag-helper";
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+import { aibox, MODEL_CHAT_FLASH } from "@/lib/aibox";
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,45 +27,42 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Xây dựng System Prompt
-    const systemPrompt = `Bạn là trợ lý ảo cá nhân quản lý công việc siêu việt, thông minh và thân thiện.
-Nhiệm vụ của bạn là trả lời câu hỏi của người dùng dựa TỪNG CHỮ trên thông tin ngữ cảnh được cung cấp bên dưới.
+    const systemPrompt = `Bạn là trợ lý ảo cá nhân quản lý công việc, thông minh và thân thiện.
+Nhiệm vụ của bạn là trả lời câu hỏi của người dùng dựa trên thông tin ngữ cảnh được cung cấp bên dưới.
 Nếu câu hỏi không nằm trong ngữ cảnh, hãy dùng kiến thức chung để trả lời nhưng nhớ báo cho người dùng biết là bạn không tìm thấy dữ liệu trong ghi chú.
 
 YÊU CẦU ĐẶC BIỆT:
-- Khi bạn trích dẫn hoặc nhắc đến một công việc cụ thể lấy từ ngữ cảnh, bạn PHẢI trích nguồn dưới dạng "[task:MÃ_ID_CÔNG_VIỆC]" (ví dụ: [task:12345-abcde...]). Hệ thống sẽ dùng format này để render link có thể click được.
-- Câu trả lời của bạn nên dùng markdown để định dạng đẹp mắt (bold, italic, list).
+- Khi bạn trích dẫn hoặc nhắc đến một công việc cụ thể lấy từ ngữ cảnh, bạn PHẢI trích nguồn dưới dạng "[task:MÃ_ID_CÔNG_VIỆC]" (ví dụ: [task:12345-abcde...]).
+- LUÔN trả lời cực kỳ ngắn gọn, đúng trọng tâm, tối đa 2-3 câu.
+- TUYỆT ĐỐI KHÔNG dùng bảng biểu (markdown tables) trong câu trả lời. Chỉ dùng bullet list ngắn hoặc văn xuôi.
 
 --- NGỮ CẢNH TÌM ĐƯỢC ---
 ${contextString}
 -------------------------`;
 
-    // 4. Khởi tạo mô hình
-    // The user mentioned "deepseek flash", but since we already use Gemini for embeddings, 
-    // gemini-1.5-flash is the standard fast model here.
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-1.5-flash",
-      systemInstruction: systemPrompt 
+    // 4. Khởi tạo DeepSeek Flash model qua ai-box
+    const response = await aibox.chat.completions.create({
+      model: MODEL_CHAT_FLASH,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...(history?.map((msg: any) => ({
+          role: msg.role === "user" ? "user" : "assistant",
+          content: msg.content,
+        })) || []),
+        { role: "user", content: message },
+      ],
+      stream: true,
+      max_tokens: 1000,
     });
 
-    // 5. Build chat history
-    const chat = model.startChat({
-      history: history?.map((msg: any) => ({
-        role: msg.role === "user" ? "user" : "model",
-        parts: [{ text: msg.content }],
-      })) || [],
-    });
-
-    // 6. Streaming Request
-    const result = await chat.sendMessageStream(message);
-
-    // 7. Pipe luồng dữ liệu (SSE)
+    // 5. Pipe luồng dữ liệu (SSE)
     const stream = new ReadableStream({
       async start(controller) {
         try {
-          for await (const chunk of result.stream) {
-            const chunkText = chunk.text();
+          for await (const chunk of response) {
+            const chunkText = chunk.choices?.[0]?.delta?.content || "";
             if (chunkText) {
-              controller.enqueue(`data: ${JSON.stringify({ content: chunkText })}\n\n`);
+              controller.enqueue(\`data: \${JSON.stringify({ content: chunkText })}\n\n\`);
             }
           }
           controller.enqueue("data: [DONE]\n\n");

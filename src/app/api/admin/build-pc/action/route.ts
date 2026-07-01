@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         await db.pcSubmission.update({
           where: { id: submission.id },
           data: {
-            status: "ANALYZING",
+            status: "PENDING",
             parts_answer: {
               ...partsAnswer,
               is_draft: false,
@@ -115,46 +115,25 @@ export async function POST(request: Request) {
           await processPcBuildVision(submission.id, "submission", evidenceUrl);
         }
 
-        // Auto-decision: evaluate AI results
+        // Read the AI's final result — the compatibility function already evaluated everything
         const processed = await db.pcSubmission.findUnique({
           where: { id: submission.id },
-          select: { parts_answer: true },
+          select: { status: true, parts_answer: true },
         });
         const processedParts = getJsonObject(processed?.parts_answer);
-        const checks = processedParts.checks as Record<string, { status: string }> | undefined;
+        const aiApproved = processedParts.is_approved === true;
         const score = typeof processedParts.temp_ai_score === "number" ? processedParts.temp_ai_score : null;
         const aiFeedback = typeof processedParts.temp_ai_feedback === "string" ? processedParts.temp_ai_feedback : "";
 
-        // Auto decision: PASS all checks → APPROVED, any FAIL → REJECTED
-        const hasFail = checks && Object.values(checks).some(c => c.status === "FAIL");
-        const hasWarn = checks && Object.values(checks).some(c => c.status === "WARN");
-
-        let autoStatus: string;
-        let autoReason: string;
-
-        if (hasFail) {
-          autoStatus = "REJECTED";
-          const failChecks = Object.entries(checks || {})
-            .filter(([, c]) => c.status === "FAIL")
-            .map(([k]) => k);
-          autoReason = `Linh kiện không tương thích: ${failChecks.join(", ")}. ${aiFeedback ? `AI: ${aiFeedback}` : ""}`;
-        } else if (score != null && score < 50) {
-          autoStatus = "REJECTED";
-          autoReason = `Điểm đánh giá thấp (${score}/100). ${aiFeedback ? `AI: ${aiFeedback}` : ""}`;
-        } else if (hasWarn) {
-          // WARN only + score ok → approved with note
-          autoStatus = "AUTO_APPROVED";
-          autoReason = aiFeedback || "Đã duyệt (có cảnh báo nhỏ).";
-        } else {
-          autoStatus = "AUTO_APPROVED";
-          autoReason = aiFeedback || "Đã duyệt.";
-        }
+        // Follow AI's decision
+        const finalStatus = aiApproved ? "AUTO_APPROVED" : "REJECTED";
+        const rejectReason = aiApproved ? null : (processedParts.reason as string) || "Không đạt yêu cầu.";
 
         await db.pcSubmission.update({
           where: { id: submission.id },
           data: {
-            status: autoStatus,
-            reject_reason: autoStatus === "REJECTED" ? autoReason : null,
+            status: finalStatus,
+            reject_reason: rejectReason,
             ai_score: score,
             ai_feedback: aiFeedback || null,
             reviewed_by: session.user.id,
@@ -162,9 +141,7 @@ export async function POST(request: Request) {
               ...processedParts,
               is_analyzing: false,
               analysis_step: "done",
-              analysis_message: autoReason,
-              is_approved: autoStatus !== "REJECTED",
-              reason: autoReason,
+              analysis_message: processedParts.reason || "Hoàn tất phân tích tự động.",
               reviewed_locally_at: new Date().toISOString(),
             },
           },
@@ -184,7 +161,7 @@ export async function POST(request: Request) {
         await db.checkin.update({
           where: { id: checkin.id },
           data: {
-            status: "ANALYZING",
+            status: "PENDING",
             build_data: {
               ...buildData,
               is_draft: false,
@@ -221,48 +198,24 @@ export async function POST(request: Request) {
 
         const processed = await db.checkin.findUnique({
           where: { id: checkin.id },
-          select: { build_data: true },
+          select: { status: true, build_data: true },
         });
         const processedData = getJsonObject(processed?.build_data);
-        const checks = processedData.checks as Record<string, { status: string }> | undefined;
-        const score = typeof processedData.temp_ai_score === "number" ? processedData.temp_ai_score : null;
-        const aiFeedback = typeof processedData.temp_ai_feedback === "string" ? processedData.temp_ai_feedback : "";
-
-        const hasFail = checks && Object.values(checks).some(c => c.status === "FAIL");
-        const hasWarn = checks && Object.values(checks).some(c => c.status === "WARN");
-
-        let autoStatus: string;
-        let autoReason: string;
-
-        if (hasFail) {
-          autoStatus = "REJECTED";
-          const failChecks = Object.entries(checks || {})
-            .filter(([, c]) => c.status === "FAIL")
-            .map(([k]) => k);
-          autoReason = `Linh kiện không tương thích: ${failChecks.join(", ")}. ${aiFeedback ? `AI: ${aiFeedback}` : ""}`;
-        } else if (score != null && score < 50) {
-          autoStatus = "REJECTED";
-          autoReason = `Điểm đánh giá thấp (${score}/100). ${aiFeedback ? `AI: ${aiFeedback}` : ""}`;
-        } else if (hasWarn) {
-          autoStatus = "AUTO_APPROVED";
-          autoReason = aiFeedback || "Đã duyệt (có cảnh báo nhỏ).";
-        } else {
-          autoStatus = "AUTO_APPROVED";
-          autoReason = aiFeedback || "Đã duyệt.";
-        }
+        const aiApproved = processedData.is_approved === true;
+        const finalStatus = aiApproved ? "AUTO_APPROVED" : "REJECTED";
+        const rejectReason = aiApproved ? null : (processedData.reason as string) || "Không đạt yêu cầu.";
 
         await db.checkin.update({
           where: { id: checkin.id },
           data: {
-            status: autoStatus,
-            reject_reason: autoStatus === "REJECTED" ? autoReason : null,
+            status: finalStatus,
+            reject_reason: rejectReason,
+            reviewed_by: session.user.id,
             build_data: {
               ...processedData,
               is_analyzing: false,
               analysis_step: "done",
-              analysis_message: autoReason,
-              is_approved: autoStatus !== "REJECTED",
-              reason: autoReason,
+              analysis_message: processedData.reason || "Hoàn tất phân tích tự động.",
               reviewed_locally_at: new Date().toISOString(),
             },
           },
@@ -459,7 +412,15 @@ export async function POST(request: Request) {
 
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
-    return NextResponse.json({ success: true });
+    // Collect results for client-side update
+    const results = action === "PROCESS"
+      ? await db.pcSubmission.findMany({
+          where: { id: { in: pcSubmissionIds } },
+          select: { id: true, status: true, ai_score: true, ai_feedback: true, reject_reason: true },
+        })
+      : [];
+
+    return NextResponse.json({ success: true, results });
   } catch (err: unknown) {
     console.error("[admin/build-pc/action]", err);
     return NextResponse.json({ error: "Lỗi server." }, { status: 500 });

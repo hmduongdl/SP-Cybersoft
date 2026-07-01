@@ -189,7 +189,11 @@ export default function BuildPcQueueClient({
 
       setProcessingAction(null);
       toast.success("AI đã phân tích và ra quyết định tự động.");
-      router.refresh();
+      // Navigate to REVIEWED tab to see results
+      const p = new URLSearchParams(searchParams.toString());
+      p.set("tab", "REVIEWED");
+      p.set("module", "build-pc");
+      router.push(`/admin/queue?${p.toString()}`);
     } catch (err: unknown) {
       clearInterval(intervalId);
       toast.error(err instanceof Error ? err.message : "Lỗi xử lý.");
@@ -229,7 +233,7 @@ export default function BuildPcQueueClient({
                 : "text-on-muted hover:bg-surface-container-low"
             )}
           >
-            {tab === "PENDING" ? <Clock className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
+            {tab === "PENDING" ? <Clock className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
             {tab === "PENDING" ? `Chờ xử lý (${pendingCount})` : `Đã xử lý (${reviewedCount})`}
           </button>
         ))}
@@ -495,7 +499,10 @@ export default function BuildPcQueueClient({
                             </div>
                           </div>
                         )}
-                        {/* AI Analysis Details */}
+                        {/* AI Analysis Details will start here in the expanded view */}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
