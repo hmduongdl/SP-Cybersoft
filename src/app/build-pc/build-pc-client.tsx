@@ -28,6 +28,7 @@ import {
   DAILY_PC_SUBMISSION_MAX,
   getStartOfDayVN,
 } from "@/lib/pc-kho";
+import * as XLSX from "xlsx";
 
 type Tab = "exercises" | "guides" | "history";
 
@@ -319,17 +320,54 @@ export default function BuildPcClient() {
       const nameLower = file.name.toLowerCase();
       const typeLower = (file.type || "").toLowerCase();
       const isExcel = nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls") || typeLower.includes("spreadsheetml") || typeLower.includes("excel");
-      let base64Data = "";
+
       if (isExcel) {
-        base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (error) => reject(error);
+        // === EXCEL FAST PATH: parse client-side, skip Vision AI step ===
+        updateExerciseState(exId, { previewImage: "excel-parsed", isAnalyzing: true, analysisStep: "vision" });
+
+        const extracted = await (async () => {
+          try {
+            const arrayBuffer = await file.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, { type: "array" });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+            const items: { name: string; quantity: number; price: number; total: number }[] = [];
+            let totalAmount = 0;
+            for (const row of rows) {
+              if (!row || row.length < 2) continue;
+              const name = row.map((c: any) => (c != null ? String(c).trim() : "")).find((c) => c.length > 3 && /[a-zA-ZÀ-ỹ]/.test(c)) || "";
+              if (!name) continue;
+              const numbers = row.map((c: any) => { const s = String(c || "").replace(/[^0-9]/g, ""); return s ? Number(s) : 0; }).filter((n) => n > 0);
+              const price = numbers.filter((n) => n >= 50000).sort((a, b) => b - a)[0] || 0;
+              const quantity = numbers.find((n) => n >= 1 && n <= 20) || 1;
+              if (price > 0) { items.push({ name, quantity, price, total: price * quantity }); totalAmount += price * quantity; }
+            }
+            return items.length > 0 ? { items, total_amount: totalAmount, currency: "VND" } : null;
+          } catch { return null; }
+        })();
+
+        if (!extracted) throw new Error("Không đọc được linh kiện từ file Excel. Thử file khác hoặc dùng ảnh chụp.");
+
+        const res = await fetch("/api/build-pc/submissions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            exercise_id: exId,
+            image_urls: ["excel-parsed"],
+            explanation: "Bản nháp phân tích cấu hình cho bài tập...",
+            extracted_items: extracted,
+          }),
         });
-      } else {
-        base64Data = await compressImage(file);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        updateExerciseState(exId, { submission_id: data.submission?.id || data.submission_id, isAnalyzing: true, status: "PENDING", isDraft: true, analysisStep: "deepseek" });
+        toast.success(`Đã đọc ${extracted.items.length} linh kiện từ Excel. AI đang phân tích...`);
+        fetchData();
+        return;
       }
+
+      // === IMAGE PATH ===
+      const base64Data = await compressImage(file);
       updateExerciseState(exId, { previewImage: base64Data, isAnalyzing: true, analysisStep: "vision" });
 
       const res = await fetch("/api/build-pc/submissions", {
@@ -338,7 +376,7 @@ export default function BuildPcClient() {
         body: JSON.stringify({
           exercise_id: exId,
           image_urls: [base64Data],
-          explanation: "Bản nháp phân tích cấu hình cho bài tập...", // Temporary placeholder (>=20 chars)
+          explanation: "Bản nháp phân tích cấu hình cho bài tập...",
         }),
       });
       const data = await res.json();
@@ -351,7 +389,7 @@ export default function BuildPcClient() {
         isDraft: true,
       });
 
-	      toast.success("Đang tải lên, chút xíu nha...");
+      toast.success("Đang tải lên, chút xíu nha...");
       fetchData();
     } catch (err: any) {
       toast.error(err.message || "Tải ảnh bị lỗi, thử lại nha.");

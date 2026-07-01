@@ -39,6 +39,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatVND } from "@/lib/pc-kho";
+import * as XLSX from "xlsx";
 
 interface PcBuildTask {
   id: string;
@@ -339,22 +340,110 @@ export default function PcBuildTrainingClient() {
     });
   };
 
+  // Parse Excel file on the client-side using xlsx library - avoids sending 110KB+ binary to server
+  const parseExcelClientSide = async (file: File): Promise<{ items: { name: string; quantity: number; price: number; total: number }[]; total_amount: number; currency: string } | null> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+      const items: { name: string; quantity: number; price: number; total: number }[] = [];
+      let totalAmount = 0;
+
+      for (const row of rows) {
+        if (!row || row.length < 2) continue;
+        // Find the name cell: first string cell with length > 3 and letters
+        const name = row
+          .map((c: any) => (c !== null && c !== undefined ? String(c).trim() : ""))
+          .find((c) => c.length > 3 && /[a-zA-ZÀ-ỹ]/.test(c)) || "";
+        if (!name) continue;
+
+        // Extract all positive numbers from the row
+        const numbers = row
+          .map((c: any) => {
+            const s = String(c || "").replace(/[^0-9]/g, "");
+            return s ? Number(s) : 0;
+          })
+          .filter((n) => n > 0);
+
+        // Heuristic: price is the largest number >= 50,000 (VND component prices)
+        const price = numbers.filter((n) => n >= 50000).sort((a, b) => b - a)[0] || 0;
+        const quantity = numbers.find((n) => n >= 1 && n <= 20) || 1;
+        const total = price * quantity;
+
+        if (price > 0) {
+          items.push({ name, quantity, price, total });
+          totalAmount += total;
+        }
+      }
+
+      if (items.length === 0) return null;
+      return { items, total_amount: totalAmount, currency: "VND" };
+    } catch (err) {
+      console.error("[parseExcelClientSide] Failed:", err);
+      return null;
+    }
+  };
+
   const handleImageFileProcessing = async (taskId: string, file: File) => {
     try {
       const nameLower = file.name.toLowerCase();
       const typeLower = (file.type || "").toLowerCase();
       const isExcel = nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls") || typeLower.includes("spreadsheetml") || typeLower.includes("excel");
-      let base64Data = "";
+
       if (isExcel) {
-        base64Data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = (error) => reject(error);
+        // === EXCEL FAST PATH: parse client-side, skip Vision AI step (saves ~15-20s) ===
+        updateTaskState(taskId, {
+          previewImage: "excel-parsed",
+          isAnalyzing: true,
+          analysisError: null,
+          analysisMessage: "Đang đọc file Excel...",
+          submittedAt: new Date().toISOString(),
+          analysisStep: "vision",
         });
-      } else {
-        base64Data = await compressImage(file);
+
+        const extracted = await parseExcelClientSide(file);
+        if (!extracted || extracted.items.length === 0) {
+          throw new Error("Không đọc được linh kiện từ file Excel. Thử file khác hoặc dùng ảnh chụp.");
+        }
+
+        updateTaskState(taskId, {
+          analysisMessage: `Đã đọc ${extracted.items.length} dòng từ Excel. Đang gửi lên AI kiểm tra...`,
+        });
+
+        const res = await fetch("/api/training/pc-build/submit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pc_task_id: taskId,
+            image_url: "excel-parsed",
+            explanation: "",
+            extracted_items: extracted,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        updateTaskState(taskId, {
+          checkin_id: data.checkin_id,
+          isAnalyzing: true,
+          analysisError: null,
+          analysisMessage: "AI đang kiểm tra tương thích linh kiện...",
+          submittedAt: new Date().toISOString(),
+          status: "PENDING",
+          isDraft: true,
+          analysisStep: "deepseek",
+        });
+
+        toast.success(`Đã đọc ${extracted.items.length} linh kiện từ Excel. AI đang phân tích...`);
+        fetchTasks();
+        return;
       }
+
+      // === IMAGE PATH ===
+      const base64Data = await compressImage(file);
 
       updateTaskState(taskId, {
         previewImage: base64Data,
@@ -387,13 +476,14 @@ export default function PcBuildTrainingClient() {
         isDraft: true,
       });
 
-	      toast.success("Đang tải lên & kiểm tra cấu hình...");
+      toast.success("Đang tải lên & kiểm tra cấu hình...");
       fetchTasks();
     } catch (err: any) {
       toast.error(err.message || "Tải ảnh thất bại.");
       updateTaskState(taskId, { previewImage: null, isAnalyzing: false });
     }
   };
+
 
   const handleImageSelect = async (taskId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
