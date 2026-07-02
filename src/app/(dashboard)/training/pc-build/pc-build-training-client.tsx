@@ -672,7 +672,7 @@ export default function PcBuildTrainingClient() {
           const isResultView = !!state.previewImage;
 
           const checksAnimDelay = 0.5;
-          const checkKeys = ["socket", "ram", "power", "case", "budget"];
+          const checkKeys = ["requirement_fit", "socket", "cooler_socket", "ram", "power", "case", "budget"];
           
           const parts = state.extractedParts;
           const partsKeys = parts ? Object.keys(parts).filter(k => {
@@ -947,7 +947,9 @@ export default function PcBuildTrainingClient() {
                                       </div>
                                       <div className="text-xs">
                                         <p className="font-bold text-on-surface">
-                                          {key === "socket" ? "Socket CPU & Mainboard" :
+                                          {key === "requirement_fit" ? "Đối chiếu yêu cầu đề bài" :
+                                           key === "socket" ? "Socket CPU & Mainboard" :
+                                           key === "cooler_socket" ? "Tản nhiệt & Socket CPU" :
                                            key === "ram" ? "Chuẩn thế hệ RAM" :
                                            key === "power" ? "Công suất Nguồn (PSU)" :
                                            key === "case" ? "Kích thước vỏ máy (Case)" :
