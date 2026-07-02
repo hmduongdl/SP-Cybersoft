@@ -4,6 +4,7 @@ import { CACHE_TAGS } from "@/lib/cache";
 import { runVisionCheck } from "@/lib/ai-vision-check";
 import { updateUserTrustScore } from "@/lib/trust-score";
 import { hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
+import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
 
 const AUTO_APPROVE_TRUST_THRESHOLD = 70;
 const AUTO_APPROVE_CONFIDENCE_THRESHOLD = 0.82;
@@ -132,6 +133,17 @@ export async function processBackgroundCheckinReview(checkinId: string) {
     if (canAutoApprove) {
       await updateUserTrustScore(checkin.user_id, "AUTO_APPROVED", checkin.post_id ?? undefined);
     }
+
+    await sendAiReviewCompletedEmail({
+      to: checkin.user.email,
+      userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
+      itemTitle: checkin.post.title,
+      itemType: "Check-in Like/Share",
+      status: canAutoApprove ? "approved" : "needs_review",
+      analysis: visionResult.reason,
+      reviewPath: `/reports?checkinId=${checkin.id}`,
+      extractedTitle: visionResult.extractedTitle,
+    });
 
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
     revalidateTag(CACHE_TAGS.POSTS_LIST, "default");

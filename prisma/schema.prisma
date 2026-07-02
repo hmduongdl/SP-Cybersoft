@@ -47,6 +47,8 @@ model User {
   workspaces            Workspace[]             @relation("UserWorkspaces")
   collaborators         WorkspaceCollaborator[]
 
+  notifications Notification[]
+
   @@index([email])
 }
 
@@ -57,7 +59,9 @@ model PcBuildTask {
   customer_need String
   max_budget    Float
   requirements  String
+  difficulty    String    @default("medium")
   deadline      DateTime?
+  is_archived   Boolean   @default(false)
   created_at    DateTime  @default(now())
   submissions   Checkin[]
 
@@ -86,6 +90,7 @@ model Checkin {
   image_url             String
   exif_time             DateTime?
   submitted_at          DateTime      @default(now())
+  reviewed_at           DateTime?
   status                CheckinStatus @default(PENDING)
   reject_reason         String?
   is_ai_flagged         Boolean       @default(false)
@@ -138,6 +143,7 @@ model PcSubmission {
   explanation   String
   image_urls    Json          @default("[]")
   submitted_at  DateTime      @default(now())
+  reviewed_at   DateTime?
   status        CheckinStatus @default(PENDING)
   reject_reason String?
   reviewed_by   String?
@@ -150,6 +156,24 @@ model PcSubmission {
   @@index([user_id, submitted_at])
   @@index([status])
   @@index([exercise_id])
+}
+
+/// Thông báo trong ứng dụng — gửi tới user khi có kết quả duyệt bài, v.v.
+model Notification {
+  id              String   @id @default(uuid())
+  user_id         String
+  type            String   /// PC_BUILD_APPROVED | PC_BUILD_REJECTED | ...
+  title           String
+  message         String
+  reference_id    String?  /// ID của submission/checkin liên quan
+  reference_type  String?  /// "pc_submission" | "checkin" | ...
+  is_read         Boolean  @default(false)
+  created_at      DateTime @default(now())
+  read_at         DateTime?
+  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id, is_read])
+  @@index([user_id, created_at])
 }
 
 model SystemSetting {

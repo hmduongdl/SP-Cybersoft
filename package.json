@@ -1,12 +1,14 @@
 {
-    "name": "teamwork-check-dashboard",
+    "name": "sp-cybersoft-dashboard",
     "version": "0.1.0",
     "private": true,
     "scripts": {
         "dev": "next dev",
         "build": "prisma generate && next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "email:test-welcome": "tsx scripts/send-welcome.ts",
+        "email:db-welcome": "tsx scripts/send-welcome-from-db.ts"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.11.2",
@@ -20,6 +22,8 @@
         "@mantine/core": "^9.3.2",
         "@mantine/hooks": "^9.3.2",
         "@prisma/client": "^5.16.0",
+        "@react-email/components": "^1.0.12",
+        "@react-email/render": "^2.0.9",
         "@types/sharp": "^0.31.1",
         "@uploadthing/react": "^7.3.3",
         "@vercel/blob": "^2.4.0",
@@ -45,6 +49,7 @@
         "recharts": "^3.8.1",
         "rehype-raw": "^7.0.0",
         "remark-gfm": "^4.0.1",
+        "resend": "^6.16.0",
         "shadcn": "^4.11.0",
         "sharp": "^0.35.2",
         "sonner": "^2.0.7",

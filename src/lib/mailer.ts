@@ -1,30 +1,28 @@
 /**
- * mailer.ts - Cấu hình Nodemailer transporter dùng chung với Gmail
- * Sử dụng Gmail App Password để xác thực, không lộ credentials ra client
+ * mailer.ts - Resend email client dùng chung cho server routes/scripts.
  */
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-// Cache transporter để tránh tạo lại mỗi lần gửi
-let transporter: nodemailer.Transporter | null = null;
+let resend: Resend | null = null;
 
-function getTransporter(): nodemailer.Transporter {
-  if (transporter) return transporter;
+function getResend(): Resend {
+  if (resend) return resend;
 
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-
-  if (!user || !pass) {
-    throw new Error(
-      "Thiếu biến môi trường GMAIL_USER hoặc GMAIL_APP_PASSWORD. Vui lòng kiểm tra file .env.local"
-    );
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("Thiếu biến môi trường RESEND_API_KEY. Vui lòng kiểm tra file .env.local");
   }
 
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user, pass },
-  });
+  resend = new Resend(apiKey);
+  return resend;
+}
 
-  return transporter;
+function getFromAddress(): string {
+  const domain = process.env.RESEND_EMAIL_DOMAIN || "sp-cybersoft.com";
+  const fromEmail = process.env.RESEND_FROM_EMAIL || `noreply@${domain}`;
+  const fromName = process.env.RESEND_FROM_NAME || "SP-Cybersoft";
+
+  return `"${fromName}" <${fromEmail}>`;
 }
 
 /** Tham số cho hàm sendMail */
@@ -34,21 +32,21 @@ export interface SendMailParams {
   html: string;
 }
 
-/**
- * Gửi email qua Gmail SMTP
- * Throw error nếu thất bại để phía caller xử lý
- */
+/** Gửi email qua Resend. Throw error nếu thất bại để phía caller xử lý. */
 export async function sendMail({ to, subject, html }: SendMailParams): Promise<void> {
-  const transport = getTransporter();
-
   try {
-    const info = await transport.sendMail({
-      from: `"Teamwork Check" <${process.env.GMAIL_USER}>`,
+    const { data, error } = await getResend().emails.send({
+      from: getFromAddress(),
       to,
       subject,
       html,
     });
-    console.log(`[mailer] Email sent: ${info.messageId} → ${to}`);
+
+    if (error) {
+      throw error;
+    }
+
+    console.log(`[mailer] Email sent: ${data?.id ?? "unknown"} -> ${to}`);
   } catch (error) {
     console.error("[mailer] Failed to send email:", error);
     throw error;

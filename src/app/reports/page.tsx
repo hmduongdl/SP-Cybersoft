@@ -42,6 +42,10 @@ export default async function ReportsPage() {
     submittedAt: c.submitted_at.toISOString(),
     status: c.status,
     rejectReason: c.reject_reason || "",
+    aiAnalysisReason: c.ai_analysis_reason || "",
+    aiConfidence: c.ai_confidence,
+    aiExtractedTitle: c.ai_extracted_title || "",
+    aiExtractedUsername: c.ai_extracted_username || "",
   }));
 
   return (

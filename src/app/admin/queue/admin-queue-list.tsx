@@ -2,7 +2,7 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import QueueClient from "./queue-client";
 import BuildPcQueueClient from "./build-pc-queue-client";
-import { getCachedAllCheckins, getCachedAllPcSubmissions } from "@/lib/cache";
+import { getCachedAllCheckins, getCachedAllPcBuildCheckins, getCachedAllPcSubmissions } from "@/lib/cache";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,7 @@ const PER_PAGE = 9;
 
 function getTabFilter(status: string, module: string): string[] {
   if (module === "build-pc") {
-    if (status === "REVIEWED") return ["APPROVED", "REJECTED"];
+    if (status === "REVIEWED") return ["APPROVED", "REJECTED", "AUTO_APPROVED"];
     return ["PENDING"];
   }
   if (status === "AUTO_APPROVED") return ["AUTO_APPROVED"];
@@ -19,8 +19,44 @@ function getTabFilter(status: string, module: string): string[] {
 }
 
 function isSubmittedPcSubmission(submission: { parts_answer: unknown }) {
-  const parts = submission.parts_answer as { is_draft?: unknown; is_analyzing?: unknown } | null;
-  return parts?.is_draft === false && parts?.is_analyzing !== true;
+  const parts = submission.parts_answer as { is_draft?: unknown } | null;
+  // Include all non-draft submissions regardless of analyzing state so they never disappear
+  return parts?.is_draft !== true;
+}
+
+function isSubmittedPcBuildCheckin(checkin: { build_data: unknown }) {
+  const buildData = checkin.build_data as { is_draft?: unknown } | null;
+  return buildData?.is_draft !== true;
+}
+
+function mapPcBuildCheckinToQueueItem(checkin: any) {
+  const buildData = checkin.build_data && typeof checkin.build_data === "object" ? checkin.build_data : {};
+  const pcTask = checkin.pc_task;
+
+  return {
+    id: `checkin:${checkin.id}`,
+    status: checkin.status,
+    submitted_at: checkin.submitted_at,
+    reviewed_at: checkin.reviewed_at,
+    explanation: buildData.explanation || "",
+    parts_answer: buildData,
+    image_urls: checkin.image_url ? [checkin.image_url] : [],
+    ai_score: typeof buildData.temp_ai_score === "number" ? buildData.temp_ai_score : null,
+    ai_feedback: typeof buildData.temp_ai_feedback === "string" ? buildData.temp_ai_feedback : null,
+    reject_reason: checkin.reject_reason,
+    user: checkin.user,
+    exercise: {
+      id: pcTask?.id || checkin.pc_task_id || checkin.id,
+      title: pcTask?.customer_need ? `Training: ${pcTask.customer_need}` : "Bài training Build PC",
+      description: pcTask?.requirements || "",
+      difficulty: "training",
+      requirements: {
+        budget: Number(pcTask?.max_budget) || undefined,
+        useCase: pcTask?.customer_need || "",
+      },
+      exercise_date: pcTask?.date || checkin.submitted_at,
+    },
+  };
 }
 
 function getExerciseTime(submission: { exercise?: { exercise_date?: Date | string | null } | null }) {
@@ -43,12 +79,16 @@ export default async function AdminQueueList(props: {
   const deptFilter = searchParams?.dept || "ALL";
   const module = searchParams?.module || "like-share";
 
-  const [allCheckins, allPcSubmissions] = await Promise.all([
+  const [allCheckins, allPcSubmissions, allPcBuildCheckins] = await Promise.all([
     getCachedAllCheckins(),
     getCachedAllPcSubmissions(),
+    getCachedAllPcBuildCheckins(),
   ]);
 
-  const submittedPcSubmissions = allPcSubmissions.filter(isSubmittedPcSubmission);
+  const submittedPcSubmissions = [
+    ...allPcSubmissions.filter(isSubmittedPcSubmission),
+    ...allPcBuildCheckins.filter(isSubmittedPcBuildCheckin).map(mapPcBuildCheckinToQueueItem),
+  ];
   const pcPendingCount = submittedPcSubmissions.filter((s) => s.status === "PENDING").length;
   const likeSharePendingCount = allCheckins.filter((c) => c.status === "PENDING").length;
 
@@ -73,13 +113,19 @@ export default async function AdminQueueList(props: {
       if (exerciseDiff !== 0) return exerciseDiff;
       const titleDiff = (a.exercise?.title || "").localeCompare(b.exercise?.title || "", "vi");
       if (titleDiff !== 0) return titleDiff;
+      // REVIEWED tab: sort by reviewed_at descending; PENDING: by submitted_at
+      if (activeTab === "REVIEWED") {
+        const aTime = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0;
+        const bTime = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0;
+        return bTime - aTime;
+      }
       return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
     });
 
     const totalPages = Math.ceil(filtered.length / PER_PAGE);
     const paginated = filtered.slice((page - 1) * PER_PAGE, page * PER_PAGE);
     const reviewedCount = submittedPcSubmissions.filter(
-      (s) => s.status === "APPROVED" || s.status === "REJECTED"
+      (s) => s.status === "APPROVED" || s.status === "REJECTED" || s.status === "AUTO_APPROVED"
     ).length;
 
     return (

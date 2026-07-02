@@ -4,8 +4,6 @@ import React, { useEffect, useState } from "react";
 import { toast, Toaster } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Check,
-  X,
   Search,
   Clock,
   Loader2,
@@ -13,6 +11,11 @@ import {
   ChevronDown,
   ImageIcon,
   Sparkles,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  X,
+  ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -28,11 +31,12 @@ interface PcSubmissionItem {
   parts_answer:
     | Array<{ name: string; price: number; category: string; reason?: string }>
     | {
-        parts?: Array<{ name: string; price: number; category: string; reason?: string }>;
-        total_price?: number;
-        temp_ai_score?: number;
-        temp_ai_feedback?: string;
-      };
+      parts?: Array<{ name: string; price: number; category: string; reason?: string }>;
+      total_price?: number;
+      temp_ai_score?: number;
+      temp_ai_feedback?: string;
+      [key: string]: unknown;
+    };
   image_urls: string[];
   ai_score: number | null;
   ai_feedback: string | null;
@@ -65,11 +69,25 @@ interface Props {
   reviewedCount?: number;
 }
 
-const presetReasons = ["Linh kiện không tương thích", "Vượt ngân sách", "Giải thích chưa đủ", "Sai yêu cầu đề bài"];
-
 function getSubmissionParts(partsAnswer: PcSubmissionItem["parts_answer"]) {
   if (Array.isArray(partsAnswer)) return partsAnswer;
-  return Array.isArray(partsAnswer?.parts) ? partsAnswer.parts : [];
+  if (Array.isArray(partsAnswer?.parts)) return partsAnswer.parts;
+  if (!partsAnswer || typeof partsAnswer !== "object") return [];
+
+  return Object.entries(partsAnswer)
+    .filter(([key, value]) =>
+      !["total_price", "checks", "reason", "is_analyzing", "explanation", "is_draft", "is_approved", "temp_ai_score", "temp_ai_feedback", "extracted_raw", "analysis_step", "analysis_message"].includes(key) &&
+      value &&
+      typeof value === "object" &&
+      "name" in value
+    )
+    .map(([category, value]) => ({
+      category,
+      name: String((value as any).name || ""),
+      price: Number((value as any).price) || 0,
+      reason: "",
+    }))
+    .filter((part) => part.name);
 }
 
 function getSubmissionTotal(partsAnswer: PcSubmissionItem["parts_answer"], parts: ReturnType<typeof getSubmissionParts>) {
@@ -77,6 +95,10 @@ function getSubmissionTotal(partsAnswer: PcSubmissionItem["parts_answer"], parts
     return partsAnswer.total_price;
   }
   return parts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+}
+
+function isRenderableImageUrl(url: string) {
+  return url.startsWith("data:image/") || /^https?:\/\//.test(url);
 }
 
 function groupSubmissionsByExercise(submissions: PcSubmissionItem[]) {
@@ -109,22 +131,33 @@ export default function BuildPcQueueClient({
   const searchParams = useSearchParams();
   const [submissions, setSubmissions] = useState(initialSubmissions);
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [deptFilter, setDeptFilter] = useState(initialDept);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
+  const [processingAction, setProcessingAction] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [progressStep, setProgressStep] = useState("");
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setSubmissions(initialSubmissions);
     setActiveTab(initialTab);
     setSearchTerm(initialSearch);
     setDeptFilter(initialDept);
-    setSelectedIds(new Set());
     setExpandedId(null);
   }, [initialSubmissions, initialTab, initialSearch, initialDept]);
+
+  useEffect(() => {
+    if (!zoomImageUrl) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setZoomImageUrl(null);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [zoomImageUrl]);
 
   const updateUrl = (params: Record<string, string>) => {
     const p = new URLSearchParams(searchParams.toString());
@@ -135,29 +168,62 @@ export default function BuildPcQueueClient({
     router.push(`/admin/queue?${p.toString()}`);
   };
 
-  const handleAction = async (ids: string[], action: "APPROVE" | "REJECT", reason?: string) => {
+  const handleProcess = async (ids: string[]) => {
     setLoading(true);
+    setProcessingAction("PROCESS");
+    setProgress(5);
+    setProgressStep("Đang kết nối API AI...");
+
+    let currentProgress = 5;
+    const intervalId = setInterval(() => {
+      if (currentProgress < 95) {
+        currentProgress += Math.floor(Math.random() * 5) + 2;
+        if (currentProgress > 95) currentProgress = 95;
+        setProgress(currentProgress);
+        if (currentProgress < 30) setProgressStep("Đang đọc hình ảnh và trích xuất specs (AI Vision)...");
+        else if (currentProgress < 65) setProgressStep("Đang chuyển cấu hình sang DeepSeek...");
+        else if (currentProgress < 85) setProgressStep("DeepSeek đang phân loại và đối chiếu tương thích...");
+        else setProgressStep("AI đang đánh giá và ra quyết định tự động...");
+      }
+    }, 400);
+
     try {
       const res = await fetch("/api/admin/build-pc/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionIds: ids, action, rejectReason: reason }),
+        body: JSON.stringify({ submissionIds: ids, action: "PROCESS" }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setSubmissions((prev) =>
-        prev.map((s) =>
-          ids.includes(s.id)
-            ? { ...s, status: action === "APPROVE" ? "APPROVED" : "REJECTED", reject_reason: reason || null }
-            : s
-        )
-      );
-      setSelectedIds(new Set());
-      setRejectingId(null);
-      toast.success(action === "APPROVE" ? "Đã duyệt bài." : "Đã từ chối bài.");
+      clearInterval(intervalId);
+      setProgress(100);
+      setProgressStep("Hoàn thành!");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      setProcessingAction(null);
+      if (Array.isArray(data.results) && data.results.length > 0) {
+        setSubmissions((prev) =>
+          prev.map((submission) => {
+            const updated = data.results.find((item: any) => item.id === submission.id);
+            return updated
+              ? {
+                  ...submission,
+                  status: updated.status,
+                  ai_score: updated.ai_score,
+                  ai_feedback: updated.ai_feedback,
+                  reject_reason: updated.reject_reason,
+                  parts_answer: updated.parts_answer ?? submission.parts_answer,
+                  image_urls: updated.image_urls ?? submission.image_urls,
+                }
+              : submission;
+          })
+        );
+      }
+      toast.success("AI đã phân tích và ra quyết định tự động.");
       router.refresh();
     } catch (err: unknown) {
+      clearInterval(intervalId);
       toast.error(err instanceof Error ? err.message : "Lỗi xử lý.");
     } finally {
       setLoading(false);
@@ -195,8 +261,8 @@ export default function BuildPcQueueClient({
                 : "text-on-muted hover:bg-surface-container-low"
             )}
           >
-            {tab === "PENDING" ? <Clock className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
-            {tab === "PENDING" ? `Chờ duyệt (${pendingCount})` : `Đã xử lý (${reviewedCount})`}
+            {tab === "PENDING" ? <Clock className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+            {tab === "PENDING" ? `Chờ xử lý (${pendingCount})` : `Đã xử lý (${reviewedCount})`}
           </button>
         ))}
       </div>
@@ -226,15 +292,16 @@ export default function BuildPcQueueClient({
       </div>
 
       {/* Batch actions */}
-      {activeTab === "PENDING" && selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 rounded-xl bg-primary-container/20 px-4 py-2">
-          <span className="font-inter text-xs text-on-surface">{selectedIds.size} đã chọn</span>
+      {activeTab === "PENDING" && (
+        <div className="flex items-center gap-3 rounded-xl bg-primary-container/20 px-4 py-3">
+          <span className="font-inter text-xs text-on-surface">{submissions.length} bài đang chờ xử lý</span>
           <button
-            onClick={() => handleAction([...selectedIds], "APPROVE")}
-            disabled={loading}
-            className="flex items-center gap-1 rounded-lg bg-success-bg px-3 py-1.5 font-manrope text-[10px] font-bold text-success-text cursor-pointer"
+            onClick={() => handleProcess(submissions.map((s) => s.id))}
+            disabled={loading || submissions.length === 0}
+            className="flex items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 font-manrope text-[11px] font-bold text-on-primary cursor-pointer disabled:opacity-50 transition-all hover:opacity-90"
           >
-            <Check className="h-3 w-3" /> Duyệt
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            AI tự động duyệt tất cả
           </button>
         </div>
       )}
@@ -263,23 +330,14 @@ export default function BuildPcQueueClient({
                 const isExpanded = expandedId === s.id;
                 const aiScore = s.ai_score ?? (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_score ?? null : null);
                 const aiFeedback = s.ai_feedback || (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_feedback || null : null);
+                const partsObj = (!Array.isArray(s.parts_answer) && typeof s.parts_answer === "object" ? s.parts_answer : null) as any;
+                const isAnalyzing = partsObj?.is_analyzing === true;
+                const analysisStep = partsObj?.analysis_step as string | undefined;
+                const analysisMessage = partsObj?.analysis_message as string | undefined;
 
                 return (
                   <div key={s.id} className="overflow-hidden rounded-2xl border border-surface-container-high bg-surface-mid">
                     <div className="flex items-start gap-3 p-4">
-                      {activeTab === "PENDING" && (
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(s.id)}
-                          onChange={(e) => {
-                            const next = new Set(selectedIds);
-                            if (e.target.checked) next.add(s.id);
-                            else next.delete(s.id);
-                            setSelectedIds(next);
-                          }}
-                          className="mt-1"
-                        />
-                      )}
                       <UserAvatar name={s.user.name} src={s.user.avatar_url} size="sm" />
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
@@ -287,35 +345,74 @@ export default function BuildPcQueueClient({
                           <span className="rounded-full bg-surface-container-high px-2 py-0.5 font-inter text-[10px] text-on-muted">
                             {s.user.department}
                           </span>
+                          {(() => {
+                            if (isAnalyzing) {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-inter text-[10px] font-bold text-primary">
+                                  <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                                  {analysisStep === "vision" ? "AI Vision đang đọc ảnh..." : analysisStep === "deepseek" ? "DeepSeek đang kiểm tra..." : "Đang phân tích AI..."}
+                                </span>
+                              );
+                            }
+                            if (s.status === "APPROVED" || s.status === "AUTO_APPROVED") {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 font-inter text-[9px] font-extrabold text-emerald-700 uppercase tracking-wider">
+                                  <CheckCircle2 className="h-2.5 w-2.5" /> Đã duyệt
+                                </span>
+                              );
+                            }
+                            if (s.status === "REJECTED") {
+                              return (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5 font-inter text-[9px] font-extrabold text-rose-700 uppercase tracking-wider">
+                                  <XCircle className="h-2.5 w-2.5" /> Từ chối
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                         <p className="mt-0.5 font-manrope text-xs font-semibold text-primary">{s.exercise.title}</p>
                         <p className="font-inter text-[10px] text-on-muted">
-                          {new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
+                          {activeTab === "REVIEWED" && s.reviewed_at
+                            ? `Duyệt lúc ${new Date(s.reviewed_at).toLocaleString("vi-VN")}`
+                            : new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
                         </p>
-                        {aiScore != null && (
+                        {isAnalyzing ? (
+                          <p className="mt-1 flex items-center gap-1 font-inter text-[10px] text-on-muted italic">
+                            <Loader2 className="h-2.5 w-2.5 animate-spin text-primary" />
+                            {analysisMessage || "AI đang xử lý bài nộp này, vui lòng chờ..."}
+                          </p>
+                        ) : aiScore != null ? (
                           <p className="mt-1 flex items-center gap-1 font-inter text-[10px] text-on-muted">
                             <Sparkles className="h-3 w-3 text-primary" />
                             AI: {Math.round(aiScore)}đ — {aiFeedback}
                           </p>
-                        )}
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {activeTab === "PENDING" && (
-                          <>
-                            <button
-                              onClick={() => handleAction([s.id], "APPROVE")}
-                              disabled={loading}
-                              className="rounded-xl bg-success-bg p-2 text-success-text hover:opacity-80 cursor-pointer"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => setRejectingId(s.id)}
-                              className="rounded-xl bg-error-bg p-2 text-error-text hover:opacity-80 cursor-pointer"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </>
+                        {activeTab === "PENDING" && !isAnalyzing && (
+                          <button
+                            onClick={() => handleProcess([s.id])}
+                            disabled={loading}
+                            className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 font-manrope text-[10px] font-bold text-on-primary cursor-pointer disabled:opacity-50 transition-all hover:opacity-90"
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            Duyệt AI
+                          </button>
+                        )}
+                        {activeTab === "REVIEWED" && s.status === "REJECTED" && !isAnalyzing && (
+                          <button
+                            onClick={() => handleProcess([s.id])}
+                            disabled={loading}
+                            className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 font-manrope text-[10px] font-bold text-on-primary cursor-pointer disabled:opacity-50 transition-all hover:opacity-90"
+                            title="Yêu cầu AI xử lý lại bài đã bị từ chối"
+                          >
+                            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            AI duyệt lại
+                          </button>
+                        )}
+                        {activeTab === "PENDING" && isAnalyzing && (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary opacity-60" />
                         )}
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : s.id)}
@@ -349,6 +446,65 @@ export default function BuildPcQueueClient({
                           <p className="mb-1 font-manrope text-[10px] font-bold text-on-muted">Giải thích</p>
                           <p className="font-inter text-xs leading-relaxed text-on-surface">{s.explanation}</p>
                         </div>
+                        {/* AI Analysis Details */}
+                        {(() => {
+                          const renderCheckIcon = (status: string) => {
+                            if (status === "PASS") return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />;
+                            if (status === "FAIL") return <XCircle className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />;
+                            return <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5" />;
+                          };
+
+                          const hasChecks = !Array.isArray(s.parts_answer) && !!(s.parts_answer as any)?.checks;
+                          
+                          if (aiScore == null && !hasChecks) return null;
+
+                          return (
+                            <details className="group rounded-xl border border-surface-container-high bg-surface-mid overflow-hidden" open>
+                              <summary className="flex items-center justify-between px-3.5 py-3 cursor-pointer select-none font-manrope text-[11px] font-extrabold uppercase text-primary hover:bg-surface-container-low transition-colors">
+                                <span className="flex items-center gap-1.5">
+                                  <Sparkles className="h-3.5 w-3.5" />
+                                  Kết quả phân tích tự động (AI)
+                                </span>
+                                <div className="flex items-center gap-2">
+                                  {aiScore != null && (
+                                    <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-manrope text-[11px] font-extrabold text-primary normal-case">
+                                      {Math.round(aiScore)} Điểm
+                                    </span>
+                                  )}
+                                  <ChevronDown className="h-3.5 w-3.5 text-on-muted transition-transform group-open:rotate-180" />
+                                </div>
+                              </summary>
+                              
+                              <div className="px-3.5 pb-3.5 pt-1 space-y-3 border-t border-surface-container-high/40">
+                                {aiFeedback && (
+                                  <div className="rounded-lg bg-surface-container-low/50 p-2.5 border border-surface-container-high/60">
+                                    <p className="font-manrope text-[10px] font-bold text-on-muted uppercase tracking-wider mb-1">Nhận xét của AI</p>
+                                    <p className="font-inter text-xs text-on-surface leading-relaxed">{aiFeedback}</p>
+                                  </div>
+                                )}
+
+                                {hasChecks && (
+                                  <div className="space-y-2">
+                                    <p className="font-manrope text-[10px] font-bold text-on-muted uppercase tracking-wider">Chi tiết tương thích</p>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                      {Object.entries((s.parts_answer as any).checks).map(([key, check]: any) => (
+                                        <div key={key} className="flex gap-2 items-start rounded-lg bg-surface-container-low/30 p-2 border border-surface-container-high/40 text-xs">
+                                          {renderCheckIcon(check.status)}
+                                          <div className="space-y-0.5">
+                                            <p className="font-bold text-on-surface uppercase text-[9px] tracking-wider">
+                                              {key.toUpperCase()}
+                                            </p>
+                                            <p className="text-on-muted text-[11px] leading-snug">{check.message}</p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </details>
+                          );
+                        })()}
                         {images.length > 0 && (
                           <div className="space-y-2">
                             <p className="flex items-center gap-1 font-manrope text-[10px] font-bold uppercase text-on-muted">
@@ -357,58 +513,40 @@ export default function BuildPcQueueClient({
                             </p>
                             <div className="grid gap-2 sm:grid-cols-3">
                               {images.map((url, i) => (
-                                <a
-                                  key={i}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="relative aspect-[4/3] min-h-[140px] overflow-hidden rounded-xl border border-surface-container-high bg-surface-mid"
-                                >
-                                  <Image
-                                    src={url}
-                                    alt={`Ảnh bài nộp ${i + 1}`}
-                                    fill
-                                    sizes="(min-width: 640px) 30vw, 100vw"
-                                    className="object-contain"
-                                  />
-                                </a>
+                                isRenderableImageUrl(url) ? (
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setZoomImageUrl(url)}
+                                    className="group relative aspect-[4/3] min-h-[140px] overflow-hidden rounded-xl border border-surface-container-high bg-surface-mid cursor-zoom-in transition-all hover:border-primary/60 hover:shadow-sm"
+                                    aria-label={`Xem ảnh bài nộp ${i + 1}`}
+                                  >
+                                    <Image
+                                      src={url}
+                                      alt={`Ảnh bài nộp ${i + 1}`}
+                                      fill
+                                      sizes="(min-width: 640px) 30vw, 100vw"
+                                      className="object-contain"
+                                    />
+                                    <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 opacity-0 transition-all group-hover:bg-slate-950/35 group-hover:opacity-100">
+                                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 font-manrope text-[11px] font-bold text-slate-800 shadow-sm">
+                                        <ZoomIn className="h-3.5 w-3.5" />
+                                        Xem ảnh
+                                      </span>
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <div key={i} className="flex aspect-[4/3] min-h-[140px] flex-col items-center justify-center rounded-xl border border-surface-container-high bg-surface-mid p-3 text-center">
+                                    <ImageIcon className="mb-2 h-5 w-5 text-primary" />
+                                    <p className="font-manrope text-xs font-bold text-on-surface">Tệp đính kèm</p>
+                                    <p className="font-inter text-[10px] text-on-muted">{url === "excel-parsed" ? "Excel đã ghi nhận" : url}</p>
+                                  </div>
+                                )
                               ))}
                             </div>
                           </div>
                         )}
-                        {s.status === "REJECTED" && s.reject_reason && (
-                          <p className="font-inter text-xs text-error-text">Lý do từ chối: {s.reject_reason}</p>
-                        )}
-                      </div>
-                    )}
-
-                    {rejectingId === s.id && (
-                      <div className="space-y-2 border-t border-surface-container-high bg-error-bg/30 px-4 py-3">
-                        <input
-                          value={rejectReason}
-                          onChange={(e) => setRejectReason(e.target.value)}
-                          placeholder="Lý do từ chối..."
-                          className="w-full rounded-xl border border-surface-container-high bg-surface-mid px-3 py-2 font-inter text-xs outline-none"
-                        />
-                        <div className="flex flex-wrap gap-1.5">
-                          {presetReasons.map((r) => (
-                            <button key={r} onClick={() => setRejectReason(r)} className="rounded-lg bg-surface-mid px-2 py-1 font-inter text-[10px] text-on-muted cursor-pointer">
-                              {r}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleAction([s.id], "REJECT", rejectReason)}
-                            disabled={!rejectReason || loading}
-                            className="rounded-xl bg-error-text px-4 py-1.5 font-manrope text-xs font-bold text-on-primary cursor-pointer disabled:opacity-50"
-                          >
-                            Xác nhận từ chối
-                          </button>
-                          <button onClick={() => setRejectingId(null)} className="rounded-xl px-4 py-1.5 font-inter text-xs text-on-muted cursor-pointer">
-                            Hủy
-                          </button>
-                        </div>
+                        {/* AI Analysis Details will start here in the expanded view */}
                       </div>
                     )}
                   </div>
@@ -425,6 +563,57 @@ export default function BuildPcQueueClient({
           totalPages={totalPages}
           onPageChange={(p) => updateUrl({ page: String(p), module: "build-pc" })}
         />
+      )}
+
+      {/* AI Processing progress dialog */}
+      {processingAction === "PROCESS" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-250">
+          <div className="w-full max-w-sm rounded-3xl border border-surface-container bg-surface-mid p-6 shadow-ambient space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+              <h3 className="font-manrope text-sm font-extrabold text-on-surface">Đang phân tích cấu hình tự động</h3>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+                <div 
+                  className="bg-primary h-full rounded-full transition-all duration-300 ease-out" 
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <div className="flex items-center justify-between text-[11px] font-semibold text-on-muted">
+                <span>{progressStep}</span>
+                <span>{progress}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {zoomImageUrl && (
+        <div
+          onClick={() => setZoomImageUrl(null)}
+          className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-slate-950/70 p-4 animate-in fade-in duration-300"
+        >
+          <div className="relative h-[88vh] w-[92vw] max-w-6xl">
+            <Image
+              src={zoomImageUrl}
+              alt="Ảnh bài nộp phóng to"
+              fill
+              referrerPolicy="no-referrer"
+              className="object-contain"
+              sizes="92vw"
+            />
+            <button
+              type="button"
+              onClick={() => setZoomImageUrl(null)}
+              className="absolute right-0 top-0 rounded-full bg-white/95 p-2 text-slate-800 shadow-lg transition-colors hover:bg-white"
+              aria-label="Đóng preview ảnh"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

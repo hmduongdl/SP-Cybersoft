@@ -39,7 +39,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatVND } from "@/lib/pc-kho";
-import * as XLSX from "xlsx";
+import { parsePcBuildExcelFile, type PcBuildExcelExtraction } from "@/lib/pc-build-excel";
 
 interface PcBuildTask {
   id: string;
@@ -88,6 +88,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   desk_chair: "Bàn ghế (Furniture)",
 };
 
+const isApprovedStatus = (status?: string) => status === "APPROVED" || status === "AUTO_APPROVED";
+const isRejectedStatus = (status?: string) => status === "REJECTED";
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   cpu: <Cpu className="h-3.5 w-3.5 text-violet-500" />,
@@ -189,7 +191,8 @@ export default function PcBuildTrainingClient() {
               submittedAt &&
               Date.now() - new Date(submittedAt).getTime() > ANALYSIS_STALE_MS;
             const isAnalyzing = buildData.is_analyzing === true && !hasAnalysisError && !staleAnalysis;
-            const missingAnalysisResult = !!sub.image_url && !isAnalyzing && !hasAnalysisError && !buildData.checks;
+            const waitingForAdmin = buildData.analysis_step === "waiting_admin";
+            const missingAnalysisResult = !!sub.image_url && !isAnalyzing && !hasAnalysisError && !waitingForAdmin && !buildData.checks;
             const isDraft = buildData.is_draft !== false; // Default to draft unless explicitly false
 
             states[sub.pc_task_id] = {
@@ -198,9 +201,9 @@ export default function PcBuildTrainingClient() {
               analysisError: hasAnalysisError
                 ? buildData.error
                 : staleAnalysis
-                  ? "Chậm quá hoặc lỗi rồi, bạn thử lại lần nữa nha."
+                  ? "Quá trình ghi nhận chưa hoàn tất. Vui lòng thử gửi lại."
                   : missingAnalysisResult
-                    ? "Chưa đọc được ảnh, thử tải lại cái khác nha."
+                    ? "Tệp đính kèm chưa hợp lệ. Vui lòng tải lại tệp khác."
                   : null,
               submittedAt,
               analysisMessage: buildData.analysis_message || null,
@@ -269,7 +272,7 @@ export default function PcBuildTrainingClient() {
                     status: result.status,
                     isDraft: result.data?.is_draft !== false,
                   });
-                  toast.success("Check xong rồi! Vô viết ghi chú và gửi bài thôi.");
+                  toast.success("Trạng thái hồ sơ đã được cập nhật. Vui lòng bổ sung ghi chú nếu cần.");
                   fetchTasks();
                 }
               } else if (
@@ -281,7 +284,7 @@ export default function PcBuildTrainingClient() {
                 updateTaskState(taskId, {
                   isAnalyzing: false,
                   analysisStep: "idle",
-                  analysisError: "Chậm quá hoặc lỗi rồi, bạn thử lại lần nữa nha.",
+                  analysisError: "Quá trình ghi nhận chưa hoàn tất. Vui lòng gửi lại hồ sơ.",
                 });
               } else {
                 const step = result.data?.analysis_step;
@@ -340,144 +343,21 @@ export default function PcBuildTrainingClient() {
     });
   };
 
-  // Parse Excel file on the client-side using xlsx library - avoids sending 110KB+ binary to server
-  const parseExcelClientSide = async (file: File): Promise<{ items: { name: string; quantity: number; price: number; total: number }[]; total_amount: number; currency: string } | null> => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
-
-      const items: { name: string; quantity: number; price: number; total: number }[] = [];
-      let totalAmount = 0;
-
-      for (const row of rows) {
-        if (!row || row.length < 2) continue;
-        // Find the name cell: first string cell with length > 3 and letters
-        const name = row
-          .map((c: any) => (c !== null && c !== undefined ? String(c).trim() : ""))
-          .find((c) => c.length > 3 && /[a-zA-ZÀ-ỹ]/.test(c)) || "";
-        if (!name) continue;
-
-        // Extract all positive numbers from the row
-        const numbers = row
-          .map((c: any) => {
-            const s = String(c || "").replace(/[^0-9]/g, "");
-            return s ? Number(s) : 0;
-          })
-          .filter((n) => n > 0);
-
-        // Heuristic: price is the largest number >= 50,000 (VND component prices)
-        const price = numbers.filter((n) => n >= 50000).sort((a, b) => b - a)[0] || 0;
-        const quantity = numbers.find((n) => n >= 1 && n <= 20) || 1;
-        const total = price * quantity;
-
-        if (price > 0) {
-          items.push({ name, quantity, price, total });
-          totalAmount += total;
-        }
-      }
-
-      if (items.length === 0) return null;
-      return { items, total_amount: totalAmount, currency: "VND" };
-    } catch (err) {
-      console.error("[parseExcelClientSide] Failed:", err);
-      return null;
-    }
-  };
-
   const handleImageFileProcessing = async (taskId: string, file: File) => {
     try {
-      const nameLower = file.name.toLowerCase();
-      const typeLower = (file.type || "").toLowerCase();
-      const isExcel = nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls") || typeLower.includes("spreadsheetml") || typeLower.includes("excel");
-
-      if (isExcel) {
-        // === EXCEL FAST PATH: parse client-side, skip Vision AI step (saves ~15-20s) ===
-        updateTaskState(taskId, {
-          previewImage: "excel-parsed",
-          isAnalyzing: true,
-          analysisError: null,
-          analysisMessage: "Đang đọc file Excel...",
-          submittedAt: new Date().toISOString(),
-          analysisStep: "vision",
-        });
-
-        const extracted = await parseExcelClientSide(file);
-        if (!extracted || extracted.items.length === 0) {
-          throw new Error("Không đọc được linh kiện từ file Excel. Thử file khác hoặc dùng ảnh chụp.");
-        }
-
-        updateTaskState(taskId, {
-          analysisMessage: `Đã đọc ${extracted.items.length} dòng từ Excel. Đang gửi lên AI kiểm tra...`,
-        });
-
-        const res = await fetch("/api/training/pc-build/submit", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pc_task_id: taskId,
-            image_url: "excel-parsed",
-            explanation: "",
-            extracted_items: extracted,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-
-        updateTaskState(taskId, {
-          checkin_id: data.checkin_id,
-          isAnalyzing: true,
-          analysisError: null,
-          analysisMessage: "AI đang kiểm tra tương thích linh kiện...",
-          submittedAt: new Date().toISOString(),
-          status: "PENDING",
-          isDraft: true,
-          analysisStep: "deepseek",
-        });
-
-        toast.success(`Đã đọc ${extracted.items.length} linh kiện từ Excel. AI đang phân tích...`);
-        fetchTasks();
-        return;
-      }
-
-      // === IMAGE PATH ===
       const base64Data = await compressImage(file);
 
       updateTaskState(taskId, {
         previewImage: base64Data,
-        isAnalyzing: true,
+        isAnalyzing: false,
         analysisError: null,
-        analysisMessage: "Đang đọc ảnh báo giá và bóc tách linh kiện...",
+        analysisMessage: "Ảnh minh chứng đã được ghi nhận.",
         submittedAt: new Date().toISOString(),
-        analysisStep: "vision",
-      });
-
-      const res = await fetch("/api/training/pc-build/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pc_task_id: taskId,
-          image_url: base64Data,
-          explanation: "",
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      updateTaskState(taskId, {
-        checkin_id: data.checkin_id,
-        isAnalyzing: true,
-        analysisError: null,
-        analysisMessage: "Đang đọc ảnh báo giá và bóc tách linh kiện...",
-        submittedAt: new Date().toISOString(),
-        status: "PENDING",
+        analysisStep: "idle",
         isDraft: true,
       });
 
-      toast.success("Đang tải lên & kiểm tra cấu hình...");
-      fetchTasks();
+      toast.success("Đã nhận ảnh. Bấm Gửi bài để hoàn tất nộp bài.");
     } catch (err: any) {
       toast.error(err.message || "Tải ảnh thất bại.");
       updateTaskState(taskId, { previewImage: null, isAnalyzing: false });
@@ -518,25 +398,30 @@ export default function PcBuildTrainingClient() {
 
   const handleSubmit = async (taskId: string) => {
     const state = getTaskState(taskId);
-    if (!state.checkin_id) return;
+    if (!state.previewImage) return;
 
     updateTaskState(taskId, { submitting: true });
     const loadingToastId = toast.loading("Đang nộp bài...");
 
     try {
-      const res = await fetch("/api/training/pc-build/finalize", {
+      const res = await fetch("/api/training/pc-build/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id: state.checkin_id,
-          type: "checkin",
-          explanation: state.explanation.trim(),
+          pc_task_id: taskId,
+          image_url: state.previewImage,
+          explanation: state.explanation.trim() || "Nộp bài training",
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      toast.success("Đã nộp bài thành công! 🎉", { id: loadingToastId });
+      toast.success("Đã nộp bài thành công. Kết quả sẽ được cập nhật sau.", { id: loadingToastId });
+      updateTaskState(taskId, {
+        submitting: false,
+        isDraft: false,
+        status: "PENDING",
+      });
       fetchTasks();
     } catch (err: any) {
       toast.error(err.message || "Nộp bài thất bại.", { id: loadingToastId });
@@ -558,7 +443,7 @@ export default function PcBuildTrainingClient() {
 
   const approvedCount = tasks.filter(t => {
     const state = getTaskState(t.id);
-    return state.isApproved;
+    return isApprovedStatus(state.status) || state.isApproved;
   }).length;
 
   return (
@@ -606,7 +491,7 @@ export default function PcBuildTrainingClient() {
               Đào tạo Build PC
             </h1>
             <p className="font-inter text-xs text-on-muted mt-1.5 max-w-2xl leading-relaxed">
-              Dân chơi build PC thứ thiệt — quăng ảnh lên là có người review liền, khỏi lo sai.
+              Nộp cấu hình theo đề bài; hệ thống sẽ ghi nhận và cập nhật kết quả sau khi được xem xét.
             </p>
           </div>
         </div>
@@ -638,7 +523,7 @@ export default function PcBuildTrainingClient() {
 
         <div className="bg-surface-mid border border-surface-container rounded-2xl p-5 flex items-center justify-between hover:shadow-card transition-all duration-200">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Qua môn</p>
+            <p className="text-[10px] font-bold text-on-muted uppercase tracking-wider">Đã duyệt</p>
             <p className="text-2xl font-extrabold font-manrope text-emerald-600 dark:text-emerald-400">
               {approvedCount} <span className="text-xs font-normal text-on-muted">đề</span>
             </p>
@@ -654,7 +539,7 @@ export default function PcBuildTrainingClient() {
         <div className="flex items-center justify-between border-b border-surface-container pb-3">
           <h2 className="font-manrope text-base font-bold text-on-surface flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-violet-500" />
-            📋 Đề ôn tập hôm nay
+            Đề ôn tập hôm nay
           </h2>
         </div>
 
@@ -667,7 +552,7 @@ export default function PcBuildTrainingClient() {
           <Card className="border-dashed border-2 border-surface-container bg-surface-mid/10 rounded-3xl">
             <CardContent className="py-16 text-center space-y-3">
               <FileText className="h-12 w-12 text-on-muted mx-auto" />
-              <p className="text-sm font-semibold text-on-surface">Hôm nay chưa có đề, thư giãn đi bạn ơi ✨</p>
+              <p className="text-sm font-semibold text-on-surface">Hiện chưa có đề ôn tập trong ngày.</p>
             </CardContent>
           </Card>
         ) : (
@@ -675,7 +560,7 @@ export default function PcBuildTrainingClient() {
             {tasks.map((task, idx) => {
               const state = getTaskState(task.id);
               const isSubmitted = !!(state.previewImage && !state.isDraft);
-              const hasAnalysisError = !!state.analysisError || (!!state.previewImage && !state.isAnalyzing && !state.extractedParts);
+              const hasAnalysisError = !!state.analysisError;
 
               return (
                 <div
@@ -708,30 +593,28 @@ export default function PcBuildTrainingClient() {
                               : state.isAnalyzing
                               ? "bg-amber-500/10 text-amber-600 border-amber-500/15 animate-pulse" 
                               : (isSubmitted 
-                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" : "bg-blue-500/10 text-blue-600 border-blue-500/15") 
+                                  ? (isApprovedStatus(state.status) || state.isApproved ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" : "bg-blue-500/10 text-blue-600 border-blue-500/15") 
                                   : "bg-indigo-500/10 text-indigo-600 border-indigo-500/15")
                           )}>
                             {hasAnalysisError ? <AlertTriangle className="h-3.5 w-3.5" /> : state.isAnalyzing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                             {hasAnalysisError
-                              ? "Lỗi — làm lại đi bạn"
+                              ? "Cần gửi lại"
                               : state.isAnalyzing 
-                              ? "Đang check..." 
-                              : (isSubmitted 
-                                  ? (state.status === "AUTO_APPROVED" || state.isApproved ? "Ngon lành 🎉" : "Đã gửi") 
-                                  : "Mới nháp")
+                              ? "Đang xử lý" 
+                              : (isSubmitted ? "Đã nộp" : "Bản nháp")
                             }
                           </span>
                         )}
                       </div>
                       
                       <h3 className="font-manrope text-base font-bold text-on-surface line-clamp-1 group-hover:text-primary transition-colors">
-                        🎯 Nhu cầu: {task.customer_need}
+                        Yêu cầu: {task.customer_need}
                       </h3>
                       
                       <div className="flex flex-wrap items-center gap-4 text-xs text-on-muted">
                         <span className="flex items-center gap-1">
                           <Coins className="h-3.5 w-3.5 text-amber-500" />
-                          💰 Ngân sách: <span className="font-bold text-on-surface text-sm">{formatVND(task.max_budget)}</span>
+                          Ngân sách: <span className="font-bold text-on-surface text-sm">{formatVND(task.max_budget)}</span>
                         </span>
                       </div>
                     </div>
@@ -763,9 +646,11 @@ export default function PcBuildTrainingClient() {
             const val = parts[k] as any;
             return val && val.name;
           }) : [];
-          const hasAnalysisError = !!state.analysisError || (isResultView && !state.isAnalyzing && !parts);
+          const hasAnalysisError = !!state.analysisError;
+          const isWaitingForAdminReview = isResultView && !state.isAnalyzing && !parts && !hasAnalysisError;
+          const isCompactSubmissionView = isWaitingForAdminReview || hasAnalysisError;
           const analysisErrorMessage =
-            state.analysisError || "Chưa đọc được ảnh, thử tải lại cái khác nha.";
+            state.analysisError || "Tệp đính kèm chưa hợp lệ. Vui lòng tải lại tệp khác.";
           
           const partsAnimDelay = checksAnimDelay + (checkKeys.length * 0.4) + 0.5;
           const finalResultAnimDelay = partsAnimDelay + (partsKeys.length * 0.3) + 1.0;
@@ -783,8 +668,14 @@ export default function PcBuildTrainingClient() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className={cn(
-                  "relative bg-surface-container-lowest rounded-3xl shadow-2xl w-full my-auto flex flex-col",
-                  isResultView ? "max-w-6xl h-[90vh]" : "max-w-4xl max-h-[90vh]"
+                  "relative bg-surface-container-lowest rounded-3xl shadow-2xl w-full my-auto flex flex-col overflow-hidden",
+                  isResultView
+                    ? isWaitingForAdminReview
+                      ? "max-w-md max-h-[85vh]"
+                      : isCompactSubmissionView
+                      ? "max-w-4xl max-h-[85vh]"
+                      : "max-w-5xl h-[90vh]"
+                    : "max-w-md max-h-[85vh]"
                 )}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -795,92 +686,119 @@ export default function PcBuildTrainingClient() {
                   <X className="h-5 w-5" />
                 </button>
                 
-                <div className="p-6 md:p-8 overflow-y-auto custom-scrollbar flex-1 result-page relative">
+                <div className={cn(
+                  "overflow-y-auto custom-scrollbar flex-1 result-page relative",
+                  isCompactSubmissionView ? "p-5 md:p-6" : "p-6 md:p-8"
+                )}>
                    {!isResultView ? (
-                     <div className="space-y-6">
-                        <div className="text-center space-y-2 mb-8">
-                          <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                            <Sparkles className="w-8 h-8" />
-                          </div>
-                          <h2 className="text-2xl font-bold font-manrope">Build PC — Gửi bài</h2>
-                          <p className="text-on-muted text-sm">Đọc yêu cầu bên dưới, chụp ảnh bảng giá rồi quăng lên đây.</p>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                            <div className="relative rounded-2xl bg-surface-mid/85 p-5 border border-surface-container space-y-3 shadow-inner">
-                              <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider">
-                                <FileText className="w-4 h-4 text-violet-500" /> 🎯 Khách muốn gì?
-                              </h3>
-                              <p className="text-sm font-semibold text-on-surface">{task.customer_need}</p>
-                              
-                              <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider mt-4">
-                                <Coins className="w-4 h-4 text-amber-500" /> 💰 Ngân sách
-                              </h3>
-                              <p className="text-lg font-extrabold text-emerald-500">{formatVND(task.max_budget)}</p>
-                              
-                              <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-wider mt-4">
-                                <AlertTriangle className="w-4 h-4 text-rose-500" /> ⚠️ Yêu cầu kèm theo
-                              </h3>
-                              <p className="text-sm text-on-surface-variant leading-relaxed">
-                                {task.requirements || "Không có yêu cầu gì thêm."}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <div className="space-y-4 flex flex-col">
-                            <div
-                              onClick={() => fileInputRefs.current[task.id]?.click()}
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                                setDraggingTaskId(task.id);
-                              }}
-                              onDragLeave={(e) => {
-                                e.preventDefault();
-                                setDraggingTaskId(null);
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                setDraggingTaskId(null);
-                                const file = e.dataTransfer.files?.[0];
-                                if (file) handleImageFileProcessing(task.id, file);
-                              }}
-                              className={cn(
-                                "flex-1 group/drop flex flex-col items-center justify-center border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-all min-h-[260px] relative overflow-hidden",
-                                draggingTaskId === task.id
-                                  ? "border-primary bg-primary/10 scale-[0.98] ring-2 ring-primary/20"
-                                  : "border-surface-container-high hover:border-primary/50 bg-surface-mid/30 hover:bg-primary/5"
-                              )}
-                            >
-                              <div className={cn(
-                                "w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-transform duration-200",
-                                draggingTaskId === task.id
-                                  ? "bg-primary text-on-primary scale-110"
-                                  : "bg-primary/10 text-primary group-hover/drop:scale-110"
-                              )}>
-                                <UploadCloud className="h-8 w-8" />
-                              </div>
-                              <p className="text-sm font-bold text-on-surface">
-                                {draggingTaskId === task.id ? "Thả ra đây nè" : "Kéo ảnh/Excel vô đây hoặc nhấn để chọn"}
-                              </p>
-                              <p className="text-xs text-on-muted mt-2 max-w-[220px] leading-relaxed font-medium">
-                                Nhận JPG, PNG, WEBP, Excel nha ✌️
-                              </p>
-                              <input
-                                type="file"
-                                ref={(el) => { fileInputRefs.current[task.id] = el; }}
-                                onChange={(e) => handleImageSelect(task.id, e)}
-                                accept="image/*,.xls,.xlsx"
-                                className="hidden"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                     <div className="space-y-4">
+                       <div className="text-center space-y-1.5 mb-4">
+                         <h2 className="text-lg font-bold font-manrope text-on-surface">Nộp Bài Build PC</h2>
+                         <p className="text-on-muted text-[11px]">Vui lòng tải lên ảnh báo giá cấu hình máy tính.</p>
+                       </div>
+                       
+                       <div className="space-y-3.5">
+                         {/* Requirements summary block */}
+                         <div className="rounded-xl bg-surface-mid/85 p-3.5 border border-surface-container space-y-2 text-xs">
+                           <div className="flex items-center gap-1.5 font-bold">
+                             <FileText className="w-3.5 h-3.5 text-primary" />
+                             <span>Yêu cầu & Ngân sách</span>
+                           </div>
+                           <p className="font-semibold text-on-surface text-[11px] leading-relaxed">{task.customer_need}</p>
+                           <div className="flex justify-between items-center pt-1.5 border-t border-surface-container-high/60 text-[11px]">
+                             <span className="text-on-muted">Ngân sách tối đa:</span>
+                             <span className="font-extrabold text-emerald-500 text-sm">{formatVND(task.max_budget)}</span>
+                           </div>
+                           {task.requirements && (
+                             <div className="pt-1.5 border-t border-surface-container-high/60 text-[10px] text-on-muted leading-relaxed">
+                               <strong>Ràng buộc:</strong> {task.requirements}
+                             </div>
+                           )}
+                         </div>
+                         
+                         {/* Upload Zone */}
+                         <div
+                           onClick={() => fileInputRefs.current[task.id]?.click()}
+                           onDragOver={(e) => {
+                             e.preventDefault();
+                             setDraggingTaskId(task.id);
+                           }}
+                           onDragLeave={(e) => {
+                             e.preventDefault();
+                             setDraggingTaskId(null);
+                           }}
+                           onDrop={(e) => {
+                             e.preventDefault();
+                             setDraggingTaskId(null);
+                             const file = e.dataTransfer.files?.[0];
+                             if (file) handleImageFileProcessing(task.id, file);
+                           }}
+                           className={cn(
+                             "group/drop flex flex-col items-center justify-center border border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all min-h-[140px] relative overflow-hidden",
+                             draggingTaskId === task.id
+                               ? "border-primary bg-primary/10 scale-[0.98] ring-2 ring-primary/20"
+                               : "border-surface-container-high hover:border-primary/50 bg-surface-mid/30 hover:bg-primary/5"
+                           )}
+                         >
+                           <UploadCloud className="h-6 w-6 text-primary mb-2 animate-bounce" />
+                           <p className="text-xs font-bold text-on-surface">
+                             {draggingTaskId === task.id ? "Thả tệp vào đây" : "Kéo thả hoặc click để chọn ảnh cấu hình"}
+                           </p>
+                           <p className="text-[10px] text-on-muted mt-1">
+                             Chấp nhận hình ảnh JPG, PNG, WEBP.
+                           </p>
+                           <input
+                             type="file"
+                             ref={(el) => { fileInputRefs.current[task.id] = el; }}
+                             onChange={(e) => handleImageSelect(task.id, e)}
+                             accept="image/*"
+                             className="hidden"
+                           />
+                         </div>
+                       </div>
                      </div>
-                   ) : (
-                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 pb-6 items-start">
+                    ) : isWaitingForAdminReview ? (
+                      <div className="flex flex-col items-center justify-center text-center p-6 space-y-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-emerald-100 text-emerald-600 animate-pulse">
+                          <CheckCircle2 className="w-6 h-6" />
+                        </div>
+                        <div className="space-y-1">
+                          <h3 className="text-base font-bold text-on-surface font-manrope">
+                            Đã gửi bài thành công
+                          </h3>
+                          <p className="text-xs text-on-muted max-w-xs mx-auto leading-relaxed font-inter">
+                            Cấu hình của bạn đang trong hàng đợi kiểm tra. Kết quả sẽ được cập nhật sau khi hệ thống AI hoàn tất duyệt.
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full pt-2">
+                          <Button
+                            onClick={() => handleCancelTask(task.id)}
+                            disabled={state.submitting}
+                            variant="outline"
+                            className="flex-1 h-9 rounded-xl font-bold font-manrope text-xs cursor-pointer"
+                          >
+                            Cập nhật cấu hình
+                          </Button>
+                          <Button
+                            onClick={() => setActiveTaskId(null)}
+                            className="flex-1 h-9 gradient-primary text-on-primary rounded-xl font-bold font-manrope text-xs cursor-pointer border-none shadow-sm"
+                          >
+                            Đóng cửa sổ
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                     <div className={cn(
+                       "grid grid-cols-1 items-start",
+                       isCompactSubmissionView
+                         ? "md:grid-cols-[minmax(260px,0.95fr)_minmax(320px,1.25fr)] gap-5 md:gap-6"
+                         : "lg:grid-cols-12 gap-8 pb-6"
+                     )}>
                         {/* Cột 1: Ảnh báo giá & ⚡ Check tương thích */}
-                        <div className="lg:col-span-5 space-y-6 w-full">
+                        <div className={cn(
+                          "w-full",
+                          isCompactSubmissionView ? "space-y-4" : "lg:col-span-5 space-y-6"
+                        )}>
                           {/* 1. Ảnh báo giá */}
                           {/* 1. Ảnh báo giá dọc 9:16 tối ưu */}
                           <div className="w-full relative group">
@@ -888,25 +806,34 @@ export default function PcBuildTrainingClient() {
                               const isExcel = state.previewImage?.startsWith("data:application/vnd") || state.previewImage?.includes("spreadsheetml") || state.previewImage?.includes("excel");
                               if (isExcel) {
                                 return (
-                                  <div className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md relative bg-surface-container-low flex flex-col items-center justify-center p-6 text-center">
+                                  <div className={cn(
+                                    "w-full overflow-hidden rounded-2xl border border-surface-container-high shadow-md relative bg-surface-container-low flex flex-col items-center justify-center p-6 text-center",
+                                    isCompactSubmissionView ? "aspect-[4/3] max-h-[320px]" : "aspect-[9/16] max-h-[350px]"
+                                  )}>
                                     <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner mb-4">
                                       <FileSpreadsheet className="h-8 w-8" />
                                     </div>
                                     <div className="space-y-1">
-                                      <p className="text-sm font-bold text-on-surface">File báo giá Excel (.xlsx)</p>
-                                      <p className="text-xs text-on-muted">Đang xử lý file...</p>
+                                      <p className="text-sm font-bold text-on-surface">Tệp báo giá Excel</p>
+                                      <p className="text-xs text-on-muted">Tệp đã được ghi nhận.</p>
                                     </div>
                                   </div>
                                 );
                               }
                               return (
                                 <div 
-                                  className="w-full aspect-[9/16] max-h-[350px] overflow-hidden rounded-2xl border border-surface-container-high shadow-md cursor-zoom-in relative bg-black/5"
+                                  className={cn(
+                                    "w-full overflow-hidden rounded-2xl border border-surface-container-high shadow-md cursor-zoom-in relative bg-black/5",
+                                    isCompactSubmissionView ? "aspect-[4/3] max-h-[320px]" : "aspect-[9/16] max-h-[350px]"
+                                  )}
                                   onClick={() => setSelectedImage(state.previewImage || null)}
                                 >
                                   <img 
                                     src={state.previewImage || undefined} 
-                                    className="w-full h-full object-cover object-top transition-all duration-300" 
+                                    className={cn(
+                                      "w-full h-full object-top transition-all duration-300",
+                                      isCompactSubmissionView ? "object-contain bg-surface-container-low" : "object-cover"
+                                    )} 
                                     alt="Ảnh linh kiện"
                                   />
                                   <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors flex items-center justify-center">
@@ -924,19 +851,17 @@ export default function PcBuildTrainingClient() {
                                   <div className="bg-surface-container-lowest/90 backdrop-blur-md rounded-3xl p-8 flex flex-col items-center gap-4 text-center max-w-sm shadow-2xl">
                                     <Loader2 className="h-10 w-10 animate-spin text-primary" />
                                     <h3 className="text-lg font-bold text-on-surface font-manrope">
-                                      {state.analysisStep === "vision" ? "Check phiếu giá..." : "Đang kiểm tra cấu hình"}
+                                      Đang xử lý hồ sơ
                                     </h3>
                                     <p className="text-sm text-on-muted leading-relaxed">
-                                      {state.analysisMessage || (state.analysisStep === "vision"
-                                        ? "Đang đọc ảnh báo giá và bóc tách linh kiện..."
-                                        : "DeepSeek đang phân loại linh kiện và kiểm tra tương thích...")}
+                                      {state.analysisMessage || "Hồ sơ đang được xử lý. Vui lòng chờ trong giây lát."}
                                     </p>
                                     <button
                                       type="button"
                                       onClick={() => setCancelingTaskId(task.id)}
                                       className="mt-4 text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-500/20 bg-rose-500/10 px-4 py-2 rounded-xl transition-all border-none"
                                     >
-                                      Hủy xử lý
+                                      Hủy
                                     </button>
                                   </div>
                                 </div>
@@ -951,7 +876,7 @@ export default function PcBuildTrainingClient() {
                                 animate={{ opacity: 1, x: 0 }}
                                 className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider"
                               >
-                                <Sparkles className="w-4 h-4 text-violet-500" /> ⚡ Check tương thích
+                                <Sparkles className="w-4 h-4 text-violet-500" /> Đánh giá cấu hình
                               </motion.h3>
                               
                               <div className="flex flex-col gap-3">
@@ -1004,8 +929,11 @@ export default function PcBuildTrainingClient() {
                           )}
                         </div>
 
-                        {/* Cột 2: 🔧 Linh kiện tìm thấy & Tổng hợp kết quả */}
-                        <div className="lg:col-span-7 space-y-6 w-full">
+                          {/* Cột 2: Linh kiện ghi nhận & Tổng hợp kết quả */}
+                        <div className={cn(
+                          "w-full",
+                          isCompactSubmissionView ? "space-y-4" : "lg:col-span-7 space-y-6"
+                        )}>
                           {hasAnalysisError && (
                             <div className="rounded-3xl border border-rose-500/20 bg-rose-500/5 p-6 md:p-7 space-y-5 shadow-sm">
                               <div className="flex flex-col sm:flex-row sm:items-start gap-4">
@@ -1014,19 +942,19 @@ export default function PcBuildTrainingClient() {
                                 </div>
                                 <div className="space-y-2 min-w-0">
                                   <div className="space-y-1">
-                                    <h3 className="font-manrope text-lg font-extrabold text-on-surface">Chưa đọc được ảnh bạn ơi</h3>
+                                    <h3 className="font-manrope text-lg font-extrabold text-on-surface">Tệp chưa hợp lệ</h3>
                                     <p className="text-xs text-on-muted leading-relaxed max-w-xl">{analysisErrorMessage}</p>
                                   </div>
                                   <div className="inline-flex items-center gap-2 rounded-full border border-rose-500/20 bg-rose-500/10 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
                                     <XCircle className="h-3.5 w-3.5" />
-                                    Cần làm lại
+                                    Cần gửi lại
                                   </div>
                                 </div>
                               </div>
                               <div className="rounded-2xl border border-surface-container bg-surface-container-lowest/70 p-4">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-on-muted">Ảnh báo giá đã lưu</p>
                                 <p className="mt-1 text-xs text-on-surface-variant leading-relaxed">
-                                  Ảnh vẫn được giữ lại để bạn đối chiếu. Khi nộp lại, bản phân tích lỗi hiện tại sẽ được xóa trước.
+                                  Tệp hiện tại vẫn được giữ để đối chiếu. Khi gửi lại, bản nháp hiện tại sẽ được thay thế.
                                 </p>
                               </div>
                               <div className="flex flex-col sm:flex-row gap-3">
@@ -1034,7 +962,7 @@ export default function PcBuildTrainingClient() {
                                   onClick={() => setCancelingTaskId(task.id)}
                                   className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-none shadow-sm"
                                 >
-                                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Xóa bản lỗi & nộp lại
+                                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Gửi lại tệp
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -1057,7 +985,7 @@ export default function PcBuildTrainingClient() {
                                 className="flex items-center justify-between border-b border-surface-container-high pb-3"
                               >
                                 <h3 className="font-manrope text-sm font-extrabold flex items-center gap-2 uppercase tracking-wider">
-                                  <Layers className="w-4 h-4 text-indigo-500" /> 🔧 Linh kiện tìm thấy
+                                  <Layers className="w-4 h-4 text-indigo-500" /> Linh kiện ghi nhận
                                 </h3>
                                 <div className="text-right">
                                   <span className="text-[10px] text-on-muted uppercase font-bold block">Tổng tiền</span>
@@ -1115,43 +1043,33 @@ export default function PcBuildTrainingClient() {
                             >
                               <div className={cn(
                                 "p-6 rounded-3xl border-2 text-center shadow-lg",
-                                state.isApproved
+                                isApprovedStatus(state.status) || state.isApproved
                                   ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-800 dark:text-emerald-400"
-                                  : "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
+                                  : isRejectedStatus(state.status)
+                                  ? "bg-rose-500/10 border-rose-500/30 text-rose-800 dark:text-rose-400 animate-in shake duration-300"
+                                  : "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-400"
                               )}>
                                  <div className="w-12 h-12 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-3">
-                                   {state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" />}
+                                   {isApprovedStatus(state.status) || state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : isRejectedStatus(state.status) ? <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" /> : <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />}
                                  </div>
                                  <h2 className="text-xl font-black font-manrope mb-1">
-                                   {state.isApproved ? "NGON — Chuẩn bài luôn!" : "CHƯA ỔN — Coi lại mấy món kia đi!"}
+                                   {isApprovedStatus(state.status) || state.isApproved ? "Hoàn thành" : isRejectedStatus(state.status) ? "Cần điều chỉnh" : "Đang chờ duyệt"}
                                  </h2>
                                  <p className="text-xs font-medium opacity-90 max-w-md mx-auto leading-relaxed">
-                                   {state.approvalReason || "Đã check xong phần cứng, mời bạn xem kết quả."}
+                                   {state.approvalReason || "Kết quả đánh giá đã được cập nhật."}
                                  </p>
                               </div>
 
-                              {/* Ghi chú & Nộp Bài */}
+                              {/* Nộp bài */}
                               {(!state.previewImage || state.isDraft) && (
-                                <div className="space-y-4 bg-surface-container-low p-5 rounded-3xl border border-surface-container">
-                                  <h3 className="text-xs font-bold flex items-center gap-2 uppercase tracking-wider">
-                                    <FileText className="w-3.5 h-3.5 text-primary" /> 📝 Nhắn admin vài lời (không bắt buộc)
-                                  </h3>
-                                  <textarea
-                                    rows={3}
-                                    value={state.explanation}
-                                    onChange={(e) => updateTaskState(task.id, { explanation: e.target.value })}
-                                    placeholder="Ví dụ: Em chọn CPU này vì nó ngang tầm giá, main với nguồn đều oke hết..."
-                                    className="w-full resize-none rounded-2xl border border-surface-container-high bg-surface-container px-4 py-3 font-inter text-xs outline-none focus:border-primary transition-all shadow-inner"
-                                  />
-                                  <div className="flex justify-end">
-                                    <Button
-                                      onClick={() => setSubmittingTaskId(task.id)}
-                                      disabled={state.submitting}
-                                      className="gradient-primary text-on-primary rounded-xl font-bold font-manrope text-xs px-6 py-4 cursor-pointer shadow-md hover:scale-105 transition-transform"
-                                    >
-                                      {state.submitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> Đang nộp...</> : <><Send className="w-4 h-4 mr-1.5"/> 🔥 Gửi bài</>}
-                                    </Button>
-                                  </div>
+                                <div className="flex justify-end">
+                                  <Button
+                                    onClick={() => setSubmittingTaskId(task.id)}
+                                    disabled={state.submitting}
+                                    className="gradient-primary text-on-primary rounded-xl font-bold font-manrope text-xs px-6 py-4 cursor-pointer shadow-md hover:scale-105 transition-transform"
+                                  >
+                                    {state.submitting ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin"/> Đang gửi...</> : <><Send className="w-4 h-4 mr-1.5"/> Gửi bài</>}
+                                  </Button>
                                 </div>
                               )}
 
@@ -1162,7 +1080,7 @@ export default function PcBuildTrainingClient() {
                                     variant="outline"
                                     className="rounded-xl font-bold font-manrope text-xs px-5 py-4 cursor-pointer border-surface-container-high text-on-muted bg-surface-container-low/50 hover:bg-rose-500/10 hover:text-rose-500 hover:border-rose-500/30 transition-all"
                                   >
-                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Làm lại phiếu khác
+                                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Cập nhật cấu hình
                                   </Button>
                               </div>
                             </motion.div>
@@ -1206,27 +1124,27 @@ export default function PcBuildTrainingClient() {
       {cancelingTaskId && (() => {
         const taskState = getTaskState(cancelingTaskId);
         const isDraft = taskState.isDraft;
-        const isFailedAnalysis = !!taskState.analysisError || (!!taskState.previewImage && !taskState.isAnalyzing && !taskState.extractedParts);
+        const isFailedAnalysis = !!taskState.analysisError;
         return (
           <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-transparent animate-in fade-in duration-200">
             <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
               <div className="flex items-center gap-3 text-rose-600">
                 <AlertTriangle className="h-6 w-6" />
                 <h3 className="text-sm font-bold text-on-surface font-manrope">
-                  {isFailedAnalysis ? "Làm lại phiếu khác" : isDraft ? "Hủy bỏ phiếu này?" : "Làm lại phiếu khác"}
+                  {isFailedAnalysis ? "Gửi lại hồ sơ" : isDraft ? "Hủy bản nháp?" : "Gửi lại hồ sơ"}
                 </h3>
               </div>
               <p className="text-xs text-on-muted leading-relaxed font-inter">
                 {isFailedAnalysis
-                  ? "Bạn có chắc chắn muốn xóa bản phân tích bị lỗi và nộp lại cấu hình mới không?"
+                  ? "Bạn có chắc chắn muốn xóa bản nháp hiện tại và gửi lại hồ sơ mới không?"
                   : isDraft 
-                  ? "Bạn có chắc chắn muốn hủy quá trình hiện tại không? Mọi tiến trình phân tích báo giá sẽ bị dừng lại."
-                  : "Bạn có chắc chắn muốn xóa cấu hình đã nộp và nộp lại cấu hình mới không? Dữ liệu đã nộp cũ trên hệ thống sẽ bị xóa hoàn toàn."
+                  ? "Bạn có chắc chắn muốn hủy bản nháp đang chờ gửi không?"
+                  : "Bạn có chắc chắn muốn hủy bài đã nộp và gửi lại hồ sơ mới không? Dữ liệu cũ sẽ được thay thế."
                 }
               </p>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setCancelingTaskId(null)}>
-                  Để coi lại
+                  Xem lại
                 </Button>
                 <Button
                   className="bg-rose-600 text-white hover:bg-rose-700 rounded-xl text-xs font-bold font-manrope cursor-pointer border-none"
@@ -1237,7 +1155,7 @@ export default function PcBuildTrainingClient() {
                     setActiveTaskId(null);
                   }}
                 >
-                  {isFailedAnalysis ? "Xác nhận xóa & nộp lại" : isDraft ? "Đồng ý hủy" : "Xác nhận xóa & làm lại"}
+                  {isFailedAnalysis ? "Xác nhận gửi lại" : isDraft ? "Đồng ý hủy" : "Xác nhận gửi lại"}
                 </Button>
               </div>
             </div>
@@ -1251,14 +1169,14 @@ export default function PcBuildTrainingClient() {
           <div className="w-full max-w-sm bg-surface-container-lowest rounded-3xl border border-surface-container shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-3 text-primary">
               <Sparkles className="h-6 w-6" />
-              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận gửi bài nha</h3>
+              <h3 className="text-sm font-bold text-on-surface font-manrope">Xác nhận gửi bài</h3>
             </div>
             <p className="text-xs text-on-muted leading-relaxed font-inter">
-              Gửi bài là admin xem liền á, mà lỡ gửi sai thì làm lại cũng được nha.
+              Sau khi gửi, bài nộp sẽ được ghi nhận và chờ kết quả phản hồi. Bạn vẫn có thể gửi lại nếu cần điều chỉnh.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" className="rounded-xl text-xs font-bold font-manrope cursor-pointer" onClick={() => setSubmittingTaskId(null)}>
-                Để coi lại
+                Xem lại
               </Button>
               <Button
                 className="gradient-primary text-on-primary rounded-xl text-xs font-bold font-manrope cursor-pointer border-none shadow-md shadow-primary/10"
@@ -1269,7 +1187,7 @@ export default function PcBuildTrainingClient() {
                   setActiveTaskId(null);
                 }}
               >
-                Xác nhận gửi bài nha
+                Xác nhận gửi bài
               </Button>
             </div>
           </div>

@@ -31,7 +31,7 @@ interface Props {
   onColumnsChange: (cols: string[]) => void;
   onSyncChange: (enabled: boolean) => void;
   /** If provided, called instead of onSyncChange — allows parent to auto-run sync after enabling */
-  onSyncToggle?: (enabled: boolean) => void;
+  onSyncToggle?: (enabled: boolean) => void | Promise<void>;
 }
 
 // ─── Checkbox item ────────────────────────────────────────────────────────────
@@ -128,13 +128,16 @@ export default function TimetableSettingsPopover({
   const persist = async (patch: { visible_columns?: string[]; sync_task_manager?: boolean }) => {
     setSaving(true);
     try {
-      await fetch("/api/timetable/config", {
+      const res = await fetch("/api/timetable/config", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
       });
+      if (!res.ok) throw new Error("save_failed");
+      return true;
     } catch {
       toast.error("Không thể lưu cài đặt.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -151,12 +154,17 @@ export default function TimetableSettingsPopover({
   };
 
   // ── Sync toggle ─────────────────────────────────────────────────────────
-  const toggleSync = (enabled: boolean) => {
-    // Always update config state via onSyncChange
+  const toggleSync = async (enabled: boolean) => {
+    const previous = syncTaskManager;
     if (onSyncChange) onSyncChange(enabled);
-    persist({ sync_task_manager: enabled });
-    // If parent provides onSyncToggle, delegate orchestration (auto-sync) there
-    if (onSyncToggle) onSyncToggle(enabled);
+
+    const saved = await persist({ sync_task_manager: enabled });
+    if (!saved) {
+      if (onSyncChange) onSyncChange(previous);
+      return;
+    }
+
+    if (onSyncToggle) await onSyncToggle(enabled);
   };
 
   return (

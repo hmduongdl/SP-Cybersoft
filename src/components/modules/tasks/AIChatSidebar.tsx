@@ -182,6 +182,12 @@ export function AIChatSidebar() {
                         <ReactMarkdown
                           remarkPlugins={[remarkGfm]}
                           components={{
+                            table: () => null,
+                            thead: () => null,
+                            tbody: () => null,
+                            tr: () => null,
+                            th: () => null,
+                            td: () => null,
                             a: ({ href, children }) => {
                               if (href?.startsWith("#task:")) {
                                 const taskId = href.replace("#task:", "");

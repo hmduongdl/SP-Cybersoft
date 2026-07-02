@@ -79,7 +79,7 @@ export async function reviewPcSubmission(params: {
           role: "system",
           content: `Bạn là giám khảo chấm bài tập Build PC. Bạn sẽ đánh giá cấu hình PC do nhân viên tự chọn dựa trên đề bài đã cho.
 Đánh giá các khía cạnh:
-1. Tổng tiền có vượt ngân sách của đề bài không.
+1. Tổng tiền có vượt quá giới hạn ngân sách + 2% của đề bài không.
 2. Các linh kiện tự chọn (CPU, RAM, SSD, VGA...) có đáp ứng đúng ràng buộc tối thiểu và nhu cầu của đề bài hay không.
 3. Độ tương thích cơ bản (ví dụ: Mainboard hỗ trợ socket của CPU đó, nguồn đủ công suất).
 Trả về JSON: { "score": number (0-100), "feedback": "nhận xét ngắn gọn bằng tiếng Việt giải thích điểm số" }`,

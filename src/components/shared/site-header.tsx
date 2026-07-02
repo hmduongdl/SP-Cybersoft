@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu, User, LogOut, Bell, FileText, ShieldCheck, ShieldAlert } from "lucide-react";
+import { Menu, User, LogOut, Bell, FileText, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Sparkles } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
@@ -18,6 +18,23 @@ interface RecentPost {
   isNew: boolean;
 }
 
+interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  reference_id: string | null;
+  reference_type: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+const NOTIFICATION_ICONS: Record<string, React.ReactNode> = {
+  PC_BUILD_APPROVED: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
+  PC_BUILD_AUTO_APPROVED: <Sparkles className="h-4 w-4 text-emerald-500" />,
+  PC_BUILD_REJECTED: <XCircle className="h-4 w-4 text-rose-500" />,
+};
+
 export function SiteHeader() {
   const pathname = usePathname();
   const { setSidebarOpen, isOpenPersonalSettings, setOpenPersonalSettings } = useLayout();
@@ -29,6 +46,8 @@ export function SiteHeader() {
 
   const [notifOpen, setNotifOpen] = useState(false);
   const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
+  const [appNotifications, setAppNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const notifRef = useRef<HTMLDivElement>(null);
 
   // Close user dropdown when clicking outside
@@ -67,16 +86,18 @@ export function SiteHeader() {
     return () => window.removeEventListener("profile-updated", fetchProfile);
   }, []);
 
-  // Fetch recent posts for notifications
-  const fetchRecentPosts = () => {
-    fetch("/api/posts?page=1&limit=5", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.posts) {
+  // Fetch recent posts and app notifications
+  const fetchNotifications = () => {
+    Promise.all([
+      fetch("/api/posts?page=1&limit=5", { cache: "no-store" }).then(res => res.json()),
+      fetch("/api/notifications", { cache: "no-store" }).then(res => res.json()),
+    ])
+      .then(([postsData, notifData]) => {
+        if (postsData.posts) {
           const now = new Date();
           const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           setRecentPosts(
-            data.posts.map((p: any) => ({
+            postsData.posts.map((p: any) => ({
               id: p.id,
               title: p.title,
               description: p.description,
@@ -85,12 +106,16 @@ export function SiteHeader() {
             }))
           );
         }
+        if (notifData.notifications) {
+          setAppNotifications(notifData.notifications);
+          setUnreadCount(notifData.unreadCount || 0);
+        }
       })
       .catch(console.error);
   };
 
   useEffect(() => {
-    fetchRecentPosts();
+    fetchNotifications();
   }, []);
 
   // Map pathnames to breadcrumbs
@@ -204,32 +229,103 @@ export function SiteHeader() {
           {/* Notification Bell */}
           <div className="relative shrink-0" ref={notifRef}>
             <button
-              onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchRecentPosts(); }}
+              onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen) fetchNotifications(); }}
               className="relative w-9 h-9 flex items-center justify-center bg-surface-container text-on-surface-variant hover:text-on-surface rounded-[10px] transition-all duration-150"
             >
               <Bell className="h-5 w-5" />
-              {recentPosts.some(p => p.isNew) && (
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white animate-pulse">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
               )}
             </button>
 
             {/* Notification Dropdown */}
             {notifOpen && (
               <div className="fixed inset-x-3 top-[3.75rem] sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-w-[calc(100vw-1.5rem)] origin-top-right rounded-2xl border-none bg-surface-container-lowest p-2 shadow-[0_32px_64px_rgba(19,27,46,0.12)] ring-1 ring-black ring-opacity-5 focus:outline-none z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                <div className="px-4 py-3 border-none">
-                  <h4 className="text-sm font-bold text-on-surface font-manrope">Thông báo</h4>
-                  <p className="text-xs text-on-surface-variant font-inter">
-                    {recentPosts.filter(p => p.isNew).length > 0
-                      ? `${recentPosts.filter(p => p.isNew).length} bài viết mới hôm nay`
-                      : 'Không có bài viết mới'}
-                  </p>
+                <div className="px-4 py-3 border-none flex items-center justify-between">
+                  <div>
+                    <h4 className="text-sm font-bold text-on-surface font-manrope">Thông báo</h4>
+                    <p className="text-xs text-on-surface-variant font-inter">
+                      {unreadCount > 0
+                        ? `${unreadCount} thông báo chưa đọc`
+                        : 'Không có thông báo mới'}
+                    </p>
+                  </div>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={() => {
+                        fetch("/api/notifications", {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ markAll: true }),
+                        }).then(() => {
+                          setAppNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+                          setUnreadCount(0);
+                        });
+                      }}
+                      className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Đã đọc tất cả
+                    </button>
+                  )}
                 </div>
                 <div className="max-h-[320px] overflow-y-auto">
+                  {/* App notifications (PC build results, etc.) */}
+                  {appNotifications.length > 0 && (
+                    <div className="space-y-0.5 mb-1">
+                      {appNotifications.slice(0, 5).map((notif) => (
+                        <button
+                          key={notif.id}
+                          onClick={() => {
+                            if (!notif.is_read) {
+                              fetch("/api/notifications", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ notificationId: notif.id }),
+                              });
+                              setAppNotifications(prev =>
+                                prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n)
+                              );
+                              setUnreadCount(prev => Math.max(0, prev - 1));
+                            }
+                            setNotifOpen(false);
+                          }}
+                          className={`flex items-start gap-3 px-4 py-3 hover:bg-surface-container-low rounded-xl transition-all duration-150 w-full text-left ${
+                            !notif.is_read ? 'bg-primary-container/10' : ''
+                          }`}
+                        >
+                          <div className="shrink-0 mt-0.5">
+                            {NOTIFICATION_ICONS[notif.type] || <Bell className="h-4 w-4 text-outline" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className={`text-sm truncate font-inter ${
+                                notif.is_read ? 'text-on-surface-variant' : 'text-on-surface font-semibold'
+                              }`}>
+                                {notif.title}
+                              </p>
+                              {!notif.is_read && (
+                                <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary" />
+                              )}
+                            </div>
+                            <p className={`text-xs mt-0.5 line-clamp-1 font-inter ${
+                              notif.is_read ? 'text-on-muted' : 'text-on-surface-variant'
+                            }`}>
+                              {notif.message}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Post notifications */}
                   {recentPosts.length > 0 ? (
                     recentPosts.map((post) => (
                       <Link
                         key={post.id}
-                        href={role === "ADMIN" ? "/admin/posts" : "/like-share"}
+                        href="/like-share"
                         onClick={() => setNotifOpen(false)}
                         className="flex items-start gap-3 px-4 py-3 hover:bg-surface-container-low rounded-xl transition-all duration-150 group"
                       >
@@ -238,7 +334,7 @@ export function SiteHeader() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-sm font-semibold text-on-surface truncate font-inter">
+                            <p className="text-sm text-on-surface-variant truncate font-inter">
                               {post.title}
                             </p>
                             {post.isNew && (
@@ -247,20 +343,25 @@ export function SiteHeader() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-on-surface-variant mt-0.5 line-clamp-1 font-inter">
+                          <p className="text-xs text-on-muted mt-0.5 line-clamp-1 font-inter">
                             {post.description || "Không có mô tả"}
                           </p>
                         </div>
                       </Link>
                     ))
-                  ) : (
+                  ) : appNotifications.length === 0 ? (
                     <div className="px-4 py-8 text-center text-sm text-outline font-inter">
                       Chưa có thông báo nào
                     </div>
-                  )}
+                  ) : null}
                 </div>
+                {appNotifications.length > 5 && (
+                  <div className="px-4 py-2 text-center text-[10px] text-on-muted font-inter">
+                    ...và {appNotifications.length - 5} thông báo cũ hơn
+                  </div>
+                )}
                 <Link
-                  href={role === "ADMIN" ? "/admin/posts" : "/like-share"}
+                  href="/like-share"
                   onClick={() => setNotifOpen(false)}
                   className="block mt-1 py-2.5 text-center text-xs font-semibold text-primary hover:bg-surface-container rounded-xl transition-all duration-150 border-none font-inter"
                 >

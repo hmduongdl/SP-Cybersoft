@@ -286,6 +286,50 @@ export default function QueueClient({
     }
   };
 
+  const handleAIReReview = async (id: string) => {
+    try {
+      setScanningId(id);
+      const res = await fetch("/api/admin/ai-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkinId: id, applyDecision: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "AI duyệt lại thất bại.");
+
+      setAiScanResults(prev => ({
+        ...prev,
+        [id]: {
+          isValid: data.isValid,
+          confidence: data.confidence,
+          analysisReason: data.analysisReason,
+          extractedUsername: data.extractedUsername,
+          extractedTitle: data.extractedTitle,
+        },
+      }));
+      setCheckins(prev => prev.map(c =>
+        c.id === id ? {
+          ...c,
+          status: data.status || (data.isValid ? "AUTO_APPROVED" : "REJECTED"),
+          reject_reason: data.isValid ? null : `[AI Scan] ${data.analysisReason}`,
+          is_ai_flagged: !data.isValid,
+          ai_confidence: data.confidence,
+          ai_extracted_username: data.extractedUsername,
+          ai_extracted_title: data.extractedTitle,
+          ai_analysis_reason: data.analysisReason,
+          note: `[AI Scan] ${data.analysisReason}`,
+        } : c
+      ));
+      toast.success(data.isValid ? "AI đã duyệt lại: bài hợp lệ." : "AI đã duyệt lại: vẫn cần từ chối.");
+      router.refresh();
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "Lỗi khi AI duyệt lại.");
+    } finally {
+      setScanningId(null);
+    }
+  };
+
   const handleTrustScoreAdjust = async (userId: string, delta: number) => {
     try {
       const res = await fetch("/api/admin/users/trust-score", {
@@ -681,9 +725,27 @@ export default function QueueClient({
                     )}
 
                     {/* Reject reason display */}
-                    {item.status === "REJECTED" && item.reject_reason && (
-                      <div className="p-2.5 rounded-lg bg-error-container text-on-error-container text-[10px] font-semibold font-inter border-none">
-                        Lý do: {item.reject_reason}
+                    {item.status === "REJECTED" && (
+                      <div className="space-y-2">
+                        <div className="p-2.5 rounded-lg bg-error-container text-on-error-container text-[10px] font-semibold font-inter border-none">
+                          Lý do: {item.reject_reason || "Chưa có lý do từ chối."}
+                        </div>
+                        {item.task_type !== "PC_BUILD" && (
+                          <button
+                            type="button"
+                            onClick={() => handleAIReReview(item.id)}
+                            disabled={isActionLoading || scanningId === item.id}
+                            className="w-full px-3 py-2 rounded-[8px] bg-surface-container hover:bg-surface-container-high text-on-surface-variant text-xs font-semibold active:scale-[0.98] transition-all cursor-pointer border-none flex items-center justify-center gap-1.5 font-inter disabled:opacity-60 disabled:cursor-not-allowed"
+                            title="Yêu cầu AI quét và đưa ra quyết định lại cho bài đã từ chối"
+                          >
+                            {scanningId === item.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5 text-primary" />
+                            )}
+                            AI duyệt lại
+                          </button>
+                        )}
                       </div>
                     )}
 

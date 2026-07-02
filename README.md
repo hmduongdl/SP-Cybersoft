@@ -328,7 +328,7 @@ Thống kê và biểu đồ toàn hệ thống.
 ```bash
 # Clone repo
 git clone <repo-url>
-cd teamwork-check-dashboard
+cd sp-cybersoft-dashboard
 
 # Cài dependencies
 npm install

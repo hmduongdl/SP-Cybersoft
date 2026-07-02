@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { getPostDeadline } from "./utils";
+import { cleanupExpiredBuildPcImages } from "@/lib/pc-build-cleanup";
 
 export const CACHE_TAGS = {
   POSTS_LIST: "posts-list",
@@ -259,6 +260,7 @@ export async function getCachedAllCheckins() {
 }
 
 export async function getCachedAllPcSubmissions() {
+  await cleanupExpiredBuildPcImages();
   return db.pcSubmission.findMany({
     include: {
       user: {
@@ -281,6 +283,27 @@ export async function getCachedAllPcSubmissions() {
           exercise_date: true,
         },
       },
+    },
+    orderBy: { submitted_at: "desc" },
+  });
+}
+
+export async function getCachedAllPcBuildCheckins() {
+  await cleanupExpiredBuildPcImages();
+  return db.checkin.findMany({
+    where: { task_type: "BUILD_PC" },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          avatar_url: true,
+          department: true,
+          trust_score: true,
+        },
+      },
+      pc_task: true,
     },
     orderBy: { submitted_at: "desc" },
   });

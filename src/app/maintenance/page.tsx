@@ -18,7 +18,7 @@ export default function MaintenancePage() {
         </h1>
 
         <p className="mt-4 max-w-md text-base leading-7 text-on-muted">
-          SP Cybersoft đang được nâng cấp để hoạt động ổn định hơn. Vui lòng thử lại sau ít phút.
+          SP-Cybersoft đang được nâng cấp để hoạt động ổn định hơn. Vui lòng thử lại sau ít phút.
         </p>
 
         <div className="mt-8 w-full rounded-2xl bg-surface-mid p-5 text-left shadow-card">

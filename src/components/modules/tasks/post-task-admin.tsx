@@ -53,6 +53,7 @@ interface ManagedPost {
   task_type?: "SHARE_POST" | "PC_BUILD";
   max_budget?: number;
   requirements?: string;
+  difficulty?: string;
   deadline?: string | null;
 }
 
@@ -163,13 +164,14 @@ export function PostTaskAdmin() {
     thumbnail_url: "",
     description: "",
     date: getLocalDateKey(new Date()),
-    team: "ALL" as "ALL" | "TECH" | "SALES" | "MARKETING",
+    team: "TECH" as "TECH" | "SALES" | "MARKETING",
     author_id: "",
     // PC Build specific
     customer_need: "",
     max_budget: "",
     requirements: "",
     deadline: "",
+    difficulty: "medium",
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -304,12 +306,13 @@ export function PostTaskAdmin() {
       thumbnail_url: "",
       description: "",
       date: getLocalDateKey(new Date()),
-      team: "ALL",
+      team: "TECH",
       author_id: "",
       customer_need: "",
       max_budget: "",
       requirements: "",
       deadline: "",
+      difficulty: "medium",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -327,12 +330,13 @@ export function PostTaskAdmin() {
       thumbnail_url: post.thumbnail_url ?? "",
       description: post.description || "",
       date: dateKey,
-      team: post.team || "ALL",
+      team: post.team === "ALL" ? "TECH" : (post.team || "TECH"),
       author_id: post.author || "",
       customer_need: post.task_type === "PC_BUILD" ? post.description : "",
       max_budget: post.max_budget ? String(post.max_budget) : "",
       requirements: post.requirements || "",
       deadline: post.deadline ? getLocalDateKey(new Date(post.deadline)) : "",
+      difficulty: (post as any).difficulty || "medium",
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -381,6 +385,7 @@ export function PostTaskAdmin() {
         payload.customer_need = formData.customer_need.trim();
         payload.max_budget = Number(formData.max_budget);
         payload.requirements = formData.requirements.trim();
+        payload.difficulty = formData.difficulty || "medium";
         payload.deadline = `${formData.date}T23:59:59`;
       } else {
         payload.title = formData.title.trim();
@@ -437,20 +442,44 @@ export function PostTaskAdmin() {
 
   const handleToggleArchive = async (post: ManagedPost) => {
     try {
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_archived: !post.is_archived }),
+      });
+      if (res.ok) {
+        toast.success(post.is_archived ? "Đã mở khóa." : "Đã khóa.");
+        loadPosts(currentPage);
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Cập nhật thất bại.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Không cập nhật được trạng thái.");
+    }
+  };
+
+  const handleBulkArchive = async (archive: boolean) => {
+    if (selectedIds.length === 0) return;
+    try {
       const res = await fetch("/api/posts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ids: [post.id],
-          data: { is_archived: !post.is_archived }
+          ids: selectedIds,
+          data: { is_archived: archive },
         }),
       });
       if (res.ok) {
-        toast.success(post.is_archived ? "Đã mở khóa bài viết." : "Đã khóa bài viết.");
+        toast.success(archive ? `Đã khóa ${selectedIds.length} mục.` : `Đã mở khóa ${selectedIds.length} mục.`);
+        setSelectedIds([]);
         loadPosts(currentPage);
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Thao tác thất bại.");
       }
-    } catch {
-      toast.error("Không cập nhật được trạng thái bài viết.");
+    } catch (err: any) {
+      toast.error(err.message || "Không cập nhật được.");
     }
   };
 
@@ -462,7 +491,7 @@ export function PostTaskAdmin() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(posts.map(p => p.id));
+      setSelectedIds(filteredPosts.map(p => p.id));
     } else {
       setSelectedIds([]);
     }
@@ -539,6 +568,36 @@ export function PostTaskAdmin() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
+          <span className="text-xs font-bold text-indigo-700 flex-1">
+            Đã chọn <span className="bg-indigo-100 px-2 py-0.5 rounded-lg">{selectedIds.length}</span> mục
+          </span>
+          <button
+            onClick={() => handleBulkArchive(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-600 border-none hover:bg-rose-500/20 transition-all cursor-pointer"
+          >
+            <Lock className="h-3.5 w-3.5" />
+            Khoá tất cả
+          </button>
+          <button
+            onClick={() => handleBulkArchive(false)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 border-none hover:bg-emerald-500/20 transition-all cursor-pointer"
+          >
+            <Unlock className="h-3.5 w-3.5" />
+            Mở khoá tất cả
+          </button>
+          <button
+            onClick={() => setSelectedIds([])}
+            className="p-1.5 rounded-lg text-on-muted hover:text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            title="Bỏ chọn"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Table list */}
       <div className="bg-surface-mid border border-surface-container-high rounded-3xl overflow-hidden shadow-ambient">
         {loadingPosts ? (
@@ -558,7 +617,7 @@ export function PostTaskAdmin() {
                   <th className="px-6 py-4 w-12 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === postsOfTab.length && postsOfTab.length > 0}
+                      checked={selectedIds.length === filteredPosts.length && filteredPosts.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                     />
@@ -626,11 +685,16 @@ export function PostTaskAdmin() {
                           <span className="font-medium text-on-surface-variant block">
                             {formatDateTime(post.start_at)}
                           </span>
-                          {post.deadline && (
+                          {isPcBuild ? (
+                            // PC Build: deadline always = end of start day
+                            <span className="text-[10px] font-bold text-rose-600 block">
+                              Hạn: cuối ngày {formatDateTime(post.start_at)}
+                            </span>
+                          ) : post.deadline ? (
                             <span className="text-[10px] font-bold text-rose-600 block">
                               Hạn: {formatDateTime(post.deadline)}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
 
@@ -757,7 +821,7 @@ export function PostTaskAdmin() {
                     {/* Customer Need */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-need">
-                        Nhu cầu của khách hàng
+                        Mô tả đề bài
                       </label>
                       <input
                         id="pc-need"
@@ -776,7 +840,7 @@ export function PostTaskAdmin() {
                     {/* Max Budget */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-budget">
-                        Ngân sách tối đa
+                        Ngân sách
                       </label>
                       <div className="relative rounded-xl">
                         <input
@@ -800,10 +864,28 @@ export function PostTaskAdmin() {
                       )}
                     </div>
 
+                    {/* Difficulty */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-difficulty">
+                        Độ khó
+                      </label>
+                      <select
+                        id="pc-difficulty"
+                        value={formData.difficulty}
+                        onChange={(e) => setFormData({ ...formData, difficulty: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface"
+                      >
+                        <option value="easy">Dễ</option>
+                        <option value="medium">Trung bình</option>
+                        <option value="hard">Khó</option>
+                      </select>
+                    </div>
+
                     {/* Requirements */}
                     <div className="space-y-1">
                       <label className="block text-xs font-bold text-on-surface uppercase" htmlFor="pc-reqs">
-                        Các ràng buộc / Yêu cầu chi tiết
+                        Ghi chú ràng buộc
                       </label>
                       <textarea
                         id="pc-reqs"
@@ -814,6 +896,24 @@ export function PostTaskAdmin() {
                         disabled={saving}
                         className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface resize-none"
                       />
+                    </div>
+
+                    {/* Date - Ngày ra bài (deadline = cuối ngày đó) */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase">
+                        Ngày ra bài
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
+                      />
+                      <p className="text-[10px] text-amber-600 font-semibold flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3" />
+                        Deadline sẽ tự động là cuối ngày ra bài (23:59:59)
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -898,7 +998,7 @@ export function PostTaskAdmin() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Date */}
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-on-surface uppercase">
@@ -913,21 +1013,20 @@ export function PostTaskAdmin() {
                         />
                       </div>
 
-                      {/* Team */}
+                      {/* Author */}
                       <div className="space-y-1">
                         <label className="block text-xs font-bold text-on-surface uppercase">
-                          Phòng ban tham gia
+                          Tác giả
                         </label>
                         <select
-                          value={formData.team}
-                          onChange={(e) => setFormData({ ...formData, team: e.target.value as any })}
+                          value={formData.author_id}
+                          onChange={(e) => setFormData({ ...formData, author_id: e.target.value })}
                           disabled={saving}
                           className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface focus:outline-none"
                         >
-                          <option value="ALL">Tất cả phòng ban</option>
-                          <option value="TECH">Khối Kỹ Thuật (Tech)</option>
-                          <option value="SALES">Khối Kinh Doanh (Sales)</option>
-                          <option value="MARKETING">Marketing</option>
+                          <option value="">Không có</option>
+                          <option value="Song Phương Tech">Song Phương Tech</option>
+                          <option value="Song Phương">Song Phương</option>
                         </select>
                       </div>
                     </div>

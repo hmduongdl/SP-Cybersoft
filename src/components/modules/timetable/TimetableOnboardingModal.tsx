@@ -30,7 +30,7 @@ interface OnboardingConfig {
 }
 
 interface Props {
-  onComplete: (config: OnboardingConfig, rows: any[]) => void;
+  onComplete: (config: OnboardingConfig, rows: any[]) => void | Promise<void>;
 }
 
 // Step 0 is the welcome/intro page; steps 1-6 are config questions
@@ -310,7 +310,7 @@ export default function TimetableOnboardingModal({ onComplete }: Props) {
       if (!res.ok) throw new Error();
       const data = await res.json();
       toast.success("Đã tạo thời khóa biểu thành công! 🎉");
-      onComplete(data.config, data.rows);
+      await onComplete(data.config, data.rows);
     } catch {
       toast.error("Có lỗi xảy ra. Vui lòng thử lại.");
     } finally {

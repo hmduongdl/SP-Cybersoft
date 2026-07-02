@@ -483,6 +483,25 @@ export default function TimetablePage() {
     setLoadingRows(false);
   }, []);
 
+  const syncTasksToTimetable = useCallback(async (options?: { successMessage?: string; showErrorToast?: boolean }) => {
+    setSyncing(true);
+    try {
+      const res = await fetch("/api/timetable/sync-tasks", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error ?? "sync_failed");
+      await fetchRows();
+      if (options?.successMessage) toast.success(options.successMessage);
+      return true;
+    } catch (err: any) {
+      if (options?.showErrorToast) {
+        toast.error(err?.message && err.message !== "sync_failed" ? err.message : "Đồng bộ thất bại.");
+      }
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  }, [fetchRows]);
+
   const handleOnboardingComplete = async (newConfig: any, generatedRows: any[]) => {
     setConfig(newConfig);
     setRows([...generatedRows].sort((a, b) => a.order - b.order));
@@ -492,27 +511,28 @@ export default function TimetablePage() {
       duration: 6000,
     });
     if (newConfig.sync_task_manager) {
-      try { await fetch("/api/timetable/sync-tasks", { method: "POST" }); fetchRows(); } catch { }
+      await syncTasksToTimetable({
+        successMessage: "Đã đồng bộ task từ Task Manager!",
+        showErrorToast: true,
+      });
     }
   };
 
   const handleSync = async () => {
-    setSyncing(true);
-    try {
-      await fetch("/api/timetable/sync-tasks", { method: "POST" });
-      await fetchRows();
-      toast.success("Đồng bộ task thành công!");
-    } catch { toast.error("Đồng bộ thất bại."); }
-    setSyncing(false);
+    await syncTasksToTimetable({
+      successMessage: "Đồng bộ task thành công!",
+      showErrorToast: true,
+    });
   };
 
   /** Called by the settings toggle — saves config then auto-syncs when turning ON */
   const handleSyncToggle = async (enabled: boolean) => {
-    // Optimistically update local config state first
     setConfig((c) => c ? { ...c, sync_task_manager: enabled } : c);
     if (enabled) {
-      // Brief delay so the UI reflects the toggle state before the spinner starts
-      setTimeout(() => handleSync(), 50);
+      await syncTasksToTimetable({
+        successMessage: "Đồng bộ task thành công!",
+        showErrorToast: true,
+      });
     } else {
       toast.info("Đã tắt đồng bộ Task Manager.");
     }

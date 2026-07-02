@@ -71,13 +71,14 @@ export async function GET(request: Request) {
             url: "",
             thumbnail_url: null,
             start_at: task.date.toISOString(),
-            is_archived: false,
+            is_archived: task.is_archived,
             allow_late_submit: true,
             team: "ALL",
             author: "AI",
             task_type: "PC_BUILD",
             max_budget: task.max_budget,
             requirements: task.requirements,
+	            difficulty: task.difficulty || "medium",
             deadline: task.deadline ? task.deadline.toISOString() : null,
             successfulCheckins,
             totalEmployees: totalNonAdminEmployees,
@@ -124,6 +125,7 @@ export async function POST(request: Request) {
                 customer_need: body.customer_need || body.title || '',
                 max_budget: Number(body.max_budget) || 0,
                 requirements: body.requirements || body.description || '',
+                difficulty: body.difficulty || "medium",
                 deadline: body.deadline ? new Date(body.deadline) : null,
                 date: body.start_at ? new Date(body.start_at) : new Date(),
             }
@@ -184,6 +186,51 @@ export async function POST(request: Request) {
     );
 }
 
+// Bulk PATCH (archive/unarchive)
+export async function PATCH(request: Request) {
+    const session = await auth();
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { ids, data } = body;
+        if (!ids || !Array.isArray(ids) || !data) {
+            return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID và dữ liệu cần cập nhật.' }, { status: 400 });
+        }
+
+        // Update both Share Posts and PC Build Tasks independently so one failure doesn't block the other
+        try {
+            await db.post.updateMany({
+                where: { id: { in: ids } },
+                data,
+            });
+        } catch (err) {
+            console.error("Failed to update Share Posts:", err);
+        }
+
+        try {
+            await db.pcBuildTask.updateMany({
+                where: { id: { in: ids } },
+                data,
+            });
+        } catch (err) {
+            console.error("Failed to update PC Build Tasks:", err);
+        }
+
+        // Revalidate cache after updating
+        revalidateTag(CACHE_TAGS.POSTS_LIST);
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS);
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS);
+
+        return NextResponse.json({ success: true, message: 'Đã cập nhật thành công.' });
+    } catch (error: any) {
+        console.error("PATCH /api/posts bulk error:", error);
+        return NextResponse.json({ error: String(error.message || error) }, { status: 500 });
+    }
+}
+
 // Bulk DELETE
 export async function DELETE(request: Request) {
     const session = await auth();
@@ -201,6 +248,12 @@ export async function DELETE(request: Request) {
         // Delete from both checkin and pcBuildTask / post
         await db.checkin.deleteMany({
             where: { pc_task_id: { in: ids } }
+        });
+
+        // Also clean up PcExercise records that were synced from PcBuildTask
+        // (PcSubmission will cascade-delete along with PcExercise)
+        await db.pcExercise.deleteMany({
+            where: { id: { in: ids } }
         });
 
         await db.pcBuildTask.deleteMany({
