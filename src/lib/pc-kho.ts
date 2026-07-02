@@ -3,8 +3,12 @@ export function formatVND(value: number) {
 }
 
 export function getStartOfDayVN(date = new Date()): Date {
-  const vn = new Date(date.toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
-  return new Date(Date.UTC(vn.getFullYear(), vn.getMonth(), vn.getDate()));
+  // Translate the given UTC date to what time it is in VN, set to midnight, then translate back
+  const d = new Date(date.getTime());
+  d.setUTCHours(d.getUTCHours() + 7);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCHours(d.getUTCHours() - 7);
+  return d;
 }
 
 export const DAILY_PC_SUBMISSION_MIN = 1;

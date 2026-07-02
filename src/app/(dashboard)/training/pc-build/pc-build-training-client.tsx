@@ -616,6 +616,25 @@ export default function PcBuildTrainingClient() {
                           <Coins className="h-3.5 w-3.5 text-amber-500" />
                           Ngân sách: <span className="font-bold text-on-surface text-sm">{formatVND(task.max_budget)}</span>
                         </span>
+                        
+                        {/* Completed Users Avatars */}
+                        {(task as any).submissions && (task as any).submissions.length > 0 && (
+                          <div className="flex items-center -space-x-1.5 ml-2" title={`${(task as any).submissions.length} người đã hoàn thành`}>
+                            {(task as any).submissions.slice(0, 5).map((sub: any) => (
+                              <img
+                                key={sub.user.id}
+                                src={sub.user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                alt={sub.user.name}
+                                className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
+                              />
+                            ))}
+                            {(task as any).submissions.length > 5 && (
+                              <div className="w-5 h-5 rounded-full border border-surface-container-lowest bg-surface-container flex items-center justify-center text-[9px] font-bold text-on-muted z-20 relative">
+                                +{(task as any).submissions.length - 5}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
