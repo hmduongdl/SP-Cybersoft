@@ -162,8 +162,10 @@ const hasExtractedItems = (raw: any): boolean => {
 
 const ensureCompatibilityChecks = (result: any): any => {
   if (!result?.matched_parts) return result;
+  const hasDiscreteGpu = Boolean(String(result.matched_parts?.vga?.name || "").trim());
   const defaultChecks = {
     socket: { status: "WARN", message: "AI chưa trả về kiểm tra socket chi tiết." },
+    display_output: { status: "WARN", message: "AI chưa trả về kiểm tra khả năng xuất hình khi không có VGA rời." },
     cooler_socket: { status: "WARN", message: "AI chưa trả về kiểm tra tản nhiệt có hỗ trợ socket CPU hay không." },
     ram: { status: "WARN", message: "AI chưa trả về kiểm tra RAM chi tiết." },
     power: { status: "WARN", message: "AI chưa trả về kiểm tra nguồn chi tiết." },
@@ -179,9 +181,12 @@ const ensureCompatibilityChecks = (result: any): any => {
   for (const [key, fallback] of Object.entries(defaultChecks)) {
     if (!result.checks[key]) {
       result.checks[key] = fallback;
-      if (key === "requirement_fit") {
+      if (key === "requirement_fit" || (key === "display_output" && !hasDiscreteGpu)) {
         result.isApproved = false;
-        result.reason = "Chưa đủ căn cứ xác nhận cấu hình đáp ứng đúng yêu cầu đề bài.";
+        result.reason =
+          key === "requirement_fit"
+            ? "Chưa đủ căn cứ xác nhận cấu hình đáp ứng đúng yêu cầu đề bài."
+            : "Chưa đủ căn cứ xác nhận CPU có thể xuất hình khi không có card đồ họa rời.";
       }
     }
   }
@@ -208,6 +213,7 @@ const enforceRequirementFitGate = (result: any): any => {
       result.checks.cooler_socket.message || "Tản nhiệt cần được kiểm tra lại bracket/ngàm hỗ trợ socket CPU đã chọn.";
   }
   const criticalCheckLabels: Record<string, string> = {
+    display_output: "CPU không có khả năng xuất hình trong khi cấu hình không có card đồ họa rời",
     socket: "CPU và mainboard không tương thích socket",
     ram: "RAM không tương thích với mainboard",
     power: "nguồn không đáp ứng cấu hình",
@@ -740,13 +746,14 @@ Nếu thiếu danh mục, trả về { "name": "", "price": 0 }.
 
 QUY TẮC KIỂM TRA:
 - Socket: Intel gen 12/13/14 LGA1700 tương thích H610/B660/B760/Z690/Z790; Intel gen 10/11 LGA1200 tương thích H410/H510/B460/B560/Z490/Z590; Ryzen AM4 tương thích A320/B450/B550/X570; Ryzen AM5 tương thích A620/B650/X670.
+- Display output: Nếu không có card đồ họa rời (VGA trống/không có giá), CPU bắt buộc phải có iGPU/xuất hình. Intel đuôi F/KF không có iGPU; Intel không có đuôi F thường có iGPU. AMD Ryzen AM4 đa số không có iGPU trừ dòng G/GE; Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông thường có iGPU cơ bản. Nếu không có VGA rời và CPU chắc chắn không có iGPU -> display_output FAIL. Nếu có VGA rời -> PASS.
 - Cooler socket: Nếu có tản nhiệt rời, kiểm tra tản nhiệt có bracket/ngàm hỗ trợ socket CPU tương ứng (LGA1700, LGA1200, AM4, AM5...). Đây là tiêu chí nhắc nhở mềm: PASS nếu tên/model nêu rõ hỗ trợ socket đó; WARN nếu không đủ thông tin hoặc có dấu hiệu chưa đảm bảo. Không dùng tiêu chí này để đánh rớt bài.
 - RAM DDR4/DDR5 phải đúng loại mainboard.
 - PSU phải đủ CPU + VGA và dư an toàn 100W-150W.
 - Case nhỏ/ITX có thể không vừa main ATX; mid/full tower thường vừa ATX/mATX/ITX.
 - Đáp ứng yêu cầu đề bài: Kiểm tra trước ngân sách. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù tổng giá vẫn nằm trong ngân sách.
 - Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
-- isApproved=true chỉ khi: requirement_fit không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN và cooler_socket WARN vẫn có thể isApproved=true.
+- isApproved=true chỉ khi: requirement_fit không FAIL, display_output không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN và cooler_socket WARN vẫn có thể isApproved=true.
 - QUY TẮC NHẤT QUÁN: Nếu isApproved=true thì "reason" phải giải thích vì sao ĐẠT. Nếu isApproved=false thì "reason" nêu lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
 
 BẮT BUỘC chỉ trả về JSON:
@@ -770,6 +777,7 @@ BẮT BUỘC chỉ trả về JSON:
   "reason": "Lý do ngắn gọn bằng tiếng Việt",
   "checks": {
     "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "cooler_socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
@@ -856,7 +864,7 @@ BẮT BUỘC chỉ trả về JSON:
     }
 
     const finalStatus = result.isApproved ? "APPROVED" : "REJECTED";
-    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
+    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     if (type === "checkin") {
       const isDraft = currentPayload.is_draft === true;
@@ -1032,9 +1040,10 @@ QUY TẮC:
 - Nếu một danh mục không có trong báo giá, trả về { "name": "", "price": 0 }.
 - total_price là tổng tiền thực tế của các linh kiện.
 - Đáp ứng yêu cầu đề bài là điều kiện kiểm tra đầu tiên. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù ngân sách hợp lệ.
+- Nếu không có card đồ họa rời (VGA trống/không có giá), CPU bắt buộc phải có iGPU/xuất hình. Intel đuôi F/KF không có iGPU; Intel không có đuôi F thường có iGPU. AMD Ryzen AM4 đa số không có iGPU trừ dòng G/GE; Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông thường có iGPU cơ bản. Nếu không có VGA rời và CPU chắc chắn không có iGPU -> display_output FAIL. Nếu có VGA rời -> PASS.
 - Nếu có tản nhiệt rời trong cooler_fan, kiểm tra tản nhiệt có bracket/ngàm hỗ trợ socket CPU tương ứng (LGA1700, LGA1200, AM4, AM5...). Đây là tiêu chí nhắc nhở mềm: PASS nếu tên/model nêu rõ hỗ trợ socket đó; WARN nếu không đủ thông tin hoặc có dấu hiệu chưa đảm bảo. Không dùng tiêu chí này để đánh rớt bài.
 - Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
-- isApproved=true chỉ khi: requirement_fit không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN và cooler_socket WARN vẫn có thể isApproved=true.
+- isApproved=true chỉ khi: requirement_fit không FAIL, display_output không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN và cooler_socket WARN vẫn có thể isApproved=true.
 - Nếu isApproved=true: "reason" phải giải thích vì sao ĐẠT (kể cả nếu có cảnh báo nhẹ). Nếu isApproved=false: "reason" nêu rõ lý do cụ thể từ chối. Không được nói "vượt quá giới hạn ngân sách" khi isApproved=true.
 
 BẮT BUỘC chỉ trả về JSON theo format:
@@ -1058,6 +1067,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
   "reason": "Lý do ngắn gọn bằng tiếng Việt",
   "checks": {
     "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "cooler_socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
@@ -1259,30 +1269,37 @@ QUY TẮC KIỂM TRA TƯƠNG THÍCH KỸ THUẬT (HÃY ĐÁNH GIÁ CHÍNH XÁC):
    - CPU Intel Core thế hệ 10, 11 (LGA1200) tương thích với Mainboard H410, H510, B460, B560, Z490, Z590.
    - CPU AMD Ryzen socket AM4 (Ryzen 1000 - 5000) đi với Mainboard A320, B450, B550, X570.
    - CPU AMD Ryzen socket AM5 (Ryzen 7000 - 9000) đi với Mainboard A620, B650, X670.
-2. Cooler Socket (Tản nhiệt & Socket CPU):
+2. Display Output (Khả năng xuất hình):
+   - Nếu cấu hình không có card đồ họa rời trong vga, CPU bắt buộc phải có iGPU/xuất hình.
+   - Intel Core có hậu tố F hoặc KF không có iGPU; ví dụ i5-12400F, i5-13400F, i7-14700F -> nếu không có VGA rời thì FAIL.
+   - Intel Core không có hậu tố F thường có iGPU; ví dụ i5-12400, i5-13400, i7-14700 -> PASS nếu không có VGA rời.
+   - AMD Ryzen AM4 đa số không có iGPU trừ dòng G/GE; ví dụ Ryzen 5 5600/5700X không có iGPU -> nếu không có VGA rời thì FAIL, Ryzen 5 5600G/5700G -> PASS.
+   - AMD Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông như 7600/7700/7900 thường có iGPU cơ bản -> PASS nếu không có VGA rời.
+   - Nếu có VGA rời hợp lệ -> display_output PASS.
+3. Cooler Socket (Tản nhiệt & Socket CPU):
    - Nếu cấu hình có tản nhiệt rời trong cooler_fan, phải kiểm tra model tản nhiệt có bracket/ngàm hỗ trợ đúng socket CPU đã chọn hay không.
    - Ví dụ: CPU LGA1700 cần tản nhiệt hỗ trợ LGA1700; Ryzen AM4/AM5 cần tản nhiệt hỗ trợ AM4/AM5 hoặc ghi rõ tương thích AMD socket tương ứng.
    - Nếu tên/model tản nhiệt thể hiện rõ hỗ trợ socket đó -> PASS.
    - Nếu không đủ dữ liệu để xác nhận hoặc có dấu hiệu chưa đảm bảo -> WARN và nhắc kiểm tra lại bracket/ngàm.
    - Đây là cảnh báo mềm, không được dùng cooler_socket để đánh rớt bài hoặc đặt isApproved=false.
-3. RAM (DDR4 / DDR5 & Mainboard):
+4. RAM (DDR4 / DDR5 & Mainboard):
    - RAM DDR4 tương thích với Mainboard hỗ trợ DDR4. RAM DDR5 tương thích với Mainboard hỗ trợ DDR5.
    - Nếu Mainboard hỗ trợ DDR4 nhưng chọn RAM DDR5 (hoặc ngược lại) -> Báo FAIL.
-4. Power (Nguồn PSU & VGA/CPU):
+5. Power (Nguồn PSU & VGA/CPU):
    - Đảm bảo công suất nguồn (Watts) đủ tải cho CPU + VGA và có khoảng an toàn tối thiểu 100W-150W.
    - RTX 3050/4060: tối thiểu 450W - 500W.
    - RTX 3060/4060 Ti: tối thiểu 550W.
    - RTX 3070/4070: tối thiểu 650W.
    - RTX 3080/4080/4090: tối thiểu 750W - 850W.
-5. Case Size & Mainboard:
+6. Case Size & Mainboard:
    - Vỏ case Mini-Tower hoặc ITX nhỏ gọn có thể không vừa Mainboard ATX lớn (chỉ vừa m-ATX, ITX).
    - Vỏ case Mid-Tower / Full-Tower thông thường đều vừa tất cả kích thước Mainboard (ATX, m-ATX, ITX).
-6. Budget (Ngân sách):
+7. Budget (Ngân sách):
    - Tổng tiền thực tế của cấu hình (matched_parts.total_price) không được vượt quá ngân sách tối đa của đề bài hơn 2%.
    - Nếu tổng tiền thực tế <= ngân sách tối đa -> Đánh giá trạng thái budget là "PASS".
    - Nếu tổng tiền thực tế > ngân sách tối đa nhưng <= ngân sách + 2% -> Đánh giá trạng thái budget là "WARN" kèm ghi chú vượt nhẹ nhưng vẫn hợp lệ.
    - Nếu tổng tiền thực tế > ngân sách + 2% -> Đánh giá trạng thái budget là "FAIL".
-7. Requirement Fit (Mức độ đáp ứng yêu cầu đề bài):
+8. Requirement Fit (Mức độ đáp ứng yêu cầu đề bài):
    - Đây là cổng kiểm tra đầu tiên và quan trọng nhất, phải đánh giá trước khi xét ngân sách.
    - Đối chiếu cấu hình với nhu cầu khách hàng và toàn bộ ràng buộc bắt buộc: mục đích sử dụng, phân khúc CPU, dung lượng RAM, dung lượng SSD, yêu cầu VGA rời, màn hình/phụ kiện nếu đề bài yêu cầu.
    - Nếu cấu hình sai mục đích, thiếu linh kiện bắt buộc, hoặc thấp hơn yêu cầu tối thiểu trọng yếu -> requirement_fit là "FAIL" và isApproved=false, kể cả khi tổng tiền nằm trong ngân sách.
@@ -1290,6 +1307,7 @@ QUY TẮC KIỂM TRA TƯƠNG THÍCH KỸ THUẬT (HÃY ĐÁNH GIÁ CHÍNH XÁC):
 QUY TẮC DUYỆT BÀI (isApproved):
 - Đặt "isApproved": true nếu thỏa mãn:
   - Cấu hình đáp ứng đúng yêu cầu đề bài; requirement_fit không được FAIL.
+  - Nếu không có VGA rời, CPU phải có iGPU/xuất hình; display_output không được FAIL.
   - Tổng giá (total_price) <= Ngân sách đề bài + 2%.
   - Không bị FAIL ở bất kỳ kiểm tra kỹ thuật nghiêm trọng nào (Socket, RAM, Power).
   - Cảnh báo cooler_socket không làm bài bị từ chối.
@@ -1317,6 +1335,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
   "reason": "Giải thích tổng quan lý do duyệt hoặc từ chối ngắn gọn bằng tiếng Việt",
   "checks": {
     "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "cooler_socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
@@ -1407,7 +1426,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     }
 
     const finalStatus = result.isApproved ? "AUTO_APPROVED" : "REJECTED";
-    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
+    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     // 4. Update database record
     if (type === "checkin") {

@@ -14,6 +14,7 @@ function isSafeHref(value: string): boolean {
 function parseInlineMarkdown(text: string): string {
   let html = escapeHtml(text);
 
+  html = html.replace(/&lt;br\s*\/?&gt;/gi, "<br />");
   html = html.replace(/`([^`]+)`/g, "<code>$1</code>");
   html = html.replace(
     /\[([^\]]+)\]\(([^)\s]+)(?:\s+&quot;[^&]*&quot;)?\)/g,
@@ -29,6 +30,10 @@ function parseInlineMarkdown(text: string): string {
   html = html.replace(/~~([^~]+)~~/g, "<del>$1</del>");
 
   return html;
+}
+
+function normalizePlainTextForClipboard(text: string): string {
+  return text.replace(/<br\s*\/?>/gi, "\n");
 }
 
 function headingStyle(level: number): string {
@@ -167,9 +172,11 @@ export function markdownToHtml(markdown: string): string {
 }
 
 function copyWithExecCommand(markdownText: string, htmlContent: string): boolean {
+  const plainText = normalizePlainTextForClipboard(markdownText);
+
   const handleCopy = (event: ClipboardEvent) => {
     event.clipboardData?.setData("text/html", htmlContent);
-    event.clipboardData?.setData("text/plain", markdownText);
+    event.clipboardData?.setData("text/plain", plainText);
     event.preventDefault();
   };
 
@@ -183,6 +190,7 @@ function copyWithExecCommand(markdownText: string, htmlContent: string): boolean
 export async function copyMarkdownAsRichText(markdownText: string): Promise<boolean> {
   try {
     const htmlContent = markdownToHtml(markdownText);
+    const plainText = normalizePlainTextForClipboard(markdownText);
 
     if (copyWithExecCommand(markdownText, htmlContent)) {
       return true;
@@ -191,7 +199,7 @@ export async function copyMarkdownAsRichText(markdownText: string): Promise<bool
     if (typeof ClipboardItem !== "undefined" && navigator.clipboard.write) {
       await navigator.clipboard.write([
         new ClipboardItem({
-          "text/plain": new Blob([markdownText], { type: "text/plain" }),
+          "text/plain": new Blob([plainText], { type: "text/plain" }),
           "text/html": new Blob([htmlContent], { type: "text/html" }),
         }),
       ]);
@@ -202,7 +210,7 @@ export async function copyMarkdownAsRichText(markdownText: string): Promise<bool
   }
 
   try {
-    await navigator.clipboard.writeText(markdownText);
+    await navigator.clipboard.writeText(normalizePlainTextForClipboard(markdownText));
     return true;
   } catch {
     return false;
