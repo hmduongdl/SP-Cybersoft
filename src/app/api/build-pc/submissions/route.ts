@@ -94,6 +94,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Bài tập không tồn tại." }, { status: 404 } );
   }
 
+  const buildTask = await db.pcBuildTask.findUnique({ where: { id: exercise_id } });
+  if (buildTask?.is_archived) {
+    return NextResponse.json({ error: "Bài tập này đã bị khóa và không thể nộp thêm." }, { status: 410 });
+  }
+
   // Draft-only path: Vercel only receives the submission data. Reading/checking happens later in admin queue on localhost.
   if (extracted_items && Array.isArray(extracted_items.items) && extracted_items.items.length > 0) {
     const submission = await db.pcSubmission.create({

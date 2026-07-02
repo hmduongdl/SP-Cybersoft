@@ -47,6 +47,7 @@ interface PcBuildTask {
   max_budget: number;
   requirements: string;
   deadline?: string | null;
+  is_archived?: boolean;
 }
 
 interface Part {
@@ -565,10 +566,18 @@ export default function PcBuildTrainingClient() {
               return (
                 <div
                   key={task.id}
-                  onClick={() => setActiveTaskId(task.id)}
+                  onClick={() => {
+                    if (task.is_archived) {
+                      toast.error("Bài tập này đã hết hạn / bị khoá.");
+                      return;
+                    }
+                    setActiveTaskId(task.id);
+                  }}
                   className={cn(
-                    "group rounded-3xl border transition-all duration-300 overflow-hidden bg-surface-container-lowest cursor-pointer hover:-translate-y-0.5",
-                    "border-surface-container hover:border-primary/50 shadow-sm hover:shadow-md"
+                    "group rounded-3xl border transition-all duration-300 overflow-hidden",
+                    task.is_archived
+                      ? "opacity-75 bg-surface-mid/30 cursor-not-allowed border-surface-container"
+                      : "bg-surface-container-lowest cursor-pointer hover:-translate-y-0.5 border-surface-container hover:border-primary/50 shadow-sm hover:shadow-md"
                   )}
                 >
                   <div className="px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -582,6 +591,12 @@ export default function PcBuildTrainingClient() {
                           <span className="bg-rose-500/10 text-rose-600 px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border border-rose-500/10">
                             <Clock className="h-3 w-3" />
                             Chốt: {getCountdownLabel(task.deadline)}
+                          </span>
+                        )}
+
+                        {task.is_archived && (
+                          <span className="bg-surface-container-high text-on-muted px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1 border border-surface-container">
+                            Đã khoá
                           </span>
                         )}
 
@@ -623,7 +638,7 @@ export default function PcBuildTrainingClient() {
                             {(task as any).submissions.slice(0, 5).map((sub: any) => (
                               <img
                                 key={sub.user.id}
-                                src={sub.user.image || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                src={sub.user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
                                 alt={sub.user.name}
                                 className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
                               />

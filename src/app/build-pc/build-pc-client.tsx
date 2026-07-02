@@ -15,6 +15,7 @@ import {
   X,
   Cpu,
   ArrowRight,
+  CalendarDays,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
@@ -454,7 +455,7 @@ export default function BuildPcClient() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-md">
+      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-[600px]">
         <button
           onClick={() => setTab("exercises")}
           className={cn(
@@ -513,10 +514,17 @@ export default function BuildPcClient() {
                   <Card
                     key={ex.id}
                     className={cn(
-                      "transition-all border hover:shadow-card duration-200 overflow-hidden cursor-pointer border-surface-container-high hover:border-primary/30 group",
+                      "transition-all border overflow-hidden",
+                      (ex as any).is_archived 
+                        ? "opacity-75 bg-surface-mid/30 cursor-not-allowed border-surface-container" 
+                        : "hover:shadow-card duration-200 cursor-pointer border-surface-container-high hover:border-primary/30 group",
                       modalExerciseId === ex.id && "ring-1 ring-primary/30"
                     )}
                     onClick={() => {
+                      if ((ex as any).is_archived) {
+                        toast.error("Bài tập này đã hết hạn / bị khoá.");
+                        return;
+                      }
                       if (remaining <= 0 && !state.previewImage && !state.submission_id) {
                         toast.error("Hết lượt gửi bài hôm nay rồi, mai quay lại nha.");
                         return;
@@ -578,6 +586,13 @@ export default function BuildPcClient() {
                                 </span>
                               );
                             }
+                            if ((ex as any).is_archived) {
+                              return (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-surface-container-high text-on-muted border border-surface-container flex items-center gap-1">
+                                  Đã khoá
+                                </span>
+                              );
+                            }
                             if (state.previewImage && state.isDraft) {
                               return (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-bold border border-indigo-200 text-indigo-600 bg-transparent flex items-center gap-1">
@@ -588,7 +603,28 @@ export default function BuildPcClient() {
                             return null;
                           })()}
                         </div>
-                        <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.requirements.constraints?.join(" • ") || "Không có ràng buộc"}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.requirements.constraints?.join(" • ") || "Không có ràng buộc"}</p>
+                          
+                          {/* Completed Users Avatars */}
+                          {(ex as any).submissions && (ex as any).submissions.length > 0 && (
+                            <div className="flex items-center -space-x-1.5" title={`${(ex as any).submissions.length} người đã hoàn thành`}>
+                              {(ex as any).submissions.slice(0, 5).map((sub: any) => (
+                                <img
+                                  key={sub.user.id}
+                                  src={sub.user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                  alt={sub.user.name}
+                                  className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
+                                />
+                              ))}
+                              {(ex as any).submissions.length > 5 && (
+                                <div className="w-5 h-5 rounded-full border border-surface-container-lowest bg-surface-container flex items-center justify-center text-[9px] font-bold text-on-muted z-20 relative">
+                                  +{(ex as any).submissions.length - 5}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-on-muted font-medium opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline">

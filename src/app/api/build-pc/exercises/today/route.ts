@@ -11,11 +11,21 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  function getEndOfDayVN(start: Date): Date {
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 1);
+    return end;
+  }
+  
   const today = getStartOfDayVN();
+  const tomorrow = getEndOfDayVN(today);
 
-  // 1. Fetch all PcBuildTask records created by the admin (ordered by date)
+  // 1. Fetch PcBuildTask records created by the admin for today (and not archived)
   const adminTasks = await db.pcBuildTask.findMany({
-    orderBy: { date: "desc" },
+    where: { 
+      date: { gte: today, lt: tomorrow }
+    },
+    orderBy: { created_at: "asc" },
   });
 
   // 2. Sync them to PcExercise table so they exist for submissions
@@ -63,8 +73,30 @@ export async function GET() {
   // 3. Return all exercises corresponding to the admin tasks
   const exercises = await db.pcExercise.findMany({
     where: { id: { in: adminTasks.map((t) => t.id) } },
+    include: {
+      submissions: {
+        where: {
+          status: { in: ["AUTO_APPROVED", "APPROVED"] }
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, avatar_url: true }
+          }
+        },
+        distinct: ['user_id']
+      }
+    },
     orderBy: { exercise_date: "desc" },
   });
 
-  return NextResponse.json({ exercises, date: today.toISOString() });
+  // Attach is_archived to exercises
+  const exercisesWithArchiveStatus = exercises.map(ex => {
+    const adminTask = adminTasks.find(t => t.id === ex.id);
+    return {
+      ...ex,
+      is_archived: adminTask?.is_archived || false
+    };
+  });
+
+  return NextResponse.json({ exercises: exercisesWithArchiveStatus, date: today.toISOString() });
 }

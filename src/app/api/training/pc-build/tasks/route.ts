@@ -22,8 +22,7 @@ export async function GET() {
 
   const tasks = await db.pcBuildTask.findMany({
     where: { 
-      date: { gte: today, lt: tomorrow },
-      is_archived: false
+      date: { gte: today, lt: tomorrow }
     },
     include: {
       submissions: {
