@@ -1087,10 +1087,10 @@ export default function PcBuildTrainingClient() {
                                    {isApprovedStatus(state.status) || state.isApproved ? <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" /> : isRejectedStatus(state.status) ? <XCircle className="w-6 h-6 text-rose-600 dark:text-rose-400" /> : <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />}
                                  </div>
                                  <h2 className="text-xl font-black font-manrope mb-1">
-                                   {isApprovedStatus(state.status) || state.isApproved ? "Hoàn thành" : isRejectedStatus(state.status) ? "Cần điều chỉnh" : "Đang chờ duyệt"}
+                                   {isApprovedStatus(state.status) || state.isApproved ? "Hoàn tất thẩm định" : isRejectedStatus(state.status) ? "Yêu cầu hiệu chỉnh" : "Đang thẩm định"}
                                  </h2>
                                  <p className="text-xs font-medium opacity-90 max-w-md mx-auto leading-relaxed">
-                                   {state.approvalReason || "Kết quả đánh giá đã được cập nhật."}
+                                   {state.approvalReason ? `Nhận xét: ${state.approvalReason}` : "Kết quả thẩm định đã được cập nhật."}
                                  </p>
                               </div>
 

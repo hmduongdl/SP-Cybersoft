@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { Menu, User, LogOut, Bell, FileText, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Sparkles } from "lucide-react";
+import { Menu, User, LogOut, Bell, FileText, ShieldCheck, ShieldAlert, CheckCircle2, XCircle, Sparkles, Wallet, Trophy } from "lucide-react";
 import { useLayout } from "./layout-context";
 import Link from "next/link";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
@@ -77,8 +77,10 @@ export function SiteHeader() {
   };
 
   useEffect(() => {
-    fetchProfile();
-  }, [session]);
+    if (session?.user?.id) {
+      fetchProfile();
+    }
+  }, [session?.user?.id]);
 
   // Re-fetch profile when profile-updated event fires (e.g. after modal save)
   useEffect(() => {
@@ -217,14 +219,23 @@ export function SiteHeader() {
 
         {/* Right side: Department, Bell, User Dropdown */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-          {/* Department Badge */}
-          {rawDepartment && (
-            <div className="hidden xs:flex">
-              <span className="inline-flex items-center rounded-full bg-secondary-container px-3 py-1 text-xs font-semibold text-on-secondary-container whitespace-nowrap">
-                {departmentLabel}
-              </span>
-            </div>
-          )}
+          {/* Trust, Wallet, Score, and Department Badges */}
+          <div className="hidden md:flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-bold text-blue-600 border border-blue-500/20">
+              <ShieldCheck className="h-3 w-3" />
+              {profile?.trust_score ?? session?.user?.trust_score ?? "..."}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-600 border border-amber-500/20">
+              <Wallet className="h-3 w-3" />
+              {(profile?.wallet_balance ?? session?.user?.wallet_balance) !== undefined 
+                ? (profile?.wallet_balance ?? session?.user?.wallet_balance ?? 0).toLocaleString("vi-VN") + " VND"
+                : "..."}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-0.5 text-xs font-bold text-purple-600 border border-purple-500/20">
+              <Trophy className="h-3 w-3" />
+              {profile?.pc_score ?? session?.user?.pc_score ?? "..."}
+            </span>
+          </div>
 
           {/* Notification Bell */}
           <div className="relative shrink-0" ref={notifRef}>

@@ -137,12 +137,14 @@ export async function processBackgroundCheckinReview(checkinId: string) {
     await sendAiReviewCompletedEmail({
       to: checkin.user.email,
       userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
-      itemTitle: checkin.post.title,
+      itemTitle: checkin.post.description || checkin.post.title,
       itemType: "Check-in Like/Share",
       status: canAutoApprove ? "approved" : "needs_review",
       analysis: visionResult.reason,
       reviewPath: `/reports?checkinId=${checkin.id}`,
       extractedTitle: visionResult.extractedTitle,
+      recipientTrustScore: checkin.user.trust_score,
+      recipientIsVerified: checkin.user.is_verified,
     });
 
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");

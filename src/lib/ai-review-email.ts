@@ -2,6 +2,7 @@ import { render } from "@react-email/render";
 import { createElement } from "react";
 import { AiReviewEmail } from "@/emails/ai-review-email";
 import { buildAppUrl } from "@/lib/app-url";
+import { queueApprovedReviewEmail } from "@/lib/approval-success-email";
 import { sendMail } from "@/lib/mailer";
 
 type AiReviewStatus = "approved" | "rejected" | "needs_review" | "completed";
@@ -15,6 +16,8 @@ export interface SendAiReviewEmailParams {
   status: AiReviewStatus;
   reviewPath: string;
   extractedTitle?: string | null;
+  recipientTrustScore?: number | null;
+  recipientIsVerified?: boolean | null;
 }
 
 const STATUS_LABELS: Record<AiReviewStatus, string> = {
@@ -24,9 +27,28 @@ const STATUS_LABELS: Record<AiReviewStatus, string> = {
   completed: "AI đã hoàn tất phân tích",
 };
 
+function canSendReviewEmail(params: Pick<SendAiReviewEmailParams, "recipientTrustScore" | "recipientIsVerified">): boolean {
+  return params.recipientIsVerified === true && (params.recipientTrustScore ?? 0) > 70;
+}
+
 export async function sendAiReviewCompletedEmail(params: SendAiReviewEmailParams): Promise<void> {
   const to = params.to?.trim();
   if (!to) return;
+  if (!canSendReviewEmail(params)) return;
+
+  if (params.status === "approved") {
+    queueApprovedReviewEmail({
+      to,
+      userName: params.userName,
+      itemTitle: params.itemTitle,
+      itemType: params.itemType,
+      reviewPath: params.reviewPath,
+      analysis: params.analysis,
+      recipientTrustScore: params.recipientTrustScore,
+      recipientIsVerified: params.recipientIsVerified,
+    });
+    return;
+  }
 
   const reviewUrl = buildAppUrl(params.reviewPath);
   const itemTitle = params.itemTitle || "Bài nộp";

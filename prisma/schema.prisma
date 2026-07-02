@@ -35,6 +35,8 @@ model User {
   used_stars_this_month Int                     @default(0)
   last_star_reset_at    DateTime?
   theme                 String?                 @default("system")
+  pc_score              Int                     @default(0)
+  wallet_balance        Int                     @default(0)
   reviewed_checkins     Checkin[]               @relation("AdminReviewedCheckins")
   checkins              Checkin[]               @relation("UserCheckins")
   pc_submissions        PcSubmission[]          @relation("UserPcSubmissions")

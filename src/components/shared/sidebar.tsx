@@ -49,17 +49,19 @@ export function Sidebar() {
   };
 
   useEffect(() => {
-    fetchProfile();
-  }, [session]);
+    if (session?.user?.id) {
+      fetchProfile();
+    }
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const isAdmin = session?.user?.role === "ADMIN" || profile?.role === "ADMIN";
     if (isAdmin) {
       fetchPendingCount();
-      const interval = setInterval(fetchPendingCount, 15000); // 15s polling
+      const interval = setInterval(fetchPendingCount, 60000); // 60s polling
       return () => clearInterval(interval);
     }
-  }, [session, profile]);
+  }, [session?.user?.role, profile?.role]);
 
   // Re-fetch profile when profile-updated event fires (e.g. after modal save)
   useEffect(() => {
