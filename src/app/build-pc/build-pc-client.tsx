@@ -16,6 +16,7 @@ import {
   Cpu,
   ArrowRight,
   Trophy,
+  Star,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,24 @@ interface Submission {
     difficulty: string;
     exercise_date?: string;
     requirements?: { budget?: number; useCase?: string; constraints?: string[] };
+  };
+}
+
+interface FeaturedBuild {
+  id: string;
+  ai_score: number | null;
+  submitted_at: string;
+  exercise: {
+    id: string;
+    title: string;
+    description: string;
+    difficulty: string;
+    exercise_date?: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    avatar_url?: string | null;
   };
 }
 
@@ -185,6 +204,7 @@ export default function BuildPcClient() {
   const [history, setHistory] = useState<Submission[]>([]);
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [featuredBuilds, setFeaturedBuilds] = useState<FeaturedBuild[]>([]);
 
   const [modalExerciseId, setModalExerciseId] = useState<string | null>(null);
   const [exerciseStates, setExerciseStates] = useState<Record<string, ExerciseState>>({});
@@ -219,6 +239,7 @@ export default function BuildPcClient() {
       if (leaderRes.ok) {
         const data = await leaderRes.json();
         setLeaderboard(data.leaderboard || []);
+        setFeaturedBuilds(data.featuredBuilds || []);
       }
       if (subRes.ok) {
         const data = await subRes.json();
@@ -711,6 +732,81 @@ export default function BuildPcClient() {
                     ))}
                   </div>
                 </>
+              )}
+            </div>
+          </Card>
+
+          <Card className="border-surface-container-high shadow-sm">
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  <h2 className="font-manrope text-lg font-bold text-on-surface">Bài Build PC nổi bật trong tuần</h2>
+                </div>
+                <span className="hidden sm:inline-flex text-[10px] font-extrabold uppercase tracking-wider text-on-muted bg-surface-container px-2.5 py-1 rounded-full">
+                  7 ngày gần nhất
+                </span>
+              </div>
+
+              {featuredBuilds.length === 0 ? (
+                <div className="text-center py-10 text-on-muted text-sm">Tuần này chưa có bài điểm cao.</div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {featuredBuilds.map((build, idx) => (
+                    <div
+                      key={build.id}
+                      className="rounded-2xl border border-surface-container bg-surface-container-lowest p-4 hover:border-primary/25 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={cn(
+                              "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
+                              idx === 0 ? "bg-amber-100 text-amber-600" :
+                              idx === 1 ? "bg-slate-200 text-slate-700" :
+                              idx === 2 ? "bg-orange-100 text-orange-700" :
+                              "bg-surface-container-high text-on-muted"
+                            )}>
+                              {idx + 1}
+                            </span>
+                            <span className={cn(
+                              "rounded px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider border",
+                              build.exercise.difficulty === "easy" ? "border-emerald-200 text-emerald-600 bg-transparent" :
+                              build.exercise.difficulty === "medium" ? "border-amber-200 text-amber-600 bg-transparent" :
+                              "border-rose-200 text-rose-600 bg-transparent"
+                            )}>
+                              {DIFFICULTY_LABEL[build.exercise.difficulty] || build.exercise.difficulty}
+                            </span>
+                            <span className="text-[10px] font-semibold text-on-muted">
+                              {formatDateGroup(build.submitted_at)}
+                            </span>
+                          </div>
+                          <p className="font-manrope text-sm font-bold text-on-surface line-clamp-2">
+                            {build.exercise.description || build.exercise.title}
+                          </p>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-full overflow-hidden bg-surface-container border border-surface-container shrink-0">
+                              {build.user.avatar_url ? (
+                                <img src={build.user.avatar_url} alt={build.user.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-on-muted">
+                                  {(build.user.name || "?").charAt(0)}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-semibold text-on-surface truncate">{build.user.name}</span>
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-2xl font-black text-primary leading-none">
+                            {Math.round(build.ai_score || 0)}
+                          </div>
+                          <div className="text-[10px] font-bold text-on-muted uppercase tracking-wider">điểm</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </Card>
