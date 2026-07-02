@@ -48,7 +48,7 @@ export function NotificationEmail({ subject, message }: NotificationEmailProps) 
 
           <Section style={styles.footer}>
             <Text style={styles.footerText}>
-              Email được gửi tự động từ hệ thống <strong>Teamwork Check</strong>.
+              Email được gửi tự động từ hệ thống <strong>SP-Cybersoft</strong>.
               <br />
               Vui lòng không trả lời trực tiếp email này.
             </Text>

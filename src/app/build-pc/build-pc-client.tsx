@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast, Toaster } from "sonner";
 import { AnimatePresence } from "framer-motion";
 import {
@@ -173,6 +174,7 @@ function getLocalDateString(dateInput: Date | string): string {
 }
 
 export default function BuildPcClient() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("exercises");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loadingExercises, setLoadingExercises] = useState(true);
@@ -255,6 +257,12 @@ export default function BuildPcClient() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (searchParams.get("submissionId")) {
+      setTab("history");
+    }
+  }, [searchParams]);
 
   // Poll for background worker updates dynamically
   useEffect(() => {
@@ -602,6 +610,7 @@ export default function BuildPcClient() {
         <SubmissionHistoryList
           history={history}
           onCancelExercise={(exId) => handleCancelExercise(exId)}
+          initialSubmissionId={searchParams.get("submissionId")}
         />
       )}
 

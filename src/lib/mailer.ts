@@ -20,7 +20,7 @@ function getResend(): Resend {
 function getFromAddress(): string {
   const domain = process.env.RESEND_EMAIL_DOMAIN || "sp-cybersoft.com";
   const fromEmail = process.env.RESEND_FROM_EMAIL || `noreply@${domain}`;
-  const fromName = process.env.RESEND_FROM_NAME || "Teamwork Check";
+  const fromName = process.env.RESEND_FROM_NAME || "SP-Cybersoft";
 
   return `"${fromName}" <${fromEmail}>`;
 }

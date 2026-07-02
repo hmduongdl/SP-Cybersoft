@@ -1,4 +1,4 @@
-# Teamwork Check-in System Plan
+# SP-Cybersoft Check-in System Plan
 
 ## Phase 1 — Database schema
 

@@ -9,6 +9,7 @@ import {
   processPcBuildCompatibilityFromStored,
   processPcBuildVision,
 } from "@/lib/pc-build-background-worker";
+import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
 import { createNotification } from "@/lib/notifications";
 import { cleanupExpiredBuildPcImages, CLEANED_IMAGE_MARKER } from "@/lib/pc-build-cleanup";
 import type { Prisma } from "@prisma/client";
@@ -222,7 +223,14 @@ export async function POST(request: Request) {
       // Gửi thông báo cho các bài nộp đã được AI xử lý
       const processedSubs = subs.length > 0 ? await db.pcSubmission.findMany({
         where: { id: { in: pcSubmissionIds } },
-        select: { id: true, user_id: true, status: true, reject_reason: true, ai_feedback: true },
+        select: {
+          id: true,
+          user_id: true,
+          status: true,
+          reject_reason: true,
+          ai_feedback: true,
+          user: { select: { email: true, name: true, full_name: true, username: true } },
+        },
       }) : [];
       const exerciseTitles = subs.length > 0 ? await db.pcExercise.findMany({
         where: { id: { in: subs.map(s => s.exercise_id) } },
@@ -241,6 +249,15 @@ export async function POST(request: Request) {
             : `Bài tập "${exTitle}" đã được AI duyệt lại. Phân tích mới nhất: ${ps.reject_reason || ps.ai_feedback || "Vui lòng xem chi tiết và điều chỉnh trước khi nộp lại."}`,
           referenceId: ps.id,
           referenceType: "pc_submission",
+        });
+        await sendAiReviewCompletedEmail({
+          to: ps.user.email,
+          userName: ps.user.name || ps.user.full_name || ps.user.username,
+          itemTitle: exTitle,
+          itemType: "Build PC",
+          status: isApproved ? "approved" : "rejected",
+          analysis: ps.ai_feedback || ps.reject_reason || "AI đã hoàn tất phân tích cấu hình.",
+          reviewPath: `/build-pc?submissionId=${ps.id}`,
         });
       }
 
@@ -331,7 +348,15 @@ export async function POST(request: Request) {
 
       const processedCheckins = checkins.length > 0 ? await db.checkin.findMany({
         where: { id: { in: pcCheckinIds }, task_type: "BUILD_PC" },
-        select: { id: true, user_id: true, status: true, reject_reason: true, build_data: true },
+        select: {
+          id: true,
+          user_id: true,
+          status: true,
+          reject_reason: true,
+          build_data: true,
+          user: { select: { email: true, name: true, full_name: true, username: true } },
+          pc_task: { select: { customer_need: true } },
+        },
       }) : [];
       for (const checkin of processedCheckins.filter((checkin) => isFinalPcBuildStatus(checkin.status))) {
         const buildData = getJsonObject(checkin.build_data);
@@ -346,6 +371,15 @@ export async function POST(request: Request) {
             : `Bài Build PC đã được AI duyệt lại. Phân tích mới nhất: ${checkin.reject_reason || feedback || "Vui lòng xem chi tiết và điều chỉnh trước khi nộp lại."}`,
           referenceId: checkin.id,
           referenceType: "checkin",
+        });
+        await sendAiReviewCompletedEmail({
+          to: checkin.user.email,
+          userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
+          itemTitle: checkin.pc_task?.customer_need || "Bài Build PC",
+          itemType: "Build PC",
+          status: isApproved ? "approved" : "rejected",
+          analysis: feedback || checkin.reject_reason || "AI đã hoàn tất phân tích cấu hình.",
+          reviewPath: `/reports?checkinId=${checkin.id}`,
         });
       }
     } else if (action === "SAVE_REVIEW") {

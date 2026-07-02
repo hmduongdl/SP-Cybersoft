@@ -7,6 +7,7 @@ import { runVisionCheck } from "@/lib/ai-vision-check";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { updateUserTrustScore } from "@/lib/trust-score";
+import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
 
 export const dynamic = "force-dynamic";
 
@@ -182,6 +183,17 @@ export async function POST(request: Request) {
       if (isValid && checkin.status !== "AUTO_APPROVED" && checkin.status !== "APPROVED") {
         await updateUserTrustScore(checkin.user_id, "AUTO_APPROVED", checkin.post_id ?? undefined);
       }
+
+      await sendAiReviewCompletedEmail({
+        to: checkin.user.email,
+        userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
+        itemTitle: checkin.post?.title || extractedTitle || "Bài check-in",
+        itemType: "Check-in Like/Share",
+        status: isValid ? "approved" : "needs_review",
+        analysis: reason,
+        reviewPath: `/reports?checkinId=${checkin.id}`,
+        extractedTitle,
+      });
 
       revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
       revalidateTag(CACHE_TAGS.POSTS_LIST, "default");

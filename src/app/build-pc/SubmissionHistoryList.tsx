@@ -55,6 +55,7 @@ interface Submission {
 interface Props {
   history: Submission[];
   onCancelExercise?: (exerciseId: string) => void;
+  initialSubmissionId?: string | null;
 }
 
 /* ─────────────────────────────────────────
@@ -658,8 +659,15 @@ function EmptyState() {
 /* ─────────────────────────────────────────
    Main export
    ───────────────────────────────────────── */
-export default function SubmissionHistoryList({history, onCancelExercise}: Props) {
+export default function SubmissionHistoryList({history, onCancelExercise, initialSubmissionId}: Props) {
   const [modalSubmission, setModalSubmission] = useState<Submission|null>(null);
+
+  useEffect(() => {
+    if (!initialSubmissionId) return;
+
+    const target = history.find((submission) => submission.id === initialSubmissionId);
+    if (target) setModalSubmission(target);
+  }, [history, initialSubmissionId]);
 
   if (history.length===0) return <EmptyState/>;
 

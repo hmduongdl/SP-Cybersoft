@@ -200,26 +200,34 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID và dữ liệu cần cập nhật.' }, { status: 400 });
         }
 
-        // Update both Share Posts and PC Build Tasks
-        await Promise.all([
-            db.post.updateMany({
+        // Update both Share Posts and PC Build Tasks independently so one failure doesn't block the other
+        try {
+            await db.post.updateMany({
                 where: { id: { in: ids } },
                 data,
-            }),
-            db.pcBuildTask.updateMany({
+            });
+        } catch (err) {
+            console.error("Failed to update Share Posts:", err);
+        }
+
+        try {
+            await db.pcBuildTask.updateMany({
                 where: { id: { in: ids } },
                 data,
-            }),
-        ]);
+            });
+        } catch (err) {
+            console.error("Failed to update PC Build Tasks:", err);
+        }
 
         // Revalidate cache after updating
-        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
-        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
-        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
+        revalidateTag(CACHE_TAGS.POSTS_LIST);
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS);
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS);
 
         return NextResponse.json({ success: true, message: 'Đã cập nhật thành công.' });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message || 'Lỗi khi cập nhật.' }, { status: 500 });
+        console.error("PATCH /api/posts bulk error:", error);
+        return NextResponse.json({ error: String(error.message || error) }, { status: 500 });
     }
 }
 

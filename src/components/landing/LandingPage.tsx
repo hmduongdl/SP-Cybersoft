@@ -99,7 +99,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
       >
         <div className="flex justify-between items-center h-full px-4 sm:px-6 max-w-7xl mx-auto">
           <a href="https://www.sp-cybersoft.com/" target="_blank" rel="noopener noreferrer">
-            <img src="/spcybersoftlogo.png" alt="SP Cybersoft" className="h-9 sm:h-[52px] w-auto dark:brightness-0 dark:invert" />
+            <img src="/spcybersoftlogo.png" alt="SP-Cybersoft" className="h-9 sm:h-[52px] w-auto dark:brightness-0 dark:invert" />
           </a>
           <nav className="hidden md:flex items-center space-x-6">
             <a
@@ -258,7 +258,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
                   Về Chúng Tôi
                 </motion.h2>
                 <motion.p variants={fadeInUp} className="text-base text-on-surface-variant mb-8">
-                  SP Cybersoft là nhóm lập trình viên thuộc Công Ty TNHH Đầu Tư & Phát Triển Công Nghệ Song Phương. Đam mê xây dựng các hệ thống chuyên nghiệp, mang lại giải pháp tối ưu cho doanh nghiệp.
+                  SP-Cybersoft là nhóm lập trình viên thuộc Công Ty TNHH Đầu Tư & Phát Triển Công Nghệ Song Phương. Đam mê xây dựng các hệ thống chuyên nghiệp, mang lại giải pháp tối ưu cho doanh nghiệp.
                 </motion.p>
                 <motion.div variants={fadeInUp} className="space-y-6 mb-12">
                   <div className="flex items-start gap-4 p-4 rounded-lg hover:bg-surface-container-high transition-colors">
@@ -585,7 +585,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
       <footer className="bg-surface-container-highest text-on-surface py-20 w-full border-t border-outline-variant">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 px-6 max-w-7xl mx-auto">
           <div className="space-y-6">
-            <img src="/spcybersoftlogo.png" alt="SP Cybersoft" className="h-[52px] w-auto dark:brightness-0 dark:invert" />
+            <img src="/spcybersoftlogo.png" alt="SP-Cybersoft" className="h-[52px] w-auto dark:brightness-0 dark:invert" />
             <p className="text-base text-on-surface-variant">
               Đối tác công nghệ đáng tin cậy cho các doanh nghiệp tại Việt Nam.
             </p>
@@ -651,7 +651,7 @@ export default function LandingPage({ userName }: { userName?: string | null }) 
         </div>
         <div className="max-w-7xl mx-auto px-6 mt-20 pt-8 border-t border-outline-variant flex flex-col md:flex-row justify-between items-center gap-6">
           <p className="text-sm text-on-surface-variant text-center md:text-left">
-            © 2026 SP Cybersoft.
+            © 2026 SP-Cybersoft.
           </p>
           <p className="text-sm text-on-surface-variant flex items-center justify-center md:justify-end gap-1">
             Made with <span className="text-error material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span> for the Digital Age.

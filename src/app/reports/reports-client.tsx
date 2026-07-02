@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Toaster } from "sonner";
 import { clsx } from "clsx";
 import { MonthWeekFilter } from "@/components/shared/month-week-filter";
@@ -30,6 +31,10 @@ type CheckinItem = {
   submittedAt: string;
   status: string;
   rejectReason: string;
+  aiAnalysisReason: string;
+  aiConfidence: number | null;
+  aiExtractedTitle: string;
+  aiExtractedUsername: string;
 };
 
 type Props = {
@@ -37,9 +42,11 @@ type Props = {
 };
 
 export default function ReportsClient({ checkins }: Props) {
+  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedCheckin, setSelectedCheckin] = useState<CheckinItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
@@ -94,6 +101,18 @@ export default function ReportsClient({ checkins }: Props) {
       setCurrentPage(page);
     }
   };
+
+  useEffect(() => {
+    const checkinId = searchParams.get("checkinId");
+    if (!checkinId) return;
+
+    const target = checkins.find((item) => item.id === checkinId);
+    if (target) {
+      setStatusFilter("ALL");
+      setSearchTerm("");
+      setSelectedCheckin(target);
+    }
+  }, [checkins, searchParams]);
 
   const formatDate = (dateStr: string) => {
     try {
@@ -253,7 +272,13 @@ export default function ReportsClient({ checkins }: Props) {
                   const isRejected = item.status === "REJECTED";
 
                   return (
-                    <tr key={item.id} className="hover:bg-surface-mid/10 transition-colors">
+                    <tr
+                      key={item.id}
+                      className={clsx(
+                        "hover:bg-surface-mid/10 transition-colors",
+                        searchParams.get("checkinId") === item.id && "bg-primary/5"
+                      )}
+                    >
                       {/* Post Title & Author */}
                       <td className="p-4">
                         <div className="flex flex-col space-y-1 max-w-sm">
@@ -324,9 +349,9 @@ export default function ReportsClient({ checkins }: Props) {
                       {/* Action */}
                       <td className="p-4 text-right">
                         <button
-                          onClick={() => setSelectedImage(item.imageUrl)}
+                          onClick={() => setSelectedCheckin(item)}
                           className="p-2 rounded-xl text-on-muted hover:text-primary hover:bg-surface-container transition-all cursor-pointer border-none"
-                          title="Xem ảnh check-in"
+                          title="Xem phân tích AI"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -400,7 +425,7 @@ export default function ReportsClient({ checkins }: Props) {
       {/* Image Modal Lightbox */}
       {selectedImage && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
           onClick={() => setSelectedImage(null)}
         >
           <div
@@ -419,6 +444,92 @@ export default function ReportsClient({ checkins }: Props) {
               referrerPolicy="no-referrer"
               className="w-full h-auto max-h-[85vh] object-contain rounded-2xl"
             />
+          </div>
+        </div>
+      )}
+
+      {selectedCheckin && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedCheckin(null)}
+        >
+          <div
+            className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-surface-container-lowest rounded-3xl shadow-2xl animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedCheckin(null)}
+              className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-surface-container hover:bg-surface-container-high text-on-surface rounded-full transition-all cursor-pointer shadow-md border-none"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="p-5 md:p-7 space-y-5">
+              <div className="pr-10">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Bài AI đã phân tích</p>
+                <h2 className="mt-1 font-manrope text-xl font-extrabold text-on-surface leading-tight">
+                  {selectedCheckin.postTitle}
+                </h2>
+                <p className="mt-1 text-xs text-on-muted">
+                  Nộp lúc {formatDate(selectedCheckin.submittedAt)}
+                </p>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-[180px_1fr]">
+                <button
+                  onClick={() => setSelectedImage(selectedCheckin.imageUrl)}
+                  className="relative h-44 overflow-hidden rounded-2xl border border-surface-container bg-surface-container cursor-zoom-in"
+                  title="Phóng to ảnh minh chứng"
+                >
+                  <img
+                    src={selectedCheckin.imageUrl}
+                    alt="Minh chứng check-in"
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 transition-opacity hover:opacity-100 text-white">
+                    <Eye className="h-5 w-5" />
+                  </div>
+                </button>
+
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-surface-container bg-surface-mid/30 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-on-muted">Kết quả</p>
+                    <p className="mt-1 text-sm font-extrabold text-on-surface">
+                      {selectedCheckin.status === "AUTO_APPROVED" || selectedCheckin.status === "APPROVED"
+                        ? "Đã duyệt"
+                        : selectedCheckin.status === "REJECTED"
+                          ? "Từ chối"
+                          : "Đang chờ duyệt"}
+                    </p>
+                    {selectedCheckin.aiConfidence != null && (
+                      <p className="mt-1 text-xs text-on-muted">
+                        Độ tin cậy AI: {Math.round(selectedCheckin.aiConfidence * 100)}%
+                      </p>
+                    )}
+                  </div>
+
+                  {(selectedCheckin.aiExtractedTitle || selectedCheckin.aiExtractedUsername) && (
+                    <div className="rounded-2xl border border-surface-container bg-surface-mid/30 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-on-muted">AI nhận diện</p>
+                      {selectedCheckin.aiExtractedTitle && (
+                        <p className="mt-1 text-xs text-on-surface">Bài viết: {selectedCheckin.aiExtractedTitle}</p>
+                      )}
+                      {selectedCheckin.aiExtractedUsername && (
+                        <p className="mt-1 text-xs text-on-surface">Tài khoản: {selectedCheckin.aiExtractedUsername}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-surface-container bg-surface-mid/30 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-on-muted">Phân tích của AI</p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-on-surface">
+                  {selectedCheckin.aiAnalysisReason || selectedCheckin.rejectReason || "Chưa có nội dung phân tích AI."}
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -139,7 +139,7 @@ export function LandingAIChat() {
             </div>
             <div className="flex-1 mt-0.5">
               <p className="text-xs text-gray-800 dark:text-on-surface font-inter font-medium leading-relaxed">
-                Bạn có thắc mắc gì không? Tôi có thể giúp bạn về sản phẩm và dịch vụ của SP Cybersoft.
+                Bạn có thắc mắc gì không? Tôi có thể giúp bạn về sản phẩm và dịch vụ của SP-Cybersoft.
               </p>
             </div>
             <button
@@ -202,12 +202,12 @@ export function LandingAIChat() {
                     Tôi có thể giúp gì cho bạn?
                   </h4>
                   <p className="text-xs text-gray-500 dark:text-on-surface-variant mt-1 max-w-[240px] font-inter">
-                    Đặt câu hỏi về sản phẩm, dịch vụ hoặc giải pháp công nghệ của SP Cybersoft.
+                    Đặt câu hỏi về sản phẩm, dịch vụ hoặc giải pháp công nghệ của SP-Cybersoft.
                   </p>
                 </div>
                 <div className="mt-2 flex flex-col gap-2 w-full max-w-[260px]">
                   {[
-                    "SP Cybersoft cung cấp những dịch vụ gì?",
+                    "SP-Cybersoft cung cấp những dịch vụ gì?",
                     "Làm thế nào để bắt đầu một dự án?",
                     "Bảng giá dịch vụ như thế nào?",
                   ].map((suggestion, idx) => (
