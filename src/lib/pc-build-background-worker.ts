@@ -162,16 +162,27 @@ const hasExtractedItems = (raw: any): boolean => {
 
 const ensureCompatibilityChecks = (result: any): any => {
   if (!result?.matched_parts) return result;
+  const defaultChecks = {
+    socket: { status: "WARN", message: "AI chưa trả về kiểm tra socket chi tiết." },
+    ram: { status: "WARN", message: "AI chưa trả về kiểm tra RAM chi tiết." },
+    power: { status: "WARN", message: "AI chưa trả về kiểm tra nguồn chi tiết." },
+    case: { status: "WARN", message: "AI chưa trả về kiểm tra vỏ case chi tiết." },
+    requirement_fit: { status: "WARN", message: "AI chưa trả về đánh giá mức độ đáp ứng yêu cầu đề bài." },
+    budget: { status: "WARN", message: "AI chưa trả về kiểm tra ngân sách chi tiết." },
+  };
   if (!result.checks) {
-    result.checks = {
-      socket: { status: "WARN", message: "AI chưa trả về kiểm tra socket chi tiết." },
-      ram: { status: "WARN", message: "AI chưa trả về kiểm tra RAM chi tiết." },
-      power: { status: "WARN", message: "AI chưa trả về kiểm tra nguồn chi tiết." },
-      case: { status: "WARN", message: "AI chưa trả về kiểm tra vỏ case chi tiết." },
-      budget: { status: "WARN", message: "AI chưa trả về kiểm tra ngân sách chi tiết." },
-    };
+    result.checks = defaultChecks;
     result.reason = result.reason || "AI đã bóc tách cấu hình nhưng chưa trả về đầy đủ báo cáo kiểm tra kỹ thuật.";
     result.isApproved = false;
+  }
+  for (const [key, fallback] of Object.entries(defaultChecks)) {
+    if (!result.checks[key]) {
+      result.checks[key] = fallback;
+      if (key === "requirement_fit") {
+        result.isApproved = false;
+        result.reason = "Chưa đủ căn cứ xác nhận cấu hình đáp ứng đúng yêu cầu đề bài.";
+      }
+    }
   }
   return result;
 };
@@ -182,6 +193,15 @@ const formatVND = (amount: number): string => `${Math.round(amount).toLocaleStri
 
 const getApprovedBudgetLimit = (budget: number): number => {
   return budget > 0 ? Math.floor(budget * (1 + BUDGET_OVERAGE_LIMIT_RATIO)) : 0;
+};
+
+const enforceRequirementFitGate = (result: any): any => {
+  const requirementStatus = String(result?.checks?.requirement_fit?.status || "").toUpperCase();
+  if (requirementStatus === "FAIL") {
+    result.isApproved = false;
+    result.reason = result.reason || "Không đạt vì cấu hình chưa đáp ứng đúng yêu cầu bắt buộc của đề bài.";
+  }
+  return result;
 };
 
 const enforcePcBuildBudgetLimit = (result: any, expectedBudget: number): any => {
@@ -697,8 +717,9 @@ QUY TẮC KIỂM TRA:
 - RAM DDR4/DDR5 phải đúng loại mainboard.
 - PSU phải đủ CPU + VGA và dư an toàn 100W-150W.
 - Case nhỏ/ITX có thể không vừa main ATX; mid/full tower thường vừa ATX/mATX/ITX.
+- Đáp ứng yêu cầu đề bài: Kiểm tra trước ngân sách. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù tổng giá vẫn nằm trong ngân sách.
 - Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
-- isApproved=true nếu: total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
+- isApproved=true chỉ khi: requirement_fit không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
 - QUY TẮC NHẤT QUÁN: Nếu isApproved=true thì "reason" phải giải thích vì sao ĐẠT. Nếu isApproved=false thì "reason" nêu lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
 
 BẮT BUỘC chỉ trả về JSON:
@@ -725,6 +746,7 @@ BẮT BUỘC chỉ trả về JSON:
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
   }
 }`;
@@ -789,7 +811,7 @@ BẮT BUỘC chỉ trả về JSON:
       throw new Error(`DeepSeek không trả về kết quả hợp lệ. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
     }
 
-    result = enforcePcBuildBudgetLimit(result, expectedBudget);
+    result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(result), expectedBudget);
 
     const formattedData: any = {};
     for (const [key, val] of Object.entries(result.matched_parts || {})) {
@@ -981,8 +1003,9 @@ cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, h
 QUY TẮC:
 - Nếu một danh mục không có trong báo giá, trả về { "name": "", "price": 0 }.
 - total_price là tổng tiền thực tế của các linh kiện.
+- Đáp ứng yêu cầu đề bài là điều kiện kiểm tra đầu tiên. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù ngân sách hợp lệ.
 - Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
-- isApproved=true nếu: total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
+- isApproved=true chỉ khi: requirement_fit không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
 - Nếu isApproved=true: "reason" phải giải thích vì sao ĐẠT (kể cả nếu có cảnh báo nhẹ). Nếu isApproved=false: "reason" nêu rõ lý do cụ thể từ chối. Không được nói "vượt quá giới hạn ngân sách" khi isApproved=true.
 
 BẮT BUỘC chỉ trả về JSON theo format:
@@ -1009,6 +1032,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
   }
 }`;
@@ -1043,7 +1067,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
         console.log("[BackgroundWorker] Fast-path raw preview:", fastContent.slice(0, 500));
         const fastResult = ensureCompatibilityChecks(cleanAndParseJSON(fastContent));
         if (hasFinalPcBuildResult(fastResult)) {
-          result = fastResult;
+          result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(fastResult), expectedBudget);
           console.log("[BackgroundWorker] Fast-path analysis completed successfully.");
         } else {
           console.warn("[BackgroundWorker] Fast-path returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
@@ -1222,12 +1246,16 @@ QUY TẮC KIỂM TRA TƯƠNG THÍCH KỸ THUẬT (HÃY ĐÁNH GIÁ CHÍNH XÁC):
    - Nếu tổng tiền thực tế <= ngân sách tối đa -> Đánh giá trạng thái budget là "PASS".
    - Nếu tổng tiền thực tế > ngân sách tối đa nhưng <= ngân sách + 2% -> Đánh giá trạng thái budget là "WARN" kèm ghi chú vượt nhẹ nhưng vẫn hợp lệ.
    - Nếu tổng tiền thực tế > ngân sách + 2% -> Đánh giá trạng thái budget là "FAIL".
+6. Requirement Fit (Mức độ đáp ứng yêu cầu đề bài):
+   - Đây là cổng kiểm tra đầu tiên và quan trọng nhất, phải đánh giá trước khi xét ngân sách.
+   - Đối chiếu cấu hình với nhu cầu khách hàng và toàn bộ ràng buộc bắt buộc: mục đích sử dụng, phân khúc CPU, dung lượng RAM, dung lượng SSD, yêu cầu VGA rời, màn hình/phụ kiện nếu đề bài yêu cầu.
+   - Nếu cấu hình sai mục đích, thiếu linh kiện bắt buộc, hoặc thấp hơn yêu cầu tối thiểu trọng yếu -> requirement_fit là "FAIL" và isApproved=false, kể cả khi tổng tiền nằm trong ngân sách.
 
 QUY TẮC DUYỆT BÀI (isApproved):
 - Đặt "isApproved": true nếu thỏa mãn:
+  - Cấu hình đáp ứng đúng yêu cầu đề bài; requirement_fit không được FAIL.
   - Tổng giá (total_price) <= Ngân sách đề bài + 2%.
   - Không bị FAIL ở bất kỳ kiểm tra kỹ thuật nghiêm trọng nào (Socket, RAM, Power).
-  - Cấu hình đáp ứng tốt nhu cầu khách hàng (Ví dụ: nhu cầu thiết kế đồ họa 3D nhưng không có VGA rời hoặc CPU quá yếu -> FAIL).
 - Ngược lại đặt "isApproved": false.
 - QUY TẮC NHẤT QUÁN BẮT BUỘC: Nếu isApproved=true thì "reason" phải giải thích tích cực vì sao CẤU HÌNH ĐẠT (có thể nêu cảnh báo vượt nhỏ nhưng phải kết luận là hợp lệ). Nếu isApproved=false thì "reason" nêu rõ lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
 
@@ -1255,6 +1283,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
   }
 }
@@ -1320,7 +1349,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     }
     }
 
-    result = enforcePcBuildBudgetLimit(ensureCompatibilityChecks(result), expectedBudget);
+    result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(ensureCompatibilityChecks(result)), expectedBudget);
 
     // Format output data to include partId: ""
     const formattedData: any = {};

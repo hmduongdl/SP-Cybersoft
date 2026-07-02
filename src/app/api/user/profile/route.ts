@@ -26,6 +26,9 @@ export async function GET() {
         facebook_profile_url: true,
         role: true,
         theme: true,
+        trust_score: true,
+        wallet_balance: true,
+        pc_score: true,
       },
     });
 

@@ -220,9 +220,9 @@ export async function PATCH(request: Request) {
         }
 
         // Revalidate cache after updating
-        revalidateTag(CACHE_TAGS.POSTS_LIST);
-        revalidateTag(CACHE_TAGS.DASHBOARD_STATS);
-        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS);
+        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
         return NextResponse.json({ success: true, message: 'Đã cập nhật thành công.' });
     } catch (error: any) {

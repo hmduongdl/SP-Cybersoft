@@ -14,6 +14,9 @@ declare module "next-auth" {
       facebook_link?: string | null;
       username?: string | null;
       phone?: string | null;
+      trust_score?: number;
+      wallet_balance?: number;
+      pc_score?: number;
     } & DefaultSession["user"];
   }
 

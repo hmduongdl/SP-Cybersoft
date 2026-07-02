@@ -15,7 +15,9 @@ import {
   X,
   Cpu,
   ArrowRight,
+  Trophy,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import {
@@ -24,7 +26,7 @@ import {
 import SubmissionHistoryList from "./SubmissionHistoryList";
 import PcExerciseModal from "./pc-exercise-modal";
 
-type Tab = "exercises" | "history";
+type Tab = "exercises" | "history" | "leaderboard";
 
 interface Exercise {
   id: string;
@@ -182,6 +184,8 @@ export default function BuildPcClient() {
   const [remaining, setRemaining] = useState(5);
   const [history, setHistory] = useState<Submission[]>([]);
 
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+
   const [modalExerciseId, setModalExerciseId] = useState<string | null>(null);
   const [exerciseStates, setExerciseStates] = useState<Record<string, ExerciseState>>({});
 
@@ -203,13 +207,18 @@ export default function BuildPcClient() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [exRes, subRes] = await Promise.all([
+      const [exRes, subRes, leaderRes] = await Promise.all([
         fetch("/api/build-pc/exercises/today"),
         fetch("/api/build-pc/submissions"),
+        fetch("/api/build-pc/leaderboard"),
       ]);
       if (exRes.ok) {
         const data = await exRes.json();
         setExercises(data.exercises || []);
+      }
+      if (leaderRes.ok) {
+        const data = await leaderRes.json();
+        setLeaderboard(data.leaderboard || []);
       }
       if (subRes.ok) {
         const data = await subRes.json();
@@ -454,7 +463,7 @@ export default function BuildPcClient() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-md">
+      <div className="flex gap-1.5 rounded-2xl bg-surface-mid p-1 shadow-sm max-w-[600px]">
         <button
           onClick={() => setTab("exercises")}
           className={cn(
@@ -478,6 +487,18 @@ export default function BuildPcClient() {
         >
           <History className="h-4 w-4" />
           Lịch sử nộp
+        </button>
+        <button
+          onClick={() => setTab("leaderboard")}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 font-manrope text-xs font-bold transition-all cursor-pointer",
+            tab === "leaderboard"
+              ? "bg-surface-container-lowest text-primary shadow-sm"
+              : "text-on-muted hover:text-on-surface"
+          )}
+        >
+          <Trophy className="h-4 w-4" />
+          Bảng xếp hạng
         </button>
       </div>
 
@@ -513,10 +534,17 @@ export default function BuildPcClient() {
                   <Card
                     key={ex.id}
                     className={cn(
-                      "transition-all border hover:shadow-card duration-200 overflow-hidden cursor-pointer border-surface-container-high hover:border-primary/30 group",
+                      "transition-all border overflow-hidden",
+                      (ex as any).is_archived 
+                        ? "opacity-75 bg-surface-mid/30 cursor-not-allowed border-surface-container" 
+                        : "hover:shadow-card duration-200 cursor-pointer border-surface-container-high hover:border-primary/30 group",
                       modalExerciseId === ex.id && "ring-1 ring-primary/30"
                     )}
                     onClick={() => {
+                      if ((ex as any).is_archived) {
+                        toast.error("Bài tập này đã hết hạn / bị khoá.");
+                        return;
+                      }
                       if (remaining <= 0 && !state.previewImage && !state.submission_id) {
                         toast.error("Hết lượt gửi bài hôm nay rồi, mai quay lại nha.");
                         return;
@@ -559,7 +587,7 @@ export default function BuildPcClient() {
                                 return (
                                   <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1">
                                     <CheckCircle2 className="h-3 w-3" />
-                                    Hoàn thành
+                                    Hoàn tất thẩm định
                                   </span>
                                 );
                               }
@@ -567,14 +595,21 @@ export default function BuildPcClient() {
                                 return (
                                   <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-1">
                                     <XCircle className="h-3 w-3" />
-                                    Cần điều chỉnh
+                                    Yêu cầu hiệu chỉnh
                                   </span>
                                 );
                               }
                               return (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-50 text-amber-600 border border-amber-200 flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
-                                  Đang chờ duyệt
+                                  Đang thẩm định
+                                </span>
+                              );
+                            }
+                            if ((ex as any).is_archived) {
+                              return (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-surface-container-high text-on-muted border border-surface-container flex items-center gap-1">
+                                  Đã khoá
                                 </span>
                               );
                             }
@@ -588,7 +623,28 @@ export default function BuildPcClient() {
                             return null;
                           })()}
                         </div>
-                        <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.requirements.constraints?.join(" • ") || "Không có ràng buộc"}</p>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <p className="font-inter text-xs text-on-surface leading-normal line-clamp-1">{ex.requirements.constraints?.join(" • ") || "Không có ràng buộc"}</p>
+                          
+                          {/* Completed Users Avatars */}
+                          {(ex as any).submissions && (ex as any).submissions.length > 0 && (
+                            <div className="flex items-center -space-x-1.5" title={`${(ex as any).submissions.length} người đã hoàn thành`}>
+                              {(ex as any).submissions.slice(0, 5).map((sub: any) => (
+                                <img
+                                  key={sub.user.id}
+                                  src={sub.user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                  alt={sub.user.name}
+                                  className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
+                                />
+                              ))}
+                              {(ex as any).submissions.length > 5 && (
+                                <div className="w-5 h-5 rounded-full border border-surface-container-lowest bg-surface-container flex items-center justify-center text-[9px] font-bold text-on-muted z-20 relative">
+                                  +{(ex as any).submissions.length - 5}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] text-on-muted font-medium opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline">
@@ -602,6 +658,62 @@ export default function BuildPcClient() {
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Leaderboard View */}
+      {tab === "leaderboard" && (
+        <div className="space-y-6">
+          <Card className="border-surface-container-high shadow-sm">
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center gap-2 mb-6">
+                <Trophy className="h-5 w-5 text-amber-500" />
+                <h2 className="font-manrope text-lg font-bold text-on-surface">Top Điểm Build PC</h2>
+              </div>
+              {leaderboard.length === 0 ? (
+                <div className="text-center py-10 text-on-muted text-sm">Chưa có ai ghi điểm.</div>
+              ) : (
+                <>
+                  <div className="h-64 w-full mb-8">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={leaderboard.slice(0, 10)} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
+                        <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                        <RechartsTooltip 
+                          cursor={{ fill: 'currentColor', opacity: 0.05 }}
+                          contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                        <Bar dataKey="pc_score" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" maxBarSize={50} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {leaderboard.map((user, idx) => (
+                      <div key={user.id} className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-lowest border border-surface-container hover:border-primary/20 transition-all">
+                        <div className="flex items-center gap-3">
+                          <span className={cn("w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold", 
+                            idx === 0 ? "bg-amber-100 text-amber-600" : 
+                            idx === 1 ? "bg-slate-200 text-slate-700" : 
+                            idx === 2 ? "bg-orange-100 text-orange-700" : 
+                            "bg-surface-container-high text-on-muted"
+                          )}>
+                            {idx + 1}
+                          </span>
+                          <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-container border border-surface-container">
+                            {user.avatar_url ? <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-on-muted">{user.name.charAt(0)}</div>}
+                          </div>
+                          <span className="text-sm font-semibold text-on-surface">{user.name}</span>
+                        </div>
+                        <span className="text-sm font-bold text-primary">{user.pc_score} điểm</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
         </div>
       )}
 

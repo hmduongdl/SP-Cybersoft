@@ -43,6 +43,26 @@ const getApprovedBudgetLimit = (budget: number): number => {
   return budget > 0 ? Math.floor(budget * (1 + BUDGET_OVERAGE_LIMIT_RATIO)) : 0;
 };
 
+const enforceRequirementFitGate = (result: any): any => {
+  if (!result?.matched_parts) return result;
+  result.checks = result.checks || {};
+  if (!result.checks.requirement_fit) {
+    result.checks.requirement_fit = {
+      status: "WARN",
+      message: "Chưa đủ căn cứ xác nhận cấu hình đáp ứng đúng yêu cầu đề bài.",
+    };
+    result.isApproved = false;
+    result.reason = "Chưa đủ căn cứ xác nhận cấu hình đáp ứng đúng yêu cầu đề bài.";
+  }
+
+  if (String(result.checks.requirement_fit.status || "").toUpperCase() === "FAIL") {
+    result.isApproved = false;
+    result.reason = result.reason || "Không đạt vì cấu hình chưa đáp ứng đúng yêu cầu bắt buộc của đề bài.";
+  }
+
+  return result;
+};
+
 const enforcePcBuildBudgetLimit = (result: any, expectedBudget: number): any => {
   if (!result?.matched_parts) return result;
 
@@ -224,15 +244,17 @@ NHIỆM VỤ CỦA BẠN:
    Lưu ý:
    - Danh mục keyboard_mouse có thể kết hợp từ Bàn phím và Chuột trong hóa đơn nếu cả hai cùng xuất hiện.
    - Các linh kiện phụ kiện như headphone hay bàn ghế (furniture) nếu có hãy xếp vào headphone hoặc desk_chair tương ứng.
-2. Kiểm tra kỹ thuật tương thích phần cứng:
+2. Đối chiếu yêu cầu đề bài:
+   Đây là cổng kiểm tra đầu tiên và quan trọng nhất. Cấu hình phải đáp ứng đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài: mục đích sử dụng, phân khúc CPU, dung lượng RAM, dung lượng SSD, yêu cầu VGA rời, màn hình/phụ kiện nếu đề bài yêu cầu. Nếu sai mục đích, thiếu linh kiện bắt buộc hoặc thấp hơn yêu cầu tối thiểu trọng yếu -> requirement_fit là "FAIL" và isApproved=false, kể cả khi tổng tiền nằm trong ngân sách.
+3. Kiểm tra kỹ thuật tương thích phần cứng:
    Hãy đánh giá tính tương thích và hợp lệ dựa trên các yếu tố sau:
    a. Socket (CPU & Mainboard): Ví dụ LGA1700 của Intel đi với main H610/B760/Z790; AM5 của AMD đi với main A620/B650; LGA1200 đi với main H410/H510/B460/B560,... CPU và Mainboard có tương thích socket không?
    b. RAM (DDR4/DDR5 & Mainboard): RAM DDR4 chỉ lắp được mainboard DDR4, RAM DDR5 chỉ lắp được mainboard DDR5. Đọc tên mainboard và RAM xem có bị lệch thế hệ DDR không?
    c. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ tải cho CPU + VGA không? (Ví dụ: i5 + RTX 4060 cần nguồn từ 550W trở lên; i7 + RTX 4070 cần nguồn từ 650W trở lên; cấu hình văn phòng không VGA rời cần nguồn 350W-450W trở lên).
    d. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không? (Ví dụ main ATX lắp vào case Mini-ITX là không vừa).
    e. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế không được vượt quá ngân sách tối đa của đề bài hơn 2%. Nếu tổng giá <= ngân sách thì budget là "PASS"; nếu tổng giá > ngân sách nhưng <= ngân sách + 2% thì budget là "WARN" kèm giải thích vượt nhẹ nhưng vẫn hợp lệ; nếu tổng giá > ngân sách + 2% thì budget là "FAIL". Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
-3. Đánh giá duyệt cấu hình (chỉ áp dụng nếu có đề bài):
-   - Đặt "isApproved": true nếu thỏa mãn: tổng giá <= ngân sách + 2%, các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu), và đáp ứng được nhu cầu khách hàng. Ngược lại đặt false.
+4. Đánh giá duyệt cấu hình (chỉ áp dụng nếu có đề bài):
+   - Đặt "isApproved": true nếu thỏa mãn: requirement_fit không FAIL, tổng giá <= ngân sách + 2%, và các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu). Ngược lại đặt false.
    - Ghi nhận xét ngắn gọn trong "reason".
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
@@ -259,6 +281,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về tương thích RAM DDR4/DDR5" },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về công suất nguồn PSU" },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về kích thước vỏ case & mainboard" },
+    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp đối chiếu mức độ đáp ứng yêu cầu đề bài" },
     "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về ngân sách và chênh lệch giá tiền" }
   }
 }
@@ -324,7 +347,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
       throw new Error(`Tất cả các cổng phân tích tương thích AI đều thất bại. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
     }
 
-    result = enforcePcBuildBudgetLimit(result, expectedBudget);
+    result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(result), expectedBudget);
 
     // Format output data to include partId: "" to satisfy client types
     const formattedData: any = {};

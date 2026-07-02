@@ -187,12 +187,14 @@ export async function POST(request: Request) {
       await sendAiReviewCompletedEmail({
         to: checkin.user.email,
         userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
-        itemTitle: checkin.post?.title || extractedTitle || "Bài check-in",
+        itemTitle: checkin.post?.description || checkin.post?.title || extractedTitle || "Bài check-in",
         itemType: "Check-in Like/Share",
         status: isValid ? "approved" : "needs_review",
         analysis: reason,
         reviewPath: `/reports?checkinId=${checkin.id}`,
         extractedTitle,
+        recipientTrustScore: checkin.user.trust_score,
+        recipientIsVerified: checkin.user.is_verified,
       });
 
       revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");

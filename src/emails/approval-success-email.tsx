@@ -11,43 +11,42 @@ import {
   Text,
 } from "@react-email/components";
 
-interface AiReviewEmailProps {
-  userName?: string | null;
-  itemTitle: string;
+export interface ApprovalSuccessEmailItem {
+  title: string;
   itemType: string;
-  statusLabel: string;
-  analysis: string;
   reviewUrl: string;
-  extractedTitle?: string | null;
+  analysis?: string | null;
 }
 
-export function AiReviewEmail({
-  userName,
-  itemTitle,
-  itemType,
-  statusLabel,
-  analysis,
-  reviewUrl,
-  extractedTitle,
-}: AiReviewEmailProps) {
-  const tone = getReviewTone(statusLabel);
+interface ApprovalSuccessEmailProps {
+  userName?: string | null;
+  items: ApprovalSuccessEmailItem[];
+}
+
+export function ApprovalSuccessEmail({ userName, items }: ApprovalSuccessEmailProps) {
+  const safeItems = items.length > 0 ? items : [{ title: "Bài nộp", itemType: "Bài duyệt", reviewUrl: "#" }];
+  const isSingle = safeItems.length === 1;
+  const firstItem = safeItems[0];
+  const preview = isSingle
+    ? `Bài "${firstItem.title}" đã được duyệt thành công`
+    : `${safeItems.length} bài của bạn đã được duyệt thành công`;
 
   return (
     <Html lang="vi">
       <Head />
-      <Preview>AI đã phân tích xong bài: {itemTitle}</Preview>
+      <Preview>{preview}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
           <Section style={styles.header}>
             <Text style={styles.logoMark}>S</Text>
             <Text style={styles.brand}>SP Cybersoft</Text>
-            <Text style={styles.headerMeta}>Hệ thống AI Duyệt bài</Text>
+            <Text style={styles.headerMeta}>Hệ thống duyệt bài</Text>
           </Section>
 
           <Section style={styles.hero}>
-            <Text style={{ ...styles.badge, ...tone.badge }}>{tone.badgeText}</Text>
+            <Text style={styles.badge}>✓ Đạt</Text>
             <Heading as="h1" style={styles.heading}>
-              {tone.heading}
+              {isSingle ? "Bài của bạn đã được duyệt thành công" : "Các bài của bạn đã được duyệt thành công"}
             </Heading>
           </Section>
 
@@ -56,37 +55,60 @@ export function AiReviewEmail({
               Chào <strong style={styles.strong}>{userName || "bạn"}</strong>,
             </Text>
             <Text style={styles.message}>
-              Hệ thống AI vừa hoàn tất phân tích đề bài <strong style={styles.strong}>{itemTitle}</strong>.
+              {isSingle ? (
+                <>
+                  Đề bài <strong style={styles.strong}>{firstItem.title}</strong> đã được duyệt thành công.
+                </>
+              ) : (
+                <>
+                  Các đề bài sau đã được duyệt thành công trong cùng một đợt thông báo.
+                </>
+              )}
             </Text>
 
-            <Section style={styles.summaryBox}>
-              <Section style={styles.twoColumn}>
-                <Section style={styles.column}>
-                  <Text style={styles.label}>Loại bài</Text>
-                  <Text style={styles.value}>{itemType}</Text>
-                </Section>
-                <Section style={styles.column}>
-                  <Text style={styles.label}>Kết quả</Text>
-                  <Text style={{ ...styles.value, color: tone.color }}>{statusLabel}</Text>
-                </Section>
-              </Section>
-              {extractedTitle ? (
+            <Section style={styles.card}>
+              {isSingle ? (
                 <>
-                  <Hr style={styles.cardDivider} />
-              <Text style={styles.label}>AI nhận diện đề bài</Text>
-                  <Text style={styles.value}>{extractedTitle}</Text>
+                  <Text style={styles.label}>Loại bài</Text>
+                  <Text style={styles.value}>{firstItem.itemType}</Text>
+                  <Text style={styles.label}>Mô tả đề bài</Text>
+                  <Text style={styles.value}>{firstItem.title}</Text>
+                  {firstItem.analysis ? (
+                    <>
+                      <Text style={styles.label}>Ghi chú duyệt</Text>
+                      <Text style={styles.analysis}>{firstItem.analysis}</Text>
+                    </>
+                  ) : null}
                 </>
-              ) : null}
-              <Hr style={styles.cardDivider} />
-              <Text style={styles.label}>Phân tích của AI</Text>
-              <Text style={styles.analysis}>{analysis}</Text>
+              ) : (
+                <>
+                  <Text style={styles.label}>Số lượng đề bài</Text>
+                  <Text style={styles.value}>{safeItems.length} đề bài đã được duyệt</Text>
+                  <Hr style={styles.cardDivider} />
+                  {safeItems.map((item, index) => (
+                    <Section key={`${item.reviewUrl}-${index}`} style={styles.itemRow}>
+                      <Text style={styles.itemIndex}>{index + 1}</Text>
+                      <Section style={styles.itemContent}>
+                        <Text style={styles.itemTitle}>{item.title}</Text>
+                        <Text style={styles.itemType}>{item.itemType}</Text>
+                        <Button href={item.reviewUrl} style={styles.itemLink}>
+                          Xem bài
+                        </Button>
+                      </Section>
+                    </Section>
+                  ))}
+                </>
+              )}
             </Section>
 
-            <Button href={reviewUrl} style={styles.button}>
-              Xem bài phân tích
-            </Button>
-
-            <Text style={styles.linkText}>Hoặc mở link này: {reviewUrl}</Text>
+            {isSingle ? (
+              <>
+                <Button href={firstItem.reviewUrl} style={styles.button}>
+                  Xem chi tiết bài duyệt
+                </Button>
+                <Text style={styles.linkText}>Hoặc mở link này: {firstItem.reviewUrl}</Text>
+              </>
+            ) : null}
           </Section>
 
           <Section style={styles.footer}>
@@ -99,47 +121,6 @@ export function AiReviewEmail({
       </Body>
     </Html>
   );
-}
-
-function getReviewTone(statusLabel: string) {
-  const normalized = statusLabel.toLowerCase();
-
-  if (normalized.includes("từ chối") || normalized.includes("không đạt") || normalized.includes("rejected")) {
-    return {
-      badgeText: "✕ Không đạt",
-      heading: "Cấu hình chưa đạt yêu cầu",
-      color: "#F87171",
-      badge: {
-        backgroundColor: "rgba(239,68,68,0.12)",
-        border: "1px solid rgba(239,68,68,0.35)",
-        color: "#F87171",
-      },
-    };
-  }
-
-  if (normalized.includes("cần") || normalized.includes("kiểm tra") || normalized.includes("điều chỉnh")) {
-    return {
-      badgeText: "! Cần điều chỉnh",
-      heading: "AI đã duyệt xong bài của bạn",
-      color: "#FBBF24",
-      badge: {
-        backgroundColor: "rgba(245,158,11,0.12)",
-        border: "1px solid rgba(245,158,11,0.35)",
-        color: "#FBBF24",
-      },
-    };
-  }
-
-  return {
-    badgeText: "✓ Đạt",
-    heading: "Cấu hình đã được AI duyệt thành công",
-    color: "#4ADE80",
-    badge: {
-      backgroundColor: "rgba(34,197,94,0.12)",
-      border: "1px solid rgba(34,197,94,0.35)",
-      color: "#4ADE80",
-    },
-  };
 }
 
 const styles = {
@@ -158,6 +139,7 @@ const styles = {
     border: "1px solid #1E2540",
   },
   header: {
+    position: "relative" as const,
     padding: "28px 40px 24px",
     borderBottom: "1px solid #1E2540",
   },
@@ -196,6 +178,9 @@ const styles = {
     margin: 0,
     padding: "6px 14px",
     borderRadius: "999px",
+    border: "1px solid rgba(34,197,94,0.35)",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    color: "#4ADE80",
     fontSize: "12px",
     fontWeight: 700,
     letterSpacing: "0.4px",
@@ -226,20 +211,12 @@ const styles = {
   strong: {
     color: "#E6E9F5",
   },
-  summaryBox: {
+  card: {
     margin: "24px 0 0",
     padding: "22px 24px",
     borderRadius: "12px",
-    backgroundColor: "#0D1224",
     border: "1px solid #1E2540",
-  },
-  twoColumn: {
-    margin: 0,
-  },
-  column: {
-    display: "inline-block",
-    width: "50%",
-    verticalAlign: "top",
+    backgroundColor: "#0D1224",
   },
   label: {
     margin: "0 0 4px",
@@ -256,16 +233,61 @@ const styles = {
     fontWeight: 700,
     lineHeight: "1.5",
   },
-  cardDivider: {
-    margin: "2px 0 18px",
-    borderColor: "#1E2540",
-  },
   analysis: {
     margin: "8px 0 0",
     color: "#C7CBE0",
     fontSize: "14px",
     lineHeight: "1.65",
     whiteSpace: "pre-line" as const,
+  },
+  cardDivider: {
+    margin: "2px 0 12px",
+    borderColor: "#1E2540",
+  },
+  itemRow: {
+    padding: "10px 0",
+    borderBottom: "1px solid #1A2036",
+  },
+  itemIndex: {
+    display: "inline-block",
+    width: "24px",
+    height: "24px",
+    margin: "0 12px 0 0",
+    borderRadius: "999px",
+    backgroundColor: "rgba(34,197,94,0.12)",
+    color: "#4ADE80",
+    fontSize: "12px",
+    fontWeight: 700,
+    lineHeight: "24px",
+    textAlign: "center" as const,
+  },
+  itemContent: {
+    display: "inline-block",
+    width: "calc(100% - 40px)",
+    verticalAlign: "top",
+  },
+  itemTitle: {
+    margin: 0,
+    color: "#E6E9F5",
+    fontSize: "14px",
+    fontWeight: 700,
+    lineHeight: "1.45",
+  },
+  itemType: {
+    margin: "3px 0 8px",
+    color: "#5B6382",
+    fontSize: "12px",
+    lineHeight: "1.4",
+  },
+  itemLink: {
+    display: "inline-block",
+    padding: "7px 10px",
+    borderRadius: "8px",
+    backgroundColor: "#1A2036",
+    color: "#C7CBE0",
+    fontSize: "12px",
+    fontWeight: 700,
+    textDecoration: "none",
   },
   button: {
     display: "block",

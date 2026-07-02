@@ -506,6 +506,7 @@ export function PostTaskAdmin() {
   const filteredPosts = postsOfTab.filter(post => {
     return isInRange(post.start_at, monthFilter.effectiveRange);
   });
+  const showThumbnailColumn = adminTab !== "pc_build";
 
   return (
     <div className="animate-in fade-in duration-200">
@@ -622,7 +623,7 @@ export function PostTaskAdmin() {
                       className="rounded border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                     />
                   </th>
-                  <th className="px-6 py-4 w-16">Ảnh</th>
+                  {showThumbnailColumn && <th className="px-6 py-4 w-16">Ảnh</th>}
                   <th className="px-6 py-4">
                     {adminTab === "pc_build" ? "Nhu cầu của khách" : "Tiêu đề bài đăng Facebook"}
                   </th>
@@ -654,16 +655,13 @@ export function PostTaskAdmin() {
                         />
                       </td>
 
-                      {/* Thumbnail / Icon */}
-                      <td className="px-6 py-4">
-                        <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center overflow-hidden shadow-sm">
-                          {isPcBuild ? (
-                            <Cpu className="h-5 w-5 text-primary" />
-                          ) : (
+                      {showThumbnailColumn && (
+                        <td className="px-6 py-4">
+                          <div className="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center overflow-hidden shadow-sm">
                             <PostThumbnail src={post.thumbnail_url} alt={post.title} />
-                          )}
-                        </div>
-                      </td>
+                          </div>
+                        </td>
+                      )}
 
                       {/* Title & description */}
                       <td className="px-6 py-4 max-w-sm">

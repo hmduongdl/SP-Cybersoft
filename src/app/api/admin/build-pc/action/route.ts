@@ -10,6 +10,7 @@ import {
   processPcBuildVision,
 } from "@/lib/pc-build-background-worker";
 import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
+import { queueApprovedReviewEmail } from "@/lib/approval-success-email";
 import { createNotification } from "@/lib/notifications";
 import { cleanupExpiredBuildPcImages, CLEANED_IMAGE_MARKER } from "@/lib/pc-build-cleanup";
 import type { Prisma } from "@prisma/client";
@@ -128,7 +129,7 @@ export async function POST(request: Request) {
       const subs = pcSubmissionIds.length
         ? await db.pcSubmission.findMany({
             where: { id: { in: pcSubmissionIds } },
-            select: { id: true, user_id: true, exercise_id: true, image_urls: true, parts_answer: true },
+            select: { id: true, user_id: true, exercise_id: true, image_urls: true, parts_answer: true, submitted_at: true },
           })
         : [];
 
@@ -218,6 +219,17 @@ export async function POST(request: Request) {
             },
           },
         });
+
+        // Add score to user if approved and after 02/07/2026
+        if (finalStatus === "AUTO_APPROVED" && score && score > 0) {
+          const july2nd = new Date("2026-07-01T17:00:00Z"); // Start of 02/07/2026 VN time
+          if (new Date(submission.submitted_at) >= july2nd) {
+            await db.user.update({
+              where: { id: submission.user_id },
+              data: { pc_score: { increment: score } },
+            });
+          }
+        }
       }
 
       // Gửi thông báo cho các bài nộp đã được AI xử lý
@@ -229,14 +241,14 @@ export async function POST(request: Request) {
           status: true,
           reject_reason: true,
           ai_feedback: true,
-          user: { select: { email: true, name: true, full_name: true, username: true } },
+          user: { select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true } },
         },
       }) : [];
       const exerciseTitles = subs.length > 0 ? await db.pcExercise.findMany({
         where: { id: { in: subs.map(s => s.exercise_id) } },
-        select: { id: true, title: true },
+        select: { id: true, title: true, description: true },
       }) : [];
-      const titleMap = new Map(exerciseTitles.map(e => [e.id, e.title]));
+      const titleMap = new Map(exerciseTitles.map(e => [e.id, e.description || e.title]));
       for (const ps of processedSubs.filter((ps) => isFinalPcBuildStatus(ps.status))) {
         const isApproved = ps.status === "AUTO_APPROVED";
         const exTitle = titleMap.get(subs.find(s => s.id === ps.id)?.exercise_id || "") || "Build PC";
@@ -258,13 +270,15 @@ export async function POST(request: Request) {
           status: isApproved ? "approved" : "rejected",
           analysis: ps.ai_feedback || ps.reject_reason || "AI đã hoàn tất phân tích cấu hình.",
           reviewPath: `/build-pc?submissionId=${ps.id}`,
+          recipientTrustScore: ps.user.trust_score,
+          recipientIsVerified: ps.user.is_verified,
         });
       }
 
       const checkins = pcCheckinIds.length
         ? await db.checkin.findMany({
             where: { id: { in: pcCheckinIds }, task_type: "BUILD_PC" },
-            select: { id: true, user_id: true, image_url: true, build_data: true },
+            select: { id: true, user_id: true, image_url: true, build_data: true, submitted_at: true },
           })
         : [];
 
@@ -344,6 +358,17 @@ export async function POST(request: Request) {
             },
           },
         });
+
+        const score = typeof processedData.temp_ai_score === "number" ? processedData.temp_ai_score : null;
+        if (finalStatus === "AUTO_APPROVED" && score && score > 0) {
+          const july2nd = new Date("2026-07-01T17:00:00Z");
+          if (new Date(checkin.submitted_at) >= july2nd) {
+            await db.user.update({
+              where: { id: checkin.user_id },
+              data: { pc_score: { increment: score } },
+            });
+          }
+        }
       }
 
       const processedCheckins = checkins.length > 0 ? await db.checkin.findMany({
@@ -354,7 +379,7 @@ export async function POST(request: Request) {
           status: true,
           reject_reason: true,
           build_data: true,
-          user: { select: { email: true, name: true, full_name: true, username: true } },
+          user: { select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true } },
           pc_task: { select: { customer_need: true } },
         },
       }) : [];
@@ -380,6 +405,8 @@ export async function POST(request: Request) {
           status: isApproved ? "approved" : "rejected",
           analysis: feedback || checkin.reject_reason || "AI đã hoàn tất phân tích cấu hình.",
           reviewPath: `/reports?checkinId=${checkin.id}`,
+          recipientTrustScore: checkin.user.trust_score,
+          recipientIsVerified: checkin.user.is_verified,
         });
       }
     } else if (action === "SAVE_REVIEW") {
@@ -441,7 +468,14 @@ export async function POST(request: Request) {
       const subs = pcSubmissionIds.length
         ? await db.pcSubmission.findMany({
             where: { id: { in: pcSubmissionIds } },
-            select: { id: true, image_urls: true, parts_answer: true, exercise_id: true, user_id: true },
+            select: {
+              id: true,
+              image_urls: true,
+              parts_answer: true,
+              exercise_id: true,
+              user_id: true,
+              user: { select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true } },
+            },
           })
         : [];
 
@@ -494,9 +528,9 @@ export async function POST(request: Request) {
         const exIds = [...new Set(subs.map(s => s.exercise_id))];
         const exercises = exIds.length > 0 ? await db.pcExercise.findMany({
           where: { id: { in: exIds } },
-          select: { id: true, title: true },
+          select: { id: true, title: true, description: true },
         }) : [];
-        const titleMap = new Map(exercises.map(e => [e.id, e.title]));
+        const titleMap = new Map(exercises.map(e => [e.id, e.description || e.title]));
         await Promise.all(
           subs.map(sub =>
             createNotification({
@@ -509,12 +543,30 @@ export async function POST(request: Request) {
             })
           )
         );
+        subs.forEach((sub) => {
+          const title = titleMap.get(sub.exercise_id) || "Build PC";
+          queueApprovedReviewEmail({
+            to: sub.user.email,
+            userName: sub.user.name || sub.user.full_name || sub.user.username,
+            itemTitle: title,
+            itemType: "Build PC",
+            reviewPath: `/build-pc?submissionId=${sub.id}`,
+            analysis: "Bài tập của bạn đã được quản trị viên duyệt.",
+            recipientTrustScore: sub.user.trust_score,
+            recipientIsVerified: sub.user.is_verified,
+          });
+        });
       }
 
       if (pcCheckinIds.length > 0) {
         const checkins = await db.checkin.findMany({
           where: { id: { in: pcCheckinIds }, task_type: "BUILD_PC" },
-          select: { id: true, build_data: true },
+          select: {
+            id: true,
+            build_data: true,
+            user: { select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true } },
+            pc_task: { select: { customer_need: true } },
+          },
         });
 
         await Promise.all(
@@ -537,6 +589,19 @@ export async function POST(request: Request) {
             });
           })
         );
+
+        checkins.forEach((checkin) => {
+          queueApprovedReviewEmail({
+            to: checkin.user.email,
+            userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
+            itemTitle: checkin.pc_task?.customer_need || "Bài Build PC",
+            itemType: "Build PC",
+            reviewPath: `/reports?checkinId=${checkin.id}`,
+            analysis: "Bài Build PC của bạn đã được quản trị viên duyệt.",
+            recipientTrustScore: checkin.user.trust_score,
+            recipientIsVerified: checkin.user.is_verified,
+          });
+        });
       }
     } else {
       const subs = pcSubmissionIds.length

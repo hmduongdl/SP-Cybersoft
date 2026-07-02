@@ -5,6 +5,7 @@ import { deleteImage } from "@/lib/upload";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { updateUserTrustScore } from "@/lib/trust-score";
+import { queueApprovedReviewEmail } from "@/lib/approval-success-email";
 
 export const dynamic = "force-dynamic";
 
@@ -77,7 +78,13 @@ export async function POST(request: Request) {
 
     const affectedCheckins = await db.checkin.findMany({
       where: { id: { in: checkinIds } },
-      select: { user_id: true, post_id: true },
+      select: {
+        id: true,
+        user_id: true,
+        post_id: true,
+        user: { select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true } },
+        post: { select: { title: true, description: true } },
+      },
     });
     
     // Process trust scores
@@ -87,6 +94,19 @@ export async function POST(request: Request) {
         action === "APPROVE" ? "APPROVED" : "REJECTED",
         checkin.post_id ?? undefined
       );
+
+      if (action === "APPROVE") {
+        queueApprovedReviewEmail({
+          to: checkin.user.email,
+          userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
+          itemTitle: checkin.post?.description || checkin.post?.title || "Bài check-in",
+          itemType: "Check-in Like/Share",
+          reviewPath: `/reports?checkinId=${checkin.id}`,
+          analysis: "Bài của bạn đã được quản trị viên duyệt.",
+          recipientTrustScore: checkin.user.trust_score,
+          recipientIsVerified: checkin.user.is_verified,
+        });
+      }
     }
 
     // Revalidate cache after admin approves/rejects checkins

@@ -132,6 +132,28 @@ function renderCheckIcon(status: string) {
   return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />;
 }
 
+const CHECK_DISPLAY_ORDER = ["requirement_fit", "socket", "ram", "power", "case", "budget"];
+
+const CHECK_LABELS: Record<string, string> = {
+  requirement_fit: "Đối chiếu yêu cầu đề bài",
+  socket: "Tương thích CPU và mainboard",
+  ram: "Tương thích bộ nhớ",
+  power: "Đánh giá công suất nguồn",
+  case: "Tương thích vỏ máy",
+  budget: "Kiểm soát ngân sách",
+};
+
+function getOrderedChecks(checks: Record<string, any>) {
+  return Object.entries(checks).sort(([a], [b]) => {
+    const ai = CHECK_DISPLAY_ORDER.indexOf(a);
+    const bi = CHECK_DISPLAY_ORDER.indexOf(b);
+    if (ai === -1 && bi === -1) return a.localeCompare(b);
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
 // ─── Sub-components ─────────────────────────────────────────────────────────────
 
 function OverviewSlide({ exercise }: { exercise: Exercise }) {
@@ -329,7 +351,7 @@ function AnalyzingSlide() {
   const steps = [
     { icon: ImageIcon, label: "Đọc dữ liệu cấu hình...", color: "text-indigo-500" },
     { icon: BrainCircuit, label: "AI phân tích linh kiện...", color: "text-violet-500" },
-    { icon: Zap, label: "Kiểm tra tương thích...", color: "text-amber-500" },
+    { icon: Zap, label: "Thẩm định cấu hình...", color: "text-amber-500" },
     { icon: ShieldCheck, label: "Đánh giá tổng quan...", color: "text-emerald-500" },
   ];
 
@@ -467,10 +489,13 @@ function ResultSlide({
           </div>
           <div>
             <p className="text-sm font-bold text-on-surface dark:text-slate-50">
-              {isApproved ? "Hoàn thành" : isRejected ? "Cần điều chỉnh" : "Đang chờ duyệt"}
+              {isApproved ? "Hoàn tất thẩm định" : isRejected ? "Yêu cầu hiệu chỉnh" : "Đang thẩm định"}
             </p>
             {state.approvalReason && (
-              <p className="text-xs text-on-muted mt-0.5 leading-relaxed dark:text-slate-300/85">{state.approvalReason}</p>
+              <p className="text-xs text-on-muted mt-0.5 leading-relaxed dark:text-slate-300/85">
+                <span className="font-semibold text-on-surface dark:text-slate-200">Nhận xét: </span>
+                {state.approvalReason}
+              </p>
             )}
           </div>
         </div>
@@ -499,10 +524,10 @@ function ResultSlide({
         <motion.div variants={FADE_UP} className="rounded-xl border border-surface-container-high bg-surface-container-low p-3.5 space-y-2 dark:border-white/10 dark:bg-white/[0.06]">
           <p className="text-[10px] font-extrabold uppercase tracking-wider text-on-muted flex items-center gap-1 dark:text-slate-400">
             <ShieldCheck className="h-3 w-3 text-emerald-500 dark:text-emerald-300" />
-            Kiểm tra tương thích
+            Báo cáo thẩm định cấu hình
           </p>
           <div className="space-y-1.5">
-            {Object.entries(state.compatibilityChecks).map(([key, check]: any, i) => (
+            {getOrderedChecks(state.compatibilityChecks).map(([key, check]: any, i) => (
               <motion.div
                 key={key}
                 initial={{ opacity: 0, x: -8 }}
@@ -511,7 +536,12 @@ function ResultSlide({
                 className="flex gap-2 items-start text-xs"
               >
                 {renderCheckIcon(check.status)}
-                <span className="text-on-muted dark:text-slate-300">{check.message}</span>
+                <span className="text-on-muted dark:text-slate-300">
+                  <span className="font-semibold text-on-surface dark:text-slate-100">
+                    {CHECK_LABELS[key] || key}:
+                  </span>{" "}
+                  {check.message}
+                </span>
               </motion.div>
             ))}
           </div>
@@ -606,9 +636,9 @@ function PendingSlide({ state, exercise, onCancel, onClose }: {
       </motion.div>
 
       <div className="text-center space-y-2">
-        <h3 className="text-lg font-bold text-on-surface dark:text-slate-50">Đang chờ duyệt</h3>
+        <h3 className="text-lg font-bold text-on-surface dark:text-slate-50">Đang thẩm định</h3>
         <p className="text-xs text-on-muted max-w-xs mx-auto leading-relaxed dark:text-slate-400">
-          Cấu hình của bạn đã được ghi nhận và đang chờ hệ thống AI xem xét. Bạn sẽ nhận được thông báo khi có kết quả.
+          Cấu hình đã được ghi nhận và đang được đối chiếu với yêu cầu đề bài, tiêu chí tương thích kỹ thuật và giới hạn ngân sách.
         </p>
       </div>
 

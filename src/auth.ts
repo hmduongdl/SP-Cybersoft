@@ -53,18 +53,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               department: true,
               facebook_profile_url: true,
               is_verified: true,
+              trust_score: true,
+              wallet_balance: true,
+              pc_score: true,
             },
           });
           if (dbUser) {
             token.name = dbUser.name;
             token.picture = dbUser.avatar_url;
-            token.role = dbUser.role ? dbUser.role : "USER";
-            token.department = dbUser.department ?? "";
             token.avatar_url = dbUser.avatar_url;
-            token.username = dbUser.username ?? null;
-            token.email = dbUser.email;
-            token.facebook_link = dbUser.facebook_profile_url ?? null;
+            token.role = dbUser.role || "USER";
+            token.department = dbUser.department || "";
             token.is_verified = dbUser.is_verified;
+            token.username = dbUser.username || null;
+            token.email = dbUser.email;
+            token.trust_score = dbUser.trust_score;
+            token.wallet_balance = dbUser.wallet_balance;
+            token.pc_score = dbUser.pc_score;
+            token.facebook_link = dbUser.facebook_profile_url || null;
           }
         } catch {
           console.warn("jwt: không thể query DB, giữ nguyên token.");
@@ -74,21 +80,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (token.id) {
         session.user.id = token.id as string;
-        session.user.role = token.role as "ADMIN" | "USER";
-        session.user.is_verified = token.is_verified as boolean;
-        session.user.hasFacebook = false;
+        session.user.role = token.role as any;
+        session.user.name = token.name as string;
         session.user.department = token.department as string;
         session.user.avatar_url = token.avatar_url as string | null;
         session.user.username = token.username as string | null;
         session.user.phone = token.phone as string | null;
         session.user.facebook_link = token.facebook_link as string | null;
+        session.user.is_verified = token.is_verified as boolean;
+        session.user.trust_score = token.trust_score as number;
+        session.user.wallet_balance = token.wallet_balance as number;
+        session.user.pc_score = token.pc_score as number;
         if (token.picture) {
           session.user.image = token.picture as string;
-        }
-        if (token.name) {
-          session.user.name = token.name as string;
         }
       }
       return session;

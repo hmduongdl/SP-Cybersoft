@@ -22,8 +22,7 @@ export async function GET() {
 
   const tasks = await db.pcBuildTask.findMany({
     where: { 
-      date: { gte: today, lt: tomorrow },
-      is_archived: false
+      date: { gte: today, lt: tomorrow }
     },
     include: {
       submissions: {
@@ -32,7 +31,7 @@ export async function GET() {
         },
         include: {
           user: {
-            select: { id: true, name: true, image: true }
+            select: { id: true, name: true, avatar_url: true }
           }
         },
         distinct: ['user_id'] // Only one avatar per user per task
