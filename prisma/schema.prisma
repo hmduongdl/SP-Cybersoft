@@ -61,6 +61,7 @@ model PcBuildTask {
   requirements  String
   difficulty    String    @default("medium")
   deadline      DateTime?
+  is_archived   Boolean   @default(false)
   created_at    DateTime  @default(now())
   submissions   Checkin[]
 
@@ -89,6 +90,7 @@ model Checkin {
   image_url             String
   exif_time             DateTime?
   submitted_at          DateTime      @default(now())
+  reviewed_at           DateTime?
   status                CheckinStatus @default(PENDING)
   reject_reason         String?
   is_ai_flagged         Boolean       @default(false)
@@ -141,6 +143,7 @@ model PcSubmission {
   explanation   String
   image_urls    Json          @default("[]")
   submitted_at  DateTime      @default(now())
+  reviewed_at   DateTime?
   status        CheckinStatus @default(PENDING)
   reject_reason String?
   reviewed_by   String?

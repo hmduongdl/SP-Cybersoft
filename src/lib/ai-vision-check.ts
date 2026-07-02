@@ -114,15 +114,15 @@ export async function runVisionCheck(
 
   const extractionAttempts = [
     async () => {
-      if (!process.env.MOONSHOT_API_KEY) {
-        throw new Error("No MOONSHOT_API_KEY configured for vision check");
+      if (!process.env.AIBOX_DEFAULT_API_KEY && !process.env.AIBOX_API_KEY) {
+        throw new Error("No AIBOX API key configured for vision check");
       }
-      console.log("[ai-vision-check] Attempting extraction with direct Moonshot Kimi API via base64...");
+      console.log("[ai-vision-check] Attempting extraction with Kimi k2.6 via AIBOX...");
       
       const res = await retryWithBackoff(() => 
         withTimeout(
           moonshotAI.chat.completions.create({
-            model: "kimi-k2.5",
+            model: "kimi-k2.6",
             messages: [
               {
                 role: "user",

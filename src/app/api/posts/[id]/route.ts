@@ -24,16 +24,19 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     // Check if it's a PC Build Task editing
     const buildTask = await db.pcBuildTask.findUnique({ where: { id } });
     if (buildTask) {
+        const updateData: Record<string, any> = {};
+        // Allow partial updates (e.g. only is_archived toggle)
+        if (body.is_archived !== undefined) updateData.is_archived = body.is_archived;
+        if (body.customer_need !== undefined || body.title !== undefined) updateData.customer_need = body.customer_need || body.title || '';
+        if (body.max_budget !== undefined) updateData.max_budget = Number(body.max_budget) || 0;
+        if (body.requirements !== undefined || body.description !== undefined) updateData.requirements = body.requirements || body.description || '';
+        if (body.difficulty !== undefined) updateData.difficulty = body.difficulty || "medium";
+        if (body.deadline !== undefined) updateData.deadline = body.deadline ? new Date(body.deadline) : null;
+        if (body.start_at !== undefined) updateData.date = new Date(body.start_at);
+
         const updatedTask = await db.pcBuildTask.update({
             where: { id },
-            data: {
-                customer_need: body.customer_need || body.title || '',
-                max_budget: Number(body.max_budget) || 0,
-                requirements: body.requirements || body.description || '',
-                difficulty: body.difficulty || "medium",
-                deadline: body.deadline ? new Date(body.deadline) : null,
-                date: body.start_at ? new Date(body.start_at) : new Date(),
-            }
+            data: updateData,
         });
         return NextResponse.json({ post: { ...updatedTask, task_type: 'PC_BUILD' } });
     }

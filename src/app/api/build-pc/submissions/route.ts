@@ -7,6 +7,7 @@ import {
 } from "@/lib/pc-kho";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
+import { cleanupExpiredBuildPcImages } from "@/lib/pc-build-cleanup";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,6 +24,8 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  await cleanupExpiredBuildPcImages();
 
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
@@ -65,6 +68,8 @@ export async function POST(request: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  await cleanupExpiredBuildPcImages();
 
   const body = await request.json();
   const { exercise_id, image_urls, explanation, extracted_items } = body;

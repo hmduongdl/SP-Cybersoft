@@ -4,6 +4,9 @@ import { auth } from "@/auth";
 import fs from "fs";
 import path from "path";
 import { runVisionCheck } from "@/lib/ai-vision-check";
+import { revalidateTag } from "next/cache";
+import { CACHE_TAGS } from "@/lib/cache";
+import { updateUserTrustScore } from "@/lib/trust-score";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +21,7 @@ export async function POST(request: Request) {
     // 2. Parse request body
     const body = await request.json();
     const checkinId = body.checkinId || body.checkin_id;
+    const applyDecision = body.applyDecision === true;
 
     if (!checkinId) {
       return NextResponse.json(
@@ -80,6 +84,13 @@ export async function POST(request: Request) {
         else if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg";
         else if (ext === ".webp") mimeType = "image/webp";
       }
+    }
+
+    if (applyDecision && !base64Image) {
+      return NextResponse.json(
+        { error: "Không thể tải ảnh minh chứng để AI duyệt lại. Có thể ảnh đã bị xoá khỏi storage." },
+        { status: 400 }
+      );
     }
 
     // 5. Workflow Tự động duyệt: Gemini trích xuất -> Model Khác quyết định
@@ -152,9 +163,11 @@ export async function POST(request: Request) {
     // 6. Update database record with AI results
     const storedConfidence = confidence > 1 ? confidence / 100 : confidence;
 
-    await db.checkin.update({
+    const nextStatus = applyDecision && isValid ? "AUTO_APPROVED" : checkin.status;
+    const updatedCheckin = await db.checkin.update({
       where: { id: checkin.id },
       data: {
+        status: nextStatus,
         is_ai_flagged: !isValid,
         ai_confidence: storedConfidence,
         ai_extracted_username: extractedUsername,
@@ -165,6 +178,16 @@ export async function POST(request: Request) {
       },
     });
 
+    if (applyDecision) {
+      if (isValid && checkin.status !== "AUTO_APPROVED" && checkin.status !== "APPROVED") {
+        await updateUserTrustScore(checkin.user_id, "AUTO_APPROVED", checkin.post_id ?? undefined);
+      }
+
+      revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+      revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+      revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
+    }
+
     // 7. Return structured JSON response
     return NextResponse.json({
       isValid,
@@ -172,6 +195,7 @@ export async function POST(request: Request) {
       analysisReason: reason,
       extractedUsername,
       extractedTitle,
+      status: updatedCheckin.status,
     });
 
   } catch (error: any) {

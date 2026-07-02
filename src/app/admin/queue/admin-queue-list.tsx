@@ -37,6 +37,7 @@ function mapPcBuildCheckinToQueueItem(checkin: any) {
     id: `checkin:${checkin.id}`,
     status: checkin.status,
     submitted_at: checkin.submitted_at,
+    reviewed_at: checkin.reviewed_at,
     explanation: buildData.explanation || "",
     parts_answer: buildData,
     image_urls: checkin.image_url ? [checkin.image_url] : [],
@@ -112,6 +113,12 @@ export default async function AdminQueueList(props: {
       if (exerciseDiff !== 0) return exerciseDiff;
       const titleDiff = (a.exercise?.title || "").localeCompare(b.exercise?.title || "", "vi");
       if (titleDiff !== 0) return titleDiff;
+      // REVIEWED tab: sort by reviewed_at descending; PENDING: by submitted_at
+      if (activeTab === "REVIEWED") {
+        const aTime = a.reviewed_at ? new Date(a.reviewed_at).getTime() : 0;
+        const bTime = b.reviewed_at ? new Date(b.reviewed_at).getTime() : 0;
+        return bTime - aTime;
+      }
       return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
     });
 

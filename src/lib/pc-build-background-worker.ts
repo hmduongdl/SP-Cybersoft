@@ -5,11 +5,11 @@ import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
 import * as XLSX from "xlsx";
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label = "API"): Promise<T> {
   let timeoutId: any;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
-      reject(new Error(`API call timeout after ${timeoutMs}ms`));
+      reject(new Error(`[${label}] API call timeout after ${timeoutMs}ms`));
     }, timeoutMs);
   });
   return Promise.race([promise, timeoutPromise]).finally(() => {
@@ -235,10 +235,11 @@ const envInt = (name: string, fallback: number): number => {
 const IS_VERCEL = process.env.VERCEL === "1";
 const IMAGE_MAX_SIZE = envInt("PC_BUILD_IMAGE_MAX_SIZE", IS_VERCEL ? 1100 : 1200);
 const IMAGE_QUALITY = envInt("PC_BUILD_IMAGE_QUALITY", IS_VERCEL ? 72 : 74);
-const FAST_PATH_TIMEOUT_MS = IS_VERCEL ? 28_000 : 35_000;
-const VISION_EXTRACTION_TIMEOUT_MS = envInt("PC_BUILD_VISION_TIMEOUT_MS", IS_VERCEL ? 18_000 : 75_000);
-const COMPATIBILITY_TIMEOUT_MS = IS_VERCEL ? 16_000 : 75_000;
+const FAST_PATH_TIMEOUT_MS = IS_VERCEL ? 50_000 : 60_000;
+const VISION_EXTRACTION_TIMEOUT_MS = envInt("PC_BUILD_VISION_TIMEOUT_MS", IS_VERCEL ? 45_000 : 90_000);
+const COMPATIBILITY_TIMEOUT_MS = IS_VERCEL ? 50_000 : 120_000;
 const AI_RETRY_COUNT = envInt("PC_BUILD_AI_RETRIES", IS_VERCEL ? 0 : 1);
+const VISION_RETRY_COUNT = envInt("PC_BUILD_VISION_RETRIES", 0);
 const MAX_AI_OUTPUT_TOKENS = envInt("PC_BUILD_MAX_AI_TOKENS", 4500);
 const ENABLE_PRO_COMPATIBILITY_FALLBACK =
   !IS_VERCEL || process.env.PC_BUILD_ENABLE_PRO_FALLBACK === "true";
@@ -463,7 +464,8 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
             messages: [{ role: "user", content: excelExtractPrompt }],
             response_format: { type: "json_object" },
           }),
-          VISION_EXTRACTION_TIMEOUT_MS
+          VISION_EXTRACTION_TIMEOUT_MS,
+          "Vision-Excel"
         ),
         AI_RETRY_COUNT
       );
@@ -508,12 +510,39 @@ Trả về JSON: { "items": [{ "name": "...", "quantity": 0, "price": 0, "total"
 Nếu thông tin nào không rõ ràng, hãy để null.`;
 
     const visionAttempts = [
+      ...(process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY ? [{
+        name: "Kimi k2.6 vision (via AIBOX)",
+        run: async () => {
+          const response = await retryWithBackoff(() =>
+            withTimeout(
+              moonshotAI.chat.completions.create({
+                model: "kimi-k2.6",
+                messages: [
+                  { role: "system", content: extractionPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
+                ],
+                max_tokens: MAX_AI_OUTPUT_TOKENS,
+              }),
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Vision-Moonshot"
+            ),
+            VISION_RETRY_COUNT
+          );
+          return response.choices[0]?.message?.content || "{}";
+        },
+      }] : []),
       {
         name: "AIBOX vision",
         run: async () => {
           const response = await retryWithBackoff(() =>
             withTimeout(
-              defaultAI.chat.completions.create({
+              codexAI.chat.completions.create({
                 model: MODEL_VISION_ONLY,
                 messages: [
                   { role: "system", content: extractionPrompt },
@@ -527,9 +556,10 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                 ],
                 max_tokens: MAX_AI_OUTPUT_TOKENS,
               }),
-              VISION_EXTRACTION_TIMEOUT_MS
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Vision-AIBOX"
             ),
-            AI_RETRY_COUNT
+            VISION_RETRY_COUNT
           );
           return response.choices[0]?.message?.content || "{}";
         },
@@ -710,7 +740,8 @@ BẮT BUỘC chỉ trả về JSON:
               response_format: { type: "json_object" },
               max_tokens: MAX_AI_OUTPUT_TOKENS,
             }),
-            COMPATIBILITY_TIMEOUT_MS
+            COMPATIBILITY_TIMEOUT_MS,
+            "Compat-Flash"
           ),
           AI_RETRY_COUNT
         );
@@ -728,7 +759,8 @@ BẮT BUỘC chỉ trả về JSON:
                     response_format: { type: "json_object" },
                     max_tokens: MAX_AI_OUTPUT_TOKENS,
                   }),
-                  COMPATIBILITY_TIMEOUT_MS
+                  COMPATIBILITY_TIMEOUT_MS,
+                  "Compat-Pro"
                 ),
                 AI_RETRY_COUNT
               );
@@ -782,6 +814,7 @@ BẮT BUỘC chỉ trả về JSON:
         where: { id },
         data: {
           status: isDraft ? "PENDING" : finalStatus,
+          reviewed_at: isDraft ? undefined : new Date(),
           reject_reason: isDraft || result.isApproved ? null : result.reason || "Cấu hình không đạt yêu cầu.",
           build_data: {
             ...formattedData,
@@ -812,6 +845,7 @@ BẮT BUỘC chỉ trả về JSON:
         where: { id },
         data: {
           status: isDraft ? "PENDING" : finalStatus,
+          reviewed_at: isDraft ? undefined : new Date(),
           reject_reason: isDraft || result.isApproved ? null : result.reason || "Cấu hình không đạt yêu cầu.",
           parts_answer: {
             parts: partsAnswer,
@@ -984,7 +1018,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
         console.log("[BackgroundWorker] Attempting Vercel fast-path single vision analysis...");
         const fastResponse = await retryWithBackoff(() =>
           withTimeout(
-            defaultAI.chat.completions.create({
+            codexAI.chat.completions.create({
               model: MODEL_VISION_ONLY,
               messages: [
                 { role: "system", content: FINAL_ANALYSIS_PROMPT },
@@ -999,8 +1033,10 @@ BẮT BUỘC chỉ trả về JSON theo format:
               response_format: { type: "json_object" },
               max_tokens: 4000,
             }),
-            FAST_PATH_TIMEOUT_MS
-          )
+            FAST_PATH_TIMEOUT_MS,
+            "FastPath-AIBOX"
+          ),
+          VISION_RETRY_COUNT
         );
 
         const fastContent = fastResponse.choices[0]?.message?.content || "{}";
@@ -1018,7 +1054,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
     }
 
     if (!result) {
-    if (IS_VERCEL && Date.now() - analysisStartedAt > 30_000) {
+    if (IS_VERCEL && Date.now() - analysisStartedAt > 55_000) {
       throw new Error("Fast-path AI không trả về kết quả kịp trong giới hạn Vercel, dừng fallback để tránh timeout và tốn thêm token.");
     }
 
@@ -1045,7 +1081,8 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
               messages: [{ role: "user", content: excelExtractPrompt }],
               response_format: { type: "json_object" },
             }),
-            VISION_EXTRACTION_TIMEOUT_MS
+            VISION_EXTRACTION_TIMEOUT_MS,
+            "Background-Excel"
           )
         );
         const aiContent = response.choices[0]?.message?.content || "{}";
@@ -1065,15 +1102,15 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
 
       const extractionAttempts = [
         async () => {
-          if (!process.env.MOONSHOT_API_KEY) {
-            throw new Error("No MOONSHOT_API_KEY configured in environment");
+          if (!process.env.AIBOX_DEFAULT_API_KEY && !process.env.AIBOX_API_KEY) {
+            throw new Error("No AIBOX API key configured in environment");
           }
-          console.log("[BackgroundWorker] Attempting extraction with direct Moonshot Kimi API via base64...");
+          console.log("[BackgroundWorker] Attempting extraction with Kimi via AIBOX API...");
 
           const response = await retryWithBackoff(() =>
             withTimeout(
               moonshotAI.chat.completions.create({
-                model: "kimi-k2.5",
+                model: "kimi-k2.6",
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
@@ -1086,19 +1123,21 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
                 ],
                 max_tokens: 4000,
               }),
-              VISION_EXTRACTION_TIMEOUT_MS
-            )
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Background-Moonshot"
+            ),
+            VISION_RETRY_COUNT
           );
 
           const aiContent = response.choices[0]?.message?.content || "{}";
-          console.log("[BackgroundWorker] Moonshot extraction raw preview:", aiContent.slice(0, 500));
+          console.log("[BackgroundWorker] Kimi k2.6 extraction raw preview:", aiContent.slice(0, 500));
           return normalizeExtractionResult(cleanAndParseJSON(aiContent));
         },
         async () => {
           console.log("[BackgroundWorker] Falling back to AIBOX vision extraction...");
           const response = await retryWithBackoff(() =>
             withTimeout(
-              defaultAI.chat.completions.create({
+              codexAI.chat.completions.create({
                 model: MODEL_VISION_ONLY,
                 messages: [
                   { role: "system", content: extractionPrompt },
@@ -1112,8 +1151,10 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
                 ],
                 max_tokens: 4000,
               }),
-              VISION_EXTRACTION_TIMEOUT_MS
-            )
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Background-AIBOX"
+            ),
+            VISION_RETRY_COUNT
           );
           const aiContent = response.choices[0]?.message?.content || "{}";
           return normalizeExtractionResult(cleanAndParseJSON(aiContent));
@@ -1231,7 +1272,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
             response_format: { type: "json_object" },
           }),
-          COMPATIBILITY_TIMEOUT_MS
+          COMPATIBILITY_TIMEOUT_MS,
+          "Background-Compat-Flash"
         );
         const content = response.choices[0]?.message?.content || "{}";
         console.log("[BackgroundWorker] DeepSeek Flash raw preview:", content.slice(0, 500));
@@ -1247,7 +1289,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
             response_format: { type: "json_object" },
           }),
-          COMPATIBILITY_TIMEOUT_MS
+          COMPATIBILITY_TIMEOUT_MS,
+          "Background-Compat-Pro"
         );
         const content = response.choices[0]?.message?.content || "{}";
         console.log("[BackgroundWorker] DeepSeek Pro raw preview:", content.slice(0, 500));
@@ -1309,6 +1352,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
         where: { id },
         data: {
           status: isDraft ? "PENDING" : finalStatus,
+          reviewed_at: isDraft ? undefined : new Date(),
           reject_reason: isDraft || result.isApproved ? null : result.reason || "Cấu hình không đạt yêu cầu.",
           build_data: {
             ...formattedData,
@@ -1340,6 +1384,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
         where: { id },
         data: {
           status: isDraft ? "PENDING" : finalStatus,
+          reviewed_at: isDraft ? undefined : new Date(),
           reject_reason: isDraft || result.isApproved ? null : result.reason || "Cấu hình không đạt yêu cầu.",
           parts_answer: {
             parts: parts_answer,

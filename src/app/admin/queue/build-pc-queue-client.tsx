@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
+  X,
+  ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/user-avatar";
@@ -136,6 +138,7 @@ export default function BuildPcQueueClient({
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [progressStep, setProgressStep] = useState("");
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setSubmissions(initialSubmissions);
@@ -144,6 +147,17 @@ export default function BuildPcQueueClient({
     setDeptFilter(initialDept);
     setExpandedId(null);
   }, [initialSubmissions, initialTab, initialSearch, initialDept]);
+
+  useEffect(() => {
+    if (!zoomImageUrl) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setZoomImageUrl(null);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [zoomImageUrl]);
 
   const updateUrl = (params: Record<string, string>) => {
     const p = new URLSearchParams(searchParams.toString());
@@ -188,12 +202,26 @@ export default function BuildPcQueueClient({
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       setProcessingAction(null);
+      if (Array.isArray(data.results) && data.results.length > 0) {
+        setSubmissions((prev) =>
+          prev.map((submission) => {
+            const updated = data.results.find((item: any) => item.id === submission.id);
+            return updated
+              ? {
+                  ...submission,
+                  status: updated.status,
+                  ai_score: updated.ai_score,
+                  ai_feedback: updated.ai_feedback,
+                  reject_reason: updated.reject_reason,
+                  parts_answer: updated.parts_answer ?? submission.parts_answer,
+                  image_urls: updated.image_urls ?? submission.image_urls,
+                }
+              : submission;
+          })
+        );
+      }
       toast.success("AI đã phân tích và ra quyết định tự động.");
-      // Navigate to REVIEWED tab to see results
-      const p = new URLSearchParams(searchParams.toString());
-      p.set("tab", "REVIEWED");
-      p.set("module", "build-pc");
-      router.push(`/admin/queue?${p.toString()}`);
+      router.refresh();
     } catch (err: unknown) {
       clearInterval(intervalId);
       toast.error(err instanceof Error ? err.message : "Lỗi xử lý.");
@@ -345,7 +373,9 @@ export default function BuildPcQueueClient({
                         </div>
                         <p className="mt-0.5 font-manrope text-xs font-semibold text-primary">{s.exercise.title}</p>
                         <p className="font-inter text-[10px] text-on-muted">
-                          {new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
+                          {activeTab === "REVIEWED" && s.reviewed_at
+                            ? `Duyệt lúc ${new Date(s.reviewed_at).toLocaleString("vi-VN")}`
+                            : new Date(s.submitted_at).toLocaleString("vi-VN")} · {parts.length} linh kiện · {formatVND(totalPrice)}
                         </p>
                         {isAnalyzing ? (
                           <p className="mt-1 flex items-center gap-1 font-inter text-[10px] text-on-muted italic">
@@ -368,6 +398,17 @@ export default function BuildPcQueueClient({
                           >
                             <Sparkles className="h-3 w-3" />
                             Duyệt AI
+                          </button>
+                        )}
+                        {activeTab === "REVIEWED" && s.status === "REJECTED" && !isAnalyzing && (
+                          <button
+                            onClick={() => handleProcess([s.id])}
+                            disabled={loading}
+                            className="flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 font-manrope text-[10px] font-bold text-on-primary cursor-pointer disabled:opacity-50 transition-all hover:opacity-90"
+                            title="Yêu cầu AI xử lý lại bài đã bị từ chối"
+                          >
+                            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                            AI duyệt lại
                           </button>
                         )}
                         {activeTab === "PENDING" && isAnalyzing && (
@@ -473,12 +514,12 @@ export default function BuildPcQueueClient({
                             <div className="grid gap-2 sm:grid-cols-3">
                               {images.map((url, i) => (
                                 isRenderableImageUrl(url) ? (
-                                  <a
+                                  <button
                                     key={i}
-                                    href={url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="relative aspect-[4/3] min-h-[140px] overflow-hidden rounded-xl border border-surface-container-high bg-surface-mid"
+                                    type="button"
+                                    onClick={() => setZoomImageUrl(url)}
+                                    className="group relative aspect-[4/3] min-h-[140px] overflow-hidden rounded-xl border border-surface-container-high bg-surface-mid cursor-zoom-in transition-all hover:border-primary/60 hover:shadow-sm"
+                                    aria-label={`Xem ảnh bài nộp ${i + 1}`}
                                   >
                                     <Image
                                       src={url}
@@ -487,7 +528,13 @@ export default function BuildPcQueueClient({
                                       sizes="(min-width: 640px) 30vw, 100vw"
                                       className="object-contain"
                                     />
-                                  </a>
+                                    <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 opacity-0 transition-all group-hover:bg-slate-950/35 group-hover:opacity-100">
+                                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 font-manrope text-[11px] font-bold text-slate-800 shadow-sm">
+                                        <ZoomIn className="h-3.5 w-3.5" />
+                                        Xem ảnh
+                                      </span>
+                                    </span>
+                                  </button>
                                 ) : (
                                   <div key={i} className="flex aspect-[4/3] min-h-[140px] flex-col items-center justify-center rounded-xl border border-surface-container-high bg-surface-mid p-3 text-center">
                                     <ImageIcon className="mb-2 h-5 w-5 text-primary" />
@@ -539,6 +586,32 @@ export default function BuildPcQueueClient({
                 <span>{progress}%</span>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {zoomImageUrl && (
+        <div
+          onClick={() => setZoomImageUrl(null)}
+          className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-slate-950/70 p-4 animate-in fade-in duration-300"
+        >
+          <div className="relative h-[88vh] w-[92vw] max-w-6xl">
+            <Image
+              src={zoomImageUrl}
+              alt="Ảnh bài nộp phóng to"
+              fill
+              referrerPolicy="no-referrer"
+              className="object-contain"
+              sizes="92vw"
+            />
+            <button
+              type="button"
+              onClick={() => setZoomImageUrl(null)}
+              className="absolute right-0 top-0 rounded-full bg-white/95 p-2 text-slate-800 shadow-lg transition-colors hover:bg-white"
+              aria-label="Đóng preview ảnh"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
         </div>
       )}

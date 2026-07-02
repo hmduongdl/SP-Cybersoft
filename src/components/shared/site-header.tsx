@@ -325,7 +325,7 @@ export function SiteHeader() {
                     recentPosts.map((post) => (
                       <Link
                         key={post.id}
-                        href={role === "ADMIN" ? "/admin/posts" : "/like-share"}
+                        href="/like-share"
                         onClick={() => setNotifOpen(false)}
                         className="flex items-start gap-3 px-4 py-3 hover:bg-surface-container-low rounded-xl transition-all duration-150 group"
                       >
@@ -361,7 +361,7 @@ export function SiteHeader() {
                   </div>
                 )}
                 <Link
-                  href={role === "ADMIN" ? "/admin/posts" : "/like-share"}
+                  href="/like-share"
                   onClick={() => setNotifOpen(false)}
                   className="block mt-1 py-2.5 text-center text-xs font-semibold text-primary hover:bg-surface-container rounded-xl transition-all duration-150 border-none font-inter"
                 >

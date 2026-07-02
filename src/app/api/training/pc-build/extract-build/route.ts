@@ -121,16 +121,16 @@ export async function POST(req: Request) {
     let extractionError: any = null;
 
     const extractionAttempts = [
-      // Attempt 1: Direct Moonshot (Kimi) if configured (Uploads to Kimi Files API first to avoid base64 unsupported errors)
+      // Attempt 1: Kimi k2.6 via AIBOX API
       async () => {
-        if (!process.env.MOONSHOT_API_KEY) {
-          throw new Error("No MOONSHOT_API_KEY configured for extract-build");
+        if (!process.env.AIBOX_DEFAULT_API_KEY && !process.env.AIBOX_API_KEY) {
+          throw new Error("No AIBOX API key configured for Kimi vision");
         }
-        console.log("[extract-build] Attempting extraction with direct Moonshot Kimi API via base64...");
+        console.log("[extract-build] Attempting extraction with Kimi k2.6 via AIBOX...");
         
         const response = await withTimeout(
           moonshotAI.chat.completions.create({
-            model: "kimi-k2.5",
+            model: "kimi-k2.6",
             messages: [
               {
                 role: "system",
@@ -290,14 +290,14 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
         const content = response.choices[0]?.message?.content || "{}";
         return JSON.parse(content);
       },
-      // Attempt 3: Direct Moonshot (Kimi) if configured
+      // Attempt 3: Kimi k2.6 via AIBOX API
       async () => {
-        if (!process.env.MOONSHOT_API_KEY) {
-          throw new Error("No MOONSHOT_API_KEY for compatibility fallback");
+        if (!process.env.AIBOX_DEFAULT_API_KEY && !process.env.AIBOX_API_KEY) {
+          throw new Error("No AIBOX API key for Kimi compatibility");
         }
-        console.log("[extract-build] Attempting compatibility check with direct Moonshot Kimi...");
+        console.log("[extract-build] Attempting compatibility check with Kimi k2.6 via AIBOX...");
         const response = await moonshotAI.chat.completions.create({
-          model: "kimi-k2.5",
+          model: "kimi-k2.6",
           messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
           response_format: { type: "json_object" },
         });

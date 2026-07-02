@@ -71,7 +71,7 @@ export async function GET(request: Request) {
             url: "",
             thumbnail_url: null,
             start_at: task.date.toISOString(),
-            is_archived: false,
+            is_archived: task.is_archived,
             allow_late_submit: true,
             team: "ALL",
             author: "AI",
@@ -184,6 +184,43 @@ export async function POST(request: Request) {
         },
         { status: 201 }
     );
+}
+
+// Bulk PATCH (archive/unarchive)
+export async function PATCH(request: Request) {
+    const session = await auth();
+    if (!session?.user?.id || session.user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const body = await request.json();
+        const { ids, data } = body;
+        if (!ids || !Array.isArray(ids) || !data) {
+            return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID và dữ liệu cần cập nhật.' }, { status: 400 });
+        }
+
+        // Update both Share Posts and PC Build Tasks
+        await Promise.all([
+            db.post.updateMany({
+                where: { id: { in: ids } },
+                data,
+            }),
+            db.pcBuildTask.updateMany({
+                where: { id: { in: ids } },
+                data,
+            }),
+        ]);
+
+        // Revalidate cache after updating
+        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
+
+        return NextResponse.json({ success: true, message: 'Đã cập nhật thành công.' });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message || 'Lỗi khi cập nhật.' }, { status: 500 });
+    }
 }
 
 // Bulk DELETE

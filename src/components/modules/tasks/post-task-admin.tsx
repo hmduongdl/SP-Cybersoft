@@ -442,20 +442,44 @@ export function PostTaskAdmin() {
 
   const handleToggleArchive = async (post: ManagedPost) => {
     try {
+      const res = await fetch(`/api/posts/${post.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_archived: !post.is_archived }),
+      });
+      if (res.ok) {
+        toast.success(post.is_archived ? "Đã mở khóa." : "Đã khóa.");
+        loadPosts(currentPage);
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Cập nhật thất bại.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Không cập nhật được trạng thái.");
+    }
+  };
+
+  const handleBulkArchive = async (archive: boolean) => {
+    if (selectedIds.length === 0) return;
+    try {
       const res = await fetch("/api/posts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ids: [post.id],
-          data: { is_archived: !post.is_archived }
+          ids: selectedIds,
+          data: { is_archived: archive },
         }),
       });
       if (res.ok) {
-        toast.success(post.is_archived ? "Đã mở khóa bài viết." : "Đã khóa bài viết.");
+        toast.success(archive ? `Đã khóa ${selectedIds.length} mục.` : `Đã mở khóa ${selectedIds.length} mục.`);
+        setSelectedIds([]);
         loadPosts(currentPage);
+      } else {
+        const err = await res.json();
+        throw new Error(err.error || "Thao tác thất bại.");
       }
-    } catch {
-      toast.error("Không cập nhật được trạng thái bài viết.");
+    } catch (err: any) {
+      toast.error(err.message || "Không cập nhật được.");
     }
   };
 
@@ -467,7 +491,7 @@ export function PostTaskAdmin() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(posts.map(p => p.id));
+      setSelectedIds(filteredPosts.map(p => p.id));
     } else {
       setSelectedIds([]);
     }
@@ -544,6 +568,36 @@ export function PostTaskAdmin() {
         </div>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-indigo-200 bg-indigo-50/60 mb-4 animate-in fade-in slide-in-from-top-1 duration-200">
+          <span className="text-xs font-bold text-indigo-700 flex-1">
+            Đã chọn <span className="bg-indigo-100 px-2 py-0.5 rounded-lg">{selectedIds.length}</span> mục
+          </span>
+          <button
+            onClick={() => handleBulkArchive(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-600 border-none hover:bg-rose-500/20 transition-all cursor-pointer"
+          >
+            <Lock className="h-3.5 w-3.5" />
+            Khoá tất cả
+          </button>
+          <button
+            onClick={() => handleBulkArchive(false)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-700 border-none hover:bg-emerald-500/20 transition-all cursor-pointer"
+          >
+            <Unlock className="h-3.5 w-3.5" />
+            Mở khoá tất cả
+          </button>
+          <button
+            onClick={() => setSelectedIds([])}
+            className="p-1.5 rounded-lg text-on-muted hover:text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            title="Bỏ chọn"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Table list */}
       <div className="bg-surface-mid border border-surface-container-high rounded-3xl overflow-hidden shadow-ambient">
         {loadingPosts ? (
@@ -563,7 +617,7 @@ export function PostTaskAdmin() {
                   <th className="px-6 py-4 w-12 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedIds.length === postsOfTab.length && postsOfTab.length > 0}
+                      checked={selectedIds.length === filteredPosts.length && filteredPosts.length > 0}
                       onChange={(e) => handleSelectAll(e.target.checked)}
                       className="rounded border-outline-variant/10 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer"
                     />
@@ -631,11 +685,16 @@ export function PostTaskAdmin() {
                           <span className="font-medium text-on-surface-variant block">
                             {formatDateTime(post.start_at)}
                           </span>
-                          {post.deadline && (
+                          {isPcBuild ? (
+                            // PC Build: deadline always = end of start day
+                            <span className="text-[10px] font-bold text-rose-600 block">
+                              Hạn: cuối ngày {formatDateTime(post.start_at).split(" ")[0] || formatDateTime(post.start_at)}
+                            </span>
+                          ) : post.deadline ? (
                             <span className="text-[10px] font-bold text-rose-600 block">
                               Hạn: {formatDateTime(post.deadline)}
                             </span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
 
