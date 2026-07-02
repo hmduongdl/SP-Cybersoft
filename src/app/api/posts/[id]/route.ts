@@ -115,9 +115,9 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     }
 
     // Revalidate cache after deleting a post
-    revalidateTag(CACHE_TAGS.POSTS_LIST);
-    revalidateTag(CACHE_TAGS.DASHBOARD_STATS);
-    revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS);
+    revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+    revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+    revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
     return NextResponse.json({ ok: true });
 }

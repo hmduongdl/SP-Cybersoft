@@ -32,7 +32,7 @@ export async function GET() {
         },
         include: {
           user: {
-            select: { id: true, name: true, image: true }
+            select: { id: true, name: true, avatar_url: true }
           }
         },
         distinct: ['user_id'] // Only one avatar per user per task
