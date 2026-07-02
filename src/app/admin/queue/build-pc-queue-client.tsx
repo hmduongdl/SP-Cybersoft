@@ -9,19 +9,15 @@ import {
   Loader2,
   Cpu,
   ChevronDown,
-  ImageIcon,
   Sparkles,
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  X,
-  ZoomIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { Pagination } from "@/components/ui/pagination";
 import { formatVND } from "@/lib/pc-kho";
-import Image from "next/image";
 
 interface PcSubmissionItem {
   id: string;
@@ -38,6 +34,7 @@ interface PcSubmissionItem {
       [key: string]: unknown;
     };
   image_urls: string[];
+  reviewed_at?: string | Date | null;
   ai_score: number | null;
   ai_feedback: string | null;
   reject_reason: string | null;
@@ -97,10 +94,6 @@ function getSubmissionTotal(partsAnswer: PcSubmissionItem["parts_answer"], parts
   return parts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
 }
 
-function isRenderableImageUrl(url: string) {
-  return url.startsWith("data:image/") || /^https?:\/\//.test(url);
-}
-
 function groupSubmissionsByExercise(submissions: PcSubmissionItem[]) {
   const groups: Array<{ key: string; exercise: PcSubmissionItem["exercise"]; items: PcSubmissionItem[] }> = [];
 
@@ -138,7 +131,6 @@ export default function BuildPcQueueClient({
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [progressStep, setProgressStep] = useState("");
-  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setSubmissions(initialSubmissions);
@@ -147,17 +139,6 @@ export default function BuildPcQueueClient({
     setDeptFilter(initialDept);
     setExpandedId(null);
   }, [initialSubmissions, initialTab, initialSearch, initialDept]);
-
-  useEffect(() => {
-    if (!zoomImageUrl) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setZoomImageUrl(null);
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [zoomImageUrl]);
 
   const updateUrl = (params: Record<string, string>) => {
     const p = new URLSearchParams(searchParams.toString());
@@ -325,7 +306,6 @@ export default function BuildPcQueueClient({
 
               {group.items.map((s) => {
                 const parts = getSubmissionParts(s.parts_answer);
-                const images = (s.image_urls as string[]) || [];
                 const totalPrice = getSubmissionTotal(s.parts_answer, parts);
                 const isExpanded = expandedId === s.id;
                 const aiScore = s.ai_score ?? (!Array.isArray(s.parts_answer) ? s.parts_answer?.temp_ai_score ?? null : null);
@@ -505,48 +485,6 @@ export default function BuildPcQueueClient({
                             </details>
                           );
                         })()}
-                        {images.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="flex items-center gap-1 font-manrope text-[10px] font-bold uppercase text-on-muted">
-                              <ImageIcon className="h-3 w-3" />
-                              Ảnh minh chứng
-                            </p>
-                            <div className="grid gap-2 sm:grid-cols-3">
-                              {images.map((url, i) => (
-                                isRenderableImageUrl(url) ? (
-                                  <button
-                                    key={i}
-                                    type="button"
-                                    onClick={() => setZoomImageUrl(url)}
-                                    className="group relative aspect-[4/3] min-h-[140px] overflow-hidden rounded-xl border border-surface-container-high bg-surface-mid cursor-zoom-in transition-all hover:border-primary/60 hover:shadow-sm"
-                                    aria-label={`Xem ảnh bài nộp ${i + 1}`}
-                                  >
-                                    <Image
-                                      src={url}
-                                      alt={`Ảnh bài nộp ${i + 1}`}
-                                      fill
-                                      sizes="(min-width: 640px) 30vw, 100vw"
-                                      className="object-contain"
-                                    />
-                                    <span className="absolute inset-0 flex items-center justify-center bg-slate-950/0 opacity-0 transition-all group-hover:bg-slate-950/35 group-hover:opacity-100">
-                                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/95 px-3 py-1.5 font-manrope text-[11px] font-bold text-slate-800 shadow-sm">
-                                        <ZoomIn className="h-3.5 w-3.5" />
-                                        Xem ảnh
-                                      </span>
-                                    </span>
-                                  </button>
-                                ) : (
-                                  <div key={i} className="flex aspect-[4/3] min-h-[140px] flex-col items-center justify-center rounded-xl border border-surface-container-high bg-surface-mid p-3 text-center">
-                                    <ImageIcon className="mb-2 h-5 w-5 text-primary" />
-                                    <p className="font-manrope text-xs font-bold text-on-surface">Tệp đính kèm</p>
-                                    <p className="font-inter text-[10px] text-on-muted">{url === "excel-parsed" ? "Excel đã ghi nhận" : url}</p>
-                                  </div>
-                                )
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {/* AI Analysis Details will start here in the expanded view */}
                       </div>
                     )}
                   </div>
@@ -586,32 +524,6 @@ export default function BuildPcQueueClient({
                 <span>{progress}%</span>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {zoomImageUrl && (
-        <div
-          onClick={() => setZoomImageUrl(null)}
-          className="fixed inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-slate-950/70 p-4 animate-in fade-in duration-300"
-        >
-          <div className="relative h-[88vh] w-[92vw] max-w-6xl">
-            <Image
-              src={zoomImageUrl}
-              alt="Ảnh bài nộp phóng to"
-              fill
-              referrerPolicy="no-referrer"
-              className="object-contain"
-              sizes="92vw"
-            />
-            <button
-              type="button"
-              onClick={() => setZoomImageUrl(null)}
-              className="absolute right-0 top-0 rounded-full bg-white/95 p-2 text-slate-800 shadow-lg transition-colors hover:bg-white"
-              aria-label="Đóng preview ảnh"
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
         </div>
       )}

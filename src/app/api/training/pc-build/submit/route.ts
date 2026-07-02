@@ -24,6 +24,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Đề bài không tồn tại." }, { status: 404 });
   }
 
+  if (task.is_archived) {
+    return NextResponse.json({ error: "Bài tập này đã bị khóa và không thể nộp thêm." }, { status: 410 });
+  }
+
   // Daily submission limit disabled per request
 
   // Legacy endpoint: store only. Review happens outside the submit request.

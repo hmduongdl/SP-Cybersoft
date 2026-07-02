@@ -53,9 +53,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
                 where: { id },
                 data: { is_archived: body.is_archived },
             });
-            revalidateTag(CACHE_TAGS.POSTS_LIST);
-            revalidateTag(CACHE_TAGS.DASHBOARD_STATS);
-            revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS);
+            revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+            revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+            revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
             return NextResponse.json({ post });
         }
 
@@ -83,9 +83,9 @@ export async function PATCH(request: Request, { params }: RouteContext) {
             },
         });
 
-        revalidateTag(CACHE_TAGS.POSTS_LIST);
-        revalidateTag(CACHE_TAGS.DASHBOARD_STATS);
-        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS);
+        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
 
         return NextResponse.json({ post });
     } catch (error: any) {

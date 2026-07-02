@@ -21,7 +21,23 @@ export async function GET() {
   const tomorrow = getEndOfDayVN(today);
 
   const tasks = await db.pcBuildTask.findMany({
-    where: { date: { gte: today, lt: tomorrow } },
+    where: { 
+      date: { gte: today, lt: tomorrow },
+      is_archived: false
+    },
+    include: {
+      submissions: {
+        where: {
+          status: { in: ["AUTO_APPROVED", "APPROVED"] }
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, image: true }
+          }
+        },
+        distinct: ['user_id'] // Only one avatar per user per task
+      }
+    },
     orderBy: { created_at: "asc" },
   });
 
