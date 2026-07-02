@@ -41,6 +41,18 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         return NextResponse.json({ post: { ...updatedTask, task_type: 'PC_BUILD' } });
     }
 
+    // Handle simple field updates (e.g. is_archived toggle) without full schema validation
+    if (body.is_archived !== undefined && Object.keys(body).length === 1) {
+        const post = await db.post.update({
+            where: { id },
+            data: { is_archived: body.is_archived },
+        });
+        revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
+        revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+        revalidateTag(CACHE_TAGS.ADMIN_ANALYTICS, "default");
+        return NextResponse.json({ post });
+    }
+
     // Otherwise treat as a regular Facebook Share Post edit
     const parsed = postTaskSchema.safeParse(body);
     if (!parsed.success) {

@@ -688,7 +688,7 @@ export function PostTaskAdmin() {
                           {isPcBuild ? (
                             // PC Build: deadline always = end of start day
                             <span className="text-[10px] font-bold text-rose-600 block">
-                              Hạn: cuối ngày {formatDateTime(post.start_at).split(" ")[0] || formatDateTime(post.start_at)}
+                              Hạn: cuối ngày {formatDateTime(post.start_at)}
                             </span>
                           ) : post.deadline ? (
                             <span className="text-[10px] font-bold text-rose-600 block">
@@ -896,6 +896,24 @@ export function PostTaskAdmin() {
                         disabled={saving}
                         className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl focus:bg-surface-container-lowest focus:border-primary transition-all text-xs text-on-surface resize-none"
                       />
+                    </div>
+
+                    {/* Date - Ngày ra bài (deadline = cuối ngày đó) */}
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-on-surface uppercase">
+                        Ngày ra bài
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.date}
+                        onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                        disabled={saving}
+                        className="w-full px-4 py-2 bg-surface-container-low border border-surface-container-high rounded-xl text-xs text-on-surface"
+                      />
+                      <p className="text-[10px] text-amber-600 font-semibold flex items-center gap-1">
+                        <CalendarIcon className="h-3 w-3" />
+                        Deadline sẽ tự động là cuối ngày ra bài (23:59:59)
+                      </p>
                     </div>
                   </div>
                 ) : (

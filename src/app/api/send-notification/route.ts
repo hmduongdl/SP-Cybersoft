@@ -1,6 +1,6 @@
 /**
  * API Route: POST /api/send-notification
- * Nhận to, subject, message và gửi email thông báo qua Gmail
+ * Nhận to, subject, message và gửi email thông báo qua Resend
  */
 import { NextRequest, NextResponse } from "next/server";
 import { sendMail } from "@/lib/mailer";
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Tạo HTML template và gửi
-    const html = buildNotificationEmail(subject, message);
+    const html = await buildNotificationEmail(subject, message);
     await sendMail({ to, subject, html });
 
     return NextResponse.json({ success: true });

@@ -16,7 +16,7 @@ async function main() {
     "Chúc bạn một ngày làm việc hiệu quả!";
 
   try {
-    const html = buildNotificationEmail(subject, message);
+    const html = await buildNotificationEmail(subject, message);
     await sendMail({ to, subject, html });
     console.log("Email chào mừng đã được gửi thành công!");
   } catch (error) {
