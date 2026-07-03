@@ -69,5 +69,3 @@ npm run dev
 - **ADMIN** — Tất cả quyền USER + duyệt bài, quản lý posts/accounts/users, analytics, cấu hình
 
 ---
-
-> Dự án nội bộ — Song Phương Technology (SP-CyberSoft)
