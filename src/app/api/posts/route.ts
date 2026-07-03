@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const status = url.searchParams.get('status') || 'ACTIVE';
     const skip = (page - 1) * limit;
 
-    const [allPosts, allBuildTasks, totalEmployees, totalNonAdminEmployees] = await Promise.all([
+    const [allPosts, allBuildTasks, totalEmployees, totalNonAdminEmployees, pcSubmissionCounts] = await Promise.all([
         getCachedPostsApi(),
         db.pcBuildTask.findMany({
             orderBy: { date: 'desc' },
@@ -34,7 +34,16 @@ export async function GET(request: Request) {
         getCachedTotalEmployees(),
         db.user.count({
             where: { role: "USER", is_active: true }
-        })
+        }),
+        // Also count PcSubmission records linked via PcExercise (same id as PcBuildTask)
+        db.pcSubmission.groupBy({
+            by: ['exercise_id'],
+            where: {
+                status: { in: ['APPROVED', 'AUTO_APPROVED'] },
+            },
+            _count: { id: true },
+            _max: { submitted_at: true },
+        }),
     ]);
 
     // Map regular share posts
@@ -57,12 +66,32 @@ export async function GET(request: Request) {
             : null,
     }));
 
+    // Build lookup for PcSubmission counts (PcExercise.id = PcBuildTask.id)
+    const pcSubmissionMap = new Map<string, { count: number; latestAt: string | null }>();
+    for (const group of pcSubmissionCounts) {
+        pcSubmissionMap.set(group.exercise_id, {
+            count: group._count.id,
+            latestAt: group._max.submitted_at?.toISOString() || null,
+        });
+    }
+
     // Map PC build tasks
     const mappedBuildTasks = allBuildTasks.map((task) => {
-        const successfulCheckins = task.submissions.filter(
+        const checkinCount = task.submissions.filter(
             (s) => (s.status === 'APPROVED' || s.status === 'AUTO_APPROVED') && s.user?.role === 'USER'
         ).length;
-        const latestCheckinAt = task.submissions[0]?.submitted_at?.toISOString() || null;
+        const pcSubmissionInfo = pcSubmissionMap.get(task.id);
+        const successfulCheckins = checkinCount + (pcSubmissionInfo?.count || 0);
+
+        const checkinLatest = task.submissions[0]?.submitted_at?.toISOString() || null;
+        const pcSubmissionLatest = pcSubmissionInfo?.latestAt || null;
+        // Pick the latest submission time from either system
+        const latestCheckinAt =
+            checkinLatest && pcSubmissionLatest
+                ? new Date(checkinLatest) > new Date(pcSubmissionLatest)
+                    ? checkinLatest
+                    : pcSubmissionLatest
+                : checkinLatest || pcSubmissionLatest;
 
         return {
             id: task.id,
@@ -78,7 +107,7 @@ export async function GET(request: Request) {
             task_type: "PC_BUILD",
             max_budget: task.max_budget,
             requirements: task.requirements,
-	            difficulty: task.difficulty || "medium",
+            difficulty: task.difficulty || "medium",
             deadline: task.deadline ? task.deadline.toISOString() : null,
             successfulCheckins,
             totalEmployees: totalNonAdminEmployees,
@@ -88,7 +117,7 @@ export async function GET(request: Request) {
 
     // Filter by status: ACTIVE = not archived, ARCHIVED = archived, ALL = everything
     const combinedPosts = [...mappedSharePosts, ...mappedBuildTasks];
-    
+
     const filteredPosts = status === 'ALL'
         ? combinedPosts
         : combinedPosts.filter((post: any) =>

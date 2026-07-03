@@ -11,6 +11,4 @@ export function getStartOfDayVN(date = new Date()): Date {
   return d;
 }
 
-export const DAILY_PC_SUBMISSION_MIN = 1;
-export const DAILY_PC_SUBMISSION_MAX = 5;
 export const DAILY_PC_EXERCISE_COUNT = 3;

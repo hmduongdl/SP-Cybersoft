@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
-import {
-  getStartOfDayVN,
-  DAILY_PC_SUBMISSION_MAX,
-} from "@/lib/pc-kho";
+import { getStartOfDayVN } from "@/lib/pc-kho";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { cleanupExpiredBuildPcImages } from "@/lib/pc-build-cleanup";
@@ -57,8 +54,6 @@ export async function GET() {
 
   return NextResponse.json({
     todayCount,
-    remaining: Math.max(0, DAILY_PC_SUBMISSION_MAX - todayCount),
-    maxPerDay: DAILY_PC_SUBMISSION_MAX,
     submissions,
   });
 }
@@ -85,9 +80,6 @@ export async function POST(request: Request) {
   const explanationStr = typeof explanation === "string" ? explanation.trim() : "";
 
   const today = getStartOfDayVN();
-  const tomorrow = getEndOfDayVN(today);
-
-  // Daily submission limit disabled per request
 
   const exercise = await db.pcExercise.findUnique({ where: { id: exercise_id } });
   if (!exercise) {

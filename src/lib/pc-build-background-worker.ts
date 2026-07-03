@@ -526,7 +526,7 @@ function getFriendlyPcBuildError(error: any, phase: "vision" | "deepseek" = "vis
 }
 
 async function triggerPcBuildCompatibilityJob(id: string, type: "checkin" | "submission") {
-  const response = await fetch(`${getAppBaseUrl()}/api/training/pc-build/analyze-compatibility`, {
+  const response = await fetch(`${getAppBaseUrl()}/api/build-pc/analyze-compatibility`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -15,7 +15,7 @@ export default async function DashboardContent() {
   const today = getStartOfDayVN();
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
-  const [recentCheckins, dashboardPosts, monthlyStats, user, dashboardTasks, pcTasks, pcSubmissions, todayExercises] =
+  const [recentCheckins, dashboardPosts, monthlyStats, user, dashboardTasks, pcSubmissions, todayExercises] =
     await Promise.all([
       getCachedRecentCheckins(userId || ""),
       userId ? getCachedDashboardPosts(userId) : Promise.resolve([]),
@@ -37,14 +37,6 @@ export default async function DashboardContent() {
         orderBy: { due_date: 'asc' },
         take: 5,
         select: { id: true, title: true, due_date: true, status: true }
-      }) : Promise.resolve([]),
-      userId ? db.pcBuildTask.findMany({
-        where: { date: { gte: today, lt: tomorrow } },
-        include: {
-          submissions: {
-            where: { user_id: userId }
-          }
-        }
       }) : Promise.resolve([]),
       userId ? db.pcSubmission.findMany({
         where: {
@@ -77,29 +69,13 @@ export default async function DashboardContent() {
 
   const allDashboardTasks = dashboardTasks.map(t => ({ id: t.id, title: t.title, due_date: t.due_date?.toISOString() || "", status: t.status }));
 
-  // Filter uncompleted PC Build Tasks and PC Exercises (exclude ADMIN role)
-  const uncompletedPcTasks = !isAdmin
-    ? pcTasks.filter(task => {
-        const submission = task.submissions[0];
-        return !submission || (submission.build_data as any)?.is_draft === true;
-      })
-    : [];
-
+  // Filter uncompleted PC Exercises (exclude ADMIN role)
   const uncompletedExercises = !isAdmin
     ? todayExercises.filter(ex => {
         const sub = pcSubmissions.find(s => s.exercise_id === ex.id);
         return !sub || (sub.parts_answer as any)?.is_draft === true;
       })
     : [];
-
-  const pcTasksMapped = uncompletedPcTasks.map(t => ({
-    id: `pc-task-${t.id}`,
-    title: `💻 Đào tạo: Lắp ráp PC (${t.customer_need})`,
-    thumbnail_url: null,
-    start_at: t.date.toISOString(),
-    url: "/training/pc-build",
-    is_pc_build: true,
-  }));
 
   const exercisesMapped = uncompletedExercises.map(ex => ({
     id: `pc-ex-${ex.id}`,
@@ -111,7 +87,6 @@ export default async function DashboardContent() {
   }));
 
   const combinedDashboardPosts = [
-    ...pcTasksMapped,
     ...exercisesMapped,
     ...dashboardPosts
   ];

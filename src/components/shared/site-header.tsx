@@ -131,7 +131,6 @@ export function SiteHeader() {
     const labelMap: Record<string, string> = {
       dashboard: "Tổng quan",
       "like-share": "Like - Share",
-      "training/pc-build": "Bài tập Build PC",
       "build-pc": "Build PC",
       reports: "Báo cáo cá nhân",
       timetable: "Thời gian biểu",

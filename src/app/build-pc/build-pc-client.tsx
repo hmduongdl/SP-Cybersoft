@@ -220,7 +220,6 @@ export default function BuildPcClient() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loadingExercises, setLoadingExercises] = useState(true);
   const [todayCount, setTodayCount] = useState(0);
-  const [remaining, setRemaining] = useState(5);
   const [history, setHistory] = useState<Submission[]>([]);
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
@@ -265,7 +264,6 @@ export default function BuildPcClient() {
       if (subRes.ok) {
         const data = await subRes.json();
         setTodayCount(data.todayCount);
-        setRemaining(data.remaining);
         setHistory(
           Array.isArray(data.submissions)
             ? data.submissions.filter((sub: any) => sub.parts_answer?.is_draft !== true)
@@ -315,56 +313,6 @@ export default function BuildPcClient() {
     }
   }, [searchParams]);
 
-  // Poll for background worker updates dynamically
-  useEffect(() => {
-    const pollingIntervals: Record<string, NodeJS.Timeout> = {};
-
-    Object.entries(exerciseStates).forEach(([exId, state]) => {
-      const subId = state.submission_id;
-      if (state.isAnalyzing && subId && !pollingIntervals[exId]) {
-        pollingIntervals[exId] = setInterval(async () => {
-          try {
-            const res = await fetch(`/api/training/pc-build/status?id=${subId}&type=submission`);
-            if (res.ok) {
-              const result = await res.json();
-              if (!result.isAnalyzing) {
-                clearInterval(pollingIntervals[exId]);
-                delete pollingIntervals[exId];
-
-                if (result.hasError) {
-                  toast.error(result.errorMsg || "Bị lỗi xử lý ảnh rồi, thử lại nha.");
-                  updateExerciseState(exId, {
-                    isAnalyzing: false,
-                    analysisStep: "idle",
-                    previewImage: null,
-                  });
-                } else {
-                  updateExerciseState(exId, {
-                    isAnalyzing: false,
-                    analysisStep: "idle",
-                    extractedParts: getSubmissionParts(result.data),
-                    isApproved: result.status === "AUTO_APPROVED" || result.data?.is_approved === true,
-                    approvalReason: result.data?.reason || "",
-                    compatibilityChecks: result.data?.checks || null,
-                    status: result.status,
-                    isDraft: result.data?.is_draft !== false,
-                  });
-                  toast.success("Xong phần check rồi! Vô viết vài dòng giải thích rồi gửi bài thôi.");
-                  fetchData();
-                }
-              }
-            }
-          } catch (e) {
-            console.error("Lỗi polling submission:", e);
-          }
-        }, 4000);
-      }
-    });
-
-    return () => {
-      Object.values(pollingIntervals).forEach(clearInterval);
-    };
-  }, [exerciseStates, fetchData]);
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -431,21 +379,9 @@ export default function BuildPcClient() {
   };
 
   const handleCancelExercise = async (exId: string) => {
-    const state = getExerciseState(exId);
-    if (state.submission_id) {
-      try {
-        await fetch("/api/training/pc-build/cancel", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: state.submission_id, type: "submission" }),
-        });
-      } catch (e) {
-        console.error(e);
-      }
-    }
     clearExerciseState(exId);
     fetchData();
-  };
+  };;
 
   const handleSubmit = async (exId: string) => {
     const state = getExerciseState(exId);
@@ -585,10 +521,6 @@ export default function BuildPcClient() {
                     onClick={() => {
                       if ((ex as any).is_archived) {
                         toast.error("Bài tập này đã hết hạn / bị khoá.");
-                        return;
-                      }
-                      if (remaining <= 0 && !state.previewImage && !state.submission_id) {
-                        toast.error("Hết lượt gửi bài hôm nay rồi, mai quay lại nha.");
                         return;
                       }
                       setModalExerciseId(ex.id);
