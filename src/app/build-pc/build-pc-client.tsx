@@ -722,9 +722,10 @@ export default function BuildPcClient() {
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
                         <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
                         <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                        <RechartsTooltip 
+                        <RechartsTooltip
                           cursor={{ fill: 'currentColor', opacity: 0.05 }}
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                          formatter={(value) => [value, 'Điểm Build PC']}
                         />
                         <Bar dataKey="pc_score" fill="currentColor" radius={[4, 4, 0, 0]} className="fill-primary" maxBarSize={50} />
                       </BarChart>
