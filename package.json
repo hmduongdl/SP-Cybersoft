@@ -6,9 +6,7 @@
         "dev": "next dev",
         "build": "prisma generate && next build",
         "start": "next start",
-        "lint": "next lint",
-        "email:test-welcome": "tsx scripts/send-welcome.ts",
-        "email:db-welcome": "tsx scripts/send-welcome-from-db.ts"
+        "lint": "next lint"
     },
     "dependencies": {
         "@auth/prisma-adapter": "^2.11.2",
