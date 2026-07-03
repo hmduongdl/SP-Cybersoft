@@ -18,6 +18,16 @@ import type { Prisma } from "@prisma/client";
 export const dynamic = "force-dynamic";
 
 const CHECKIN_ID_PREFIX = "checkin:";
+const PC_SCORE_START_AT = new Date("2026-07-01T17:00:00Z"); // Start of 02/07/2026 VN time
+
+function getRejectedPcScoreMultiplier(score: number): number {
+  if (score <= 10) return 5;
+  if (score <= 20) return 4.3;
+  if (score <= 30) return 3.753905;
+  if (score <= 40) return 2.746687;
+  if (score <= 50) return 1.3785;
+  return 1.358;
+}
 
 function splitBuildPcIds(ids: unknown) {
   const rawIds = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string") : [];
@@ -76,6 +86,57 @@ function hasPcBuildDecision(value: Record<string, unknown>): boolean {
 
 function isFinalPcBuildStatus(status: unknown): boolean {
   return status === "AUTO_APPROVED" || status === "REJECTED";
+}
+
+function getNonNegativeAiScore(score: unknown): number | null {
+  if (score === null || score === undefined) return null;
+  if (typeof score === "string" && score.trim() === "") return null;
+  const value = Number(score);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function getRejectedPcScorePenalty(score: unknown): number | null {
+  const value = getNonNegativeAiScore(score);
+  if (value === null) return null;
+  if (value === 0) return 100;
+  return Math.round(value * getRejectedPcScoreMultiplier(value));
+}
+
+async function addApprovedPcScore(userId: string, submittedAt: Date, score: unknown) {
+  const value = getNonNegativeAiScore(score);
+  if (!value || new Date(submittedAt) < PC_SCORE_START_AT) return;
+
+  await db.user.update({
+    where: { id: userId },
+    data: { pc_score: { increment: value } },
+  });
+}
+
+async function subtractRejectedPcScore(userId: string, submittedAt: Date, score: unknown) {
+  const value = getNonNegativeAiScore(score);
+  const penalty = getRejectedPcScorePenalty(score);
+  if (penalty === null || value === null || new Date(submittedAt) < PC_SCORE_START_AT) return;
+
+  await db.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { pc_score: true, trust_score: true },
+    });
+    if (!user) return;
+
+    const currentPcScore = Number(user.pc_score || 0);
+    const nextPcScore = Math.max(0, currentPcScore - penalty);
+    const trustPenalty = currentPcScore <= 0 || currentPcScore < penalty ? 2 : value <= 10 ? 1 : 0;
+    const nextTrustScore = Math.max(0, Number(user.trust_score || 0) - trustPenalty);
+
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        pc_score: nextPcScore,
+        ...(trustPenalty > 0 ? { trust_score: nextTrustScore } : {}),
+      },
+    });
+  });
 }
 
 function buildAiProcessingErrorPayload(value: Record<string, unknown>, reviewRunId: string) {
@@ -220,15 +281,10 @@ export async function POST(request: Request) {
           },
         });
 
-        // Add score to user if approved and after 02/07/2026
-        if (finalStatus === "AUTO_APPROVED" && score && score > 0) {
-          const july2nd = new Date("2026-07-01T17:00:00Z"); // Start of 02/07/2026 VN time
-          if (new Date(submission.submitted_at) >= july2nd) {
-            await db.user.update({
-              where: { id: submission.user_id },
-              data: { pc_score: { increment: score } },
-            });
-          }
+        if (finalStatus === "AUTO_APPROVED") {
+          await addApprovedPcScore(submission.user_id, submission.submitted_at, score);
+        } else if (finalStatus === "REJECTED") {
+          await subtractRejectedPcScore(submission.user_id, submission.submitted_at, score);
         }
       }
 
@@ -360,14 +416,10 @@ export async function POST(request: Request) {
         });
 
         const score = typeof processedData.temp_ai_score === "number" ? processedData.temp_ai_score : null;
-        if (finalStatus === "AUTO_APPROVED" && score && score > 0) {
-          const july2nd = new Date("2026-07-01T17:00:00Z");
-          if (new Date(checkin.submitted_at) >= july2nd) {
-            await db.user.update({
-              where: { id: checkin.user_id },
-              data: { pc_score: { increment: score } },
-            });
-          }
+        if (finalStatus === "AUTO_APPROVED") {
+          await addApprovedPcScore(checkin.user_id, checkin.submitted_at, score);
+        } else if (finalStatus === "REJECTED") {
+          await subtractRejectedPcScore(checkin.user_id, checkin.submitted_at, score);
         }
       }
 
@@ -607,7 +659,7 @@ export async function POST(request: Request) {
       const subs = pcSubmissionIds.length
         ? await db.pcSubmission.findMany({
             where: { id: { in: pcSubmissionIds } },
-            select: { id: true, user_id: true, exercise_id: true, image_urls: true },
+            select: { id: true, user_id: true, exercise_id: true, image_urls: true, submitted_at: true, ai_score: true, parts_answer: true },
           })
         : [];
 
@@ -633,6 +685,14 @@ export async function POST(request: Request) {
           },
         });
 
+        await Promise.all(
+          subs.map((sub) => {
+            const partsAnswer = getJsonObject(sub.parts_answer);
+            const score = getNonNegativeAiScore(sub.ai_score) ?? getNonNegativeAiScore(partsAnswer.temp_ai_score);
+            return subtractRejectedPcScore(sub.user_id, sub.submitted_at, score);
+          })
+        );
+
         // Gửi thông báo từ chối cho submissions
         const exIds = [...new Set(subs.map(s => s.exercise_id))];
         const exercises = exIds.length > 0 ? await db.pcExercise.findMany({
@@ -657,7 +717,7 @@ export async function POST(request: Request) {
       if (pcCheckinIds.length > 0) {
         const checkins = await db.checkin.findMany({
           where: { id: { in: pcCheckinIds }, task_type: "BUILD_PC" },
-          select: { id: true, image_url: true },
+          select: { id: true, user_id: true, image_url: true, submitted_at: true, build_data: true },
         });
 
         for (const checkin of checkins) {
@@ -679,6 +739,13 @@ export async function POST(request: Request) {
             reviewed_by: session.user.id,
           },
         });
+
+        await Promise.all(
+          checkins.map((checkin) => {
+            const buildData = getJsonObject(checkin.build_data);
+            return subtractRejectedPcScore(checkin.user_id, checkin.submitted_at, buildData.temp_ai_score);
+          })
+        );
       }
     }
 

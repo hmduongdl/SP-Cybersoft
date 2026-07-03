@@ -38,6 +38,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getAvatarUrl } from "@/lib/avatar";
 import { formatVND } from "@/lib/pc-kho";
 import { parsePcBuildExcelFile, type PcBuildExcelExtraction } from "@/lib/pc-build-excel";
 
@@ -638,7 +639,7 @@ export default function PcBuildTrainingClient() {
                             {(task as any).submissions.slice(0, 5).map((sub: any) => (
                               <img
                                 key={sub.user.id}
-                                src={sub.user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                src={getAvatarUrl(sub.user.avatar_url)}
                                 alt={sub.user.name}
                                 className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
                               />

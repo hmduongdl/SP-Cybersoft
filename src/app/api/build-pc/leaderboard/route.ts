@@ -31,6 +31,10 @@ export async function GET() {
       },
       select: {
         id: true,
+        parts_answer: true,
+        explanation: true,
+        image_urls: true,
+        ai_feedback: true,
         ai_score: true,
         submitted_at: true,
         exercise: {
@@ -38,6 +42,7 @@ export async function GET() {
             id: true,
             title: true,
             description: true,
+            requirements: true,
             difficulty: true,
             exercise_date: true,
           },

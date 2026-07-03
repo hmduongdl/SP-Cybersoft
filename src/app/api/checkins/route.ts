@@ -28,6 +28,7 @@ import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { computeAHash, hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
 import { processBackgroundCheckinReview } from "@/lib/checkin-background-worker";
+import { updateUserTrustScore } from "@/lib/trust-score";
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
@@ -135,6 +136,10 @@ export async function POST(request: Request) {
       select: { trust_score: true, name: true }
     });
     const trustScore = userRecord?.trust_score ?? 80;
+
+    // ── 1.2 Xác định trạng thái dựa trên Trust Score ─────────────────────
+    // Trust >= 95 được auto-approve ngay lập tức, không cần chờ AI duyệt
+    const isHighTrustAutoApproved = trustScore >= 95;
 
     // ── 2. Parse input — hỗ trợ cả FormData (cũ) và JSON (Uploadthing) ─────
     const contentType = request.headers.get("content-type") || "";
@@ -364,18 +369,23 @@ export async function POST(request: Request) {
       }
     }
 
-    // ── 7. Tạo bản ghi Checkin trong hàng chờ AI ──────────────────────────
+    // ── 7. Tạo bản ghi Checkin ──────────────────────────────────────────
+    // Trust >= 95: auto-approve ngay, không cần chờ AI duyệt
+    const checkinStatus = isHighTrustAutoApproved ? "AUTO_APPROVED" : "PENDING";
+
     const checkin = await db.checkin.create({
       data: {
         user_id: userId,
         post_id: post.id,
         image_url: imageUrl,
         exif_time: exif.exifTime ?? null,
-        status: "PENDING",
-        ai_confidence: null,
-        is_ai_flagged: isDuplicate || !exif.exifFound,
+        status: checkinStatus,
+        ai_confidence: isHighTrustAutoApproved ? 1.0 : null,
+        is_ai_flagged: isHighTrustAutoApproved ? false : (isDuplicate || !exif.exifFound),
         image_phash: imagePhash,
-        ai_analysis_reason: "AI đang duyệt: Kimi đọc ảnh, DeepSeek phân tích.",
+        ai_analysis_reason: isHighTrustAutoApproved
+          ? "Trust score >= 95: tự động duyệt."
+          : "AI đang duyệt: Kimi đọc ảnh, DeepSeek phân tích.",
         ai_extracted_username: null,
         ai_extracted_title: null,
         ai_is_facebook_ui: null,
@@ -388,25 +398,60 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 
-    after(() => {
-      processBackgroundCheckinReview(checkin.id)
-        .catch((err) => console.error("[checkins] Error running background AI review:", err));
-    });
+    // Nếu trust >= 95: cập nhật trust score và lên lịch fallback 15s
+    if (isHighTrustAutoApproved) {
+      await updateUserTrustScore(userId, "AUTO_APPROVED", post.id ?? undefined);
+
+      // Fallback 15s: nếu lỡ disable auto-approve (status vẫn PENDING), tự động duyệt
+      after(() => {
+        setTimeout(async () => {
+          try {
+            const current = await db.checkin.findUnique({
+              where: { id: checkin.id },
+              select: { status: true },
+            });
+            if (current && current.status === "PENDING") {
+              await db.checkin.update({
+                where: { id: checkin.id },
+                data: {
+                  status: "AUTO_APPROVED",
+                  ai_confidence: 1.0,
+                  ai_analysis_reason: "[Fallback 15s] Tự động duyệt sau 15s.",
+                },
+              });
+              await updateUserTrustScore(userId, "AUTO_APPROVED", post.id ?? undefined);
+              revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
+              revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
+              console.log(`[checkins] Fallback auto-approved checkin ${checkin.id} (trust=${trustScore})`);
+            }
+          } catch (err) {
+            console.error(`[checkins] Fallback auto-approve error for ${checkin.id}:`, err);
+          }
+        }, 15_000);
+      });
+    } else {
+      after(() => {
+        processBackgroundCheckinReview(checkin.id)
+          .catch((err) => console.error("[checkins] Error running background AI review:", err));
+      });
+    }
 
     // ── 8. Trả về kết quả ────────────────────────────────────────────────────
     return NextResponse.json(
       {
         success: true,
-        status: "PENDING",
+        status: checkinStatus,
         exif_time: exif.exifTime ? exif.exifTime.toISOString() : null,
         exif_found: exif.exifFound,
         exif_source_tag: exif.sourceTag,
         image_url: imageUrl,
         checkin_id: checkin.id,
-        ai_checked: false,
-        queued_for_ai: true,
+        ai_checked: isHighTrustAutoApproved,
+        queued_for_ai: !isHighTrustAutoApproved,
         trust_score: trustScore,
-        message: "Bài viết đang được AI duyệt. Hệ thống sẽ thông báo sau khi AI duyệt xong.",
+        message: isHighTrustAutoApproved
+          ? `Trust score ${trustScore}/100: tự động duyệt thành công.`
+          : "Bài viết đang được AI duyệt. Hệ thống sẽ thông báo sau khi AI duyệt xong.",
       },
       { status: 201 }
     );

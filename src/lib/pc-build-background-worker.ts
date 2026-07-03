@@ -172,6 +172,7 @@ const ensureCompatibilityChecks = (result: any): any => {
     case: { status: "WARN", message: "AI chưa trả về kiểm tra vỏ case chi tiết." },
     requirement_fit: { status: "WARN", message: "AI chưa trả về đánh giá mức độ đáp ứng yêu cầu đề bài." },
     budget: { status: "WARN", message: "AI chưa trả về kiểm tra ngân sách chi tiết." },
+    peripherals: { status: "WARN", message: "AI chưa trả về kiểm tra tản nhiệt rời, LCD/màn hình, bàn phím và chuột." },
   };
   if (!result.checks) {
     result.checks = defaultChecks;
@@ -194,6 +195,15 @@ const ensureCompatibilityChecks = (result: any): any => {
 };
 
 const BUDGET_OVERAGE_LIMIT_RATIO = 0.02;
+const STRICT_PC_BUILD_REVIEW_RULES = `
+QUY TẮC CHẤM ĐIỂM NGHIÊM KHẮC:
+- Sai hoặc thiếu bất kỳ ràng buộc bắt buộc nào của đề bài thì requirement_fit phải FAIL, isApproved=false, điểm phải thấp.
+- Không được duyệt nương tay vì cấu hình "có vẻ dùng được"; phải bám sát đúng nhu cầu, ngân sách và yêu cầu tối thiểu.
+- Thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột đều là lỗi cần ghi nhận nếu đề không nói rõ là không yêu cầu.
+- Bài có lỗi kỹ thuật nghiêm trọng như sai socket, RAM sai chuẩn, nguồn thiếu, không xuất hình phải bị từ chối và đánh giá rất thấp.
+- Hạn chế tối đa điểm 100. Chỉ cho 100 khi cấu hình đáp ứng rất sát đề, tất cả check PASS, tổng giá không vượt ngân sách gốc và không có cảnh báo đáng kể.
+- Không tiết lộ thang điểm, hệ số phạt, công thức chấm hoặc số điểm bị trừ trong reason/feedback; chỉ nêu lỗi cụ thể và cách sửa.
+`;
 
 const formatVND = (amount: number): string => `${Math.round(amount).toLocaleString("vi-VN")} VNĐ`;
 
@@ -272,6 +282,87 @@ const enforcePcBuildBudgetLimit = (result: any, expectedBudget: number): any => 
   result.reason = `Không đạt vì tổng giá ${formatVND(total)} vượt quá giới hạn 2% trên ngân sách ${formatVND(budget)}.`;
 
   return result;
+};
+
+const normalizeForRequirementMatch = (value: unknown): string =>
+  String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d");
+
+const hasNamedPart = (part: unknown): boolean => {
+  const value = part && typeof part === "object" ? part as Record<string, unknown> : {};
+  return Boolean(String(value.name || "").trim()) || Number(value.price || 0) > 0;
+};
+
+const isPartExplicitlyNotRequired = (requirementsText: string, keywords: string[]): boolean => {
+  const normalized = normalizeForRequirementMatch(requirementsText);
+  return keywords.some((keyword) => {
+    const term = normalizeForRequirementMatch(keyword);
+    return new RegExp(`(khong|ko|k)\\s*(can|yeu cau|bat buoc|kem|lay|mua)[^.,;\\n]{0,50}${term}`).test(normalized) ||
+      new RegExp(`${term}[^.,;\\n]{0,50}(khong|ko|k)\\s*(can|yeu cau|bat buoc|kem|lay|mua)`).test(normalized);
+  });
+};
+
+const getMissingPeripheralPenalty = (result: any, requirementsText: string): number => {
+  const parts = result?.matched_parts || {};
+  let penalty = 0;
+
+  if (!hasNamedPart(parts.cooler_fan) && !isPartExplicitlyNotRequired(requirementsText, ["tan nhiet", "cooler"])) {
+    penalty += 6;
+  }
+
+  if (!hasNamedPart(parts.monitor) && !isPartExplicitlyNotRequired(requirementsText, ["lcd", "man hinh", "monitor"])) {
+    penalty += 8;
+  }
+
+  const keyboardMouseName = normalizeForRequirementMatch((parts.keyboard_mouse || {}).name);
+  const hasKeyboardMouseBundle = hasNamedPart(parts.keyboard_mouse);
+  const hasKeyboard = hasKeyboardMouseBundle && /(ban phim|keyboard|phim co|phim)/.test(keyboardMouseName);
+  const hasMouse = hasKeyboardMouseBundle && /(chuot|mouse)/.test(keyboardMouseName);
+
+  if (!hasKeyboard && !isPartExplicitlyNotRequired(requirementsText, ["ban phim", "keyboard"])) {
+    penalty += 5;
+  }
+  if (!hasMouse && !isPartExplicitlyNotRequired(requirementsText, ["chuot", "mouse"])) {
+    penalty += 5;
+  }
+
+  return penalty;
+};
+
+const calculateStrictPcBuildScore = (result: any, expectedBudget: number): number => {
+  const checks = result?.checks || {};
+  const entries = Object.values(checks) as Array<{ status?: string }>;
+  const statusList = entries.map((entry) => String(entry?.status || "").toUpperCase());
+  const failCount = statusList.filter((status) => status === "FAIL").length;
+  const warnCount = statusList.filter((status) => status === "WARN").length;
+  const technicalFailKeys = ["display_output", "socket", "ram", "power", "case"];
+  const technicalFailCount = technicalFailKeys.filter(
+    (key) => String(checks?.[key]?.status || "").toUpperCase() === "FAIL"
+  ).length;
+  const requirementFailed = String(checks?.requirement_fit?.status || "").toUpperCase() === "FAIL";
+  const budgetFailed = String(checks?.budget?.status || "").toUpperCase() === "FAIL";
+  const budgetWarn = String(checks?.budget?.status || "").toUpperCase() === "WARN";
+  const totalPrice = Number(result?.matched_parts?.total_price ?? result?.total_price) || 0;
+  const budget = Number(expectedBudget) || 0;
+  const missingPeripheralPenalty = getMissingPeripheralPenalty(result, result?.requirements_text);
+
+  if (result?.isApproved) {
+    if (failCount > 0) return Math.max(0, 80 - technicalFailCount * 20 - missingPeripheralPenalty);
+    if (warnCount === 0 && missingPeripheralPenalty === 0 && budget > 0 && totalPrice > 0 && totalPrice <= budget) return 100;
+    const baseScore = budgetWarn ? 94 - Math.max(0, warnCount - 1) * 2 : 98 - warnCount * 2;
+    return Math.max(70, baseScore - missingPeripheralPenalty);
+  }
+
+  const technicalPenalty = technicalFailCount * 20;
+  if (requirementFailed || budgetFailed) {
+    return Math.max(0, 45 - failCount * 10 - warnCount * 3 - technicalPenalty - missingPeripheralPenalty);
+  }
+  if (technicalFailCount > 0) return Math.max(0, 35 - technicalPenalty - missingPeripheralPenalty);
+  if (failCount > 0) return Math.max(10, 55 - failCount * 12 - warnCount * 3 - missingPeripheralPenalty);
+  return Math.max(35, 45 - missingPeripheralPenalty);
 };
 
 const hasFinalPcBuildResult = (result: any): boolean => {
@@ -752,9 +843,11 @@ QUY TẮC KIỂM TRA:
 - PSU phải đủ CPU + VGA và dư an toàn 100W-150W.
 - Case nhỏ/ITX có thể không vừa main ATX; mid/full tower thường vừa ATX/mATX/ITX.
 - Đáp ứng yêu cầu đề bài: Kiểm tra trước ngân sách. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù tổng giá vẫn nằm trong ngân sách.
+- Phụ kiện/bộ hoàn thiện: Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
 - Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
 - isApproved=true chỉ khi: requirement_fit không FAIL, display_output không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN và cooler_socket WARN vẫn có thể isApproved=true.
 - QUY TẮC NHẤT QUÁN: Nếu isApproved=true thì "reason" phải giải thích vì sao ĐẠT. Nếu isApproved=false thì "reason" nêu lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
+${STRICT_PC_BUILD_REVIEW_RULES}
 
 BẮT BUỘC chỉ trả về JSON:
 {
@@ -783,7 +876,8 @@ BẮT BUỘC chỉ trả về JSON:
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
   }
 }`;
 
@@ -848,6 +942,7 @@ BẮT BUỘC chỉ trả về JSON:
     }
 
     result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(result), expectedBudget);
+    result.requirements_text = `${expectedNeed}\n${expectedReqs}`;
 
     const formattedData: any = {};
     for (const [key, val] of Object.entries(result.matched_parts || {})) {
@@ -864,7 +959,8 @@ BẮT BUỘC chỉ trả về JSON:
     }
 
     const finalStatus = result.isApproved ? "APPROVED" : "REJECTED";
-    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
+    const strictScore = calculateStrictPcBuildScore(result, expectedBudget);
+    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Phụ kiện: ${result.checks?.peripherals?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     if (type === "checkin") {
       const isDraft = currentPayload.is_draft === true;
@@ -884,6 +980,8 @@ BẮT BUỘC chỉ trả về JSON:
             extracted_raw: extractedRaw,
             is_draft: isDraft,
             is_approved: !!result.isApproved,
+            temp_ai_score: strictScore,
+            temp_ai_feedback: feedback,
             explanation: currentPayload.explanation || "",
           },
         },
@@ -916,19 +1014,10 @@ BẮT BUỘC chỉ trả về JSON:
             analysis_step: "done",
             analysis_message: "Hoàn tất phân tích cấu hình.",
             extracted_raw: extractedRaw,
-            temp_ai_score: result.isApproved ? 100 : (() => {
-              const c = result.checks || {};
-              const entries = Object.values(c) as Array<{ status: string }>;
-              const pass = entries.filter((x: any) => x.status === "PASS").length;
-              const fail = entries.filter((x: any) => x.status === "FAIL").length;
-              const total = entries.length || 1;
-              if (fail === 0 && pass === total) return 45;
-              if (fail >= total / 2) return 25;
-              return 35;
-            })(),
+            temp_ai_score: strictScore,
             temp_ai_feedback: feedback,
           },
-          ai_score: isDraft ? null : result.isApproved ? 100 : 70,
+          ai_score: isDraft ? null : strictScore,
           ai_feedback: isDraft ? null : feedback,
         },
       });
@@ -1045,6 +1134,8 @@ QUY TẮC:
 - Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
 - isApproved=true chỉ khi: requirement_fit không FAIL, display_output không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN và cooler_socket WARN vẫn có thể isApproved=true.
 - Nếu isApproved=true: "reason" phải giải thích vì sao ĐẠT (kể cả nếu có cảnh báo nhẹ). Nếu isApproved=false: "reason" nêu rõ lý do cụ thể từ chối. Không được nói "vượt quá giới hạn ngân sách" khi isApproved=true.
+- Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
+${STRICT_PC_BUILD_REVIEW_RULES}
 
 BẮT BUỘC chỉ trả về JSON theo format:
 {
@@ -1073,7 +1164,8 @@ BẮT BUỘC chỉ trả về JSON theo format:
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
   }
 }`;
 
@@ -1303,6 +1395,8 @@ QUY TẮC KIỂM TRA TƯƠNG THÍCH KỸ THUẬT (HÃY ĐÁNH GIÁ CHÍNH XÁC):
    - Đây là cổng kiểm tra đầu tiên và quan trọng nhất, phải đánh giá trước khi xét ngân sách.
    - Đối chiếu cấu hình với nhu cầu khách hàng và toàn bộ ràng buộc bắt buộc: mục đích sử dụng, phân khúc CPU, dung lượng RAM, dung lượng SSD, yêu cầu VGA rời, màn hình/phụ kiện nếu đề bài yêu cầu.
    - Nếu cấu hình sai mục đích, thiếu linh kiện bắt buộc, hoặc thấp hơn yêu cầu tối thiểu trọng yếu -> requirement_fit là "FAIL" và isApproved=false, kể cả khi tổng tiền nằm trong ngân sách.
+9. Peripherals (Phụ kiện/bộ hoàn thiện):
+   - Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
 
 QUY TẮC DUYỆT BÀI (isApproved):
 - Đặt "isApproved": true nếu thỏa mãn:
@@ -1313,6 +1407,7 @@ QUY TẮC DUYỆT BÀI (isApproved):
   - Cảnh báo cooler_socket không làm bài bị từ chối.
 - Ngược lại đặt "isApproved": false.
 - QUY TẮC NHẤT QUÁN BẮT BUỘC: Nếu isApproved=true thì "reason" phải giải thích tích cực vì sao CẤU HÌNH ĐẠT (có thể nêu cảnh báo vượt nhỏ nhưng phải kết luận là hợp lệ). Nếu isApproved=false thì "reason" nêu rõ lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
+${STRICT_PC_BUILD_REVIEW_RULES}
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 {
@@ -1341,7 +1436,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
     "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
+    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
   }
 }
 `;
@@ -1407,6 +1503,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     }
 
     result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(ensureCompatibilityChecks(result)), expectedBudget);
+    result.requirements_text = `${expectedNeed}\n${expectedReqs}`;
 
     // Format output data to include partId: ""
     const formattedData: any = {};
@@ -1426,7 +1523,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     }
 
     const finalStatus = result.isApproved ? "AUTO_APPROVED" : "REJECTED";
-    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
+    const strictScore = calculateStrictPcBuildScore(result, expectedBudget);
+    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- Tản nhiệt: ${result.checks?.cooler_socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Phụ kiện: ${result.checks?.peripherals?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     // 4. Update database record
     if (type === "checkin") {
@@ -1447,6 +1545,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             is_analyzing: false,
             is_draft: isDraft,
             is_approved: !!result.isApproved,
+            temp_ai_score: strictScore,
+            temp_ai_feedback: feedback,
             explanation: currentBuildData.explanation || "",
           },
         },
@@ -1480,19 +1580,10 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
             is_draft: isDraft,
             is_approved: !!result.isApproved,
             is_analyzing: false,
-            temp_ai_score: result.isApproved ? 100 : 70,
+            temp_ai_score: strictScore,
             temp_ai_feedback: feedback,
           },
-          ai_score: isDraft ? null : (result.isApproved ? 100 : (() => {
-              const c = result.checks || {};
-              const entries = Object.values(c) as Array<{ status: string }>;
-              const pass = entries.filter((x: any) => x.status === "PASS").length;
-              const fail = entries.filter((x: any) => x.status === "FAIL").length;
-              const total = entries.length || 1;
-              if (fail === 0 && pass === total) return 45;
-              if (fail >= total / 2) return 25;
-              return 35;
-            })()),
+          ai_score: isDraft ? null : strictScore,
           ai_feedback: isDraft ? null : feedback,
         },
       });

@@ -82,6 +82,12 @@ export async function reviewPcSubmission(params: {
 1. Tổng tiền có vượt quá giới hạn ngân sách + 2% của đề bài không.
 2. Các linh kiện tự chọn (CPU, RAM, SSD, VGA...) có đáp ứng đúng ràng buộc tối thiểu và nhu cầu của đề bài hay không.
 3. Độ tương thích cơ bản (ví dụ: Mainboard hỗ trợ socket của CPU đó, nguồn đủ công suất).
+Chấm nghiêm khắc:
+- Sai hoặc thiếu ràng buộc bắt buộc thì điểm phải thấp.
+- Vượt ngân sách quá giới hạn, sai mục đích sử dụng, thiếu VGA khi đề yêu cầu, thiếu RAM/SSD tối thiểu, hoặc lỗi tương thích nghiêm trọng thì phải trừ mạnh.
+- Hạn chế cho 100. Chỉ cho 100 khi cấu hình sát đề, ngân sách vừa đủ/không vượt, không có lỗi tương thích và không có cảnh báo đáng kể.
+- Thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột đều phải trừ điểm nếu đề không nói rõ là không yêu cầu.
+- Không tiết lộ thang điểm, hệ số phạt, công thức chấm hoặc số điểm bị trừ trong feedback; chỉ nêu lỗi cụ thể và cách sửa.
 Trả về JSON: { "score": number (0-100), "feedback": "nhận xét ngắn gọn bằng tiếng Việt giải thích điểm số" }`,
         },
         {
@@ -93,8 +99,11 @@ Trả về JSON: { "score": number (0-100), "feedback": "nhận xét ngắn gọ
 
     const raw = response.choices[0]?.message?.content || "";
     const parsed = JSON.parse(raw);
+    const score = typeof parsed.score === "number" && Number.isFinite(parsed.score)
+      ? Math.max(0, Math.min(100, Math.round(parsed.score)))
+      : 0;
     return {
-      score: typeof parsed.score === "number" ? parsed.score : 0,
+      score,
       feedback: typeof parsed.feedback === "string" ? parsed.feedback : "",
     };
   } catch (err) {

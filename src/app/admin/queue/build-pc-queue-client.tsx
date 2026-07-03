@@ -50,7 +50,13 @@ interface PcSubmissionItem {
     title: string;
     description: string;
     difficulty: string;
-    requirements: { budget?: number; useCase?: string };
+    requirements: {
+      budget?: number;
+      useCase?: string;
+      constraints?: string[];
+      hints?: string[];
+      [key: string]: unknown;
+    };
     exercise_date?: string | Date;
   };
 }
@@ -92,6 +98,31 @@ function getSubmissionTotal(partsAnswer: PcSubmissionItem["parts_answer"], parts
     return partsAnswer.total_price;
   }
   return parts.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
+}
+
+function getExerciseDisplayTitle(exercise: PcSubmissionItem["exercise"]) {
+  const title = String(exercise.title || "").trim();
+  const description = String(exercise.description || "").trim();
+  if (title.toLowerCase() === "yêu cầu cấu hình" && description) return description;
+  return title || description || "Đề bài Build PC";
+}
+
+function formatExerciseRequirements(exercise: PcSubmissionItem["exercise"]) {
+  const requirements = exercise.requirements || {};
+  const lines: string[] = [];
+
+  if (requirements.useCase) lines.push(String(requirements.useCase));
+  if (typeof requirements.budget === "number" && requirements.budget > 0) {
+    lines.push(`Ngân sách tối đa: ${formatVND(requirements.budget)}`);
+  }
+  if (Array.isArray(requirements.constraints)) {
+    lines.push(...requirements.constraints.map((item) => String(item).trim()).filter(Boolean));
+  }
+  if (Array.isArray(requirements.hints) && requirements.hints.length > 0) {
+    lines.push(`Gợi ý: ${requirements.hints.map((item) => String(item).trim()).filter(Boolean).join(", ")}`);
+  }
+
+  return lines.filter(Boolean);
 }
 
 function groupSubmissionsByExercise(submissions: PcSubmissionItem[]) {
@@ -299,7 +330,7 @@ export default function BuildPcQueueClient({
                   Đề bài
                 </span>
                 <span className="min-w-0 flex-1 truncate font-manrope text-xs font-bold text-on-surface">
-                  {group.exercise.title}
+                  {getExerciseDisplayTitle(group.exercise)}
                 </span>
                 <span className="font-inter text-[10px] text-on-muted">{group.items.length} bài</span>
               </div>
@@ -351,7 +382,7 @@ export default function BuildPcQueueClient({
                             return null;
                           })()}
                         </div>
-                        <p className="mt-0.5 font-manrope text-xs font-semibold text-primary">{s.exercise.title}</p>
+                        <p className="mt-0.5 font-manrope text-xs font-semibold text-primary">{getExerciseDisplayTitle(s.exercise)}</p>
                         <p className="font-inter text-[10px] text-on-muted">
                           {activeTab === "REVIEWED" && s.reviewed_at
                             ? `Duyệt lúc ${new Date(s.reviewed_at).toLocaleString("vi-VN")}`
@@ -412,7 +443,24 @@ export default function BuildPcQueueClient({
                             <p className="font-inter text-[10px] text-on-muted">{s.user.department || "Chưa có phòng ban"} · Người nộp</p>
                           </div>
                         </div>
-                        <p className="font-inter text-xs text-on-muted">{s.exercise.description}</p>
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <div className="rounded-xl bg-surface-mid p-3">
+                            <p className="mb-1 font-manrope text-[10px] font-bold uppercase text-on-muted">Đề bài</p>
+                            <p className="font-inter text-xs leading-relaxed text-on-surface">{getExerciseDisplayTitle(s.exercise)}</p>
+                          </div>
+                          <div className="rounded-xl bg-surface-mid p-3">
+                            <p className="mb-1 font-manrope text-[10px] font-bold uppercase text-on-muted">Yêu cầu cấu hình</p>
+                            {formatExerciseRequirements(s.exercise).length > 0 ? (
+                              <ul className="space-y-1 font-inter text-xs leading-relaxed text-on-surface">
+                                {formatExerciseRequirements(s.exercise).map((line, index) => (
+                                  <li key={index}>{line}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="font-inter text-xs leading-relaxed text-on-surface">{s.exercise.description}</p>
+                            )}
+                          </div>
+                        </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           {parts.map((p, i) => (
                             <div key={i} className="rounded-xl bg-surface-mid px-3 py-2">

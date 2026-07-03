@@ -110,13 +110,17 @@ export async function processBackgroundCheckinReview(checkinId: string) {
       visionResult.isValid &&
       visionResult.confidence >= AUTO_APPROVE_CONFIDENCE_THRESHOLD;
 
+    // Trust score >= 95 bypasses vision confidence check
+    const trustBypass = trustScore >= AUTO_APPROVE_TRUST_THRESHOLD && trustScore >= 95;
+    const finalAutoApprove = canAutoApprove || (trustBypass && visionResult.isValid && !isDuplicateImage);
+
     await db.checkin.update({
       where: { id: checkin.id },
       data: {
-        status: canAutoApprove ? "AUTO_APPROVED" : "PENDING",
+        status: finalAutoApprove ? "AUTO_APPROVED" : "PENDING",
         is_ai_flagged: !visionResult.isValid || !visionResult.isFacebookUI,
         ai_confidence: visionResult.confidence,
-        ai_analysis_reason: canAutoApprove
+        ai_analysis_reason: finalAutoApprove
           ? `[AI Auto] ${visionResult.reason}`
           : `[AI Reviewed - Needs Admin] ${visionResult.reason}${
               isDuplicateImage
@@ -130,7 +134,7 @@ export async function processBackgroundCheckinReview(checkinId: string) {
       },
     });
 
-    if (canAutoApprove) {
+    if (finalAutoApprove) {
       await updateUserTrustScore(checkin.user_id, "AUTO_APPROVED", checkin.post_id ?? undefined);
     }
 
@@ -139,7 +143,7 @@ export async function processBackgroundCheckinReview(checkinId: string) {
       userName: checkin.user.name || checkin.user.full_name || checkin.user.username,
       itemTitle: checkin.post.description || checkin.post.title,
       itemType: "Check-in Like/Share",
-      status: canAutoApprove ? "approved" : "needs_review",
+      status: finalAutoApprove ? "approved" : "needs_review",
       analysis: visionResult.reason,
       reviewPath: `/reports?checkinId=${checkin.id}`,
       extractedTitle: visionResult.extractedTitle,
@@ -152,7 +156,7 @@ export async function processBackgroundCheckinReview(checkinId: string) {
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
 
     console.log(
-      `[CheckinBackgroundWorker] Finished ${checkinId} with status ${canAutoApprove ? "AUTO_APPROVED" : "PENDING"}.`
+      `[CheckinBackgroundWorker] Finished ${checkinId} with status ${finalAutoApprove ? "AUTO_APPROVED" : "PENDING"}.`
     );
   } catch (error) {
     console.error(`[CheckinBackgroundWorker] Failed to process ${checkinId}:`, error);

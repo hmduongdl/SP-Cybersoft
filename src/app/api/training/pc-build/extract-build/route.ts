@@ -36,6 +36,15 @@ function isCodexTimeWindow(): boolean {
 }
 
 const BUDGET_OVERAGE_LIMIT_RATIO = 0.02;
+const STRICT_PC_BUILD_REVIEW_RULES = `
+QUY TẮC CHẤM ĐIỂM NGHIÊM KHẮC:
+- Sai hoặc thiếu bất kỳ ràng buộc bắt buộc nào của đề bài thì requirement_fit phải FAIL, isApproved=false, điểm phải thấp.
+- Không được duyệt nương tay vì cấu hình "có vẻ dùng được"; phải bám sát đúng nhu cầu, ngân sách và yêu cầu tối thiểu.
+- Thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột đều là lỗi cần ghi nhận nếu đề không nói rõ là không yêu cầu.
+- Bài có lỗi kỹ thuật nghiêm trọng như sai socket, RAM sai chuẩn, nguồn thiếu, không xuất hình phải bị từ chối và đánh giá rất thấp.
+- Hạn chế tối đa điểm 100. Chỉ cho 100 khi cấu hình đáp ứng rất sát đề, tất cả check PASS, tổng giá không vượt ngân sách gốc và không có cảnh báo đáng kể.
+- Không tiết lộ thang điểm, hệ số phạt, công thức chấm hoặc số điểm bị trừ trong reason/feedback; chỉ nêu lỗi cụ thể và cách sửa.
+`;
 
 const formatVND = (amount: number): string => `${Math.round(amount).toLocaleString("vi-VN")} VNĐ`;
 
@@ -297,9 +306,11 @@ NHIỆM VỤ CỦA BẠN:
    e. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ tải cho CPU + VGA không? (Ví dụ: i5 + RTX 4060 cần nguồn từ 550W trở lên; i7 + RTX 4070 cần nguồn từ 650W trở lên; cấu hình văn phòng không VGA rời cần nguồn 350W-450W trở lên).
    f. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không? (Ví dụ main ATX lắp vào case Mini-ITX là không vừa).
    g. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế không được vượt quá ngân sách tối đa của đề bài hơn 2%. Nếu tổng giá <= ngân sách thì budget là "PASS"; nếu tổng giá > ngân sách nhưng <= ngân sách + 2% thì budget là "WARN" kèm giải thích vượt nhẹ nhưng vẫn hợp lệ; nếu tổng giá > ngân sách + 2% thì budget là "FAIL". Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
+   h. Peripherals (Phụ kiện/bộ hoàn thiện): Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
 4. Đánh giá duyệt cấu hình (chỉ áp dụng nếu có đề bài):
    - Đặt "isApproved": true nếu thỏa mãn: requirement_fit không FAIL, display_output không FAIL, tổng giá <= ngân sách + 2%, và các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu). Cảnh báo cooler_socket không làm bài bị từ chối. Ngược lại đặt false.
    - Ghi nhận xét ngắn gọn trong "reason".
+${STRICT_PC_BUILD_REVIEW_RULES}
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 {
@@ -328,7 +339,8 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về công suất nguồn PSU" },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về kích thước vỏ case & mainboard" },
     "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp đối chiếu mức độ đáp ứng yêu cầu đề bài" },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về ngân sách và chênh lệch giá tiền" }
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về ngân sách và chênh lệch giá tiền" },
+    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về tản nhiệt rời, LCD/màn hình, bàn phím và chuột" }
   }
 }
 `;
