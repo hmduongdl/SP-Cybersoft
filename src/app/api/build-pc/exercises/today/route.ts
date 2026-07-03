@@ -5,6 +5,16 @@ import { getStartOfDayVN } from "@/lib/pc-kho";
 
 export const dynamic = "force-dynamic";
 
+const DIFFICULTY_RANK: Record<string, number> = {
+  easy: 0,
+  medium: 1,
+  hard: 2,
+};
+
+function getDifficultyRank(difficulty?: string | null): number {
+  return DIFFICULTY_RANK[String(difficulty || "").toLowerCase()] ?? 99;
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -21,11 +31,17 @@ export async function GET() {
   const tomorrow = getEndOfDayVN(today);
 
   // 1. Fetch PcBuildTask records created by the admin for today (and not archived)
-  const adminTasks = await db.pcBuildTask.findMany({
+  const adminTasks = (await db.pcBuildTask.findMany({
     where: { 
       date: { gte: today, lt: tomorrow }
     },
     orderBy: { created_at: "asc" },
+  })).sort((a, b) => {
+    const difficultyDiff = getDifficultyRank(a.difficulty) - getDifficultyRank(b.difficulty);
+    if (difficultyDiff !== 0) return difficultyDiff;
+    const createdDiff = a.created_at.getTime() - b.created_at.getTime();
+    if (createdDiff !== 0) return createdDiff;
+    return a.id.localeCompare(b.id);
   });
 
   // 2. Sync them to PcExercise table so they exist for submissions
@@ -90,12 +106,17 @@ export async function GET() {
   });
 
   // Attach is_archived to exercises
+  const adminTaskOrder = new Map(adminTasks.map((task, index) => [task.id, index]));
   const exercisesWithArchiveStatus = exercises.map(ex => {
     const adminTask = adminTasks.find(t => t.id === ex.id);
     return {
       ...ex,
       is_archived: adminTask?.is_archived || false
     };
+  }).sort((a, b) => {
+    const orderDiff = (adminTaskOrder.get(a.id) ?? 99) - (adminTaskOrder.get(b.id) ?? 99);
+    if (orderDiff !== 0) return orderDiff;
+    return a.id.localeCompare(b.id);
   });
 
   return NextResponse.json({ exercises: exercisesWithArchiveStatus, date: today.toISOString() });

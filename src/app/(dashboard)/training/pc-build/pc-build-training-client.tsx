@@ -38,6 +38,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getAvatarUrl } from "@/lib/avatar";
 import { formatVND } from "@/lib/pc-kho";
 import { parsePcBuildExcelFile, type PcBuildExcelExtraction } from "@/lib/pc-build-excel";
 
@@ -638,7 +639,7 @@ export default function PcBuildTrainingClient() {
                             {(task as any).submissions.slice(0, 5).map((sub: any) => (
                               <img
                                 key={sub.user.id}
-                                src={sub.user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                src={getAvatarUrl(sub.user.avatar_url)}
                                 alt={sub.user.name}
                                 className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
                               />
@@ -672,7 +673,7 @@ export default function PcBuildTrainingClient() {
           const isResultView = !!state.previewImage;
 
           const checksAnimDelay = 0.5;
-          const checkKeys = ["socket", "ram", "power", "case", "budget"];
+          const checkKeys = ["requirement_fit", "display_output", "socket", "cooler_socket", "ram", "power", "case", "budget"];
           
           const parts = state.extractedParts;
           const partsKeys = parts ? Object.keys(parts).filter(k => {
@@ -947,7 +948,10 @@ export default function PcBuildTrainingClient() {
                                       </div>
                                       <div className="text-xs">
                                         <p className="font-bold text-on-surface">
-                                          {key === "socket" ? "Socket CPU & Mainboard" :
+                                          {key === "requirement_fit" ? "Đối chiếu yêu cầu đề bài" :
+                                           key === "display_output" ? "Khả năng xuất hình" :
+                                           key === "socket" ? "Socket CPU & Mainboard" :
+                                           key === "cooler_socket" ? "Tản nhiệt & Socket CPU" :
                                            key === "ram" ? "Chuẩn thế hệ RAM" :
                                            key === "power" ? "Công suất Nguồn (PSU)" :
                                            key === "case" ? "Kích thước vỏ máy (Case)" :

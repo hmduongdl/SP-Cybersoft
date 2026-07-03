@@ -16,9 +16,12 @@ import {
   Cpu,
   ArrowRight,
   Trophy,
+  Star,
+  Eye,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { cn } from "@/lib/utils";
+import { getAvatarUrl } from "@/lib/avatar";
 import { Card } from "@/components/ui/card";
 import {
   formatVND,
@@ -61,10 +64,39 @@ interface Submission {
   };
 }
 
+interface FeaturedBuild {
+  id: string;
+  parts_answer?: any;
+  explanation?: string;
+  image_urls?: string[];
+  ai_feedback?: string | null;
+  ai_score: number | null;
+  submitted_at: string;
+  exercise: {
+    id: string;
+    title: string;
+    description: string;
+    requirements?: { budget?: number; useCase?: string; constraints?: string[] };
+    difficulty: string;
+    exercise_date?: string;
+  };
+  user: {
+    id: string;
+    name: string;
+    avatar_url?: string | null;
+  };
+}
+
 interface Part {
   name: string;
   price: number;
   partId: string;
+}
+
+interface SubmissionPartRow {
+  category?: string;
+  name: string;
+  price: number;
 }
 
 interface ExerciseState {
@@ -146,6 +178,13 @@ function getSubmissionParts(partsAnswer: any) {
     }));
 }
 
+function getSubmissionTotal(partsAnswer: any, parts: Array<{ price: number }>) {
+  const total = partsAnswer?.total_price;
+  if (typeof total === "number") return total;
+  if (total && typeof total === "object" && typeof total.price === "number") return total.price;
+  return parts.reduce((sum, part) => sum + part.price, 0);
+}
+
 function formatDateGroup(dateValue: string) {
   return new Date(dateValue).toLocaleDateString("vi-VN", {
     weekday: "long",
@@ -185,6 +224,8 @@ export default function BuildPcClient() {
   const [history, setHistory] = useState<Submission[]>([]);
 
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [featuredBuilds, setFeaturedBuilds] = useState<FeaturedBuild[]>([]);
+  const [selectedFeaturedBuild, setSelectedFeaturedBuild] = useState<FeaturedBuild | null>(null);
 
   const [modalExerciseId, setModalExerciseId] = useState<string | null>(null);
   const [exerciseStates, setExerciseStates] = useState<Record<string, ExerciseState>>({});
@@ -219,6 +260,7 @@ export default function BuildPcClient() {
       if (leaderRes.ok) {
         const data = await leaderRes.json();
         setLeaderboard(data.leaderboard || []);
+        setFeaturedBuilds(data.featuredBuilds || []);
       }
       if (subRes.ok) {
         const data = await subRes.json();
@@ -632,7 +674,7 @@ export default function BuildPcClient() {
                               {(ex as any).submissions.slice(0, 5).map((sub: any) => (
                                 <img
                                   key={sub.user.id}
-                                  src={sub.user.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${sub.user.name}`}
+                                  src={getAvatarUrl(sub.user.avatar_url)}
                                   alt={sub.user.name}
                                   className="w-5 h-5 rounded-full border border-surface-container-lowest object-cover relative z-10"
                                 />
@@ -702,7 +744,7 @@ export default function BuildPcClient() {
                             {idx + 1}
                           </span>
                           <div className="w-8 h-8 rounded-full overflow-hidden bg-surface-container border border-surface-container">
-                            {user.avatar_url ? <img src={user.avatar_url} alt={user.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-on-muted">{user.name.charAt(0)}</div>}
+                            <img src={getAvatarUrl(user.avatar_url)} alt={user.name} className="w-full h-full object-cover" />
                           </div>
                           <span className="text-sm font-semibold text-on-surface">{user.name}</span>
                         </div>
@@ -711,6 +753,81 @@ export default function BuildPcClient() {
                     ))}
                   </div>
                 </>
+              )}
+            </div>
+          </Card>
+
+          <Card className="border-surface-container-high shadow-sm">
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-primary" />
+                  <h2 className="font-manrope text-lg font-bold text-on-surface">Bài Build PC nổi bật trong tuần</h2>
+                </div>
+                <span className="hidden sm:inline-flex text-[10px] font-extrabold uppercase tracking-wider text-on-muted bg-surface-container px-2.5 py-1 rounded-full">
+                  7 ngày gần nhất
+                </span>
+              </div>
+
+              {featuredBuilds.length === 0 ? (
+                <div className="text-center py-10 text-on-muted text-sm">Tuần này chưa có bài điểm cao.</div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {featuredBuilds.map((build, idx) => (
+                    <button
+                      key={build.id}
+                      type="button"
+                      onClick={() => setSelectedFeaturedBuild(build)}
+                      className="text-left rounded-2xl border border-surface-container bg-surface-container-lowest p-4 hover:border-primary/25 hover:-translate-y-0.5 transition-all focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={cn(
+                              "w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold",
+                              idx === 0 ? "bg-amber-100 text-amber-600" :
+                              idx === 1 ? "bg-slate-200 text-slate-700" :
+                              idx === 2 ? "bg-orange-100 text-orange-700" :
+                              "bg-surface-container-high text-on-muted"
+                            )}>
+                              {idx + 1}
+                            </span>
+                            <span className={cn(
+                              "rounded px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-wider border",
+                              build.exercise.difficulty === "easy" ? "border-emerald-200 text-emerald-600 bg-transparent" :
+                              build.exercise.difficulty === "medium" ? "border-amber-200 text-amber-600 bg-transparent" :
+                              "border-rose-200 text-rose-600 bg-transparent"
+                            )}>
+                              {DIFFICULTY_LABEL[build.exercise.difficulty] || build.exercise.difficulty}
+                            </span>
+                            <span className="text-[10px] font-semibold text-on-muted">
+                              {formatDateGroup(build.submitted_at)}
+                            </span>
+                          </div>
+                          <p className="font-manrope text-sm font-bold text-on-surface line-clamp-2">
+                            {build.exercise.description || build.exercise.title}
+                          </p>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-full overflow-hidden bg-surface-container border border-surface-container shrink-0">
+                              <img src={getAvatarUrl(build.user.avatar_url)} alt={build.user.name} className="w-full h-full object-cover" />
+                            </div>
+                            <span className="text-xs font-semibold text-on-surface truncate">{build.user.name}</span>
+                          </div>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-primary">
+                            <Eye className="h-3.5 w-3.5" />
+                            Xem cấu hình
+                          </span>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <div className="text-2xl font-black text-primary leading-none">
+                            {Math.round(build.ai_score || 0)}
+                          </div>
+                          <div className="text-[10px] font-bold text-on-muted uppercase tracking-wider">điểm</div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </Card>
@@ -752,6 +869,153 @@ export default function BuildPcClient() {
           );
         })()}
       </AnimatePresence>
+
+      {selectedFeaturedBuild && (
+        <FeaturedBuildModal
+          build={selectedFeaturedBuild}
+          onClose={() => setSelectedFeaturedBuild(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function FeaturedBuildModal({ build, onClose }: { build: FeaturedBuild; onClose: () => void }) {
+  const parts = getSubmissionParts(build.parts_answer) as SubmissionPartRow[];
+  const total = getSubmissionTotal(build.parts_answer, parts);
+  const budget = Number(build.exercise.requirements?.budget || 0);
+  const saved = budget > 0 ? budget - total : 0;
+  const checks = build.parts_answer?.checks && typeof build.parts_answer.checks === "object"
+    ? Object.entries(build.parts_answer.checks)
+    : [];
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-surface-container-lowest shadow-2xl border border-surface-container"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-surface-container p-5">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded bg-primary/10 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-primary">
+                Build nổi bật
+              </span>
+              <span className="text-xs font-semibold text-on-muted">{formatDateGroup(build.submitted_at)}</span>
+            </div>
+            <h3 className="font-manrope text-xl font-black text-on-surface">
+              {build.exercise.description || build.exercise.title}
+            </h3>
+            <p className="text-sm text-on-muted">
+              {build.user.name} đạt {Math.round(build.ai_score || 0)} điểm
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-container text-on-muted hover:text-on-surface transition-colors"
+            aria-label="Đóng modal"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="max-h-[calc(90vh-112px)] overflow-y-auto p-5 space-y-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-surface-container bg-surface-mid/30 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-on-muted">Tổng build</p>
+              <p className="mt-1 font-manrope text-lg font-black text-on-surface">{formatVND(total)}</p>
+            </div>
+            <div className="rounded-xl border border-surface-container bg-surface-mid/30 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-on-muted">Ngân sách</p>
+              <p className="mt-1 font-manrope text-lg font-black text-on-surface">{budget ? formatVND(budget) : "Không ghi"}</p>
+            </div>
+            <div className="rounded-xl border border-surface-container bg-surface-mid/30 p-4">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-on-muted">Tối ưu</p>
+              <p className={cn("mt-1 font-manrope text-lg font-black", saved >= 0 ? "text-emerald-600" : "text-rose-600")}>
+                {budget ? (saved >= 0 ? `Dư ${formatVND(saved)}` : `Vượt ${formatVND(Math.abs(saved))}`) : "Theo đề bài"}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="mb-3 font-manrope text-base font-bold text-on-surface">Cấu hình linh kiện</h4>
+            {parts.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-surface-container p-6 text-center text-sm text-on-muted">
+                Bài này chưa có dữ liệu linh kiện chi tiết.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {parts.map((part: SubmissionPartRow) => (
+                  <div key={`${part.category}-${part.name}`} className="rounded-xl border border-surface-container bg-surface-container-low p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-on-muted">
+                      {(part.category ? CATEGORY_LABELS[part.category] : null) || part.category || "Linh kiện"}
+                    </p>
+                    <div className="mt-1 flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-on-surface">{part.name}</p>
+                      <p className="shrink-0 text-sm font-bold text-primary">{formatVND(part.price)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {(build.explanation || build.ai_feedback) && (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {build.explanation && (
+                <div className="rounded-xl border border-surface-container bg-surface-mid/20 p-4">
+                  <h4 className="font-manrope text-sm font-bold text-on-surface">Cách tối ưu của người build</h4>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-on-surface-variant">{build.explanation}</p>
+                </div>
+              )}
+              {build.ai_feedback && (
+                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <h4 className="font-manrope text-sm font-bold text-on-surface">Nhận xét AI</h4>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-on-surface-variant">{build.ai_feedback}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {checks.length > 0 && (
+            <div>
+              <h4 className="mb-3 font-manrope text-base font-bold text-on-surface">Kiểm tra tương thích</h4>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {checks.map(([key, value]) => {
+                  const check = value as { status?: string; message?: string };
+                  return (
+                    <div key={key} className="rounded-xl border border-surface-container bg-surface-container-low p-3">
+                      <div className="flex items-center gap-2">
+                        {check.status === "PASS" ? (
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-amber-500" />
+                        )}
+                        <p className="text-sm font-bold text-on-surface">{CATEGORY_LABELS[key] || key}</p>
+                      </div>
+                      {check.message && <p className="mt-1 text-xs leading-5 text-on-muted">{check.message}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

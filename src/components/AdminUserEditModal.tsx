@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, X, User, Mail, KeyRound, Building2, ShieldCheck } from "lucide-react";
+import { ImagePlus, Loader2, X, User, Mail, KeyRound, Building2, ShieldCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { UserAvatar } from "@/components/shared/user-avatar";
 
 interface UserAccount {
   id: string;
@@ -34,6 +35,9 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
   const [newPassword, setNewPassword] = useState("");
   const [isActive, setIsActive] = useState(user.is_active);
   const [role, setRole] = useState<"ADMIN" | "USER">(user.role);
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || "");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Reset form when user changes
@@ -45,9 +49,56 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
     setNewPassword("");
     setIsActive(user.is_active);
     setRole(user.role);
+    setAvatarUrl(user.avatar_url || "");
+    setAvatarFile(null);
+    setAvatarPreview(null);
   }, [user]);
 
+  useEffect(() => {
+    if (!avatarFile) return;
 
+    const objectUrl = URL.createObjectURL(avatarFile);
+    setAvatarPreview(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [avatarFile]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Chỉ chấp nhận ảnh JPG, PNG hoặc WEBP.");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Dung lượng ảnh không được vượt quá 2MB.");
+      return;
+    }
+
+    setAvatarFile(file);
+  };
+
+  const uploadAvatar = async () => {
+    if (!avatarFile) return avatarUrl;
+
+    const formData = new FormData();
+    formData.append("file", avatarFile);
+    formData.append("userId", user.id);
+
+    const res = await fetch("/api/admin/upload-avatar", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Tải ảnh đại diện thất bại.");
+
+    return data.avatar_url || data.url;
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +117,8 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
 
     setSaving(true);
     try {
+      const uploadedAvatarUrl = await uploadAvatar();
+
       const payload: Record<string, any> = {
         id: user.id,
         name: name.trim(),
@@ -73,6 +126,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
         email: email.trim(),
         role,
         department,
+        avatar_url: uploadedAvatarUrl || null,
         is_active: isActive,
       };
 
@@ -90,6 +144,8 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
       if (!res.ok) throw new Error(data.error || "Cập nhật thất bại.");
 
       toast.success("Cập nhật tài khoản thành công!");
+      setAvatarUrl(uploadedAvatarUrl || "");
+      setAvatarFile(null);
       onSaved();
       onClose();
     } catch (error: any) {
@@ -132,6 +188,40 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSaved }: AdminUser
         <form onSubmit={handleSave}>
           <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
 
+            {/* Avatar */}
+            <div className="flex flex-col gap-4 rounded-xl bg-surface-container-low p-4 sm:flex-row sm:items-center">
+              <UserAvatar
+                name={name || username || email}
+                src={avatarPreview || avatarUrl}
+                size="lg"
+                className="ring-2 ring-surface-bright"
+              />
+              <div className="min-w-0 flex-1">
+                <label className="text-xs font-bold text-on-surface-variant flex items-center gap-1.5 uppercase">
+                  <ImagePlus className="h-3.5 w-3.5 text-on-surface-variant" />
+                  Ảnh đại diện
+                </label>
+                <p className="mt-1 text-xs text-on-surface-variant">
+                  Admin có thể thay ảnh đại diện cho tài khoản này.
+                </p>
+                {avatarFile && (
+                  <p className="mt-1 truncate text-xs font-medium text-primary">
+                    Đã chọn: {avatarFile.name}
+                  </p>
+                )}
+              </div>
+              <label className={`inline-flex items-center justify-center gap-2 rounded-xl bg-surface-bright px-3.5 py-2.5 text-sm font-semibold text-on-surface shadow-ambient transition-all duration-150 hover:bg-surface-container ${saving ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                <ImagePlus className="h-4 w-4" />
+                Chọn ảnh
+                <input
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  disabled={saving}
+                  className="sr-only"
+                />
+              </label>
+            </div>
 
             {/* Grid: Full Name + Username */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

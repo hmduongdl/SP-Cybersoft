@@ -36,6 +36,15 @@ function isCodexTimeWindow(): boolean {
 }
 
 const BUDGET_OVERAGE_LIMIT_RATIO = 0.02;
+const STRICT_PC_BUILD_REVIEW_RULES = `
+QUY TẮC CHẤM ĐIỂM NGHIÊM KHẮC:
+- Sai hoặc thiếu bất kỳ ràng buộc bắt buộc nào của đề bài thì requirement_fit phải FAIL, isApproved=false, điểm phải thấp.
+- Không được duyệt nương tay vì cấu hình "có vẻ dùng được"; phải bám sát đúng nhu cầu, ngân sách và yêu cầu tối thiểu.
+- Thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột đều là lỗi cần ghi nhận nếu đề không nói rõ là không yêu cầu.
+- Bài có lỗi kỹ thuật nghiêm trọng như sai socket, RAM sai chuẩn, nguồn thiếu, không xuất hình phải bị từ chối và đánh giá rất thấp.
+- Hạn chế tối đa điểm 100. Chỉ cho 100 khi cấu hình đáp ứng rất sát đề, tất cả check PASS, tổng giá không vượt ngân sách gốc và không có cảnh báo đáng kể.
+- Không tiết lộ thang điểm, hệ số phạt, công thức chấm hoặc số điểm bị trừ trong reason/feedback; chỉ nêu lỗi cụ thể và cách sửa.
+`;
 
 const formatVND = (amount: number): string => `${Math.round(amount).toLocaleString("vi-VN")} VNĐ`;
 
@@ -46,6 +55,7 @@ const getApprovedBudgetLimit = (budget: number): number => {
 const enforceRequirementFitGate = (result: any): any => {
   if (!result?.matched_parts) return result;
   result.checks = result.checks || {};
+  const hasDiscreteGpu = Boolean(String(result.matched_parts?.vga?.name || "").trim());
   if (!result.checks.requirement_fit) {
     result.checks.requirement_fit = {
       status: "WARN",
@@ -54,10 +64,51 @@ const enforceRequirementFitGate = (result: any): any => {
     result.isApproved = false;
     result.reason = "Chưa đủ căn cứ xác nhận cấu hình đáp ứng đúng yêu cầu đề bài.";
   }
+  if (!hasDiscreteGpu && !result.checks.display_output) {
+    result.checks.display_output = {
+      status: "WARN",
+      message: "Chưa đủ căn cứ xác nhận CPU có thể xuất hình khi không có card đồ họa rời.",
+    };
+    result.isApproved = false;
+    result.reason = result.reason || "Chưa đủ căn cứ xác nhận CPU có thể xuất hình khi không có card đồ họa rời.";
+  }
+  if (!result.checks.cooler_socket) {
+    result.checks.cooler_socket = {
+      status: "WARN",
+      message: "Chưa đủ căn cứ xác nhận tản nhiệt hỗ trợ socket CPU đã chọn; nên kiểm tra lại bracket/ngàm khi lắp ráp.",
+    };
+  }
 
   if (String(result.checks.requirement_fit.status || "").toUpperCase() === "FAIL") {
     result.isApproved = false;
     result.reason = result.reason || "Không đạt vì cấu hình chưa đáp ứng đúng yêu cầu bắt buộc của đề bài.";
+  }
+  if (String(result.checks.cooler_socket?.status || "").toUpperCase() === "FAIL") {
+    result.checks.cooler_socket.status = "WARN";
+    result.checks.cooler_socket.message =
+      result.checks.cooler_socket.message || "Tản nhiệt cần được kiểm tra lại bracket/ngàm hỗ trợ socket CPU đã chọn.";
+  }
+
+  const criticalCheckLabels: Record<string, string> = {
+    display_output: "CPU không có khả năng xuất hình trong khi cấu hình không có card đồ họa rời",
+    socket: "CPU và mainboard không tương thích socket",
+    ram: "RAM không tương thích với mainboard",
+    power: "nguồn không đáp ứng cấu hình",
+    case: "vỏ máy không tương thích với linh kiện đã chọn",
+  };
+  let hasBlockingFailure = String(result.checks.requirement_fit.status || "").toUpperCase() === "FAIL";
+  for (const [key, label] of Object.entries(criticalCheckLabels)) {
+    if (String(result.checks?.[key]?.status || "").toUpperCase() === "FAIL") {
+      hasBlockingFailure = true;
+      result.isApproved = false;
+      result.reason = result.reason || `Không đạt vì ${label}.`;
+      break;
+    }
+  }
+  const reason = String(result.reason || "").toLowerCase();
+  const onlyCoolerConcern = /tản nhiệt|cooler|bracket|ngàm/.test(reason) && !hasBlockingFailure;
+  if (onlyCoolerConcern) {
+    result.isApproved = true;
   }
 
   return result;
@@ -249,13 +300,17 @@ NHIỆM VỤ CỦA BẠN:
 3. Kiểm tra kỹ thuật tương thích phần cứng:
    Hãy đánh giá tính tương thích và hợp lệ dựa trên các yếu tố sau:
    a. Socket (CPU & Mainboard): Ví dụ LGA1700 của Intel đi với main H610/B760/Z790; AM5 của AMD đi với main A620/B650; LGA1200 đi với main H410/H510/B460/B560,... CPU và Mainboard có tương thích socket không?
-   b. RAM (DDR4/DDR5 & Mainboard): RAM DDR4 chỉ lắp được mainboard DDR4, RAM DDR5 chỉ lắp được mainboard DDR5. Đọc tên mainboard và RAM xem có bị lệch thế hệ DDR không?
-   c. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ tải cho CPU + VGA không? (Ví dụ: i5 + RTX 4060 cần nguồn từ 550W trở lên; i7 + RTX 4070 cần nguồn từ 650W trở lên; cấu hình văn phòng không VGA rời cần nguồn 350W-450W trở lên).
-   d. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không? (Ví dụ main ATX lắp vào case Mini-ITX là không vừa).
-   e. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế không được vượt quá ngân sách tối đa của đề bài hơn 2%. Nếu tổng giá <= ngân sách thì budget là "PASS"; nếu tổng giá > ngân sách nhưng <= ngân sách + 2% thì budget là "WARN" kèm giải thích vượt nhẹ nhưng vẫn hợp lệ; nếu tổng giá > ngân sách + 2% thì budget là "FAIL". Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
+   b. Display Output (Khả năng xuất hình): Nếu không có card đồ họa rời trong vga, CPU bắt buộc phải có iGPU/xuất hình. Intel F/KF không có iGPU; Intel không có hậu tố F thường có iGPU. Ryzen AM4 đa số không có iGPU trừ dòng G/GE; Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông thường có iGPU cơ bản. Nếu không có VGA rời và CPU chắc chắn không có iGPU -> display_output FAIL. Nếu có VGA rời hợp lệ -> PASS.
+   c. Cooler Socket (Tản nhiệt & Socket CPU): Nếu có tản nhiệt rời trong cooler_fan, kiểm tra model tản nhiệt có bracket/ngàm hỗ trợ socket CPU đã chọn không (LGA1700, LGA1200, AM4, AM5...). Đây là tiêu chí nhắc nhở mềm: PASS nếu tên/model thể hiện rõ hỗ trợ socket đó; WARN nếu không đủ dữ liệu xác nhận hoặc có dấu hiệu chưa đảm bảo. Không dùng tiêu chí này để đánh rớt bài.
+   d. RAM (DDR4/DDR5 & Mainboard): RAM DDR4 chỉ lắp được mainboard DDR4, RAM DDR5 chỉ lắp được mainboard DDR5. Đọc tên mainboard và RAM xem có bị lệch thế hệ DDR không?
+   e. Power (Nguồn PSU & VGA/CPU): Công suất nguồn có đủ tải cho CPU + VGA không? (Ví dụ: i5 + RTX 4060 cần nguồn từ 550W trở lên; i7 + RTX 4070 cần nguồn từ 650W trở lên; cấu hình văn phòng không VGA rời cần nguồn 350W-450W trở lên).
+   f. Case Size & Mainboard: Kích thước vỏ case có vừa với mainboard không? (Ví dụ main ATX lắp vào case Mini-ITX là không vừa).
+   g. Budget (Ngân sách & Chênh lệch giá): Tổng giá thực tế không được vượt quá ngân sách tối đa của đề bài hơn 2%. Nếu tổng giá <= ngân sách thì budget là "PASS"; nếu tổng giá > ngân sách nhưng <= ngân sách + 2% thì budget là "WARN" kèm giải thích vượt nhẹ nhưng vẫn hợp lệ; nếu tổng giá > ngân sách + 2% thì budget là "FAIL". Giá của linh kiện so với giá thị trường chung có bị chênh lệch/đội giá vô lý không?
+   h. Peripherals (Phụ kiện/bộ hoàn thiện): Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
 4. Đánh giá duyệt cấu hình (chỉ áp dụng nếu có đề bài):
-   - Đặt "isApproved": true nếu thỏa mãn: requirement_fit không FAIL, tổng giá <= ngân sách + 2%, và các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu). Ngược lại đặt false.
+   - Đặt "isApproved": true nếu thỏa mãn: requirement_fit không FAIL, display_output không FAIL, tổng giá <= ngân sách + 2%, và các linh kiện tương thích tốt (không bị FAIL các kiểm tra socket, ram, psu). Cảnh báo cooler_socket không làm bài bị từ chối. Ngược lại đặt false.
    - Ghi nhận xét ngắn gọn trong "reason".
+${STRICT_PC_BUILD_REVIEW_RULES}
 
 BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 {
@@ -278,11 +333,14 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
   "reason": "Giải thích tổng quan lý do duyệt hoặc từ chối ngắn gọn bằng tiếng Việt",
   "checks": {
     "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về Socket CPU & Main" },
+    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về CPU có thể xuất hình khi không có VGA rời hay không" },
+    "cooler_socket": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về tản nhiệt có hỗ trợ socket CPU hay không" },
     "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về tương thích RAM DDR4/DDR5" },
     "power": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về công suất nguồn PSU" },
     "case": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về kích thước vỏ case & mainboard" },
     "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp đối chiếu mức độ đáp ứng yêu cầu đề bài" },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về ngân sách và chênh lệch giá tiền" }
+    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về ngân sách và chênh lệch giá tiền" },
+    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "Thông điệp nhận xét về tản nhiệt rời, LCD/màn hình, bàn phím và chuột" }
   }
 }
 `;

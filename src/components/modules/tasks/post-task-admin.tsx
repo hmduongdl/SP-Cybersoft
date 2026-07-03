@@ -34,6 +34,7 @@ import { toast, Toaster } from "sonner";
 import { MonthWeekFilter } from "@/components/shared/month-week-filter";
 import { useMonthWeekFilter, isInRange } from "@/hooks/use-month-week-filter";
 import { formatVND } from "@/lib/pc-kho";
+import { getAvatarUrl } from "@/lib/avatar";
 
 interface ManagedPost {
   id: string;
@@ -1093,11 +1094,7 @@ export function PostTaskAdmin() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs uppercase overflow-hidden">
-                              {chk.user?.avatar_url ? (
-                                <img src={chk.user.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                              ) : (
-                                <User className="h-4 w-4" />
-                              )}
+                              <img src={getAvatarUrl(chk.user?.avatar_url)} alt="Avatar" className="w-full h-full object-cover" />
                             </div>
                             <div>
                               <h4 className="font-semibold text-xs text-on-surface">{chk.user?.name || "Nhân viên"}</h4>

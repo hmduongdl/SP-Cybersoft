@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { Loader2, Search, X, Plus } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { getAvatarUrl } from "@/lib/avatar";
 
 export function AddTaskModal() {
   const {
@@ -181,13 +182,7 @@ export function AddTaskModal() {
                     {selectedUsers.length > 0 ? (
                       <div className="flex items-center -space-x-1.5">
                         {selectedUsers.slice(0, 3).map(u => (
-                          u.avatar_url ? (
-                            <img key={u.id} src={u.avatar_url} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover border-2 border-white" />
-                          ) : (
-                            <div key={u.id} className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600 border-2 border-white">
-                              {u.name.substring(0, 2).toUpperCase()}
-                            </div>
-                          )
+                          <img key={u.id} src={getAvatarUrl(u.avatar_url)} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover border-2 border-white" />
                         ))}
                         {selectedUsers.length > 3 && (
                           <span className="text-[11px] text-slate-500 ml-1">+{selectedUsers.length - 3}</span>
@@ -231,13 +226,7 @@ export function AddTaskModal() {
                               <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'}`}>
                                 {isSelected && <span className="text-white text-[9px]">✓</span>}
                               </div>
-                              {u.avatar_url ? (
-                                <img src={u.avatar_url} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover" />
-                              ) : (
-                                <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[9px] font-bold text-indigo-600">
-                                  {u.name.substring(0, 2).toUpperCase()}
-                                </div>
-                              )}
+                              <img src={getAvatarUrl(u.avatar_url)} alt="" referrerPolicy="no-referrer" className="w-5 h-5 rounded-full object-cover" />
                               <div className="text-left leading-tight">
                                 <div className="font-medium">{u.name}</div>
                                 <div className="text-[10px] text-slate-400">{u.email}</div>
@@ -334,4 +323,3 @@ export function AddTaskModal() {
     </AnimatePresence>
   );
 }
-

@@ -132,11 +132,13 @@ function renderCheckIcon(status: string) {
   return <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />;
 }
 
-const CHECK_DISPLAY_ORDER = ["requirement_fit", "socket", "ram", "power", "case", "budget"];
+const CHECK_DISPLAY_ORDER = ["requirement_fit", "display_output", "socket", "cooler_socket", "ram", "power", "case", "budget"];
 
 const CHECK_LABELS: Record<string, string> = {
   requirement_fit: "Đối chiếu yêu cầu đề bài",
+  display_output: "Khả năng xuất hình",
   socket: "Tương thích CPU và mainboard",
+  cooler_socket: "Tương thích tản nhiệt và socket",
   ram: "Tương thích bộ nhớ",
   power: "Đánh giá công suất nguồn",
   case: "Tương thích vỏ máy",
