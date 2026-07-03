@@ -6,8 +6,8 @@ node_modules/
 out/
 dist/
 
-# local env files
-.env*
+# local env files (NOT .env.example — should be committed as template)
+.env
 .env.local
 .env.development.local
 .env.test.local
@@ -19,6 +19,9 @@ dist/
 
 # system files
 .DS_Store
+
+# npm config (may contain auth tokens)
+.npmrc
 
 # log files
 npm-debug.log*
