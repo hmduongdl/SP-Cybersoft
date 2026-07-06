@@ -20,7 +20,9 @@ import {
   Pencil,
   Info,
   AlertCircle,
+  Lock,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { formatVND } from "@/lib/pc-kho";
 
@@ -554,11 +556,18 @@ function HistoryRow({submission, onClick}:{submission:Submission;onClick:()=>voi
 
   return (
     <button
-      onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-xl border border-surface-container-high bg-surface-mid px-4 py-3 text-left transition-all hover:border-primary/30 hover:shadow-sm cursor-pointer"
+      onClick={(submission as any).is_locked ? () => toast.error("Cấu hình này đã bị khóa vì gói FREE giới hạn xem tối đa 3 bài phân tích mỗi ngày. Vui lòng nâng cấp gói để xem chi tiết!") : onClick}
+      className={cn(
+        "group flex w-full items-center gap-3 rounded-xl border border-surface-container-high bg-surface-mid px-4 py-3 text-left transition-all hover:border-primary/30 hover:shadow-sm cursor-pointer",
+        (submission as any).is_locked && "opacity-80 border-dashed"
+      )}
     >
       {/* Left: score / status */}
-      {score != null ? (
+      {(submission as any).is_locked ? (
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/20 bg-red-500/5">
+          <Lock className="h-4 w-4 text-red-500" />
+        </div>
+      ) : score != null ? (
         <MiniScoreRing score={score}/>
       ) : (
         <div className={cn(
@@ -581,10 +590,15 @@ function HistoryRow({submission, onClick}:{submission:Submission;onClick:()=>voi
           <span className={cn("rounded-md border px-1 py-0.5 text-[8px] font-extrabold uppercase tracking-wide", diffConf.cls)}>
             {diffConf.label}
           </span>
-          {approved  && <span className="inline-flex items-center gap-0.5 rounded-md border border-emerald-200 bg-emerald-50 px-1 py-0.5 text-[8px] font-extrabold text-emerald-700"><CheckCircle2 className="h-2 w-2"/>Đã duyệt</span>}
-          {rejected  && <span className="inline-flex items-center gap-0.5 rounded-md border border-rose-200 bg-rose-50 px-1 py-0.5 text-[8px] font-extrabold text-rose-700"><XCircle className="h-2 w-2"/>Từ chối</span>}
-          {pending   && <span className="inline-flex items-center gap-0.5 rounded-md border border-amber-200 bg-amber-50 px-1 py-0.5 text-[8px] font-extrabold text-amber-700"><Clock className="h-2 w-2"/>Chờ duyệt</span>}
-          {analyzing && <span className="inline-flex items-center gap-0.5 rounded-md border border-primary/20 bg-primary/5 px-1 py-0.5 text-[8px] font-extrabold text-primary"><Loader2 className="h-2 w-2 animate-spin"/>Đang phân tích</span>}
+          {(submission as any).is_locked && (
+            <span className="inline-flex items-center gap-0.5 rounded-md border border-red-500/20 bg-red-500/10 px-1 py-0.5 text-[8px] font-extrabold text-red-500">
+              <Lock className="h-2 w-2"/>Bị khóa (FREE)
+            </span>
+          )}
+          {!(submission as any).is_locked && approved  && <span className="inline-flex items-center gap-0.5 rounded-md border border-emerald-200 bg-emerald-50 px-1 py-0.5 text-[8px] font-extrabold text-emerald-700"><CheckCircle2 className="h-2 w-2"/>Đã duyệt</span>}
+          {!(submission as any).is_locked && rejected  && <span className="inline-flex items-center gap-0.5 rounded-md border border-rose-200 bg-rose-50 px-1 py-0.5 text-[8px] font-extrabold text-rose-700"><XCircle className="h-2 w-2"/>Từ chối</span>}
+          {!(submission as any).is_locked && pending   && <span className="inline-flex items-center gap-0.5 rounded-md border border-amber-200 bg-amber-50 px-1 py-0.5 text-[8px] font-extrabold text-amber-700"><Clock className="h-2 w-2"/>Chờ duyệt</span>}
+          {!(submission as any).is_locked && analyzing && <span className="inline-flex items-center gap-0.5 rounded-md border border-primary/20 bg-primary/5 px-1 py-0.5 text-[8px] font-extrabold text-primary"><Loader2 className="h-2 w-2 animate-spin"/>Đang phân tích</span>}
         </div>
         <p className="font-manrope text-xs font-bold text-on-surface leading-snug truncate">{submission.exercise.title}</p>
         <div className="flex flex-wrap items-center gap-x-2 font-inter text-[10px] text-on-muted mt-0.5">
@@ -599,7 +613,11 @@ function HistoryRow({submission, onClick}:{submission:Submission;onClick:()=>voi
       </div>
 
       {/* Right */}
-      <ArrowRight className="h-4 w-4 shrink-0 text-on-muted group-hover:text-primary transition-colors"/>
+      {(submission as any).is_locked ? (
+        <Lock className="h-4 w-4 shrink-0 text-red-400 group-hover:text-red-500 transition-colors"/>
+      ) : (
+        <ArrowRight className="h-4 w-4 shrink-0 text-on-muted group-hover:text-primary transition-colors"/>
+      )}
     </button>
   );
 }

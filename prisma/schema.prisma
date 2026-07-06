@@ -52,8 +52,25 @@ model User {
   collaborators         WorkspaceCollaborator[]
 
   notifications Notification[]
+  trust_score_logs TrustScoreLog[]
 
   @@index([email])
+}
+
+/// Lịch sử thay đổi Trust Score của người dùng
+model TrustScoreLog {
+  id         String   @id @default(uuid())
+  user_id    String
+  change     Int
+  score_after Int
+  action     String
+  description String?
+  post_id    String?
+  created_at DateTime @default(now())
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at])
 }
 
 /// Bài tập Build PC hàng ngày do AI sinh ra (Phân hệ Đào tạo Build PC)

@@ -42,7 +42,7 @@ const plans = [
     originalYearly: "216.000đ",
     features: [
       { text: "15 triệu AI token / tháng", included: true },
-      { text: "Build PC: Không giới hạn & trả kết quả tức thì", included: true },
+      { text: "Build PC: Tối đa 5 PC hàng ngày", included: true },
       { text: "Truy cập tính năng AI nâng cao", included: true },
       { text: "Mở khóa VIP Task Manager", included: true },
       { text: "Tối đa 10 Workspaces", included: true },
@@ -300,7 +300,7 @@ export default function PricingPage() {
                   
                   {/* Features */}
                   <div className="space-y-2.5 lg:space-y-3 mb-5 flex-1 overflow-y-auto pr-1">
-                    {plan.features.map((feature, i) => (
+                    {(plan.features as { text: string; included: boolean; icon?: React.ElementType }[]).map((feature, i) => (
                       <div key={i} className={`flex items-start gap-2 ${!feature.included ? 'opacity-50' : ''}`}>
                         <div className={`mt-0.5 p-0.5 rounded-full shrink-0 ${feature.included ? 'bg-green-500/20' : 'bg-slate-500/20'}`}>
                           {feature.included ? (

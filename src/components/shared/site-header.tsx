@@ -227,10 +227,13 @@ export function SiteHeader() {
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Trust, Wallet, Score, and Department Badges */}
           <div className="hidden md:flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-bold text-blue-600 border border-blue-500/20">
+            <Link
+              href="/trust-score"
+              className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-bold text-blue-600 border border-blue-500/20 hover:bg-blue-500/20 transition-all duration-150"
+            >
               <ShieldCheck className="h-3 w-3" />
               {profile?.trust_score ?? session?.user?.trust_score ?? "..."}
-            </span>
+            </Link>
             <Link
               href="/pricing"
               className={twMerge(
@@ -277,23 +280,42 @@ export function SiteHeader() {
                         : 'Không có thông báo mới'}
                     </p>
                   </div>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={() => {
-                        fetch("/api/notifications", {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ markAll: true }),
-                        }).then(() => {
-                          setAppNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-                          setUnreadCount(0);
-                        });
-                      }}
-                      className="text-[10px] font-semibold text-primary hover:text-primary/80 transition-colors"
-                    >
-                      Đã đọc tất cả
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => {
+                          fetch("/api/notifications", {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ markAll: true }),
+                          }).then(() => {
+                            setAppNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+                            setUnreadCount(0);
+                          });
+                        }}
+                        className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors px-2 py-1 rounded-lg hover:bg-primary-container/50"
+                      >
+                        Đã đọc tất cả
+                      </button>
+                    )}
+                    {appNotifications.length > 0 && (
+                      <button
+                        onClick={() => {
+                          if (confirm("Xóa toàn bộ thông báo?")) {
+                            fetch("/api/notifications", {
+                              method: "DELETE",
+                            }).then(() => {
+                              setAppNotifications([]);
+                              setUnreadCount(0);
+                            });
+                          }
+                        }}
+                        className="text-xs font-semibold text-rose-500 hover:text-rose-600 transition-colors px-2 py-1 rounded-lg hover:bg-rose-50"
+                      >
+                        Xóa tất cả
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="max-h-[320px] overflow-y-auto">
                   {/* App notifications (PC build results, etc.) */}

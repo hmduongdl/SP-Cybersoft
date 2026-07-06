@@ -94,7 +94,7 @@ export async function updateUserTrustScore(userId: string, action: TrustScoreAct
 
   const newScore = Math.max(0, Math.min(100, user.trust_score + change));
 
-  return await db.user.update({
+  const updated = await db.user.update({
     where: { id: userId },
     data: {
       trust_score: newScore,
@@ -102,4 +102,26 @@ export async function updateUserTrustScore(userId: string, action: TrustScoreAct
       total_rejected: user.total_rejected + rejectedIncrement,
     }
   });
+
+  // Log the change
+  const actionLabels: Record<TrustScoreAction, string> = {
+    AUTO_APPROVED: 'Tự động duyệt',
+    APPROVED: 'Được duyệt',
+    REJECTED: 'Bị từ chối',
+    MISSED: 'Bỏ lỡ bài',
+    AI_FRAUD: 'Gian lận (AI)',
+  };
+
+  await db.trustScoreLog.create({
+    data: {
+      user_id: userId,
+      change,
+      score_after: newScore,
+      action,
+      description: actionLabels[action],
+      post_id: postId,
+    }
+  });
+
+  return updated;
 }

@@ -104,6 +104,7 @@ export function Sidebar() {
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
         { label: "AI Studio", href: "/seo-tools", icon: "trending_up", adminOnly: false, requiresPlan: "PRO" as const },
         { label: "Báo Cáo", href: "/reports", icon: "bar_chart", adminOnly: false },
+        { label: "Trust Score", href: "/trust-score", icon: "verified", adminOnly: false },
       ]
     },
     {

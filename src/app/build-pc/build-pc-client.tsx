@@ -214,7 +214,7 @@ function getLocalDateString(dateInput: Date | string): string {
   return `${year}-${month}-${day}`;
 }
 
-export default function BuildPcClient() {
+export default function BuildPcClient({ userPlan = "FREE" }: { userPlan?: string }) {
   const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("exercises");
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -397,7 +397,7 @@ export default function BuildPcClient() {
         body: JSON.stringify({
           exercise_id: exId,
           image_urls: [state.previewImage],
-          explanation: state.explanation.trim() || "Nộp bài tự động",
+          explanation: state.explanation.trim() || "",
         }),
       });
       const data = await res.json();
@@ -486,12 +486,29 @@ export default function BuildPcClient() {
           <div className="rounded-2xl border border-surface-container-high bg-surface-mid p-4 space-y-2">
             <div className="flex items-center justify-between text-xs font-semibold text-on-surface">
               <span>Tiến độ hoàn thành hôm nay:</span>
-              <span className="font-manrope text-sm font-extrabold text-primary">{todayCount} / {exercises.length} bài tập</span>
+              {userPlan === "MAX" ? (
+                <span className="font-manrope text-sm font-extrabold text-primary">
+                  {todayCount} / 5 bài tập {todayCount >= 5 ? "✨ (Đạt chỉ tiêu)" : ""}
+                </span>
+              ) : (
+                <div className="flex flex-col items-end gap-0.5">
+                  <span className="font-manrope text-sm font-extrabold text-primary">{todayCount} / {exercises.length} bài tập</span>
+                  <span className="text-[10px] font-normal text-on-muted">Giới hạn tối đa nộp 5 PC/ngày</span>
+                </div>
+              )}
             </div>
             <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
               <div 
                 className="bg-primary h-full rounded-full transition-all duration-500 ease-out" 
-                style={{ width: `${exercises.length > 0 ? (todayCount / exercises.length) * 100 : 0}%` }}
+                style={{
+                  width: `${
+                    userPlan === "MAX"
+                      ? Math.min(100, (todayCount / 5) * 100)
+                      : exercises.length > 0
+                      ? (todayCount / exercises.length) * 100
+                      : 0
+                  }%`
+                }}
               />
             </div>
           </div>
@@ -907,20 +924,10 @@ function FeaturedBuildModal({ build, onClose }: { build: FeaturedBuild; onClose:
             )}
           </div>
 
-          {(build.explanation || build.ai_feedback) && (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {build.explanation && (
-                <div className="rounded-xl border border-surface-container bg-surface-mid/20 p-4">
-                  <h4 className="font-manrope text-sm font-bold text-on-surface">Cách tối ưu của người build</h4>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-on-surface-variant">{build.explanation}</p>
-                </div>
-              )}
-              {build.ai_feedback && (
-                <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-                  <h4 className="font-manrope text-sm font-bold text-on-surface">Nhận xét AI</h4>
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-on-surface-variant">{build.ai_feedback}</p>
-                </div>
-              )}
+          {build.ai_feedback && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <h4 className="font-manrope text-sm font-bold text-on-surface">Nhận xét AI</h4>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-on-surface-variant">{build.ai_feedback}</p>
             </div>
           )}
 

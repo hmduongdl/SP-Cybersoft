@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, getUnreadNotificationCount } from "@/lib/notifications";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, getUnreadNotificationCount, deleteAllNotifications, deleteAllUsersNotifications } from "@/lib/notifications";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +46,32 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[notifications] PATCH error:", err);
+    return NextResponse.json({ error: "Lỗi server." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const allUsers = searchParams.get("allUsers") === "true";
+
+    if (allUsers) {
+      if (session.user.role !== "ADMIN") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      await deleteAllUsersNotifications();
+      return NextResponse.json({ success: true, message: "Đã xóa toàn bộ thông báo của tất cả người dùng." });
+    }
+
+    await deleteAllNotifications(session.user.id);
+    return NextResponse.json({ success: true, message: "Đã xóa toàn bộ thông báo của bạn." });
+  } catch (err) {
+    console.error("[notifications] DELETE error:", err);
     return NextResponse.json({ error: "Lỗi server." }, { status: 500 });
   }
 }

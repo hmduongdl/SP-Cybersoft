@@ -58,3 +58,13 @@ export async function markAllNotificationsAsRead(userId: string) {
     data: { is_read: true, read_at: new Date() },
   });
 }
+
+export async function deleteAllNotifications(userId: string) {
+  return db.notification.deleteMany({
+    where: { user_id: userId },
+  });
+}
+
+export async function deleteAllUsersNotifications() {
+  return db.notification.deleteMany({});
+}

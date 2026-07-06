@@ -5,6 +5,7 @@ import { getStartOfDayVN } from "@/lib/pc-kho";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { cleanupExpiredBuildPcImages } from "@/lib/pc-build-cleanup";
+import { getEffectivePlan } from "@/lib/plan-utils";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -26,6 +27,17 @@ export async function GET() {
 
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
+
+  // Fetch the user's effective plan
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, plan: true, plan_expires_at: true },
+  });
+  const effectivePlan = getEffectivePlan(
+    user?.role ?? "USER",
+    user?.plan ?? "FREE",
+    user?.plan_expires_at ?? null
+  );
 
   const [todaySubmissions, submissions] = await Promise.all([
     db.pcSubmission.findMany({
@@ -52,9 +64,61 @@ export async function GET() {
     return parts?.is_draft !== true;
   }).length;
 
+  let processedSubmissions = submissions.map((sub) => ({
+    ...sub,
+    is_locked: false,
+  }));
+
+  if (effectivePlan === "FREE") {
+    const todayMs = today.getTime();
+    const tomorrowMs = tomorrow.getTime();
+
+    const todaySubs = processedSubmissions.filter((sub) => {
+      const subTime = new Date(sub.submitted_at).getTime();
+      const parts = sub.parts_answer as { is_draft?: unknown } | null;
+      return subTime >= todayMs && subTime < tomorrowMs && parts?.is_draft !== true;
+    });
+
+    if (todaySubs.length > 3) {
+      const sortedToKeep = [...todaySubs].sort((a, b) => {
+        const aFail = a.status === "REJECTED" ? 1 : 0;
+        const bFail = b.status === "REJECTED" ? 1 : 0;
+        if (aFail !== bFail) return aFail - bFail;
+
+        const aScore = a.ai_score ?? 0;
+        const bScore = b.ai_score ?? 0;
+        return bScore - aScore;
+      });
+
+      const keepIds = new Set(sortedToKeep.slice(0, 3).map((s) => s.id));
+
+      processedSubmissions = processedSubmissions.map((sub) => {
+        const subTime = new Date(sub.submitted_at).getTime();
+        const parts = sub.parts_answer as { is_draft?: unknown } | null;
+        const isTodaySub = subTime >= todayMs && subTime < tomorrowMs && parts?.is_draft !== true;
+        
+        if (isTodaySub && !keepIds.has(sub.id)) {
+          return {
+            ...sub,
+            is_locked: true,
+            ai_score: null,
+            ai_feedback: "Bài nộp bị khóa vì gói FREE giới hạn xem tối đa 3 bài phân tích mỗi ngày. Nâng cấp gói để mở khóa.",
+            parts_answer: {
+              ...(sub.parts_answer as Record<string, any>),
+              checks: {},
+              reason: "Nâng cấp lên PRO hoặc MAX để xem chi tiết phân tích của bài này.",
+            },
+          };
+        }
+        return sub;
+      });
+    }
+  }
+
   return NextResponse.json({
     todayCount,
-    submissions,
+    submissions: processedSubmissions,
+    userPlan: effectivePlan,
   });
 }
 
@@ -80,6 +144,38 @@ export async function POST(request: Request) {
   const explanationStr = typeof explanation === "string" ? explanation.trim() : "";
 
   const today = getStartOfDayVN();
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, plan: true, plan_expires_at: true },
+  });
+  const effectivePlan = getEffectivePlan(
+    user?.role ?? "USER",
+    user?.plan ?? "FREE",
+    user?.plan_expires_at ?? null
+  );
+
+  if (effectivePlan === "FREE" || effectivePlan === "PRO") {
+    const tomorrow = getEndOfDayVN(today);
+    const todaySubmissions = await db.pcSubmission.findMany({
+      where: {
+        user_id: session.user.id,
+        submitted_at: { gte: today, lt: tomorrow },
+      },
+      select: { parts_answer: true },
+    });
+    const todayCount = todaySubmissions.filter((submission) => {
+      const parts = submission.parts_answer as { is_draft?: unknown } | null;
+      return parts?.is_draft !== true;
+    }).length;
+
+    if (todayCount >= 5) {
+      return NextResponse.json(
+        { error: `Tài khoản gói ${effectivePlan} bị giới hạn nộp tối đa 5 cấu hình PC mỗi ngày.` },
+        { status: 403 }
+      );
+    }
+  }
 
   const exercise = await db.pcExercise.findUnique({ where: { id: exercise_id } });
   if (!exercise) {
