@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { codexAI, defaultAI, openaiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
+import { defaultAI, openaiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
@@ -683,33 +683,6 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           return response.choices[0]?.message?.content || "{}";
         },
       },
-      {
-        name: "AIBOX vision (fallback)",
-        run: async () => {
-          const response = await retryWithBackoff(() =>
-            withTimeout(
-              codexAI.chat.completions.create({
-                model: MODEL_VISION_ONLY,
-                messages: [
-                  { role: "system", content: extractionPrompt },
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-                    ],
-                  },
-                ],
-                max_tokens: MAX_AI_OUTPUT_TOKENS,
-              }),
-              VISION_EXTRACTION_TIMEOUT_MS,
-              "Vision-AIBOX"
-            ),
-            VISION_RETRY_COUNT
-          );
-          return response.choices[0]?.message?.content || "{}";
-        },
-      },
     ];
 
     let extractedRaw: any = null;
@@ -1209,48 +1182,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
         }
       }
     } catch (err: any) {
-      console.warn("[BackgroundWorker] Fast-path (Gemini) analysis failed, trying AIBOX fallback:", err.message || err);
-    }
-
-    // Fallback fast-path via AI BOX
-    if (!result && !isExcel && (process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY)) {
-      try {
-        console.log("[BackgroundWorker] Attempting Vercel fast-path via AIBOX...");
-        const fastResponse = await retryWithBackoff(() =>
-          withTimeout(
-            codexAI.chat.completions.create({
-              model: MODEL_VISION_ONLY,
-              messages: [
-                { role: "system", content: FINAL_ANALYSIS_PROMPT },
-                {
-                  role: "user",
-                  content: [
-                    { type: "text", text: "Phân tích báo giá PC này và trả về JSON kết quả cuối:" },
-                    { type: "image_url", image_url: { url: imageUrl, detail: "high" } }
-                  ]
-                }
-              ],
-              response_format: { type: "json_object" },
-              max_tokens: 4000,
-            }),
-            FAST_PATH_TIMEOUT_MS,
-            "FastPath-AIBOX"
-          ),
-          VISION_RETRY_COUNT
-        );
-
-        const fastContent = fastResponse.choices[0]?.message?.content || "{}";
-        console.log("[BackgroundWorker] Fast-path (AIBOX) raw preview:", fastContent.slice(0, 500));
-        const fastResult = ensureCompatibilityChecks(cleanAndParseJSON(fastContent));
-        if (hasFinalPcBuildResult(fastResult)) {
-          result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(fastResult), expectedBudget);
-          console.log("[BackgroundWorker] Fast-path (AIBOX) analysis completed successfully.");
-        } else {
-          console.warn("[BackgroundWorker] Fast-path (AIBOX) returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
-        }
-      } catch (err: any) {
-        console.warn("[BackgroundWorker] Fast-path (AIBOX) analysis failed, falling back to two-step:", err.message || err);
-      }
+      console.warn("[BackgroundWorker] Fast-path (Gemini) analysis failed:", err.message || err);
     }
 
     if (!result) {
@@ -1324,32 +1256,6 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
               "Background-Gemini"
-            ),
-            VISION_RETRY_COUNT
-          );
-          const aiContent = response.choices[0]?.message?.content || "{}";
-          return normalizeExtractionResult(cleanAndParseJSON(aiContent));
-        },
-        async () => {
-          console.log("[BackgroundWorker] Attempting extraction via AIBOX vision (fallback)...");
-          const response = await retryWithBackoff(() =>
-            withTimeout(
-              codexAI.chat.completions.create({
-                model: MODEL_VISION_ONLY,
-                messages: [
-                  { role: "system", content: extractionPrompt },
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-                    ],
-                  },
-                ],
-                max_tokens: 4000,
-              }),
-              VISION_EXTRACTION_TIMEOUT_MS,
-              "Background-AIBOX"
             ),
             VISION_RETRY_COUNT
           );
