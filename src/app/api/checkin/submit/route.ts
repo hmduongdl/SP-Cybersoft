@@ -5,6 +5,7 @@ import exifr from "exifr";
 import { uploadImage } from "@/lib/upload";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
+import { queueApprovedReviewEmail } from "@/lib/approval-success-email";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
     // 3.5 Fetch User to get Trust Score early
     const user = await db.user.findUnique({
       where: { id: session.user.id },
-      select: { trust_score: true }
+      select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true }
     });
 
     const isHighTrust = user ? user.trust_score > 92 : false;
@@ -145,6 +146,19 @@ export async function POST(request: Request) {
     revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
     revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
+
+    if (status === "AUTO_APPROVED" && user && user.email) {
+      queueApprovedReviewEmail({
+        to: user.email,
+        userName: user.name || user.full_name || user.username,
+        itemTitle: post.title || "Bài check-in",
+        itemType: "Check-in Like/Share",
+        reviewPath: `/reports?checkinId=${checkin.id}`,
+        analysis: "Bài của bạn đã được hệ thống tự động xác thực và duyệt thành công.",
+        recipientTrustScore: user.trust_score,
+        recipientIsVerified: user.is_verified,
+      });
+    }
 
     // 8. Return response
     return NextResponse.json({

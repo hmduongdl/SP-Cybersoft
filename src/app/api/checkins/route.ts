@@ -14,7 +14,7 @@
  *  6. Perceptual hash — phát hiện ảnh tái sử dụng / trùng lặp (Hướng 3)
  *  7. Phân tích EXIF server-side (exifr)
  *  8. Tạo bản ghi PENDING trong hàng chờ
- *  9. Chạy AI nền theo luồng Kimi đọc ảnh -> DeepSeek phân tích
+ *  9. Chạy AI nền phân tích ảnh và chấm điểm
  * 10. AI nền tự duyệt nếu minh chứng hợp lệ và Trust Score > 70
  * 11. Trả về JSON { success, status, exif_time, message }
  */
@@ -385,7 +385,7 @@ export async function POST(request: Request) {
         image_phash: imagePhash,
         ai_analysis_reason: isHighTrustAutoApproved
           ? "Trust score >= 95: tự động duyệt."
-          : "AI đang duyệt: Kimi đọc ảnh, DeepSeek phân tích.",
+          : "AI đang duyệt ảnh minh chứng...",
         ai_extracted_username: null,
         ai_extracted_title: null,
         ai_is_facebook_ui: null,

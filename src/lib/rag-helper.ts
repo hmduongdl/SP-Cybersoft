@@ -1,22 +1,20 @@
 import { PrismaClient } from "@prisma/client";
-import { GoogleGenerativeAI, TaskType } from "@google/generative-ai";
+import { aibox } from "@/lib/aibox";
 
 const prisma = new PrismaClient();
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function searchSimilarNotes(query: string, workspaceId: string, limit: number = 5) {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY is not configured");
+  if (!process.env.AIBOX_API_KEY && !process.env.AIBOX_DEFAULT_API_KEY) {
+    throw new Error("AIBOX_API_KEY is not configured");
   }
 
-  // 1. Tạo vector cho câu hỏi (RETRIEVAL_QUERY)
-  const model = genAI.getGenerativeModel({ model: "text-embedding-004" });
-  const result = await model.embedContent({
-    content: { role: "user", parts: [{ text: query }] },
-    taskType: TaskType.RETRIEVAL_QUERY,
+  // 1. Tạo vector cho câu hỏi
+  const res = await aibox.embeddings.create({
+    model: "text-embedding-ada-002",
+    input: query,
   });
-  
-  const embedding = result.embedding.values;
+
+  const embedding = res.data[0].embedding;
   const embeddingArrayStr = `[${embedding.join(",")}]`;
 
   // 2. Truy vấn Cosine Similarity trên pgvector, lọc theo workspace_id của task

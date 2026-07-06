@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { codexAI, defaultAI, moonshotAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
+import { codexAI, defaultAI, openaiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
@@ -653,13 +653,16 @@ Trả về JSON: { "items": [{ "name": "...", "quantity": 0, "price": 0, "total"
 Nếu thông tin nào không rõ ràng, hãy để null.`;
 
     const visionAttempts = [
-      ...(process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY ? [{
-        name: "Kimi k2.6 vision (via AIBOX)",
+      {
+        name: "Gemini 2.5 Flash (v98store)",
         run: async () => {
+          if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OPENAI_API_KEY not configured");
+          }
           const response = await retryWithBackoff(() =>
             withTimeout(
-              moonshotAI.chat.completions.create({
-                model: "kimi-k2.6",
+              openaiAI.chat.completions.create({
+                model: MODEL_VISION_ONLY,
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
@@ -673,15 +676,15 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                 max_tokens: MAX_AI_OUTPUT_TOKENS,
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
-              "Vision-Moonshot"
+              "Vision-Gemini"
             ),
             VISION_RETRY_COUNT
           );
           return response.choices[0]?.message?.content || "{}";
         },
-      }] : []),
+      },
       {
-        name: "AIBOX vision",
+        name: "AIBOX vision (fallback)",
         run: async () => {
           const response = await retryWithBackoff(() =>
             withTimeout(
@@ -1170,8 +1173,49 @@ BẮT BUỘC chỉ trả về JSON theo format:
 }`;
 
     try {
-      if (!isExcel && (process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY)) {
-        console.log("[BackgroundWorker] Attempting Vercel fast-path single vision analysis...");
+      if (!isExcel && process.env.OPENAI_API_KEY) {
+        console.log("[BackgroundWorker] Attempting Vercel fast-path single vision analysis via Gemini 2.5 Flash (v98store)...");
+        const fastResponse = await retryWithBackoff(() =>
+          withTimeout(
+            openaiAI.chat.completions.create({
+              model: MODEL_VISION_ONLY,
+              messages: [
+                { role: "system", content: FINAL_ANALYSIS_PROMPT },
+                {
+                  role: "user",
+                  content: [
+                    { type: "text", text: "Phân tích báo giá PC này và trả về JSON kết quả cuối:" },
+                    { type: "image_url", image_url: { url: imageUrl, detail: "high" } }
+                  ]
+                }
+              ],
+              response_format: { type: "json_object" },
+              max_tokens: 4000,
+            }),
+            FAST_PATH_TIMEOUT_MS,
+            "FastPath-Gemini"
+          ),
+          VISION_RETRY_COUNT
+        );
+
+        const fastContent = fastResponse.choices[0]?.message?.content || "{}";
+        console.log("[BackgroundWorker] Fast-path raw preview:", fastContent.slice(0, 500));
+        const fastResult = ensureCompatibilityChecks(cleanAndParseJSON(fastContent));
+        if (hasFinalPcBuildResult(fastResult)) {
+          result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(fastResult), expectedBudget);
+          console.log("[BackgroundWorker] Fast-path (Gemini) analysis completed successfully.");
+        } else {
+          console.warn("[BackgroundWorker] Fast-path (Gemini) returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
+        }
+      }
+    } catch (err: any) {
+      console.warn("[BackgroundWorker] Fast-path (Gemini) analysis failed, trying AIBOX fallback:", err.message || err);
+    }
+
+    // Fallback fast-path via AI BOX
+    if (!result && !isExcel && (process.env.AIBOX_DEFAULT_API_KEY || process.env.AIBOX_API_KEY || process.env.AIBOX_CODEX_API_KEY)) {
+      try {
+        console.log("[BackgroundWorker] Attempting Vercel fast-path via AIBOX...");
         const fastResponse = await retryWithBackoff(() =>
           withTimeout(
             codexAI.chat.completions.create({
@@ -1196,17 +1240,17 @@ BẮT BUỘC chỉ trả về JSON theo format:
         );
 
         const fastContent = fastResponse.choices[0]?.message?.content || "{}";
-        console.log("[BackgroundWorker] Fast-path raw preview:", fastContent.slice(0, 500));
+        console.log("[BackgroundWorker] Fast-path (AIBOX) raw preview:", fastContent.slice(0, 500));
         const fastResult = ensureCompatibilityChecks(cleanAndParseJSON(fastContent));
         if (hasFinalPcBuildResult(fastResult)) {
           result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(fastResult), expectedBudget);
-          console.log("[BackgroundWorker] Fast-path analysis completed successfully.");
+          console.log("[BackgroundWorker] Fast-path (AIBOX) analysis completed successfully.");
         } else {
-          console.warn("[BackgroundWorker] Fast-path returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
+          console.warn("[BackgroundWorker] Fast-path (AIBOX) returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
         }
+      } catch (err: any) {
+        console.warn("[BackgroundWorker] Fast-path (AIBOX) analysis failed, falling back to two-step:", err.message || err);
       }
-    } catch (err: any) {
-      console.warn("[BackgroundWorker] Fast-path analysis failed, falling back:", err.message || err);
     }
 
     if (!result) {
@@ -1214,7 +1258,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
       throw new Error("Fast-path AI không trả về kết quả kịp trong giới hạn Vercel, dừng fallback để tránh timeout và tốn thêm token.");
     }
 
-    // 1. Call Kimi/Gemini Vision (or direct Excel parsing) to extract raw items
+    // 1. Call AI vision model (or direct Excel parsing) to extract raw items
     let extractedRaw: any = null;
     let extractionError: any = null;
 
@@ -1258,39 +1302,36 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
 
       const extractionAttempts = [
         async () => {
-          if (!process.env.AIBOX_DEFAULT_API_KEY && !process.env.AIBOX_API_KEY) {
-            throw new Error("No AIBOX API key configured in environment");
+          if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OPENAI_API_KEY not configured");
           }
-          console.log("[BackgroundWorker] Attempting extraction with Kimi via AIBOX API...");
-
+          console.log("[BackgroundWorker] Attempting extraction via Gemini 2.5 Flash (v98store)...");
           const response = await retryWithBackoff(() =>
             withTimeout(
-              moonshotAI.chat.completions.create({
-                model: "kimi-k2.6",
+              openaiAI.chat.completions.create({
+                model: MODEL_VISION_ONLY,
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
                     role: "user",
                     content: [
                       { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } }
-                    ]
-                  }
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
                 ],
                 max_tokens: 4000,
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
-              "Background-Moonshot"
+              "Background-Gemini"
             ),
             VISION_RETRY_COUNT
           );
-
           const aiContent = response.choices[0]?.message?.content || "{}";
-          console.log("[BackgroundWorker] Kimi k2.6 extraction raw preview:", aiContent.slice(0, 500));
           return normalizeExtractionResult(cleanAndParseJSON(aiContent));
         },
         async () => {
-          console.log("[BackgroundWorker] Falling back to AIBOX vision extraction...");
+          console.log("[BackgroundWorker] Attempting extraction via AIBOX vision (fallback)...");
           const response = await retryWithBackoff(() =>
             withTimeout(
               codexAI.chat.completions.create({
