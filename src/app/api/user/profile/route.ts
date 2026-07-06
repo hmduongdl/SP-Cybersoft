@@ -25,6 +25,8 @@ export async function GET() {
         avatar_url: true,
         facebook_profile_url: true,
         role: true,
+        plan: true,
+        plan_expires_at: true,
         theme: true,
         trust_score: true,
         wallet_balance: true,

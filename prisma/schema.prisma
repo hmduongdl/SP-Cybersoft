@@ -18,6 +18,8 @@ model User {
   facebook_profile_url  String?
   password              String
   role                  UserRole                @default(USER)
+  plan                  UserPlan                @default(FREE)
+  plan_expires_at       DateTime?
   department            String
   avatar_url            String?
   facebook_verified     Boolean                 @default(false)
@@ -187,6 +189,33 @@ model SystemSetting {
 model Department {
   id   String @id @default(uuid())
   name String @unique
+}
+
+/// Đơn hàng thanh toán qua PayOS
+model Order {
+  id        String    @id @default(cuid())
+  userId    String
+  planId    String                         // "pro" | "max"
+  amount    Int                            // VNĐ
+  status    String    @default("pending")  // pending | paid | expired | failed
+  orderCode Int       @unique              // Mã đơn hàng gửi cho PayOS
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  @@index([userId])
+  @@index([status])
+  @@index([orderCode])
+}
+
+/// Trạng thái đăng ký gói của từng user
+model Subscription {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  plan      String    @default("free")     // free | pro | max
+  expiresAt DateTime?
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model Workspace {
@@ -382,6 +411,12 @@ model TimetableCell {
 enum UserRole {
   ADMIN
   USER
+}
+
+enum UserPlan {
+  FREE
+  PRO
+  MAX
 }
 
 /// Chỉ 2 phòng ban cốt lõi: TECH (Kỹ thuật) và SALES (Kinh doanh)

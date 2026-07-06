@@ -162,6 +162,8 @@ export default function BuildPcQueueClient({
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [progressStep, setProgressStep] = useState("");
+  type AnalysisPhase = "connecting" | "vision" | "deepseek" | "scoring" | "done" | "error";
+  const [analysisPhase, setAnalysisPhase] = useState<AnalysisPhase>("connecting");
 
   useEffect(() => {
     setSubmissions(initialSubmissions);
@@ -180,24 +182,47 @@ export default function BuildPcQueueClient({
     router.push(`/admin/queue?${p.toString()}`);
   };
 
+  const STEPS: Array<{
+    phase: AnalysisPhase;
+    label: string;
+    pct: [number, number];
+    duration: [number, number];
+  }> = [
+    { phase: "connecting", label: "Kết nối API AI...", pct: [5, 10], duration: [400, 800] },
+    { phase: "vision", label: "AI Vision đang đọc ảnh báo giá và bóc tách linh kiện...", pct: [10, 40], duration: [1200, 2000] },
+    { phase: "deepseek", label: "DeepSeek đang phân loại linh kiện và kiểm tra tương thích...", pct: [40, 80], duration: [800, 1500] },
+    { phase: "scoring", label: "AI đang đánh giá và ra quyết định tự động...", pct: [80, 95], duration: [600, 1000] },
+  ];
+
   const handleProcess = async (ids: string[]) => {
     setLoading(true);
     setProcessingAction("PROCESS");
     setProgress(5);
-    setProgressStep("Đang kết nối API AI...");
+    setProgressStep(STEPS[0].label);
+    setAnalysisPhase("connecting");
 
+    let currentStep = 0;
     let currentProgress = 5;
     const intervalId = setInterval(() => {
-      if (currentProgress < 95) {
-        currentProgress += Math.floor(Math.random() * 5) + 2;
-        if (currentProgress > 95) currentProgress = 95;
+      const step = STEPS[currentStep];
+      if (!step || currentProgress >= 95) return;
+
+      const [minPct, maxPct] = step.pct;
+      if (currentProgress < maxPct) {
+        currentProgress += Math.floor(Math.random() * 5) + 1;
+        if (currentProgress > maxPct) {
+          if (currentStep < STEPS.length - 1) {
+            currentStep++;
+            currentProgress = STEPS[currentStep].pct[0];
+            setProgressStep(STEPS[currentStep].label);
+            setAnalysisPhase(STEPS[currentStep].phase);
+          } else {
+            currentProgress = maxPct;
+          }
+        }
         setProgress(currentProgress);
-        if (currentProgress < 30) setProgressStep("Đang đọc hình ảnh và trích xuất specs (AI Vision)...");
-        else if (currentProgress < 65) setProgressStep("Đang chuyển cấu hình sang DeepSeek...");
-        else if (currentProgress < 85) setProgressStep("DeepSeek đang phân loại và đối chiếu tương thích...");
-        else setProgressStep("AI đang đánh giá và ra quyết định tự động...");
       }
-    }, 400);
+    }, 600);
 
     try {
       const res = await fetch("/api/admin/build-pc/action", {
@@ -209,8 +234,9 @@ export default function BuildPcQueueClient({
       if (!res.ok) throw new Error(data.error);
 
       clearInterval(intervalId);
+      setAnalysisPhase("done");
+      setProgressStep("Hoàn tất phân tích cấu hình.");
       setProgress(100);
-      setProgressStep("Hoàn thành!");
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       setProcessingAction(null);
@@ -236,6 +262,8 @@ export default function BuildPcQueueClient({
       router.refresh();
     } catch (err: unknown) {
       clearInterval(intervalId);
+      setAnalysisPhase("error");
+      setProgressStep("Lỗi: AI không hoàn tất được quy trình phân tích.");
       toast.error(err instanceof Error ? err.message : "Lỗi xử lý.");
     } finally {
       setLoading(false);
@@ -556,20 +584,79 @@ export default function BuildPcQueueClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-250">
           <div className="w-full max-w-sm rounded-3xl border border-surface-container bg-surface-mid p-6 shadow-ambient space-y-4 animate-in zoom-in-95 duration-200">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-              <h3 className="font-manrope text-sm font-extrabold text-on-surface">Đang phân tích cấu hình tự động</h3>
+              {analysisPhase === "error" ? (
+                <XCircle className="h-5 w-5 text-rose-500" />
+              ) : analysisPhase === "done" ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              ) : (
+                <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+              )}
+              <h3 className="font-manrope text-sm font-extrabold text-on-surface">
+                {analysisPhase === "error"
+                  ? "Lỗi phân tích cấu hình"
+                  : analysisPhase === "done"
+                  ? "Hoàn tất phân tích cấu hình"
+                  : "Đang phân tích cấu hình tự động"}
+              </h3>
             </div>
-            
-            <div className="space-y-2">
+
+            {/* Phase timeline */}
+            <div className="space-y-2.5">
+              {STEPS.map((step) => {
+                const isActive = analysisPhase === step.phase;
+                const isPast = STEPS.findIndex((s) => s.phase === analysisPhase) >
+                  STEPS.findIndex((s) => s.phase === step.phase);
+                const isError = analysisPhase === "error" && isActive;
+
+                return (
+                  <div key={step.phase} className={cn(
+                    "flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all duration-300",
+                    isActive && !isError && "bg-primary/5 border border-primary/20",
+                    isPast && "bg-emerald-50/50",
+                    isError && "bg-rose-50 border border-rose-200"
+                  )}>
+                    {/* Status indicator */}
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center">
+                      {isPast ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      ) : isActive && isError ? (
+                        <XCircle className="h-4 w-4 text-rose-500" />
+                      ) : isActive ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      ) : (
+                        <div className="h-3 w-3 rounded-full border-2 border-surface-container-high" />
+                      )}
+                    </div>
+                    {/* Label */}
+                    <span className={cn(
+                      "font-inter text-[11px] transition-colors",
+                      isPast && "text-emerald-700 font-medium",
+                      isActive && !isError && "text-primary font-bold",
+                      isActive && isError && "text-rose-700 font-medium",
+                      !isActive && !isPast && "text-on-muted"
+                    )}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="space-y-1.5">
               <div className="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
-                <div 
-                  className="bg-primary h-full rounded-full transition-all duration-300 ease-out" 
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-all duration-500 ease-out",
+                    analysisPhase === "error" ? "bg-rose-400" :
+                    analysisPhase === "done" ? "bg-emerald-500" :
+                    "bg-primary"
+                  )}
                   style={{ width: `${progress}%` }}
                 />
               </div>
-              <div className="flex items-center justify-between text-[11px] font-semibold text-on-muted">
-                <span>{progressStep}</span>
-                <span>{progress}%</span>
+              <div className="flex items-center justify-between font-inter text-[10px] text-on-muted">
+                <span className="truncate">{progressStep}</span>
+                <span className="shrink-0 ml-2">{progress}%</span>
               </div>
             </div>
           </div>

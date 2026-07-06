@@ -6,7 +6,6 @@ import { updateUserTrustScore } from "@/lib/trust-score";
 import { hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
 import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
 
-const AUTO_APPROVE_TRUST_THRESHOLD = 70;
 const AUTO_APPROVE_CONFIDENCE_THRESHOLD = 0.82;
 
 import sharp from "sharp";
@@ -83,7 +82,6 @@ export async function processBackgroundCheckinReview(checkinId: string) {
       expectedUrl: checkin.post.url,
     });
 
-    const trustScore = checkin.user.trust_score ?? 0;
     let isDuplicateImage = false;
 
     if (checkin.image_phash && checkin.post_id) {
@@ -105,14 +103,10 @@ export async function processBackgroundCheckinReview(checkinId: string) {
       );
     }
 
-    const canAutoApprove =
+    const finalAutoApprove =
       !isDuplicateImage &&
       visionResult.isValid &&
       visionResult.confidence >= AUTO_APPROVE_CONFIDENCE_THRESHOLD;
-
-    // Trust score >= 95 bypasses vision confidence check
-    const trustBypass = trustScore >= AUTO_APPROVE_TRUST_THRESHOLD && trustScore >= 95;
-    const finalAutoApprove = canAutoApprove || (trustBypass && visionResult.isValid && !isDuplicateImage);
 
     await db.checkin.update({
       where: { id: checkin.id },

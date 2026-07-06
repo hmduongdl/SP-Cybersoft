@@ -20,7 +20,10 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
   const isAiChatPage = pathname === "/ai-chat" || pathname?.startsWith("/ai-chat/");
   const isFullWidthPage = isTasksPage || isTimetablePage || isAiChatPage;
 
-  if (isLoginPage || isLandingPage || isMaintenanceMode || pathname === "/maintenance") {
+  const isPricingPage = pathname === "/pricing" || pathname === "/pricing/";
+  const isPaymentPage = pathname === "/thanh-toan" || pathname?.startsWith("/thanh-toan");
+
+  if (isLoginPage || isLandingPage || isMaintenanceMode || pathname === "/maintenance" || isPricingPage || isPaymentPage) {
     return <div className="h-screen w-screen overflow-y-auto bg-surface">{children}</div>;
   }
 

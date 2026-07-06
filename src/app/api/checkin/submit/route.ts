@@ -58,13 +58,11 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3.5 Fetch User to get Trust Score early
+    // 3.5 Fetch User info for email
     const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: { email: true, name: true, full_name: true, username: true, trust_score: true, is_verified: true }
     });
-
-    const isHighTrust = user ? user.trust_score > 92 : false;
 
     // 4. Read file buffer and parse EXIF
     const bytes = await imageFile.arrayBuffer();
@@ -73,38 +71,33 @@ export async function POST(request: Request) {
     let exifTime: Date | null = null;
     let exifFound = false;
 
-    if (!isHighTrust) {
-      try {
-        // Parse DateTimeOriginal and CreateDate from EXIF
-        const metadata = await exifr.parse(buffer, ["DateTimeOriginal", "CreateDate", "OffsetTimeOriginal"]);
-        
-        if (metadata) {
-          const parsedDate = metadata.DateTimeOriginal || metadata.CreateDate;
-          if (parsedDate instanceof Date) {
-            exifTime = parsedDate;
+    try {
+      // Parse DateTimeOriginal and CreateDate from EXIF
+      const metadata = await exifr.parse(buffer, ["DateTimeOriginal", "CreateDate", "OffsetTimeOriginal"]);
+
+      if (metadata) {
+        const parsedDate = metadata.DateTimeOriginal || metadata.CreateDate;
+        if (parsedDate instanceof Date) {
+          exifTime = parsedDate;
+          exifFound = true;
+        } else if (parsedDate) {
+          // In case it's a string, try parsing it
+          const d = new Date(parsedDate);
+          if (!isNaN(d.getTime())) {
+            exifTime = d;
             exifFound = true;
-          } else if (parsedDate) {
-            // In case it's a string, try parsing it
-            const d = new Date(parsedDate);
-            if (!isNaN(d.getTime())) {
-              exifTime = d;
-              exifFound = true;
-            }
           }
         }
-      } catch (exifError) {
-        console.warn("Failed to parse EXIF metadata:", exifError);
       }
+    } catch (exifError) {
+      console.warn("Failed to parse EXIF metadata:", exifError);
     }
 
     // 5. Determine Checkin Status
     let status: "AUTO_APPROVED" | "PENDING" = "PENDING";
     let aiConfidence = 0.5;
 
-    if (isHighTrust) {
-      status = "AUTO_APPROVED";
-      aiConfidence = 1.0; // Max confidence due to high trust score
-    } else if (exifFound && exifTime) {
+    if (exifFound && exifTime) {
       const postStartTime = new Date(post.start_at).getTime();
       const exifTimeMs = exifTime.getTime();
       const twentyFourHoursMs = 24 * 60 * 60 * 1000;
@@ -166,9 +159,7 @@ export async function POST(request: Request) {
       status,
       exifFound,
       message: status === "AUTO_APPROVED"
-        ? (user && user.trust_score > 92)
-          ? "Đã tự động xác thực và duyệt thành công minh chứng của bạn."
-          : "Đã tự động xác thực và duyệt thành công nhờ dữ liệu EXIF hợp lệ."
+        ? "Đã tự động xác thực và duyệt thành công nhờ dữ liệu EXIF hợp lệ."
         : exifFound
         ? "Ảnh có dữ liệu EXIF nhưng thời gian chụp nằm ngoài mốc 24h. Đã chuyển sang hàng đợi duyệt thủ công."
         : "Không tìm thấy dữ liệu EXIF. Đã chuyển sang hàng đợi duyệt thủ công.",

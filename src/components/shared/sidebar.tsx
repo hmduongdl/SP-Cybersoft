@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import { twMerge } from "tailwind-merge";
 import { clsx } from "clsx";
 import { useState, useEffect } from "react";
-import { CheckSquare, Settings } from "lucide-react";
+import { CheckSquare, Settings, Lock } from "lucide-react";
 import { useTaskStore } from "@/store/useTaskStore";
+import { usePlan } from "@/hooks/usePlan";
+import { PlanBadge } from "@/components/shared/PlanGate";
 
 import { UserAvatar } from "./user-avatar";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
@@ -23,6 +25,12 @@ export function Sidebar() {
   // Local profile state to display up-to-date data
   const [profile, setProfile] = useState<any>(null);
   const [pendingCount, setPendingCount] = useState<number>(0);
+
+  const { plan, features, label: planLabel, badgeClass } = usePlan({
+    role: profile?.role || session?.user?.role || "USER",
+    plan: profile?.plan || "FREE",
+    planExpiresAt: profile?.plan_expires_at,
+  });
 
 
   const fetchProfile = () => {
@@ -93,7 +101,7 @@ export function Sidebar() {
         { label: "Build PC", href: "/build-pc", icon: "computer", adminOnly: false },
         { label: "Thời gian biểu", href: "/timetable", icon: "calendar_month", adminOnly: false },
         { label: "Task Manager", href: "/tasks", icon: <CheckSquare className="w-5 h-5" />, adminOnly: false },
-        { label: "AI Studio", href: "/seo-tools", icon: "trending_up", adminOnly: false },
+        { label: "AI Studio", href: "/seo-tools", icon: "trending_up", adminOnly: false, requiresPlan: "MAX" as const },
         { label: "AI Chat", href: "/ai-chat", icon: "forum", adminOnly: false, devOnly: false },
         { label: "Báo Cáo", href: "/reports", icon: "bar_chart", adminOnly: false },
       ]
@@ -178,14 +186,21 @@ export function Sidebar() {
                   </p>
                 )}
                 <div className="space-y-1">
-                  {section.items.map(({ label, href, icon, devOnly, adminOnlyAlert }) => {
+                  {section.items.map(({ label, href, icon, devOnly, adminOnlyAlert, ...rest }) => {
                     const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
                     const isTasksActive = pathname.startsWith("/tasks");
                     const isAdmin = session?.user?.role === "ADMIN" || profile?.role === "ADMIN";
+                    const requiresPlan = (rest as any).requiresPlan as string | undefined;
+                    const isPlanLocked = requiresPlan === "MAX" && plan !== "MAX";
                     return (
                       <div key={label} className="w-full">
                         <button
-                          onClick={() => {
+                        onClick={() => {
+                            if (isPlanLocked) {
+                              router.push("/pricing");
+                              toast.info("AI Studio yêu cầu gói MAX. Nâng cấp để mở khóa!");
+                              return;
+                            }
                             if (devOnly || (adminOnlyAlert && !isAdmin)) {
                               toast.info("Chức năng đang phát triển");
                               return;
@@ -235,7 +250,12 @@ export function Sidebar() {
                           )}
                           {!collapsed && (
                             <span className="text-sm font-medium font-inter flex-1 flex justify-between items-center">
-                              {label}
+                              <span className="flex items-center gap-1.5">
+                                {label}
+                                {isPlanLocked && !collapsed && (
+                                  <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                                )}
+                              </span>
                               {label === "Duyệt Bài" && pendingCount > 0 && (
                                 <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
                                   {pendingCount}
@@ -308,13 +328,15 @@ export function Sidebar() {
 
               {(session?.user?.role === "ADMIN" || profile?.role === "ADMIN") && (
                 <>
-                  <button
-                    onClick={() => toast.info("Chức năng đang trong tiến trình cập nhật")}
+                  <Link
+                    href="/pricing"
                     className={twMerge(
                       clsx(
                         "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
                         collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
-                        "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
+                        pathname === "/pricing"
+                          ? "bg-slate-200/50 dark:bg-slate-800/40 text-slate-900 dark:text-slate-200"
+                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
                       )
                     )}
                     title={collapsed ? "Plans" : undefined}
@@ -325,7 +347,7 @@ export function Sidebar() {
                       <span className="material-symbols-outlined text-[22px]">account_tree</span>
                     </div>
                     {!collapsed && <span className="text-sm font-medium font-inter">Plans</span>}
-                  </button>
+                  </Link>
 
                   <Link
                     href="/admin/settings"
@@ -383,11 +405,14 @@ export function Sidebar() {
                 {!collapsed && (
                   <div className="overflow-hidden">
                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate font-inter">{userDisplayName}</p>
-                    {rawDepartment && (
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-200/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-slate-700/50 mt-0.5 font-inter">
-                        {departmentLabel}
-                      </span>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      {rawDepartment && (
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-200/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-slate-700/50 font-inter">
+                          {departmentLabel}
+                        </span>
+                      )}
+                      <PlanBadge plan={plan} />
+                    </div>
                   </div>
                 )}
               </div>

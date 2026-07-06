@@ -34,8 +34,16 @@ export const middleware = auth((request) => {
   // Middleware from NextAuth's authorized callback should have caught this,
   // but sometimes it doesn't due to race conditions or beta version quirks.
   const isLoggedIn = !!request.auth?.user;
-  if (!isLoggedIn && pathname !== "/login" && pathname !== "/login/" && pathname !== "/maintenance" && pathname !== "/") {
+  const isPublicPath =
+    pathname === "/login" ||
+    pathname === "/login/" ||
+    pathname === "/maintenance" ||
+    pathname === "/";
+
+  if (!isLoggedIn && !isPublicPath) {
     const loginUrl = new URL("/login", request.url);
+    // Truyền callbackUrl để sau khi đăng nhập redirect về trang gốc
+    loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 

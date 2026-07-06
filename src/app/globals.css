@@ -39,7 +39,7 @@
   }
 
   .dark body {
-    background: #050711;
+    background: #0A0A0B;
     color: #e8eaf6;
   }
 
@@ -144,46 +144,46 @@
 
   .dark {
     /* Shadcn/Radix compatibility */
-    --background: #050711;
+    --background: #0A0A0B;
     --foreground: #e8eaf6;
-    --card: #0e1228;
+    --card: #0F0F11;
     --card-foreground: #e8eaf6;
-    --popover: #0e1228;
+    --popover: #0F0F11;
     --popover-foreground: #e8eaf6;
     --primary: #4f7de8;
     --primary-foreground: #ffffff;
-    --secondary: #131830;
+    --secondary: #0F0F11;
     --secondary-foreground: #e8eaf6;
-    --muted: #131830;
+    --muted: #0F0F11;
     --muted-foreground: #9496b0;
-    --accent: #191f3a;
+    --accent: #131316;
     --accent-foreground: #e8eaf6;
     --destructive: #f87171;
     --border: rgba(255, 255, 255, 0.06);
     --input: rgba(255, 255, 255, 0.08);
     --ring: #4f7de8;
     --radius: 0.625rem;
-    --sidebar: #090c1a;
+    --sidebar: #0C0C0E;
     --sidebar-foreground: #e8eaf6;
     --sidebar-primary: #4f7de8;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #131830;
+    --sidebar-accent: #0F0F11;
     --sidebar-accent-foreground: #e8eaf6;
     --sidebar-border: rgba(255, 255, 255, 0.04);
     --sidebar-ring: #4f7de8;
 
-    /* Surface hierarchy — tối dần từ surface → highest */
-    --color-surface: #050711;
-    --color-surface-low: #090c1a;
-    --color-surface-mid: #0e1228;
-    --color-surface-high: #131830;
-    --color-surface-highest: #191f3a;
-    --color-surface-bright: #1e243e;
-    --color-surface-container-lowest: #090c1a;
-    --color-surface-container-low: #0e1228;
-    --color-surface-container: #131830;
-    --color-surface-container-high: #191f3a;
-    --color-surface-container-highest: #1e243e;
+    /* Surface hierarchy — pricing-inspired dark tones */
+    --color-surface: #0A0A0B;
+    --color-surface-low: #0C0C0E;
+    --color-surface-mid: #0D0D10;
+    --color-surface-high: #0F0F11;
+    --color-surface-highest: #131316;
+    --color-surface-bright: #1A1A1E;
+    --color-surface-container-lowest: #0C0C0E;
+    --color-surface-container-low: #0D0D10;
+    --color-surface-container: #0F0F11;
+    --color-surface-container-high: #131316;
+    --color-surface-container-highest: #1A1A1E;
 
     /* Text */
     --color-on-surface: #e8eaf6;
@@ -195,11 +195,11 @@
     --color-outline-variant: rgba(255, 255, 255, 0.04);
 
     /* Primary */
-    --color-primary-container: #152052;
+    --color-primary-container: #1A0A2E;
     --color-on-primary: #ffffff;
 
     /* Secondary */
-    --color-secondary-container: #191f3a;
+    --color-secondary-container: #131316;
     --color-on-secondary-container: #e8eaf6;
 
     /* Status */
@@ -216,7 +216,7 @@
   }
 
   .dark body {
-    background-color: #050711;
+    background-color: #0A0A0B;
     color: #e8eaf6;
   }
 }
@@ -237,7 +237,7 @@
   }
 
   .dark .glass {
-    background: rgba(17, 21, 39, 0.85);
+    background: rgba(15, 15, 17, 0.85);
   }
 
   .ambient-shadow {
@@ -259,7 +259,7 @@
   }
 
   .dark .glass-card {
-    background: rgba(14, 18, 40, 0.7);
+    background: rgba(15, 15, 17, 0.7);
     border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
@@ -269,7 +269,7 @@
   }
 
   .dark .nav-blur {
-    background-color: rgba(5, 7, 17, 0.85);
+    background-color: rgba(10, 10, 11, 0.85);
   }
 
   .scroll-reveal {
@@ -417,52 +417,52 @@
 
 /* Backgrounds */
 .dark .bg-white {
-  background-color: #0e1228 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark .bg-gray-50,
 .dark .bg-slate-50,
 .dark .bg-neutral-50 {
-  background-color: #090c1a !important;
+  background-color: #0C0C0E !important;
 }
 
 .dark .bg-gray-100,
 .dark .bg-slate-100,
 .dark .bg-neutral-100 {
-  background-color: #0e1228 !important;
+  background-color: #0D0D10 !important;
 }
 
 .dark .bg-gray-200,
 .dark .bg-slate-200 {
-  background-color: #131830 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark .bg-\[\#faf8ff\],
 .dark .bg-\[\#f5f5ff\],
 .dark .bg-\[\#fafafa\] {
-  background-color: #050711 !important;
+  background-color: #0A0A0B !important;
 }
 
 .dark .bg-\[\#f2f3ff\] {
-  background-color: #0e1228 !important;
+  background-color: #0D0D10 !important;
 }
 
 .dark .bg-\[\#eaedff\] {
-  background-color: #131830 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark .bg-\[\#e0e4ff\] {
-  background-color: #191f3a !important;
+  background-color: #131316 !important;
 }
 
 .dark .bg-\[\#dae2fd\] {
-  background-color: #191f3a !important;
+  background-color: #131316 !important;
 }
 
 .dark .bg-\[\#d8e2ff\],
 .dark .bg-\[\#dde1f9\],
 .dark .bg-primary-container {
-  background-color: #152052 !important;
+  background-color: #1A0A2E !important;
 }
 
 /* Text */
@@ -521,7 +521,7 @@
 .dark input:not(.bg-transparent):not(.\!bg-transparent),
 .dark select:not(.bg-transparent):not(.\!bg-transparent),
 .dark textarea:not(.bg-transparent):not(.\!bg-transparent) {
-  background-color: #131830 !important;
+  background-color: #0F0F11 !important;
   color: #e8eaf6 !important;
   border-color: rgba(255, 255, 255, 0.06) !important;
 }
@@ -541,16 +541,16 @@
 
 /* Tables */
 .dark table {
-  background-color: #0e1228 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark thead {
-  background-color: #131830 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark th {
   color: #9496b0 !important;
-  background-color: #131830 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark td {
@@ -559,7 +559,7 @@
 }
 
 .dark tbody tr:hover {
-  background-color: #131830 !important;
+  background-color: #131316 !important;
 }
 
 /* Status badges — semantic */
@@ -618,11 +618,11 @@
 .dark .hover\:bg-slate-50:hover,
 .dark .hover\:bg-\[\#f2f3ff\]:hover,
 .dark .hover\:bg-\[\#f8f9ff\]:hover {
-  background-color: #131830 !important;
+  background-color: #0F0F11 !important;
 }
 
 .dark .hover\:bg-gray-100:hover {
-  background-color: #191f3a !important;
+  background-color: #131316 !important;
 }
 
 /* Ring / focus */
@@ -653,8 +653,8 @@
    BlockNote Dark Theme — Yellow Color (Light Theme Style)
    ================================================ */
 .dark .bn-root {
-  --bn-colors-editor-background: #050711;
-  --bn-colors-sideMenu-background: #050711;
+  --bn-colors-editor-background: #0A0A0B;
+  --bn-colors-sideMenu-background: #0A0A0B;
 }
 
 /* BlockNote highlight/note block background — use light theme yellow */

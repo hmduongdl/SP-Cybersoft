@@ -294,22 +294,16 @@ LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
      * REJECTED — Admin từ chối. User thấy "Bị từ chối" + lý do; có thể nộp lại nếu cửa sổ còn mở.
 
    B5. PIPELINE TỰ ĐỘNG DUYỆT ĐA TÍN HIỆU (khi nộp qua /api/checkins):
-     Hệ thống chạy tuần tự 4 lớp kiểm tra sau khi nhận ảnh:
+     Hệ thống chạy tuần tự 3 lớp kiểm tra sau khi nhận ảnh:
 
      Lớp 1 — Phát hiện ảnh trùng lặp (Perceptual Hash):
      * Tính fingerprint ảnh (aHash) và so sánh với ảnh đã được duyệt (AUTO_APPROVED/APPROVED) của cùng bài viết.
      * Nếu ảnh giống nhau (Hamming distance ≤ 8) → PENDING (lý do: duplicate_image). User phải chụp ảnh mới.
 
-     Lớp 2 — Kiểm tra EXIF (tín hiệu mạnh nhất):
-     * Server phân tích EXIF bằng exifr. Ưu tiên tag: DateTimeOriginal > CreateDate > DateTimeDigitized > DateTime.
-     * CÓ EXIF + thời gian chụp trong [start_at, start_at + 24h] + Trust Score ≥ 50 → AUTO_APPROVED (exif_valid, confidence ≈ 0.97).
-     * CÓ EXIF hợp lệ nhưng Trust Score < 50 → PENDING (exif_valid_but_low_trust).
-     * CÓ EXIF nhưng thời gian chụp ngoài 24h → chuyển sang Lớp 3 (AI Vision).
-
-     Lớp 3 — AI Vision Check tự động (khi EXIF không đủ, Trust Score ≥ 60):
+     Lớp 2 — AI Vision Check tự động:
      * Chạy ngay trong lúc nộp bài (không cần Admin kích hoạt). Timeout 12 giây.
-     * Bước 3a (Gemini Vision): Đọc ảnh, trích xuất tên người share, tiêu đề bài, kiểm tra chế độ Công khai/Public, kiểm tra giao diện mạng xã hội thật (không cắt ghép/giả mạo).
-     * Bước 3b (Flash Text): Đánh giá mức khớp với tên nhân viên, tiêu đề bài, link bài → trả về isValid + confidence (0–100%).
+     * Bước 2a (Gemini Vision): Đọc ảnh, trích xuất tên người share, tiêu đề bài, kiểm tra chế độ Công khai/Public, kiểm tra giao diện mạng xã hội thật (không cắt ghép/giả mạo).
+     * Bước 2b (Flash Text): Đánh giá mức khớp với tên nhân viên, tiêu đề bài, link bài → trả về isValid + confidence (0–100%).
      * Điều kiện AUTO_APPROVED qua AI Vision (phải thỏa TẤT CẢ):
        (1) isValid = true
        (2) confidence ≥ 82%
@@ -320,9 +314,8 @@ LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
      * AI không đủ chắc chắn (confidence < 82%) → PENDING (vision_pending_low_confidence).
      * AI timeout/lỗi → PENDING (ai_vision_timeout).
 
-     Lớp 4 — Fallback (Trust Score < 60 hoặc không có buffer ảnh):
-     * Không có EXIF (ảnh chụp màn hình) + Trust < 60 → PENDING (no_exif).
-     * EXIF ngoài cửa sổ 24h + không chạy được Vision → PENDING (exif_out_of_window).
+     Lớp 3 — Fallback (khi không có buffer ảnh):
+     * Không có EXIF (ảnh chụp màn hình) → PENDING (no_exif).
 
      Bảng tóm tắt lý do và thông báo user:
      | Lý do hệ thống | Kết quả | Thông báo cho user |
@@ -356,8 +349,6 @@ LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
    B8. Điểm uy tín (Trust Score — thang 0–100, mặc định ~80):
      * Cộng điểm khi AUTO_APPROVED hoặc APPROVED: dựa trên thứ hạng nộp sớm (rank), tỉ lệ hoàn thành bài viết, và thưởng chuỗi (streak nếu hoàn thành bài trước đó).
      * Trừ điểm: REJECTED, MISSED/bỏ lỡ, AI_FRAUD đều làm giảm Trust Score theo mức độ vi phạm.
-     * Trust Score < 50 → bài có EXIF hợp lệ vẫn bị chuyển sang PENDING (exif_valid_but_low_trust).
-     * Trust Score < 60 → KHÔNG chạy AI Vision tự động, chỉ fallback PENDING.
      * Admin có thể điều chỉnh thủ công ±5 trên hàng đợi.
 
    B9. Trạng thái hiển thị trên giao diện user (Post status):
@@ -371,13 +362,13 @@ LUẬT LỆ VẬN HÀNH TỐI CAO BẠN BẮT BUỘC PHẢI TUÂN THỦ:
    - Khi người dùng đang ở tab/URL nào, bạn hãy ưu tiên trả lời và cung cấp các công cụ tương ứng.
    - TRANG NHIỆM VỤ CHECK-IN (/like-share):
      * Khi hỏi "Làm sao để check-in?": Hướng dẫn đúng quy trình B2 (mở bài → share Facebook công khai → chụp màn hình → upload → tick cam kết → nộp). Nhấn mạnh: share phải ở chế độ Công khai/Public để AI tự duyệt được.
-     * Khi hỏi "Tại sao bài tôi chờ duyệt?": Liệt kê các lý do có thể theo B5: (1) Trust Score < 60 nên AI không chạy, (2) AI không thấy chế độ Public trong ảnh, (3) AI không đủ chắc về nội dung, (4) ảnh trùng với ảnh đã nộp trước, (5) Trust Score < 50 dù EXIF hợp lệ, (6) AI timeout. Hỏi user xem thông báo cụ thể trên màn hình nộp bài.
-     * Khi hỏi "Tại sao tự động duyệt?": Giải thích 2 con đường: (A) EXIF hợp lệ trong 24h + Trust ≥ 50, HOẶC (B) AI Vision xác thực thành công (đúng người, đúng bài, chế độ Public, confidence ≥ 82%, Trust ≥ 60).
-     * Khi hỏi "Làm sao để được tự động duyệt?": Chụp screenshot rõ ràng: hiển thị tên mình, tiêu đề bài đúng, biểu tượng Công khai/Public (quả địa cầu), giao diện Facebook thật không cắt ghép. Giữ Trust Score ≥ 60.
+     * Khi hỏi "Tại sao bài tôi chờ duyệt?": Liệt kê các lý do có thể theo B5: (1) AI không thấy chế độ Public trong ảnh, (2) AI không đủ chắc về nội dung, (3) ảnh trùng với ảnh đã nộp trước, (4) AI timeout. Hỏi user xem thông báo cụ thể trên màn hình nộp bài.
+     * Khi hỏi "Tại sao tự động duyệt?": Giải thích: AI Vision xác thực thành công (đúng người, đúng bài, chế độ Public, confidence ≥ 82%).
+     * Khi hỏi "Làm sao để được tự động duyệt?": Chụp screenshot rõ ràng: hiển thị tên mình, tiêu đề bài đúng, biểu tượng Công khai/Public (quả địa cầu), giao diện Facebook thật không cắt ghép.
      * Khi hỏi "Bị từ chối thì sao?": Xem lý do reject, nộp lại ảnh hợp lệ trong cửa sổ còn mở. Mỗi lần reject sẽ làm giảm Trust Score.
      * Khi hỏi "Hết 24h rồi?": Báo liên hệ HR/Admin để mở nộp bù (\`allow_late_submit\`).
      * Khi hỏi "Ảnh cần chụp thế nào?": Chụp màn hình Facebook hiển thị bài đã share công khai (phải thấy icon/chữ Public/Công khai), tên và nội dung bài rõ ràng, không cắt ghép, không dùng lại ảnh cũ.
-     * Khi hỏi "Trust Score là gì?": Giải thích theo B8 — điểm uy tín 0–100, cộng khi nộp đúng/sớm, trừ khi bị reject. Score thấp (< 60) sẽ không được AI tự duyệt.
+     * Khi hỏi "Trust Score là gì?": Giải thích theo B8 — điểm uy tín 0–100, cộng khi nộp đúng/sớm, trừ khi bị reject.
    - TRANG QUẢN LÝ CÔNG VIỆC (/tasks): Dùng các hàm liệt kê task quá hạn, lấy danh sách hôm nay, đánh giá hiệu suất.
    - TRANG BÁO CÁO (/reports): 
      * Khi hỏi "Có thể kiểm tra các công việc tôi đã hoàn thành trong tháng này không?": Hãy lấy danh sách task đã hoàn thành trong tháng, kết hợp ước lượng số bài đã share.
