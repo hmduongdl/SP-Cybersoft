@@ -46,8 +46,8 @@ const plans = [
       { text: "Truy cập tính năng AI nâng cao", included: true },
       { text: "Mở khóa VIP Task Manager", included: true },
       { text: "Tối đa 10 Workspaces", included: true },
-      { text: "Không hỗ trợ nộp bài muộn", included: false, icon: Lock },
-      { text: "AI Studio đang bị khóa", included: false, icon: Lock },
+      { text: "Nộp bài muộn tối đa 1 tiếng", included: true },
+      { text: "Mở khóa toàn quyền AI Studio", included: true },
     ],
     icon: <Zap className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" />,
     popular: true,
@@ -269,7 +269,10 @@ export default function PricingPage() {
                   <div className="mb-4 flex flex-col justify-end min-h-[50px]">
                     {isYearly && plan.originalYearly && (
                       <span className="text-slate-500 line-through text-[11px] lg:text-xs font-medium mb-0.5">
-                        {plan.originalYearly} / năm
+                        {(() => {
+                          const originalVal = parseInt(plan.originalYearly.replace(/\D/g, ""), 10);
+                          return `${Math.round(originalVal / 12).toLocaleString("vi-VN")}đ`;
+                        })()} / tháng
                       </span>
                     )}
                     <div className="flex items-baseline gap-1.5">
@@ -277,10 +280,10 @@ export default function PricingPage() {
                         {plan.priceMonthly === "FREE" ? (
                           "FREE"
                         ) : !mounted ? (
-                          isYearly ? plan.priceYearly : plan.priceMonthly
+                          isYearly ? `${Math.round(plan.priceYearlyVal / 12).toLocaleString("vi-VN")}đ` : plan.priceMonthly
                         ) : (
                           <CountUp
-                            end={isYearly ? plan.priceYearlyVal : plan.priceMonthlyVal}
+                            end={isYearly ? Math.round(plan.priceYearlyVal / 12) : plan.priceMonthlyVal}
                             separator="."
                             duration={0.4}
                             suffix="đ"
@@ -288,7 +291,9 @@ export default function PricingPage() {
                         )}
                       </span>
                       {plan.priceMonthly !== "FREE" && (
-                        <span className="text-slate-500 text-xs lg:text-sm font-medium">/ {isYearly ? 'năm' : 'tháng'}</span>
+                        <span className="text-slate-500 text-xs lg:text-sm font-medium">
+                          / tháng
+                        </span>
                       )}
                     </div>
                   </div>

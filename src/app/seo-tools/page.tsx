@@ -24,10 +24,10 @@ export default async function SeoToolsPage() {
     user?.plan_expires_at ?? null
   );
 
-  if (effectivePlan !== "MAX") {
+  if (effectivePlan !== "MAX" && effectivePlan !== "PRO") {
     return (
       <div className="w-full h-full flex items-center justify-center min-h-[60vh]">
-        <PlanGate requiredPlan="MAX" currentPlan={effectivePlan}>
+        <PlanGate requiredPlan="PRO" currentPlan={effectivePlan}>
           <></>
         </PlanGate>
       </div>
