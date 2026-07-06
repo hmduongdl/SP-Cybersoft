@@ -38,7 +38,8 @@ export const middleware = auth((request) => {
     pathname === "/login" ||
     pathname === "/login/" ||
     pathname === "/maintenance" ||
-    pathname === "/";
+    pathname === "/" ||
+    pathname.startsWith("/api/payment/webhook"); // Cho phép SePay Webhook bypass middleware redirect
 
   if (!isLoggedIn && !isPublicPath) {
     const loginUrl = new URL("/login", request.url);

@@ -224,12 +224,12 @@ export function SiteHeader() {
               <ShieldCheck className="h-3 w-3" />
               {profile?.trust_score ?? session?.user?.trust_score ?? "..."}
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-bold text-amber-600 border border-amber-500/20">
+            <Link href="/pricing" className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-600 border border-amber-500/20 transition-colors">
               <Wallet className="h-3 w-3" />
               {(profile?.wallet_balance ?? session?.user?.wallet_balance) !== undefined 
                 ? (profile?.wallet_balance ?? session?.user?.wallet_balance ?? 0).toLocaleString("vi-VN") + " VND"
                 : "..."}
-            </span>
+            </Link>
             <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-0.5 text-xs font-bold text-purple-600 border border-purple-500/20">
               <Trophy className="h-3 w-3" />
               {profile?.pc_score ?? session?.user?.pc_score ?? "..."}
