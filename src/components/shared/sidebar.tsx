@@ -327,29 +327,29 @@ export function Sidebar() {
                 {!collapsed && <span className="text-sm font-medium font-inter">Cài đặt</span>}
               </button>
 
+              <Link
+                href="/pricing"
+                className={twMerge(
+                  clsx(
+                    "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
+                    collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
+                    pathname === "/pricing"
+                      ? "bg-slate-200/50 dark:bg-slate-800/40 text-slate-900 dark:text-slate-200"
+                      : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
+                  )
+                )}
+                title={collapsed ? "Gói dịch vụ" : undefined}
+              >
+                <div className={clsx(
+                  "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
+                )}>
+                  <span className="material-symbols-outlined text-[22px]">payments</span>
+                </div>
+                {!collapsed && <span className="text-sm font-medium font-inter">Nâng cấp gói</span>}
+              </Link>
+
               {(session?.user?.role === "ADMIN" || profile?.role === "ADMIN") && (
                 <>
-                  <Link
-                    href="/pricing"
-                    className={twMerge(
-                      clsx(
-                        "flex items-center px-3 py-2.5 rounded-lg transition-all duration-150 w-full text-left cursor-pointer gap-3 group",
-                        collapsed ? "justify-center px-0 w-10 h-10 mx-auto" : "",
-                        pathname === "/pricing"
-                          ? "bg-slate-200/50 dark:bg-slate-800/40 text-slate-900 dark:text-slate-200"
-                          : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/40"
-                      )
-                    )}
-                    title={collapsed ? "Plans" : undefined}
-                  >
-                    <div className={clsx(
-                      "flex items-center justify-center shrink-0 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200"
-                    )}>
-                      <span className="material-symbols-outlined text-[22px]">account_tree</span>
-                    </div>
-                    {!collapsed && <span className="text-sm font-medium font-inter">Plans</span>}
-                  </Link>
-
                   <Link
                     href="/admin/settings"
                     className={twMerge(
@@ -407,11 +407,6 @@ export function Sidebar() {
                   <div className="overflow-hidden">
                     <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate font-inter">{userDisplayName}</p>
                     <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                      {rawDepartment && (
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-200/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-300/50 dark:border-slate-700/50 font-inter">
-                          {departmentLabel}
-                        </span>
-                      )}
                       <PlanBadge plan={plan} />
                     </div>
                   </div>

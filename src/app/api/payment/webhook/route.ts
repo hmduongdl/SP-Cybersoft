@@ -136,12 +136,15 @@ export async function POST(req: NextRequest) {
   // ── 5. Kích hoạt dịch vụ thành công ──────────────────────────────────────
   const now = new Date();
   
-  // Xác định thời hạn kích hoạt: trên 100k là hàng năm, dưới 100k là hàng tháng
-  const isYearly = order.amount >= 100000;
   const expiresAt = new Date(now);
-  if (isYearly) {
+  if (order.planId === "max" && order.amount === 159000) {
+    // 3 + 1 tháng = 4 tháng
+    expiresAt.setMonth(expiresAt.getMonth() + 4);
+  } else if (order.amount >= 189000) {
+    // Gói năm
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
   } else {
+    // Gói tháng
     expiresAt.setDate(expiresAt.getDate() + 30);
   }
 

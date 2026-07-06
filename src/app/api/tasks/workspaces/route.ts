@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { getEffectivePlan, PLAN_FEATURES } from "@/lib/plan-utils";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -38,9 +41,25 @@ export async function POST(req: Request) {
     const { name, icon, color } = body;
     if (!name) return NextResponse.json({ error: "Missing name" }, { status: 400 });
 
+    // Lấy thông tin plan của user
+    const user = await db.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true, plan: true, plan_expires_at: true }
+    });
+
+    const effectivePlan = getEffectivePlan(
+      user?.role ?? "USER",
+      user?.plan ?? "FREE",
+      user?.plan_expires_at ?? null
+    );
+
+    const maxWorkspaces = PLAN_FEATURES[effectivePlan].maxWorkspaces;
+
     const customCount = await db.workspace.count({ where: { owner_id: session.user.id, type: "CUSTOM" } });
-    if (customCount >= 5) {
-      return NextResponse.json({ error: "Bạn đã đạt giới hạn tối đa 5 không gian làm việc tự tạo!" }, { status: 400 });
+    if (customCount >= maxWorkspaces) {
+      return NextResponse.json({
+        error: `Bạn đã đạt giới hạn tối đa ${maxWorkspaces} không gian làm việc đối với gói ${effectivePlan}!`
+      }, { status: 400 });
     }
 
     const ws = await db.workspace.create({
@@ -49,6 +68,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json(ws);
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

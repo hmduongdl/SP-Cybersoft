@@ -9,6 +9,8 @@ import Link from "next/link";
 import { PersonalSettingsModal } from "./PersonalSettingsModal";
 import { UserAvatar } from "./user-avatar";
 import { VerificationBanner } from "./verification-banner";
+import { usePlan } from "@/hooks/usePlan";
+import { twMerge } from "tailwind-merge";
 
 interface RecentPost {
   id: string;
@@ -40,6 +42,11 @@ export function SiteHeader() {
   const { setSidebarOpen, isOpenPersonalSettings, setOpenPersonalSettings } = useLayout();
   const { data: session, status } = useSession();
   const [profile, setProfile] = useState<any>(null);
+  const { plan: userPlan, label: planLabel } = usePlan({
+    role: profile?.role || session?.user?.role || "USER",
+    plan: profile?.plan || "FREE",
+    planExpiresAt: profile?.plan_expires_at,
+  });
   const role = session?.user?.role || profile?.role;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -224,11 +231,19 @@ export function SiteHeader() {
               <ShieldCheck className="h-3 w-3" />
               {profile?.trust_score ?? session?.user?.trust_score ?? "..."}
             </span>
-            <Link href="/pricing" className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 px-2.5 py-0.5 text-xs font-bold text-amber-600 border border-amber-500/20 transition-colors">
-              <Wallet className="h-3 w-3" />
-              {(profile?.wallet_balance ?? session?.user?.wallet_balance) !== undefined 
-                ? (profile?.wallet_balance ?? session?.user?.wallet_balance ?? 0).toLocaleString("vi-VN") + " VND"
-                : "..."}
+            <Link
+              href="/pricing"
+              className={twMerge(
+                "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-bold border transition-all duration-150 shrink-0",
+                userPlan === "MAX"
+                  ? "bg-amber-500/10 text-amber-600 border-amber-500/20 hover:bg-amber-500/20 dark:text-amber-400"
+                  : userPlan === "PRO"
+                  ? "bg-purple-500/10 text-purple-600 border-purple-500/20 hover:bg-purple-500/20 dark:text-purple-400"
+                  : "bg-slate-500/10 text-slate-600 border-slate-500/20 hover:bg-slate-500/20 dark:text-slate-400"
+              )}
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>Gói: {planLabel}</span>
             </Link>
             <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-0.5 text-xs font-bold text-purple-600 border border-purple-500/20">
               <Trophy className="h-3 w-3" />

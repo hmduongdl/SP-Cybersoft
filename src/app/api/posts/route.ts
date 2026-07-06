@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS, getCachedPostsApi, getCachedTotalEmployees } from '@/lib/cache';
 import { mirrorThumbnail } from '@/lib/thumbnail-mirror';
+import { notifyNewSharePost, notifyNewPcBuildTask } from '@/lib/notify-max-users';
 
 export async function GET(request: Request) {
     const session = await auth();
@@ -159,6 +160,10 @@ export async function POST(request: Request) {
                 date: body.start_at ? new Date(body.start_at) : new Date(),
             }
         });
+        
+        // Gửi email thông báo tối ưu cho người dùng gói MAX
+        notifyNewPcBuildTask(task.customer_need, task.requirements).catch(console.error);
+
         return NextResponse.json({ post: { ...task, task_type: 'PC_BUILD' } }, { status: 201 });
     }
 
@@ -196,6 +201,9 @@ export async function POST(request: Request) {
             allow_late_submit: false,
         },
     });
+
+    // Gửi email thông báo tối ưu cho người dùng gói MAX
+    notifyNewSharePost(post.title, post.description, post.url).catch(console.error);
 
     // Revalidate cache after creating a post
     revalidateTag(CACHE_TAGS.POSTS_LIST, "default");

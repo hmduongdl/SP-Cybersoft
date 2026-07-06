@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const { planId, cycle = "monthly" } = body as {
     planId?: string;
-    cycle?: "monthly" | "yearly";
+    cycle?: "monthly" | "yearly" | "promo_3_1";
   };
 
   if (!planId || !["pro", "max"].includes(planId)) {
@@ -32,14 +32,22 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
-  if (!["monthly", "yearly"].includes(cycle)) {
+  if (!["monthly", "yearly", "promo_3_1"].includes(cycle)) {
     return NextResponse.json(
-      { error: "cycle không hợp lệ (monthly hoặc yearly)" },
+      { error: "cycle không hợp lệ (monthly, yearly hoặc promo_3_1)" },
       { status: 400 }
     );
   }
 
-  const amount = PLAN_PRICES[planId][cycle];
+  let amount = 0;
+  if (cycle === "promo_3_1") {
+    if (planId !== "max") {
+      return NextResponse.json({ error: "Khuyến mãi chỉ áp dụng cho gói MAX" }, { status: 400 });
+    }
+    amount = 159000;
+  } else {
+    amount = PLAN_PRICES[planId][cycle];
+  }
 
   // Tạo orderCode duy nhất gồm 9 chữ số ngẫu nhiên không trùng lắp
   const orderCode = Number(String(Date.now()).slice(-9));

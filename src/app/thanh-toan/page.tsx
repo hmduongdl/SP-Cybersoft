@@ -3,7 +3,7 @@
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, XCircle, Loader2, Copy, Check, QrCode } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, Copy, Check, QrCode, AlertTriangle, HelpCircle } from "lucide-react";
 import Link from "next/link";
 
 interface BankInfo {
@@ -33,12 +33,15 @@ function PaymentContent() {
   const [bankInfo, setBankInfo] = useState<BankInfo | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string>("pending");
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(5);
+  const [redirectCountdown, setRedirectCountdown] = useState(5);
+  
+  // Thời gian hết hạn giao dịch (15 phút = 900 giây)
+  const [timeLeft, setTimeLeft] = useState(300);
 
-  // 1. Fetch Order & Bank Info
+  // 1. Tải thông tin đơn hàng và tài khoản nhận tiền
   useEffect(() => {
     if (!orderCode) {
-      setError("Không tìm thấy mã đơn hàng.");
+      setError("Không tìm thấy mã đơn hàng hợp lệ.");
       setLoading(false);
       return;
     }
@@ -63,7 +66,25 @@ function PaymentContent() {
     fetchDetails();
   }, [orderCode]);
 
-  // 2. Poll Status check if pending
+  // 2. Bộ đếm ngược thời gian giao dịch (15 phút)
+  useEffect(() => {
+    if (paymentStatus !== "pending") return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setPaymentStatus("expired");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [paymentStatus]);
+
+  // 3. Polling kiểm tra trạng thái thanh toán từ Database
   useEffect(() => {
     if (!orderCode || paymentStatus !== "pending") return;
 
@@ -81,18 +102,18 @@ function PaymentContent() {
           }
         }
       } catch (err) {
-        // silent fail on poll error
+        // bỏ qua lỗi mất mạng nhất thời khi polling
       }
     }, 3000);
 
     return () => clearInterval(interval);
   }, [orderCode, paymentStatus]);
 
-  // 3. Countdown timer on success redirection
+  // 4. Đếm ngược tự động chuyển hướng khi thành công
   useEffect(() => {
     if (paymentStatus !== "paid") return;
     const t = setInterval(() => {
-      setCountdown((c) => {
+      setRedirectCountdown((c) => {
         if (c <= 1) {
           clearInterval(t);
           router.push("/dashboard");
@@ -107,6 +128,12 @@ function PaymentContent() {
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   if (loading) {
@@ -137,7 +164,7 @@ function PaymentContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0B] text-white py-12 px-4 relative overflow-y-auto flex items-center justify-center">
+    <div className="min-h-screen bg-[#0A0A0B] text-white py-8 px-4 relative overflow-y-auto flex items-center justify-center">
       {/* Background Glows */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[300px] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[300px] h-[300px] bg-pink-600/5 blur-[120px] rounded-full pointer-events-none" />
@@ -171,7 +198,7 @@ function PaymentContent() {
                 Vào Studio ngay
               </Link>
               <p className="text-xs text-slate-500">
-                Tự động chuyển hướng sau {countdown} giây...
+                Tự động chuyển hướng sau {redirectCountdown} giây...
               </p>
             </div>
           </motion.div>
@@ -186,9 +213,9 @@ function PaymentContent() {
             <div className="flex justify-center mb-6">
               <XCircle className="w-20 h-20 text-rose-500" />
             </div>
-            <h1 className="text-2xl font-bold mb-2 font-manrope">Thanh toán thất bại</h1>
+            <h1 className="text-2xl font-bold mb-2 font-manrope">Thanh toán hết hạn</h1>
             <p className="text-sm text-slate-400 mb-8">
-              Giao dịch đã hết hạn hoặc bị hủy bỏ. Vui lòng quay lại và thực hiện giao dịch mới.
+              Giao dịch đã hết hạn hoặc bị hủy bỏ. Vui lòng quay lại và tạo giao dịch mới để tiếp tục.
             </p>
             <Link
               href="/pricing"
@@ -204,98 +231,139 @@ function PaymentContent() {
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-4xl bg-[#0F0F11] border border-slate-800 rounded-3xl overflow-hidden shadow-2xl relative z-10 flex flex-col md:flex-row"
           >
-            {/* Left: QR Code info */}
-            <div className="p-8 md:p-10 flex-1 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
+            {/* Cột trái: Thông tin số tài khoản / Số tiền */}
+            <div className="p-6 sm:p-8 md:p-10 flex-1 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-800">
               <div>
                 <div className="flex items-center gap-2 mb-6">
                   <QrCode className="w-5 h-5 text-purple-400" />
                   <span className="text-sm font-semibold tracking-wide uppercase text-slate-400">Thông tin chuyển khoản</span>
                 </div>
 
+                {/* Dòng hiển thị số tiền thanh toán nổi bật */}
+                <div className="mb-6 p-5 bg-purple-500/5 rounded-2xl border border-purple-500/10 flex flex-col justify-center items-center text-center">
+                  <span className="text-xs text-slate-400 uppercase tracking-wider mb-1">Số tiền thanh toán</span>
+                  <div className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-400">
+                    {bankInfo.amount.toLocaleString("vi-VN")} VNĐ
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   {/* Bank Name */}
-                  <div className="flex justify-between items-center py-2 border-b border-slate-800/40">
-                    <span className="text-sm text-slate-400">Ngân hàng</span>
+                  <div className="flex justify-between items-center py-2.5 border-b border-slate-800/40">
+                    <span className="text-sm text-slate-400">Ngân hàng nhận</span>
                     <span className="text-sm font-bold text-white uppercase">{bankInfo.bankId}</span>
                   </div>
 
                   {/* Account Name */}
-                  <div className="flex justify-between items-center py-2 border-b border-slate-800/40">
+                  <div className="flex justify-between items-center py-2.5 border-b border-slate-800/40">
                     <span className="text-sm text-slate-400">Chủ tài khoản</span>
                     <span className="text-sm font-bold text-white">{bankInfo.accountName}</span>
                   </div>
 
                   {/* Account No */}
-                  <div className="flex justify-between items-center py-2 border-b border-slate-800/40">
+                  <div className="flex justify-between items-center py-2.5 border-b border-slate-800/40">
                     <span className="text-sm text-slate-400">Số tài khoản</span>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-mono font-bold text-white">{bankInfo.accountNo}</span>
+                      <span className="text-sm font-mono font-bold text-white tracking-wider">{bankInfo.accountNo}</span>
                       <button
                         onClick={() => handleCopy(bankInfo.accountNo, "acc")}
-                        className="p-1 hover:bg-white/10 rounded transition-colors text-slate-400 hover:text-white"
+                        className="flex items-center gap-1 px-2.5 py-1 text-xs bg-white/5 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors border border-white/5"
                       >
-                        {copiedField === "acc" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedField === "acc" ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[10px] text-emerald-400">Đã chép</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span className="text-[10px]">Sao chép</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>
 
-                  {/* Amount */}
-                  <div className="flex justify-between items-center py-2 border-b border-slate-800/40">
-                    <span className="text-sm text-slate-400">Số tiền</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-extrabold text-white">
-                        {bankInfo.amount.toLocaleString("vi-VN")}đ
-                      </span>
+                  {/* Warning Box for Content */}
+                  <div className="flex flex-col gap-2.5 py-4 px-4 bg-amber-500/5 rounded-2xl border border-amber-500/20">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-bold tracking-wider text-amber-400">Nội dung chuyển khoản bắt buộc</span>
+                        <span className="text-base font-mono font-extrabold text-amber-300 tracking-widest mt-1">
+                          {bankInfo.transferContent}
+                        </span>
+                      </div>
                       <button
-                        onClick={() => handleCopy(String(bankInfo.amount), "amt")}
-                        className="p-1 hover:bg-white/10 rounded transition-colors text-slate-400 hover:text-white"
+                        onClick={() => handleCopy(bankInfo.transferContent, "content")}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-xs font-bold rounded-lg text-amber-300 transition-colors border border-amber-500/20"
                       >
-                        {copiedField === "amt" ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedField === "content" ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-emerald-400">Đã chép</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Sao chép</span>
+                          </>
+                        )}
                       </button>
                     </div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex justify-between items-center py-3 bg-purple-500/5 px-4 rounded-xl border border-purple-500/20">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-purple-300">Nội dung bắt buộc</span>
-                      <span className="text-sm font-mono font-extrabold text-purple-400 tracking-wider">
-                        {bankInfo.transferContent}
+                    <div className="flex items-start gap-1.5 text-[10px] text-amber-400/80 leading-normal border-t border-amber-500/10 pt-2">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>QUAN TRỌNG:</strong> Bạn phải chuyển chính xác nội dung này (không thêm bớt) để gói tự động kích hoạt ngay lập tức.
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleCopy(bankInfo.transferContent, "content")}
-                      className="p-2 hover:bg-purple-500/10 rounded-lg transition-colors text-purple-400"
-                    >
-                      {copiedField === "content" ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                    </button>
                   </div>
                 </div>
               </div>
 
-              {/* Status Polling display */}
-              <div className="mt-8 pt-6 border-t border-slate-800/60 flex items-center gap-3">
-                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
-                <span className="text-xs text-slate-400 animate-pulse">
-                  Đang chờ hệ thống ghi nhận chuyển khoản...
-                </span>
+              {/* Hướng dẫn khi gặp sự cố */}
+              <div className="mt-8 pt-4 border-t border-slate-800/40 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-1.5 text-xs text-slate-500 hover:text-slate-400 transition-colors">
+                  <HelpCircle className="w-4 h-4" />
+                  <span>
+                    Chuyển khoản lỗi? Liên hệ <strong className="text-slate-400">Admin</strong> để đối soát thủ công.
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Right: QR Code Visual */}
-            <div className="p-8 md:p-10 md:w-80 bg-white/5 flex flex-col items-center justify-center gap-4">
-              <div className="bg-white p-3 rounded-2xl shadow-lg border border-white/10">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={bankInfo.qrUrl}
-                  alt="VietQR code"
-                  className="w-48 h-48 object-contain"
-                />
+            {/* Cột phải: Mã QR Code to rõ hơn và có đếm ngược */}
+            <div className="p-8 md:p-10 md:w-96 bg-white/[0.02] flex flex-col items-center justify-center gap-6">
+              
+              {/* Vùng hiển thị trạng thái "Đang chờ" & Đếm ngược ngay trên QR Code */}
+              <div className="w-full text-center space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/25 text-purple-300 text-xs font-semibold">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                  <span className="animate-pulse">Đang chờ thanh toán...</span>
+                </div>
+                
+                {/* Thời gian đếm ngược */}
+                <div className="text-xs text-slate-400">
+                  Giao dịch tự động hết hạn sau: <span className="font-mono font-bold text-rose-400 text-sm">{formatTime(timeLeft)}</span>
+                </div>
               </div>
-              <div className="text-center">
-                <p className="text-xs font-semibold text-slate-300">Quét mã VietQR để thanh toán</p>
-                <p className="text-[10px] text-slate-500 mt-1 max-w-[200px]">
-                  Mã QR chứa sẵn thông tin tài khoản ngân hàng, số tiền và nội dung chuyển khoản.
+
+              {/* Khung chứa QR có viền pulsing sáng nhẹ báo hiệu chờ kết nối */}
+              <div className="relative p-1.5 bg-gradient-to-tr from-purple-500/20 to-pink-500/20 rounded-3xl shadow-xl">
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-purple-500 to-pink-500 opacity-20 blur-md animate-pulse pointer-events-none" />
+                <div className="bg-white p-3 rounded-2xl relative z-10">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={bankInfo.qrUrl}
+                    alt="Mã QR Chuyển khoản"
+                    className="w-56 h-56 sm:w-64 sm:h-64 object-contain"
+                  />
+                </div>
+              </div>
+
+              <div className="text-center space-y-1 px-2">
+                <p className="text-xs font-bold text-slate-200">Quét mã QR để giao dịch nhanh</p>
+                <p className="text-[11px] text-slate-400 leading-normal max-w-[240px] mx-auto">
+                  Ứng dụng ngân hàng của bạn sẽ tự điền Số tài khoản, Số tiền & Nội dung chuyển khoản.
                 </p>
               </div>
             </div>
