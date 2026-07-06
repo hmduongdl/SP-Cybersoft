@@ -1,7 +1,5 @@
 # SP-CyberSoft — Hệ thống Quản lý Nội bộ
 
-> Nền tảng nội bộ của Song Phương Technology — quản lý check-in Facebook, công việc, thời gian biểu, AI Studio, và đào tạo build PC.
-
 ## Tính năng chính
 
 ### Người dùng
