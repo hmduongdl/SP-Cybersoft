@@ -91,6 +91,7 @@ export function Sidebar() {
       adminOnly: boolean;
       devOnly?: boolean;
       adminOnlyAlert?: boolean;
+      requiresPlan?: "MAX" | "PRO" | "FREE";
     }>;
   }> = [
     {
