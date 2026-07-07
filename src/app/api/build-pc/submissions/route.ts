@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { getStartOfDayVN } from "@/lib/pc-kho";
@@ -155,6 +155,7 @@ export async function POST(request: Request) {
     user?.plan_expires_at ?? null
   );
 
+  let todayCount = 0;
   if (effectivePlan === "FREE" || effectivePlan === "PRO") {
     const tomorrow = getEndOfDayVN(today);
     const todaySubmissions = await db.pcSubmission.findMany({
@@ -164,7 +165,7 @@ export async function POST(request: Request) {
       },
       select: { parts_answer: true },
     });
-    const todayCount = todaySubmissions.filter((submission) => {
+    todayCount = todaySubmissions.filter((submission) => {
       const parts = submission.parts_answer as { is_draft?: unknown } | null;
       return parts?.is_draft !== true;
     }).length;
@@ -219,16 +220,20 @@ export async function POST(request: Request) {
     });
   }
 
-  // Image path: store evidence only, no AI work on submit.
+  const isMax = effectivePlan === "MAX";
+  const isPro = effectivePlan === "PRO";
+  const runAi = isMax; // Chỉ gói MAX mới chạy AI tự động khi nộp bài
+
+  // Image path: store evidence and trigger AI validation based on plan.
   const submission = await db.pcSubmission.create({
     data: {
       user_id: session.user.id,
       exercise_id,
       parts_answer: {
         is_draft: false,
-        is_analyzing: false,
-        analysis_step: "waiting_admin",
-        analysis_message: "Bài nộp đã được ghi nhận và đang chờ phản hồi."
+        is_analyzing: runAi,
+        analysis_step: runAi ? "vision" : "waiting_admin",
+        analysis_message: runAi ? "Đang chuẩn bị đọc ảnh báo giá..." : "Bài nộp đã được ghi nhận và đang chờ phản hồi."
       },
       explanation: explanationStr,
       image_urls: image_urls.slice(0, 3),
@@ -242,6 +247,59 @@ export async function POST(request: Request) {
   });
 
   revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
+
+  if (isMax) {
+    try {
+      const { processPcBuildVision } = await import("@/lib/pc-build-background-worker");
+      const base64Image = image_urls[0];
+      // Gọi inline (blocking) để bóc tách linh kiện từ ảnh bằng gemini-3.5-flash
+      await processPcBuildVision(submission.id, "submission", base64Image);
+      
+      const updatedSubmission = await db.pcSubmission.findUnique({
+        where: { id: submission.id },
+      });
+      
+      return NextResponse.json({
+        success: true,
+        submission: updatedSubmission || submission,
+        status: "PENDING",
+        message: "Đã trích xuất linh kiện xong. Đang phân tích tương thích trong nền...",
+      });
+    } catch (err: any) {
+      console.error("[Submissions/POST] Lỗi phân tích tức thì cho gói MAX:", err);
+    }
+  } else if (isPro) {
+    // Chỉ gửi mail cho admin vào bài nộp thứ 3 trong ngày của tài khoản PRO
+    const totalCountToday = todayCount + 1;
+    if (totalCountToday === 3) {
+      after(() => {
+        import("@/lib/mailer").then(async ({ sendMail }) => {
+          const adminEmail = process.env.ADMIN_EMAIL || "admin@example.com";
+          const userName = session.user.name || session.user.email || "Thành viên PRO";
+          const subject = `[PRO Plan] Thông báo bài nộp thứ 3 của ${userName}`;
+          const html = `
+            <h3>Thông báo nộp bài tập Build PC (Gói PRO)</h3>
+            <p>Thành viên gói PRO <b>${userName}</b> (Email: ${session.user.email}) đã nộp bài tập thứ 3 trong ngày hôm nay.</p>
+            <p>Vui lòng đăng nhập vào trang quản trị để xem và duyệt bài khi có thời gian rảnh.</p>
+            <p><i>Hệ thống tự động thông báo bài thứ 3 và không gửi thêm email trùng lặp khác trong ngày cho tài khoản này.</i></p>
+          `;
+          try {
+            await sendMail({ to: adminEmail, subject, html });
+            console.log(`[PRO email] Notification email sent to admin: ${adminEmail}`);
+          } catch (mailErr) {
+            console.error("[PRO email] Failed to send notification email to admin:", mailErr);
+          }
+        });
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      submission,
+      status: "PENDING",
+      message: "Đã nhận bài. Bài đã được nộp và chờ admin duyệt.",
+    });
+  }
 
   return NextResponse.json({
     success: true,

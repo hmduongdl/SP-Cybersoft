@@ -1,9 +1,10 @@
 import { db } from "@/lib/db";
-import { defaultAI, openaiAI, googleGeminiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
+import { defaultAI, openaiAI, googleGeminiAI, MODEL_VISION_ONLY, MODEL_VISION_LITE, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
 import * as XLSX from "xlsx";
+import { getEffectivePlan } from "@/lib/plan-utils";
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label = "API"): Promise<T> {
   let timeoutId: any;
@@ -641,9 +642,57 @@ Giữ nguyên mã sản phẩm quan trọng, không tự bịa phần không đ�
 Trả về JSON: { "items": [{ "name": "...", "quantity": 0, "price": 0, "total": 0 }], "currency": "VND", "total_amount": 0 }
 Nếu thông tin nào không rõ ràng, hãy để null.`;
 
+    // Lấy thông tin plan của user
+    let userPlan: "FREE" | "PRO" | "MAX" = "FREE";
+    try {
+      if (type === "checkin") {
+        const checkin = await db.checkin.findUnique({
+          where: { id },
+          include: { user: true },
+        });
+        if (checkin?.user) {
+          userPlan = getEffectivePlan(checkin.user.role, checkin.user.plan, checkin.user.plan_expires_at);
+        }
+      } else {
+        const submission = await db.pcSubmission.findUnique({
+          where: { id },
+          include: { user: true },
+        });
+        if (submission?.user) {
+          userPlan = getEffectivePlan(submission.user.role, submission.user.plan, submission.user.plan_expires_at);
+        }
+      }
+    } catch (err) {
+      console.warn("[PcBuildVisionWorker] Error loading user plan, defaulting to FREE:", err);
+    }
+
+    const isLocal = !IS_VERCEL;
+    
+    // Xác định model chính và phụ cho việc bóc tách ảnh
+    // Local: dùng gemini-2.5-flash cho tất cả để tiết kiệm
+    // Production (Vercel):
+    //   - MAX: dùng gemini-3.5-flash chính, gemini-3.1-flash-lite phụ
+    //   - PRO: dùng gemini-3.1-flash-lite chính, gemini-3.5-flash phụ
+    //   - FREE: dùng gemini-3.1-flash-lite chính, gemini-3.5-flash phụ
+    let primaryModel = "gemini-3.1-flash-lite";
+    let fallbackModel = "gemini-3.5-flash";
+
+    if (isLocal) {
+      primaryModel = "gemini-2.5-flash";
+      fallbackModel = "gemini-2.5-flash";
+    } else {
+      if (userPlan === "MAX") {
+        primaryModel = "gemini-3.5-flash";
+        fallbackModel = "gemini-3.1-flash-lite";
+      } else {
+        primaryModel = "gemini-3.1-flash-lite";
+        fallbackModel = "gemini-3.5-flash";
+      }
+    }
+
     const visionAttempts = [
       {
-        name: "Gemini 2.5 Flash (v98store)",
+        name: `Gemini Primary (${primaryModel})`,
         run: async () => {
           if (!process.env.OPENAI_API_KEY) {
             throw new Error("OPENAI_API_KEY not configured");
@@ -651,7 +700,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           const response = await retryWithBackoff(() =>
             withTimeout(
               openaiAI.chat.completions.create({
-                model: MODEL_VISION_ONLY,
+                model: primaryModel,
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
@@ -662,10 +711,40 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                     ],
                   },
                 ],
-                max_tokens: MAX_AI_OUTPUT_TOKENS,
+                max_tokens: 500, // Tối ưu hóa số lượng token đầu ra giúp phản hồi nhanh dưới 10s
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
-              "Vision-Gemini"
+              "Vision-Primary"
+            ),
+            VISION_RETRY_COUNT
+          );
+          return response.choices[0]?.message?.content || "{}";
+        },
+      },
+      {
+        name: `Gemini Fallback (${fallbackModel})`,
+        run: async () => {
+          if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OPENAI_API_KEY not configured");
+          }
+          const response = await retryWithBackoff(() =>
+            withTimeout(
+              openaiAI.chat.completions.create({
+                model: fallbackModel,
+                messages: [
+                  { role: "system", content: extractionPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
+                ],
+                max_tokens: 500,
+              }),
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Vision-Fallback"
             ),
             VISION_RETRY_COUNT
           );
@@ -692,70 +771,10 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                     ],
                   },
                 ],
-                max_tokens: MAX_AI_OUTPUT_TOKENS,
+                max_tokens: 500,
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
               "Vision-GPT4oMini"
-            ),
-            VISION_RETRY_COUNT
-          );
-          return response.choices[0]?.message?.content || "{}";
-        },
-      },
-      {
-        name: "Gemini 2.5 Flash (Google Direct)",
-        run: async () => {
-          if (!process.env.GEMINI_API_KEY) {
-            throw new Error("GEMINI_API_KEY not configured");
-          }
-          const response = await retryWithBackoff(() =>
-            withTimeout(
-              googleGeminiAI.chat.completions.create({
-                model: "gemini-2.5-flash",
-                messages: [
-                  { role: "system", content: extractionPrompt },
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-                    ],
-                  },
-                ],
-                max_tokens: MAX_AI_OUTPUT_TOKENS,
-              }),
-              VISION_EXTRACTION_TIMEOUT_MS,
-              "Vision-Gemini-GoogleDirect"
-            ),
-            VISION_RETRY_COUNT
-          );
-          return response.choices[0]?.message?.content || "{}";
-        },
-      },
-      {
-        name: "Gemini 2.5 Flash (AI-Box)",
-        run: async () => {
-          if (!process.env.AIBOX_API_KEY && !process.env.AIBOX_DEFAULT_API_KEY) {
-            throw new Error("AIBOX API key not configured");
-          }
-          const response = await retryWithBackoff(() =>
-            withTimeout(
-              defaultAI.chat.completions.create({
-                model: MODEL_VISION_ONLY,
-                messages: [
-                  { role: "system", content: extractionPrompt },
-                  {
-                    role: "user",
-                    content: [
-                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
-                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-                    ],
-                  },
-                ],
-                max_tokens: MAX_AI_OUTPUT_TOKENS,
-              }),
-              VISION_EXTRACTION_TIMEOUT_MS,
-              "Vision-Gemini-Aibox"
             ),
             VISION_RETRY_COUNT
           );
@@ -934,7 +953,29 @@ BẮT BUỘC chỉ trả về JSON:
   }
 }`;
 
+    const isLocal = !IS_VERCEL;
+    const compatGeminiModel = isLocal ? "gemini-2.5-flash" : "gemini-3.1-flash-lite";
+
     const compatibilityAttempts = [
+      // Thử 1: Dùng Gemini 3.1 Flash Lite (hoặc 2.5 ở local) để kiểm tra tương thích trước
+      async () => {
+        console.log(`[PcBuildDeepSeekWorker] Attempting compatibility check with Gemini (${compatGeminiModel})...`);
+        const response = await retryWithBackoff(() =>
+          withTimeout(
+            openaiAI.chat.completions.create({
+              model: compatGeminiModel,
+              messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+              response_format: { type: "json_object" },
+              max_tokens: MAX_AI_OUTPUT_TOKENS,
+            }),
+            COMPATIBILITY_TIMEOUT_MS,
+            "Compat-Gemini31"
+          ),
+          AI_RETRY_COUNT
+        );
+        return cleanAndParseJSON(response.choices[0]?.message?.content || "{}");
+      },
+      // Thử 2: DeepSeek Flash (Fallback)
       async () => {
         console.log("[PcBuildDeepSeekWorker] Attempting compatibility check with DeepSeek Flash...");
         const response = await retryWithBackoff(() =>
@@ -954,6 +995,7 @@ BẮT BUỘC chỉ trả về JSON:
       },
       ...(ENABLE_PRO_COMPATIBILITY_FALLBACK
         ? [
+            // Thử 3: DeepSeek Pro (Fallback)
             async () => {
               console.log("[PcBuildDeepSeekWorker] Attempting compatibility check with DeepSeek Pro...");
               const response = await retryWithBackoff(() =>

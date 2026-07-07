@@ -137,10 +137,13 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   
   const expiresAt = new Date(now);
-  if (order.planId === "max" && order.amount === 159000) {
+  if (order.planId === "max" && order.amount === 189000) {
     // 3 + 1 tháng = 4 tháng
     expiresAt.setMonth(expiresAt.getMonth() + 4);
-  } else if (order.amount >= 189000) {
+  } else if (
+    (order.planId === "pro" && order.amount === 189000) ||
+    (order.planId === "max" && order.amount === 689000)
+  ) {
     // Gói năm
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
   } else {

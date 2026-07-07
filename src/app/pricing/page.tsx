@@ -60,11 +60,11 @@ const plans = [
     name: "MAX",
     planKey: "max",
     description: "Dành cho người dùng chuyên sâu",
-    priceMonthly: "59.000đ",
-    priceYearly: "569.000đ",
-    priceMonthlyVal: 59000,
-    priceYearlyVal: 569000,
-    originalYearly: "708.000đ",
+    priceMonthly: "69.000đ",
+    priceYearly: "689.000đ",
+    priceMonthlyVal: 69000,
+    priceYearlyVal: 689000,
+    originalYearly: "828.000đ",
     features: [
       { text: "50 triệu AI token / tháng", included: true },
       { text: "Build PC: Không giới hạn & trả kết quả tức thì", included: true },
@@ -413,8 +413,8 @@ export default function PricingPage() {
                       ) : (
                         <>
                           <span>Mua ngay (3 tháng)</span>
-                          <span className="text-[10px] text-pink-200 line-through font-normal">236K</span>
-                          <span className="text-[10px] text-amber-300 font-extrabold">159K</span>
+                          <span className="text-[10px] text-pink-200 line-through font-normal">276K</span>
+                          <span className="text-[10px] text-amber-300 font-extrabold">189K</span>
                         </>
                       )}
                     </button>

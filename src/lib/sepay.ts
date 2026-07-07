@@ -12,7 +12,7 @@ export const PLAN_NAMES: Record<string, string> = {
 
 export const PLAN_PRICES: Record<string, Record<string, number>> = {
   pro: { monthly: 18000, yearly: 189000 },
-  max: { monthly: 59000, yearly: 569000 },
+  max: { monthly: 69000, yearly: 689000 },
 };
 
 /**

@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     if (planId !== "max") {
       return NextResponse.json({ error: "Khuyến mãi chỉ áp dụng cho gói MAX" }, { status: 400 });
     }
-    amount = 159000;
+    amount = 189000;
   } else {
     amount = PLAN_PRICES[planId][cycle];
   }

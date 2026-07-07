@@ -1,12 +1,17 @@
 import OpenAI from "openai";
 
+const IS_VERCEL = process.env.VERCEL === "1";
+
 export const MODEL_CHAT_PRO = process.env.MODEL_DEEPSEEK_PRO || "deepseek-v4-pro[1m]";
 export const MODEL_CHAT_FLASH = process.env.MODEL_DEEPSEEK_FLASH || "deepseek-v4-flash[1m]";
-export const MODEL_VISION_ONLY = process.env.MODEL_VISION_ONLY || process.env.MODEL_GEMINI_VISION || "gemini-2.5-flash";
-export const MODEL_VISION_THINKING = process.env.MODEL_VISION_THINKING || "gemini-2.5-flash";
+
+// Local dùng gemini-2.5-flash để tiết kiệm. Vercel dùng gemini-3.5-flash (chính) và gemini-3.1-flash-lite (phụ).
+export const MODEL_VISION_ONLY = process.env.MODEL_VISION_ONLY || process.env.MODEL_GEMINI_VISION || (IS_VERCEL ? "gemini-3.5-flash" : "gemini-2.5-flash");
+export const MODEL_VISION_LITE = IS_VERCEL ? "gemini-3.1-flash-lite" : "gemini-2.5-flash";
+export const MODEL_VISION_THINKING = IS_VERCEL ? "gemini-3.5-flash" : "gemini-2.5-flash";
 
 // Danh sách model CHỈ được dùng cho vision (image input), không cho chat text
-export const VISION_ONLY_MODELS = [MODEL_VISION_ONLY, MODEL_VISION_THINKING];
+export const VISION_ONLY_MODELS = [MODEL_VISION_ONLY, MODEL_VISION_THINKING, MODEL_VISION_LITE];
 
 const globalForAI = global as unknown as {
   defaultAI?: OpenAI;
