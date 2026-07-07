@@ -197,73 +197,67 @@ export default function BuildPcQueueClient({
   const handleProcess = async (ids: string[]) => {
     setLoading(true);
     setProcessingAction("PROCESS");
-    setProgress(5);
-    setProgressStep(STEPS[0].label);
+    setProgress(0);
+    setProgressStep("Bắt đầu xử lý hàng chờ...");
     setAnalysisPhase("connecting");
 
-    let currentStep = 0;
-    let currentProgress = 5;
-    const intervalId = setInterval(() => {
-      const step = STEPS[currentStep];
-      if (!step || currentProgress >= 95) return;
-
-      const [minPct, maxPct] = step.pct;
-      if (currentProgress < maxPct) {
-        currentProgress += Math.floor(Math.random() * 5) + 1;
-        if (currentProgress > maxPct) {
-          if (currentStep < STEPS.length - 1) {
-            currentStep++;
-            currentProgress = STEPS[currentStep].pct[0];
-            setProgressStep(STEPS[currentStep].label);
-            setAnalysisPhase(STEPS[currentStep].phase);
-          } else {
-            currentProgress = maxPct;
-          }
-        }
-        setProgress(currentProgress);
-      }
-    }, 600);
-
     try {
-      const res = await fetch("/api/admin/build-pc/action", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionIds: ids, action: "PROCESS" }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const total = ids.length;
+      let completed = 0;
 
-      clearInterval(intervalId);
-      setAnalysisPhase("done");
-      setProgressStep("Hoàn tất phân tích cấu hình.");
-      setProgress(100);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      for (const id of ids) {
+        const submission = submissions.find(s => s.id === id);
+        const name = submission?.user?.name || submission?.user?.email || "Bài nộp";
+        setProgressStep(`Đang duyệt bài của ${name} (${completed + 1}/${total})...`);
+        setAnalysisPhase("vision");
+        setProgress(Math.round((completed / total) * 100) + 5);
 
-      setProcessingAction(null);
-      if (Array.isArray(data.results) && data.results.length > 0) {
-        setSubmissions((prev) =>
-          prev.map((submission) => {
-            const updated = data.results.find((item: any) => item.id === submission.id);
-            return updated
-              ? {
-                  ...submission,
-                  status: updated.status,
-                  ai_score: updated.ai_score,
-                  ai_feedback: updated.ai_feedback,
-                  reject_reason: updated.reject_reason,
-                  parts_answer: updated.parts_answer ?? submission.parts_answer,
-                  image_urls: updated.image_urls ?? submission.image_urls,
-                }
-              : submission;
-          })
-        );
+        try {
+          const res = await fetch("/api/admin/build-pc/action", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ submissionIds: [id], action: "PROCESS" }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Lỗi xử lý.");
+
+          if (Array.isArray(data.results) && data.results.length > 0) {
+            setSubmissions((prev) =>
+              prev.map((sub) => {
+                const updated = data.results.find((item: any) => item.id === sub.id);
+                return updated
+                  ? {
+                      ...sub,
+                      status: updated.status,
+                      ai_score: updated.ai_score,
+                      ai_feedback: updated.ai_feedback,
+                      reject_reason: updated.reject_reason,
+                      parts_answer: updated.parts_answer ?? sub.parts_answer,
+                      image_urls: updated.image_urls ?? sub.image_urls,
+                    }
+                  : sub;
+              })
+            );
+          }
+        } catch (err: any) {
+          console.error(`Lỗi khi xử lý bài ${id}:`, err);
+          toast.error(`Lỗi khi xử lý bài của ${name}: ${err.message || err}`);
+        }
+
+        completed++;
+        setProgress(Math.round((completed / total) * 100));
       }
-      toast.success("AI đã phân tích và ra quyết định tự động.");
+
+      setAnalysisPhase("done");
+      setProgressStep("Hoàn tất xử lý tất cả bài tập.");
+      setProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      setProcessingAction(null);
+      toast.success("Đã hoàn tất hàng chờ phân tích AI.");
       router.refresh();
     } catch (err: unknown) {
-      clearInterval(intervalId);
       setAnalysisPhase("error");
-      setProgressStep("Lỗi: AI không hoàn tất được quy trình phân tích.");
+      setProgressStep("Lỗi hàng chờ xử lý.");
       toast.error(err instanceof Error ? err.message : "Lỗi xử lý.");
     } finally {
       setLoading(false);
@@ -659,6 +653,17 @@ export default function BuildPcQueueClient({
                 <span className="shrink-0 ml-2">{progress}%</span>
               </div>
             </div>
+
+            {analysisPhase === "error" && (
+              <div className="flex justify-end pt-2">
+                <button
+                  onClick={() => setProcessingAction(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-50 text-rose-700 hover:bg-rose-100/80 active:scale-[0.98] transition-all cursor-pointer border-none font-inter"
+                >
+                  Đóng
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

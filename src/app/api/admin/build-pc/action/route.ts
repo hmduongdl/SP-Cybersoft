@@ -16,6 +16,7 @@ import { cleanupExpiredBuildPcImages, CLEANED_IMAGE_MARKER } from "@/lib/pc-buil
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120; // Allow up to 120s for long-running AI vision requests
 
 const CHECKIN_ID_PREFIX = "checkin:";
 const PC_SCORE_START_AT = new Date("2026-07-01T17:00:00Z"); // Start of 02/07/2026 VN time

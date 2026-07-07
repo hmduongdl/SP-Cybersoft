@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { defaultAI, openaiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
+import { defaultAI, openaiAI, googleGeminiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
@@ -666,6 +666,96 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
               "Vision-Gemini"
+            ),
+            VISION_RETRY_COUNT
+          );
+          return response.choices[0]?.message?.content || "{}";
+        },
+      },
+      {
+        name: "GPT-4o-Mini (v98store)",
+        run: async () => {
+          if (!process.env.OPENAI_API_KEY) {
+            throw new Error("OPENAI_API_KEY not configured");
+          }
+          const response = await retryWithBackoff(() =>
+            withTimeout(
+              openaiAI.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: extractionPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
+                ],
+                max_tokens: MAX_AI_OUTPUT_TOKENS,
+              }),
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Vision-GPT4oMini"
+            ),
+            VISION_RETRY_COUNT
+          );
+          return response.choices[0]?.message?.content || "{}";
+        },
+      },
+      {
+        name: "Gemini 2.5 Flash (Google Direct)",
+        run: async () => {
+          if (!process.env.GEMINI_API_KEY) {
+            throw new Error("GEMINI_API_KEY not configured");
+          }
+          const response = await retryWithBackoff(() =>
+            withTimeout(
+              googleGeminiAI.chat.completions.create({
+                model: "gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: extractionPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
+                ],
+                max_tokens: MAX_AI_OUTPUT_TOKENS,
+              }),
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Vision-Gemini-GoogleDirect"
+            ),
+            VISION_RETRY_COUNT
+          );
+          return response.choices[0]?.message?.content || "{}";
+        },
+      },
+      {
+        name: "Gemini 2.5 Flash (AI-Box)",
+        run: async () => {
+          if (!process.env.AIBOX_API_KEY && !process.env.AIBOX_DEFAULT_API_KEY) {
+            throw new Error("AIBOX API key not configured");
+          }
+          const response = await retryWithBackoff(() =>
+            withTimeout(
+              defaultAI.chat.completions.create({
+                model: MODEL_VISION_ONLY,
+                messages: [
+                  { role: "system", content: extractionPrompt },
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: "Trích xuất thông tin từ bảng báo giá này:" },
+                      { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+                    ],
+                  },
+                ],
+                max_tokens: MAX_AI_OUTPUT_TOKENS,
+              }),
+              VISION_EXTRACTION_TIMEOUT_MS,
+              "Vision-Gemini-Aibox"
             ),
             VISION_RETRY_COUNT
           );

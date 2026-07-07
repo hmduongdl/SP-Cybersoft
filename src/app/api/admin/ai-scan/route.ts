@@ -10,6 +10,7 @@ import { updateUserTrustScore } from "@/lib/trust-score";
 import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 120; // Allow up to 120s for long-running AI vision checks
 
 export async function POST(request: Request) {
   try {

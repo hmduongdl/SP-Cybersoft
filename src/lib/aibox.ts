@@ -12,6 +12,7 @@ const globalForAI = global as unknown as {
   defaultAI?: OpenAI;
   codexAI?: OpenAI;
   openaiAI?: OpenAI;
+  googleGeminiAI?: OpenAI;
 };
 
 export const defaultAI =
@@ -36,6 +37,14 @@ export const openaiAI =
     baseURL: process.env.OPENAI_BASE_URL || "https://v98store.com/v1",
   });
 
+// Official Google Gemini API client (Direct integration - no proxy)
+export const googleGeminiAI =
+  globalForAI.googleGeminiAI ||
+  new OpenAI({
+    apiKey: process.env.GEMINI_API_KEY || "dummy-key",
+    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai",
+  });
+
 // Backward-compatible alias for existing text/chat call sites.
 export const aibox = defaultAI;
 
@@ -43,4 +52,5 @@ if (process.env.NODE_ENV !== "production") {
   globalForAI.defaultAI = defaultAI;
   globalForAI.codexAI = codexAI;
   globalForAI.openaiAI = openaiAI;
+  globalForAI.googleGeminiAI = googleGeminiAI;
 }

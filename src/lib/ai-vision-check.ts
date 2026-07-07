@@ -8,7 +8,7 @@
  * Dùng chung cho cả /api/checkins (auto-approve) và /api/admin/ai-scan (on-demand).
  */
 
-import { defaultAI, openaiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
+import { defaultAI, openaiAI, googleGeminiAI, MODEL_VISION_ONLY, MODEL_CHAT_FLASH, MODEL_CHAT_PRO } from "@/lib/aibox";
 
 function isCodexTimeWindow(): boolean {
   try {
@@ -134,6 +134,123 @@ export async function runVisionCheck(
 2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
 3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
 4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
+Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
+                  },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 1500,
+          }),
+          VISION_TIMEOUT_MS
+        )
+      );
+
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
+    },
+    async () => {
+      if (!process.env.OPENAI_API_KEY) {
+        throw new Error("OPENAI_API_KEY not configured for vision check");
+      }
+      console.log("[ai-vision-check] Attempting extraction via GPT-4o-Mini (v98store)...");
+
+      const res = await retryWithBackoff(() =>
+        withTimeout(
+          openaiAI.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
+2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
+3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
+4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
+Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
+                  },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 1500,
+          }),
+          VISION_TIMEOUT_MS
+        )
+      );
+
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
+    },
+    async () => {
+      if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY not configured for vision check");
+      }
+      console.log("[ai-vision-check] Attempting extraction via Gemini 2.5 Flash (Google Direct)...");
+
+      const res = await retryWithBackoff(() =>
+        withTimeout(
+          googleGeminiAI.chat.completions.create({
+            model: "gemini-2.5-flash",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
+2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
+3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
+4. "is_social_ui": true nếu đây là giao diện mạng xã hội thật (Facebook, Zalo, LinkedIn...) — không bị cắt ghép, chỉnh sửa hoặc giả mạo rõ ràng; false nếu nghi ngờ.
+Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
+                  },
+                  {
+                    type: "image_url",
+                    image_url: { url: `data:${mimeType};base64,${base64Image}` },
+                  },
+                ],
+              },
+            ],
+            max_tokens: 1500,
+          }),
+          VISION_TIMEOUT_MS
+        )
+      );
+
+      const aiContent = res.choices[0]?.message?.content || "{}";
+      return cleanAndParseJSON(aiContent);
+    },
+    async () => {
+      if (!process.env.AIBOX_API_KEY && !process.env.AIBOX_DEFAULT_API_KEY) {
+        throw new Error("AIBOX API key not configured for vision check");
+      }
+      console.log("[ai-vision-check] Attempting extraction via Gemini 2.5 Flash (AI-Box)...");
+
+      const res = await retryWithBackoff(() =>
+        withTimeout(
+          defaultAI.chat.completions.create({
+            model: MODEL_VISION_ONLY,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Đọc ảnh chụp màn hình này và trả về JSON với các trường sau:
+1. "extracted_username": Tên hiển thị của người đã đăng/chia sẻ bài viết trong ảnh.
+2. "extracted_title": Tiêu đề hoặc nội dung chính của bài viết trong ảnh.
+3. "is_public_mode": true nếu ảnh hiển thị biểu tượng/chữ "Công khai" / "Public" / icon quả địa cầu (globe), ngược lại false.
+4. "is_social_ui": true if this is a real social media UI (Facebook, Zalo, LinkedIn...) — not visibly doctored or fake; false if doubtful.
 Trả về đúng định dạng JSON trong cặp dấu ngoặc nhọn, không kèm giải thích.`,
                   },
                   {
