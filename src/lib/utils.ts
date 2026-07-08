@@ -18,17 +18,31 @@ export function safeParseISO(value?: string | null): Date | null {
 }
 
 /**
- * Lấy deadline của bài viết: 12h trưa của ngày hôm sau (theo giờ Việt Nam UTC+7)
+ * Lấy deadline của bài viết theo giờ Việt Nam (UTC+7).
+ *
+ * Rule:
+ * - Mặc định: deadline = 12:00 trưa của ngày hôm sau.
+ * - Nếu `start_at` sau 18:00 (VN time) => deadline = 15:00 chiều của ngày hôm sau.
+ *
+ * Lưu ý: "sau 18h" hiểu là `hour > 18` (18:00 đúng sẽ vẫn dùng 12:00 trưa).
  */
 export function getPostDeadline(startAt: Date | string | number): Date {
   const d = new Date(startAt);
-  const utcMs = d.getTime();
-  const vnTime = new Date(utcMs + 7 * 60 * 60 * 1000);
-  
+  // Shift sang VN để đọc giờ/phút "đúng local VN"
+  const vnMs = d.getTime() + 7 * 60 * 60 * 1000;
+  const vnTime = new Date(vnMs);
+
   const year = vnTime.getUTCFullYear();
   const month = vnTime.getUTCMonth();
   const date = vnTime.getUTCDate();
-  
-  const deadlineVnFakeUtc = new Date(Date.UTC(year, month, date + 1, 12, 0, 0, 0));
+
+  const hour = vnTime.getUTCHours();
+  // Nếu start_at từ 18:00 trở đi (18:xx) => deadline 15:00 ngày hôm sau
+  const isAfter18 = hour >= 18;
+
+  const deadlineHour = isAfter18 ? 15 : 12;
+
+  // Dựng "deadline VN" dưới dạng fake-UTC, rồi trừ lại offset để ra Date đúng thực tế.
+  const deadlineVnFakeUtc = new Date(Date.UTC(year, month, date + 1, deadlineHour, 0, 0, 0));
   return new Date(deadlineVnFakeUtc.getTime() - 7 * 60 * 60 * 1000);
 }

@@ -92,6 +92,9 @@ export default function PricingPage() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
+  // Làm tròn về số chẵn gần nhất để hiển thị giá "hàng năm quy đổi / tháng"
+  const roundToEven = (value: number) => Math.round(value / 2) * 2;
+
   // Kiểm tra thời gian khuyến mãi (06/07/2026 - 25/08/2026)
   const now = new Date();
   const promoStart = new Date("2026-07-06T00:00:00+07:00");
@@ -271,7 +274,7 @@ export default function PricingPage() {
                       <span className="text-slate-500 line-through text-[11px] lg:text-xs font-medium mb-0.5">
                         {(() => {
                           const originalVal = parseInt(plan.originalYearly.replace(/\D/g, ""), 10);
-                          return `${Math.round(originalVal / 12).toLocaleString("vi-VN")}đ`;
+                          return `${roundToEven(originalVal / 12).toLocaleString("vi-VN")}đ`;
                         })()} / tháng
                       </span>
                     )}
@@ -280,10 +283,10 @@ export default function PricingPage() {
                         {plan.priceMonthly === "FREE" ? (
                           "FREE"
                         ) : !mounted ? (
-                          isYearly ? `${Math.round(plan.priceYearlyVal / 12).toLocaleString("vi-VN")}đ` : plan.priceMonthly
+                          isYearly ? `${roundToEven(plan.priceYearlyVal / 12).toLocaleString("vi-VN")}đ` : plan.priceMonthly
                         ) : (
                           <CountUp
-                            end={isYearly ? Math.round(plan.priceYearlyVal / 12) : plan.priceMonthlyVal}
+                            end={isYearly ? roundToEven(plan.priceYearlyVal / 12) : plan.priceMonthlyVal}
                             separator="."
                             duration={0.4}
                             suffix="đ"
