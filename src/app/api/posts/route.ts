@@ -237,20 +237,31 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'Vui lòng cung cấp danh sách ID và dữ liệu cần cập nhật.' }, { status: 400 });
         }
 
+        // Khi khoá/mở khoá: đồng bộ allow_late_submit để bài quá hạn không bị auto-lock lại.
+        const sharePostData: Record<string, unknown> = { ...data };
+        if (typeof data.is_archived === "boolean") {
+            sharePostData.allow_late_submit = !data.is_archived;
+        }
+
         // Update both Share Posts and PC Build Tasks independently so one failure doesn't block the other
         try {
             await db.post.updateMany({
                 where: { id: { in: ids } },
-                data,
+                data: sharePostData,
             });
         } catch (err) {
             console.error("Failed to update Share Posts:", err);
         }
 
         try {
+            // PcBuildTask không có allow_late_submit
+            const { allow_late_submit: _ignored, ...pcBuildData } = sharePostData as {
+                allow_late_submit?: boolean;
+                [key: string]: unknown;
+            };
             await db.pcBuildTask.updateMany({
                 where: { id: { in: ids } },
-                data,
+                data: Object.keys(pcBuildData).length > 0 ? pcBuildData : data,
             });
         } catch (err) {
             console.error("Failed to update PC Build Tasks:", err);

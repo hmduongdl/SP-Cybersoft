@@ -47,11 +47,16 @@ export async function PATCH(request: Request, { params }: RouteContext) {
             }
         }
 
-        // Handle simple field updates (e.g. is_archived toggle) without full schema validation
+        // Handle simple field updates (e.g. is_archived toggle) without full schema validation.
+        // Mở khóa bài quá hạn => bật allow_late_submit để không bị auto-lock lại.
+        // Khoá bài => tắt allow_late_submit.
         if (body.is_archived !== undefined && Object.keys(body).length === 1) {
             const post = await db.post.update({
                 where: { id },
-                data: { is_archived: body.is_archived },
+                data: {
+                    is_archived: body.is_archived,
+                    allow_late_submit: !body.is_archived,
+                },
             });
             revalidateTag(CACHE_TAGS.POSTS_LIST, "default");
             revalidateTag(CACHE_TAGS.DASHBOARD_STATS, "default");
