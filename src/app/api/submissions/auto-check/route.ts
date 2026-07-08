@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { getPostDeadline } from "@/lib/utils";
 
 export async function POST(request: Request) {
   try {
@@ -34,14 +35,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Ràng buộc thời gian 24h — bỏ qua nếu Admin đã mở khóa nộp bù
+    // 2. Ràng buộc thời hạn theo rule deadline — bỏ qua nếu Admin đã mở khóa nộp bù
     const serverTime = new Date();
-    const postTime = new Date(post.start_at);
-    const deadline = new Date(postTime.getTime() + 24 * 60 * 60 * 1000);
+    const deadline = getPostDeadline(post.start_at);
 
     if (serverTime > deadline && !post.allow_late_submit) {
       return NextResponse.json(
-        { success: false, message: "Quá thời hạn 24 giờ quy định để tự động check-in bài viết này." },
+        { success: false, message: "Quá thời hạn quy định để tự động check-in bài viết này." },
         { status: 400 }
       );
     }

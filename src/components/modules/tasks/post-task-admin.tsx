@@ -26,7 +26,7 @@ import {
   CheckCircle2,
   Sparkles
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getPostDeadline } from "@/lib/utils";
 import { formatDateTime, formatDateTimeWithTime, getLocalDateKey, DAILY_POST_LIMIT } from "@/lib/posts";
 import { Card } from "@/components/ui/card";
 import { Pagination } from "@/components/ui/pagination";
@@ -709,12 +709,31 @@ export function PostTaskAdmin() {
 
                       {/* Status */}
                       <td className="px-6 py-4">
-                        <span className={cn(
-                          "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border-none font-inter",
-                          post.is_archived ? "bg-rose-500/10 text-rose-600" : "bg-emerald-500/10 text-emerald-700"
-                        )}>
-                          {post.is_archived ? "Đã khóa" : "Hoạt động"}
-                        </span>
+                        {(() => {
+                          const isPastDeadline = Date.now() > getPostDeadline(post.start_at).getTime();
+                          const isLocked = post.is_archived && !post.allow_late_submit;
+                          const isLateOpen = !post.is_archived && post.allow_late_submit && isPastDeadline;
+
+                          if (isLocked) {
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border-none font-inter bg-rose-500/10 text-rose-600">
+                                Đã khóa
+                              </span>
+                            );
+                          }
+                          if (isLateOpen) {
+                            return (
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border-none font-inter bg-amber-500/10 text-amber-700">
+                                Đang mở nộp bù
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[10px] font-bold border-none font-inter bg-emerald-500/10 text-emerald-700">
+                              Hoạt động
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Actions */}

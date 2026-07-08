@@ -28,6 +28,7 @@ import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { computeAHash, hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
 import { processBackgroundCheckinReview } from "@/lib/checkin-background-worker";
+import { getPostDeadline } from "@/lib/utils";
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
@@ -43,7 +44,6 @@ const ALLOWED_MIME_TYPES = [
 ] as const;
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
-const WINDOW_MS = 24 * 60 * 60 * 1000; // 24 giờ tính bằng milliseconds
 
 // ─── Helper: parse EXIF từ Buffer ─────────────────────────────────────────────
 
@@ -286,14 +286,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── 4b. Kiểm tra cửa sổ 24h của Post ────────────────────────────────────
+    // ── 4b. Kiểm tra cửa sổ nộp bài theo rule deadline (12h/15h ngày hôm sau) ─
     // Người dùng không được nộp sau khi cửa sổ đã đóng, trừ khi Admin đã mở khóa nộp bù.
-    const windowEndMs = new Date(post.start_at).getTime() + WINDOW_MS;
+    const windowEndMs = getPostDeadline(post.start_at).getTime();
     if (Date.now() > windowEndMs && !post.allow_late_submit) {
       return NextResponse.json(
         {
           success: false,
-          error: "Cửa sổ nộp bài 24h đã kết thúc. Vui lòng liên hệ HR Admin nếu cần hỗ trợ.",
+          error: "Cửa sổ nộp bài đã kết thúc. Vui lòng liên hệ HR Admin nếu cần hỗ trợ.",
         },
         { status: 422 }
       );
