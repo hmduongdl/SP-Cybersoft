@@ -5,6 +5,14 @@ import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
 import * as XLSX from "xlsx";
 import { getEffectivePlan } from "@/lib/plan-utils";
+import {
+  isKnownArrowLakePair,
+  isPantherLakeDesktopMisread,
+  normalizeHardwareMatch,
+} from "@/lib/pc-build-hardware-config";
+import { buildCompatibilityPrompt } from "@/lib/pc-build-prompts";
+
+const normalizeForRequirementMatch = normalizeHardwareMatch;
 
 async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label = "API"): Promise<T> {
   let timeoutId: any;
@@ -51,6 +59,50 @@ async function retryWithBackoff<T>(
   }
 }
 
+const repairTruncatedJSON = (str: string): string => {
+  let repaired = str.trim();
+
+  // Cắt tại item hoàn chỉnh cuối cùng nếu response bị truncate giữa object
+  const lastCompleteItem = repaired.lastIndexOf("},");
+  if (lastCompleteItem > 0) {
+    repaired = repaired.slice(0, lastCompleteItem + 1);
+  } else {
+    const lastBrace = repaired.lastIndexOf("}");
+    if (lastBrace > 0) {
+      repaired = repaired.slice(0, lastBrace + 1);
+    }
+  }
+
+  // Đóng các bracket/brace còn mở (bỏ qua ký tự trong string)
+  const stack: Array<"{" | "["> = [];
+  let inString = false;
+  let escaped = false;
+  for (const ch of repaired) {
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === "\\" && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") stack.push("{");
+    else if (ch === "[") stack.push("[");
+    else if ((ch === "}" || ch === "]") && stack.length > 0) stack.pop();
+  }
+
+  while (stack.length > 0) {
+    repaired += stack.pop() === "[" ? "]" : "}";
+  }
+
+  return repaired;
+};
+
 const cleanAndParseJSON = (str: string): any => {
   try {
     let cleanStr = str.trim();
@@ -76,19 +128,13 @@ const cleanAndParseJSON = (str: string): any => {
     try {
       return JSON.parse(cleanStr);
     } catch (_) {
-      // Try auto-repair for truncated JSON: find last complete top-level closing brace
-      const lastBrace = cleanStr.lastIndexOf("},");
-      if (lastBrace > 0) {
-        // Close open arrays/objects after last complete entry
-        let repaired = cleanStr.slice(0, lastBrace + 1);
-        // Count unclosed brackets
-        let open = 0;
-        for (const ch of repaired) { if (ch === "{" || ch === "[") open++; else if (ch === "}" || ch === "]") open--; }
-        for (let i = 0; i < open; i++) repaired += "}";
-        try { return JSON.parse(repaired); } catch (_2) { /* fall through */ }
+      const repaired = repairTruncatedJSON(cleanStr);
+      try {
+        return JSON.parse(repaired);
+      } catch (_2) {
+        console.error("[cleanAndParseJSON] Failed to parse (even after repair):", cleanStr.slice(0, 500));
+        return {};
       }
-      console.error("[cleanAndParseJSON] Failed to parse (even after repair):", cleanStr.slice(0, 500));
-      return {};
     }
   } catch (e) {
     console.error("[cleanAndParseJSON] Outer error:", e);
@@ -195,15 +241,67 @@ const ensureCompatibilityChecks = (result: any): any => {
 };
 
 const BUDGET_OVERAGE_LIMIT_RATIO = 0.02;
-const STRICT_PC_BUILD_REVIEW_RULES = `
-QUY TẮC CHẤM ĐIỂM NGHIÊM KHẮC:
-- Sai hoặc thiếu bất kỳ ràng buộc bắt buộc nào của đề bài thì requirement_fit phải FAIL, isApproved=false, điểm phải thấp.
-- Không được duyệt nương tay vì cấu hình "có vẻ dùng được"; phải bám sát đúng nhu cầu, ngân sách và yêu cầu tối thiểu.
-- Thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột đều là lỗi cần ghi nhận nếu đề không nói rõ là không yêu cầu.
-- Bài có lỗi kỹ thuật nghiêm trọng như sai socket, RAM sai chuẩn, nguồn thiếu, không xuất hình phải bị từ chối và đánh giá rất thấp.
-- Hạn chế tối đa điểm 100. Chỉ cho 100 khi cấu hình đáp ứng rất sát đề, tất cả check PASS, tổng giá không vượt ngân sách gốc và không có cảnh báo đáng kể.
-- Không tiết lộ thang điểm, hệ số phạt, công thức chấm hoặc số điểm bị trừ trong reason/feedback; chỉ nêu lỗi cụ thể và cách sửa.
-`;
+
+/** Hệ số trừ điểm — chỉnh tập trung khi có phản hồi từ học viên/giảng viên */
+const SCORE_PENALTIES = {
+  missingCooler: 6,
+  missingMonitor: 8,
+  missingKeyboard: 5,
+  missingMouse: 5,
+  technicalFailEach: 20,
+  approvedWithFailBase: 80,
+  failEach: 10,
+  warnEach: 3,
+  failEachRejected: 12,
+  rejectedRequirementBase: 45,
+  rejectedTechnicalBase: 35,
+  rejectedFailBase: 55,
+  rejectedMin: 35,
+  approvedMin: 70,
+  perfectScore: 100,
+  budgetWarnBase: 94,
+  approvedBase: 98,
+} as const;
+
+const VISION_MODEL_IDS = {
+  GEMINI_LITE: "gemini-3.1-flash-lite",
+  GEMINI_FLASH: "gemini-3.5-flash",
+  GEMINI_LOCAL: "gemini-2.5-flash",
+  GPT4O_MINI: "gpt-4o-mini",
+} as const;
+
+type UserPlan = "FREE" | "PRO" | "MAX";
+
+const VISION_MODEL_BY_PLAN: Record<UserPlan | "LOCAL", { primary: string; fallback: string; tertiary: string }> = {
+  LOCAL: {
+    primary: VISION_MODEL_IDS.GEMINI_LOCAL,
+    fallback: VISION_MODEL_IDS.GEMINI_LOCAL,
+    tertiary: VISION_MODEL_IDS.GPT4O_MINI,
+  },
+  FREE: {
+    primary: VISION_MODEL_IDS.GEMINI_LITE,
+    fallback: VISION_MODEL_IDS.GEMINI_FLASH,
+    tertiary: VISION_MODEL_IDS.GPT4O_MINI,
+  },
+  PRO: {
+    primary: VISION_MODEL_IDS.GEMINI_LITE,
+    fallback: VISION_MODEL_IDS.GEMINI_FLASH,
+    tertiary: VISION_MODEL_IDS.GPT4O_MINI,
+  },
+  MAX: {
+    primary: VISION_MODEL_IDS.GEMINI_FLASH,
+    fallback: VISION_MODEL_IDS.GEMINI_LITE,
+    tertiary: VISION_MODEL_IDS.GPT4O_MINI,
+  },
+};
+
+function getVisionModelsForPlan(userPlan: UserPlan, isLocal: boolean) {
+  return VISION_MODEL_BY_PLAN[isLocal ? "LOCAL" : userPlan];
+}
+
+function getCompatGeminiModel(isLocal: boolean): string {
+  return isLocal ? VISION_MODEL_IDS.GEMINI_LOCAL : VISION_MODEL_IDS.GEMINI_LITE;
+}
 
 const formatVND = (amount: number): string => `${Math.round(amount).toLocaleString("vi-VN")} VNĐ`;
 
@@ -211,7 +309,253 @@ const getApprovedBudgetLimit = (budget: number): number => {
   return budget > 0 ? Math.floor(budget * (1 + BUDGET_OVERAGE_LIMIT_RATIO)) : 0;
 };
 
-const enforceRequirementFitGate = (result: any): any => {
+const STALE_RELEASE_CLAUSE_PATTERN =
+  /(chua ra mat|chua phat hanh|chua co tren thi truong|chua len ke|not yet released|hasn.?t been released)/i;
+
+const isStaleReleaseClause = (clause: string, partNames: string): boolean => {
+  const normalizedClause = normalizeForRequirementMatch(clause);
+  const normalizedParts = normalizeForRequirementMatch(partNames);
+  if (!STALE_RELEASE_CLAUSE_PATTERN.test(normalizedClause)) return false;
+
+  const rtxMatch = normalizedClause.match(/rtx\s*50\d{2}/);
+  if (rtxMatch && normalizedParts.includes(rtxMatch[0].replace(/\s/g, ""))) return true;
+
+  if (
+    /(vga|card|geforce|rtx|core ultra|ryzen)/.test(normalizedClause) &&
+    /(rtx\s*50|core ultra|ryzen\s*9)/.test(normalizedParts)
+  ) {
+    return true;
+  }
+
+  return STALE_RELEASE_CLAUSE_PATTERN.test(normalizedClause);
+};
+
+const sanitizeStaleProductRejection = (result: any): any => {
+  if (!result?.checks?.requirement_fit) return result;
+
+  const check = result.checks.requirement_fit;
+  const status = String(check.status || "").toUpperCase();
+  if (status !== "FAIL" && status !== "WARN") return result;
+
+  const partNames = Object.values(result.matched_parts || {})
+    .filter((part): part is Record<string, unknown> => !!part && typeof part === "object")
+    .map((part) => String(part.name || ""))
+    .join(" ");
+
+  const fullText = [check.message, result.reason].filter(Boolean).join(" ");
+  const clauses = fullText
+    .split(/(?:->|;|\n)+/)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+
+  const keptClauses = clauses.filter((clause) => !isStaleReleaseClause(clause, partNames));
+  if (keptClauses.length === clauses.length) return result;
+
+  const newMessage =
+    keptClauses.join("; ") ||
+    "Cấu hình dùng linh kiện có trên báo giá; không đánh giá FAIL vì nhận định sai 'sản phẩm chưa ra mắt'.";
+
+  const hasSubstantiveIssue = keptClauses.some((clause) =>
+    /(khong du|thieu|sai|khong dap ung|khong phu hop|vuot|khong dat)/i.test(normalizeForRequirementMatch(clause))
+  );
+
+  result.checks.requirement_fit = {
+    status: hasSubstantiveIssue ? (status === "FAIL" ? "WARN" : status) : "PASS",
+    message: newMessage,
+  };
+
+  if (result.reason && isStaleReleaseClause(String(result.reason), partNames)) {
+    result.reason = newMessage;
+  }
+
+  if (!hasSubstantiveIssue && result.isApproved === false && status === "FAIL") {
+    const otherBlocking = ["display_output", "socket", "ram", "power", "case", "budget"].some(
+      (key) => String(result?.checks?.[key]?.status || "").toUpperCase() === "FAIL"
+    );
+    if (!otherBlocking) {
+      result.isApproved = true;
+      result.reason = result.reason || "Cấu hình đạt yêu cầu sau khi loại nhận định sai về sản phẩm chưa ra mắt.";
+    }
+  }
+
+  return result;
+};
+
+const hasDiscreteGpuInBuild = (parts: Record<string, unknown>): boolean =>
+  hasNamedPart(parts?.vga);
+
+const requiresAftermarketCooler = (requirementsText: string): boolean => {
+  const normalized = normalizeForRequirementMatch(requirementsText);
+  return /(aio|tan nhiet nuoc|tan nhiet roi|cooler roi|aftermarket|tản nhiệt rời)/.test(normalized) &&
+    !isPartExplicitlyNotRequired(requirementsText, ["tan nhiet", "cooler"]);
+};
+
+const cpuHasStockCoolerAssumed = (cpuName: string, requirementsText: string): boolean => {
+  const normalized = normalizeForRequirementMatch(cpuName);
+  if (!normalized.trim()) return false;
+  if (requiresAftermarketCooler(requirementsText)) return false;
+  if (/(tray|oem|khong kem fan|khong kem tan|boxless)/.test(normalized)) return false;
+  return true;
+};
+
+const splitReviewClauses = (text: string): string[] =>
+  text
+    .split(/(?:->|;|\n|\s+và\s+|,\s+(?=[A-ZÀ-ỴĐ])|\.(?=\s+[A-ZÀ-ỴĐ])|\.(?=\s*$))+/i)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+
+const isIgpuIrrelevantClause = (clause: string, hasVga: boolean): boolean => {
+  if (!hasVga) return false;
+  const normalized = normalizeForRequirementMatch(clause);
+  return /(khong co igpu|cpu khong co igpu|thiếu igpu|khong xuat hinh.*cpu)/.test(normalized);
+};
+
+const isSubjectiveGpuOpinionClause = (clause: string): boolean => {
+  const normalized = normalizeForRequirementMatch(clause);
+  return /(linh kien cu|card cu|vga cu|khong toi uu|khong tot cho|gt\s*710.*cu|gt1030.*cu)/.test(normalized);
+};
+
+const isFalseMissingCoolerClause = (
+  clause: string,
+  parts: Record<string, unknown>,
+  requirementsText: string
+): boolean => {
+  const normalized = normalizeForRequirementMatch(clause);
+  if (!/(thieu|khong co|chua co).*(tan nhiet|cooler)/.test(normalized)) return false;
+  const cpuName = String((parts.cpu as { name?: string } | undefined)?.name || "");
+  return !hasNamedPart(parts.cooler_fan) && cpuHasStockCoolerAssumed(cpuName, requirementsText);
+};
+
+const isFalseSocketMismatchClause = (clause: string, cpuName: string, mbName: string): boolean => {
+  if (!isKnownArrowLakePair(cpuName, mbName)) return false;
+  const normalized = normalizeForRequirementMatch(clause);
+  if (!/(khong tuong thich|sai socket|khong hop|chipset|socket|lga)/.test(normalized)) return false;
+  return (
+    /(b860|b850).*(lga\s*1700|1700)/.test(normalized) ||
+    /(lga\s*1851).*(lga\s*1700|1700)/.test(normalized) ||
+    /(core ultra|225f|ultra\s*5).*(b860|b850).*(khong tuong thich|khong hop)/.test(normalized) ||
+    /(khong tuong thich).*(core ultra|ultra\s*5).*(b860|b850)/.test(normalized)
+  );
+};
+
+const sanitizeReviewConsistency = (result: any, requirementsText = ""): any => {
+  if (!result?.matched_parts) return result;
+
+  const parts = result.matched_parts as Record<string, unknown>;
+  const reqText = requirementsText || result.requirements_text || "";
+  const hasVga = hasDiscreteGpuInBuild(parts);
+  result.checks = result.checks || {};
+
+  if (hasVga) {
+    result.checks.display_output = {
+      status: "PASS",
+      message: "Có card đồ họa rời (VGA) hỗ trợ xuất hình — không cần iGPU trên CPU.",
+    };
+  }
+
+  const cpuName = String((parts.cpu as { name?: string } | undefined)?.name || "");
+  const mbName = String((parts.mainboard as { name?: string } | undefined)?.name || "");
+
+  if (isKnownArrowLakePair(cpuName, mbName)) {
+    result.checks.socket = {
+      status: "PASS",
+      message: `CPU ${cpuName.trim()} (LGA 1851) tương thích mainboard ${mbName.trim()} — chipset B860/B850 dùng socket LGA 1851.`,
+    };
+  }
+
+  if (isPantherLakeDesktopMisread(cpuName)) {
+    const currentStatus = String(result.checks.requirement_fit?.status || "").toUpperCase();
+    if (currentStatus !== "FAIL") {
+      result.checks.requirement_fit = {
+        status: "WARN",
+        message:
+          "CPU ghi Core Ultra 300 / Panther Lake — dòng laptop (CES 2026), không có bản desktop. Có thể OCR nhầm SKU; desktop hiện tại là Core Ultra 200-series (LGA 1851).",
+      };
+    }
+  }
+
+  if (!hasNamedPart(parts.cooler_fan) && cpuHasStockCoolerAssumed(cpuName, reqText)) {
+    const peripheralsMsg = String(result.checks.peripherals?.message || "");
+    const peripheralsNormalized = normalizeForRequirementMatch(peripheralsMsg);
+    if (/(thieu|khong co|chua co).*(tan nhiet|cooler)/.test(peripheralsNormalized)) {
+      result.checks.peripherals = {
+        status: "PASS",
+        message: "CPU retail thường kèm tản stock; đề bài không bắt buộc tản nhiệt rời riêng.",
+      };
+    }
+  }
+
+  const scrubTextFields = ["reason", "requirement_fit"] as const;
+  for (const field of scrubTextFields) {
+    const source =
+      field === "reason"
+        ? String(result.reason || "")
+        : String(result.checks.requirement_fit?.message || "");
+    if (!source) continue;
+
+    const kept = splitReviewClauses(source).filter((clause) => {
+      const normalized = normalizeForRequirementMatch(clause);
+      if (normalized.length < 8 || normalized === "ngoai ra") return false;
+      if (isIgpuIrrelevantClause(clause, hasVga)) return false;
+      if (isSubjectiveGpuOpinionClause(clause)) return false;
+      if (isFalseMissingCoolerClause(clause, parts, reqText)) return false;
+      if (isFalseSocketMismatchClause(clause, cpuName, mbName)) return false;
+      return true;
+    });
+
+    if (kept.length === splitReviewClauses(source).length) continue;
+
+    const cleaned = kept.join(". ") || (isKnownArrowLakePair(cpuName, mbName)
+      ? "CPU Core Ultra và mainboard B860 tương thích socket LGA 1851."
+      : hasVga
+        ? "Cấu hình có VGA rời, tương thích kỹ thuật cơ bản đạt yêu cầu đề bài."
+        : "Cấu hình đạt các tiêu chí kỹ thuật đã kiểm tra.");
+
+    if (field === "reason") {
+      result.reason = cleaned;
+    } else {
+      const currentStatus = String(result.checks.requirement_fit?.status || "").toUpperCase();
+      const hasSubstantiveIssue = kept.some((clause) =>
+        /(khong du|thieu|sai|khong dap ung|khong phu hop|vuot|khong dat)/i.test(
+          normalizeForRequirementMatch(clause)
+        )
+      );
+      result.checks.requirement_fit = {
+        status: hasSubstantiveIssue ? (currentStatus === "FAIL" ? "WARN" : currentStatus) : "PASS",
+        message: cleaned,
+      };
+    }
+  }
+
+  const criticalFail = ["display_output", "socket", "ram", "power", "case", "budget"].some(
+    (key) => String(result.checks?.[key]?.status || "").toUpperCase() === "FAIL"
+  );
+  const requirementFail = String(result.checks?.requirement_fit?.status || "").toUpperCase() === "FAIL";
+
+  if (!criticalFail && !requirementFail && result.isApproved === false) {
+    const reasonNormalized = normalizeForRequirementMatch(result.reason || "");
+    const onlySubjectiveIssues =
+      reasonNormalized.includes("igpu") ||
+      reasonNormalized.includes("gt710") ||
+      reasonNormalized.includes("tan nhiet roi") ||
+      isFalseSocketMismatchClause(result.reason || "", cpuName, mbName);
+    if (onlySubjectiveIssues || !result.reason?.trim()) {
+      result.isApproved = true;
+      result.reason =
+        result.reason ||
+        (isKnownArrowLakePair(cpuName, mbName)
+          ? "Cấu hình Core Ultra + mainboard B860 tương thích socket LGA 1851 và nằm trong ngân sách."
+          : "Cấu hình đạt yêu cầu: VGA rời hỗ trợ xuất hình, linh kiện tương thích và nằm trong ngân sách.");
+    }
+  }
+
+  return result;
+};
+
+const enforceRequirementFitGate = (result: any, requirementsText = ""): any => {
+  const reqText = requirementsText || result.requirements_text || "";
+  result = sanitizeStaleProductRejection(result);
+  result = sanitizeReviewConsistency(result, reqText);
   const requirementStatus = String(result?.checks?.requirement_fit?.status || "").toUpperCase();
   if (requirementStatus === "FAIL") {
     result.isApproved = false;
@@ -274,13 +618,6 @@ const enforcePcBuildBudgetLimit = (result: any, expectedBudget: number): any => 
   return result;
 };
 
-const normalizeForRequirementMatch = (value: unknown): string =>
-  String(value || "")
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d");
-
 const hasNamedPart = (part: unknown): boolean => {
   const value = part && typeof part === "object" ? part as Record<string, unknown> : {};
   return Boolean(String(value.name || "").trim()) || Number(value.price || 0) > 0;
@@ -298,13 +635,18 @@ const isPartExplicitlyNotRequired = (requirementsText: string, keywords: string[
 const getMissingPeripheralPenalty = (result: any, requirementsText: string): number => {
   const parts = result?.matched_parts || {};
   let penalty = 0;
+  const cpuName = String(parts.cpu?.name || "");
 
-  if (!hasNamedPart(parts.cooler_fan) && !isPartExplicitlyNotRequired(requirementsText, ["tan nhiet", "cooler"])) {
-    penalty += 6;
+  if (
+    !hasNamedPart(parts.cooler_fan) &&
+    !isPartExplicitlyNotRequired(requirementsText, ["tan nhiet", "cooler"]) &&
+    !cpuHasStockCoolerAssumed(cpuName, requirementsText)
+  ) {
+    penalty += SCORE_PENALTIES.missingCooler;
   }
 
   if (!hasNamedPart(parts.monitor) && !isPartExplicitlyNotRequired(requirementsText, ["lcd", "man hinh", "monitor"])) {
-    penalty += 8;
+    penalty += SCORE_PENALTIES.missingMonitor;
   }
 
   const keyboardMouseName = normalizeForRequirementMatch((parts.keyboard_mouse || {}).name);
@@ -313,10 +655,10 @@ const getMissingPeripheralPenalty = (result: any, requirementsText: string): num
   const hasMouse = hasKeyboardMouseBundle && /(chuot|mouse)/.test(keyboardMouseName);
 
   if (!hasKeyboard && !isPartExplicitlyNotRequired(requirementsText, ["ban phim", "keyboard"])) {
-    penalty += 5;
+    penalty += SCORE_PENALTIES.missingKeyboard;
   }
   if (!hasMouse && !isPartExplicitlyNotRequired(requirementsText, ["chuot", "mouse"])) {
-    penalty += 5;
+    penalty += SCORE_PENALTIES.missingMouse;
   }
 
   return penalty;
@@ -340,19 +682,42 @@ const calculateStrictPcBuildScore = (result: any, expectedBudget: number): numbe
   const missingPeripheralPenalty = getMissingPeripheralPenalty(result, result?.requirements_text);
 
   if (result?.isApproved) {
-    if (failCount > 0) return Math.max(0, 80 - technicalFailCount * 20 - missingPeripheralPenalty);
-    if (warnCount === 0 && missingPeripheralPenalty === 0 && budget > 0 && totalPrice > 0 && totalPrice <= budget) return 100;
-    const baseScore = budgetWarn ? 94 - Math.max(0, warnCount - 1) * 2 : 98 - warnCount * 2;
-    return Math.max(70, baseScore - missingPeripheralPenalty);
+    if (failCount > 0) {
+      return Math.max(0, SCORE_PENALTIES.approvedWithFailBase - technicalFailCount * SCORE_PENALTIES.technicalFailEach - missingPeripheralPenalty);
+    }
+    if (warnCount === 0 && missingPeripheralPenalty === 0 && budget > 0 && totalPrice > 0 && totalPrice <= budget) {
+      return SCORE_PENALTIES.perfectScore;
+    }
+    const baseScore = budgetWarn
+      ? SCORE_PENALTIES.budgetWarnBase - Math.max(0, warnCount - 1) * 2
+      : SCORE_PENALTIES.approvedBase - warnCount * 2;
+    return Math.max(SCORE_PENALTIES.approvedMin, baseScore - missingPeripheralPenalty);
   }
 
-  const technicalPenalty = technicalFailCount * 20;
+  const technicalPenalty = technicalFailCount * SCORE_PENALTIES.technicalFailEach;
   if (requirementFailed || budgetFailed) {
-    return Math.max(0, 45 - failCount * 10 - warnCount * 3 - technicalPenalty - missingPeripheralPenalty);
+    return Math.max(
+      0,
+      SCORE_PENALTIES.rejectedRequirementBase -
+        failCount * SCORE_PENALTIES.failEach -
+        warnCount * SCORE_PENALTIES.warnEach -
+        technicalPenalty -
+        missingPeripheralPenalty
+    );
   }
-  if (technicalFailCount > 0) return Math.max(0, 35 - technicalPenalty - missingPeripheralPenalty);
-  if (failCount > 0) return Math.max(10, 55 - failCount * 12 - warnCount * 3 - missingPeripheralPenalty);
-  return Math.max(35, 45 - missingPeripheralPenalty);
+  if (technicalFailCount > 0) {
+    return Math.max(0, SCORE_PENALTIES.rejectedTechnicalBase - technicalPenalty - missingPeripheralPenalty);
+  }
+  if (failCount > 0) {
+    return Math.max(
+      10,
+      SCORE_PENALTIES.rejectedFailBase -
+        failCount * SCORE_PENALTIES.failEachRejected -
+        warnCount * SCORE_PENALTIES.warnEach -
+        missingPeripheralPenalty
+    );
+  }
+  return Math.max(SCORE_PENALTIES.rejectedMin, SCORE_PENALTIES.rejectedRequirementBase - missingPeripheralPenalty);
 };
 
 const hasFinalPcBuildResult = (result: any): boolean => {
@@ -374,6 +739,7 @@ const COMPATIBILITY_TIMEOUT_MS = IS_VERCEL ? 50_000 : 120_000;
 const AI_RETRY_COUNT = envInt("PC_BUILD_AI_RETRIES", IS_VERCEL ? 0 : 1);
 const VISION_RETRY_COUNT = envInt("PC_BUILD_VISION_RETRIES", 0);
 const MAX_AI_OUTPUT_TOKENS = envInt("PC_BUILD_MAX_AI_TOKENS", 4500);
+const VISION_EXTRACTION_MAX_TOKENS = envInt("PC_BUILD_VISION_MAX_TOKENS", 4000);
 const ENABLE_PRO_COMPATIBILITY_FALLBACK =
   !IS_VERCEL || process.env.PC_BUILD_ENABLE_PRO_FALLBACK === "true";
 const PC_BUILD_WORKER_SECRET =
@@ -531,23 +897,6 @@ async function triggerPcBuildCompatibilityJob(id: string, type: "checkin" | "sub
   }
 }
 
-function isCodexTimeWindow(): boolean {
-  try {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      hour: "2-digit",
-      hour12: false,
-    });
-    const hourStr = formatter.format(now);
-    const hour = parseInt(hourStr, 10);
-    return hour >= 18 && hour < 20;
-  } catch (e) {
-    console.error("[isCodexTimeWindow] Error parsing timezone:", e);
-    return false;
-  }
-}
-
 export async function processPcBuildVision(
   id: string,
   type: "checkin" | "submission",
@@ -668,31 +1017,11 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
 
     const isLocal = !IS_VERCEL;
     
-    // Xác định model chính và phụ cho việc bóc tách ảnh
-    // Local: dùng gemini-2.5-flash cho tất cả để tiết kiệm
-    // Production (Vercel):
-    //   - MAX: dùng gemini-3.5-flash chính, gemini-3.1-flash-lite phụ
-    //   - PRO: dùng gemini-3.1-flash-lite chính, gemini-3.5-flash phụ
-    //   - FREE: dùng gemini-3.1-flash-lite chính, gemini-3.5-flash phụ
-    let primaryModel = "gemini-3.1-flash-lite";
-    let fallbackModel = "gemini-3.5-flash";
-
-    if (isLocal) {
-      primaryModel = "gemini-2.5-flash";
-      fallbackModel = "gemini-2.5-flash";
-    } else {
-      if (userPlan === "MAX") {
-        primaryModel = "gemini-3.5-flash";
-        fallbackModel = "gemini-3.1-flash-lite";
-      } else {
-        primaryModel = "gemini-3.1-flash-lite";
-        fallbackModel = "gemini-3.5-flash";
-      }
-    }
+    const visionModels = getVisionModelsForPlan(userPlan, isLocal);
 
     const visionAttempts = [
       {
-        name: `Gemini Primary (${primaryModel})`,
+        name: `Gemini Primary (${visionModels.primary})`,
         run: async () => {
           if (!process.env.OPENAI_API_KEY) {
             throw new Error("OPENAI_API_KEY not configured");
@@ -700,7 +1029,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           const response = await retryWithBackoff(() =>
             withTimeout(
               openaiAI.chat.completions.create({
-                model: primaryModel,
+                model: visionModels.primary,
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
@@ -711,7 +1040,8 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                     ],
                   },
                 ],
-                max_tokens: 500, // Tối ưu hóa số lượng token đầu ra giúp phản hồi nhanh dưới 10s
+                max_tokens: VISION_EXTRACTION_MAX_TOKENS,
+                response_format: { type: "json_object" },
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
               "Vision-Primary"
@@ -722,7 +1052,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
         },
       },
       {
-        name: `Gemini Fallback (${fallbackModel})`,
+        name: `Gemini Fallback (${visionModels.fallback})`,
         run: async () => {
           if (!process.env.OPENAI_API_KEY) {
             throw new Error("OPENAI_API_KEY not configured");
@@ -730,7 +1060,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           const response = await retryWithBackoff(() =>
             withTimeout(
               openaiAI.chat.completions.create({
-                model: fallbackModel,
+                model: visionModels.fallback,
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
@@ -741,7 +1071,8 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                     ],
                   },
                 ],
-                max_tokens: 500,
+                max_tokens: VISION_EXTRACTION_MAX_TOKENS,
+                response_format: { type: "json_object" },
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
               "Vision-Fallback"
@@ -752,7 +1083,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
         },
       },
       {
-        name: "GPT-4o-Mini (v98store)",
+        name: `GPT-4o-Mini (${VISION_MODEL_IDS.GPT4O_MINI})`,
         run: async () => {
           if (!process.env.OPENAI_API_KEY) {
             throw new Error("OPENAI_API_KEY not configured");
@@ -760,7 +1091,7 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           const response = await retryWithBackoff(() =>
             withTimeout(
               openaiAI.chat.completions.create({
-                model: "gpt-4o-mini",
+                model: visionModels.tertiary,
                 messages: [
                   { role: "system", content: extractionPrompt },
                   {
@@ -771,7 +1102,8 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
                     ],
                   },
                 ],
-                max_tokens: 500,
+                max_tokens: VISION_EXTRACTION_MAX_TOKENS,
+                response_format: { type: "json_object" },
               }),
               VISION_EXTRACTION_TIMEOUT_MS,
               "Vision-GPT4oMini"
@@ -892,69 +1224,16 @@ export async function processPcBuildCompatibilityFromStored(
       : [];
     const shortenedRaw = { ...extractedRaw, items: shortenedItems };
 
-    const DEEPSEEK_PROMPT = `
-Bạn là hệ thống chuyên gia tự động hóa phân loại và duyệt cấu hình PC chuyên nghiệp của công ty SP-CyberSoft.
-Phân tích danh sách linh kiện thô từ OCR, phân loại vào danh mục chuẩn, tính tổng giá và kiểm tra tương thích theo đề bài.
-
-DỮ LIỆU ĐỀ BÀI:
-- Nhu cầu khách hàng: "${expectedNeed}"
-- Ngân sách tối đa: ${expectedBudget > 0 ? expectedBudget.toLocaleString("vi-VN") + " VNĐ" : "Không giới hạn"}
-- Giới hạn được phép duyệt (ngân sách + 2%): ${approvedBudgetLimitText}
-- Yêu cầu cấu hình khác: "${expectedReqs}"
-
-LINH KIỆN THÔ:
-${JSON.stringify(shortenedRaw, null, 2)}
-
-DANH MỤC CHUẨN:
-cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, headphone, desk_chair.
-Nếu thiếu danh mục, trả về { "name": "", "price": 0 }.
-
-QUY TẮC KIỂM TRA:
-- Socket: Intel gen 12/13/14 LGA1700 tương thích H610/B660/B760/Z690/Z790; Intel gen 10/11 LGA1200 tương thích H410/H510/B460/B560/Z490/Z590; Ryzen AM4 tương thích A320/B450/B550/X570; Ryzen AM5 tương thích A620/B650/X670.
-- Display output: Nếu không có card đồ họa rời (VGA trống/không có giá), CPU bắt buộc phải có iGPU/xuất hình. Intel đuôi F/KF không có iGPU; Intel không có đuôi F thường có iGPU. AMD Ryzen AM4 đa số không có iGPU trừ dòng G/GE; Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông thường có iGPU cơ bản. Nếu không có VGA rời và CPU chắc chắn không có iGPU -> display_output FAIL. Nếu có VGA rời -> PASS.
-- RAM DDR4/DDR5 phải đúng loại mainboard.
-- PSU phải đủ CPU + VGA và dư an toàn 100W-150W.
-- Case nhỏ/ITX có thể không vừa main ATX; mid/full tower thường vừa ATX/mATX/ITX.
-- Đáp ứng yêu cầu đề bài: Kiểm tra trước ngân sách. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù tổng giá vẫn nằm trong ngân sách.
-- Phụ kiện/bộ hoàn thiện: Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
-- Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
-- isApproved=true chỉ khi: requirement_fit không FAIL, display_output không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
-- QUY TẮC NHẤT QUÁN: Nếu isApproved=true thì "reason" phải giải thích vì sao ĐẠT. Nếu isApproved=false thì "reason" nêu lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
-${STRICT_PC_BUILD_REVIEW_RULES}
-
-BẮT BUỘC chỉ trả về JSON:
-{
-  "matched_parts": {
-    "cpu": { "name": "...", "price": 0 },
-    "mainboard": { "name": "...", "price": 0 },
-    "ram": { "name": "...", "price": 0 },
-    "vga": { "name": "...", "price": 0 },
-    "ssd": { "name": "...", "price": 0 },
-    "psu": { "name": "...", "price": 0 },
-    "case": { "name": "...", "price": 0 },
-    "cooler_fan": { "name": "...", "price": 0 },
-    "monitor": { "name": "...", "price": 0 },
-    "keyboard_mouse": { "name": "...", "price": 0 },
-    "headphone": { "name": "...", "price": 0 },
-    "desk_chair": { "name": "...", "price": 0 },
-    "total_price": 0
-  },
-  "isApproved": false,
-  "reason": "Lý do ngắn gọn bằng tiếng Việt",
-  "checks": {
-    "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
-  }
-}`;
+    const compatibilityPrompt = buildCompatibilityPrompt({
+      expectedNeed,
+      expectedBudget,
+      expectedReqs,
+      approvedBudgetLimitText,
+      rawItems: shortenedRaw,
+    });
 
     const isLocal = !IS_VERCEL;
-    const compatGeminiModel = isLocal ? "gemini-2.5-flash" : "gemini-3.1-flash-lite";
+    const compatGeminiModel = getCompatGeminiModel(isLocal);
 
     const compatibilityAttempts = [
       // Thử 1: Dùng Gemini 3.1 Flash Lite (hoặc 2.5 ở local) để kiểm tra tương thích trước
@@ -964,7 +1243,7 @@ BẮT BUỘC chỉ trả về JSON:
           withTimeout(
             openaiAI.chat.completions.create({
               model: compatGeminiModel,
-              messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+              messages: [{ role: "user", content: compatibilityPrompt }],
               response_format: { type: "json_object" },
               max_tokens: MAX_AI_OUTPUT_TOKENS,
             }),
@@ -982,7 +1261,7 @@ BẮT BUỘC chỉ trả về JSON:
           withTimeout(
             defaultAI.chat.completions.create({
               model: MODEL_CHAT_FLASH,
-              messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+              messages: [{ role: "user", content: compatibilityPrompt }],
               response_format: { type: "json_object" },
               max_tokens: MAX_AI_OUTPUT_TOKENS,
             }),
@@ -1002,7 +1281,7 @@ BẮT BUỘC chỉ trả về JSON:
                 withTimeout(
                   defaultAI.chat.completions.create({
                     model: MODEL_CHAT_PRO,
-                    messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+                    messages: [{ role: "user", content: compatibilityPrompt }],
                     response_format: { type: "json_object" },
                     max_tokens: MAX_AI_OUTPUT_TOKENS,
                   }),
@@ -1036,7 +1315,7 @@ BẮT BUỘC chỉ trả về JSON:
       throw new Error(`DeepSeek không trả về kết quả hợp lệ. Lỗi cuối cùng: ${compatibilityError?.message || "Không xác định"}`);
     }
 
-    result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(result), expectedBudget);
+    result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(result, `${expectedNeed}\n${expectedReqs}`), expectedBudget);
     result.requirements_text = `${expectedNeed}\n${expectedReqs}`;
 
     const formattedData: any = {};
@@ -1055,7 +1334,7 @@ BẮT BUỘC chỉ trả về JSON:
 
     const finalStatus = result.isApproved ? "APPROVED" : "REJECTED";
     const strictScore = calculateStrictPcBuildScore(result, expectedBudget);
-    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Phụ kiện: ${result.checks?.peripherals?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
+    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Đề bài: ${result.checks?.requirement_fit?.message || ""}\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Phụ kiện: ${result.checks?.peripherals?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     if (type === "checkin") {
       const isDraft = currentPayload.is_draft === true;
@@ -1200,68 +1479,13 @@ export async function processBackgroundPcBuild(
     let result: any = null;
     const approvedBudgetLimitText = expectedBudget > 0 ? formatVND(getApprovedBudgetLimit(expectedBudget)) : "Không giới hạn";
 
-    const FINAL_ANALYSIS_PROMPT = `
-Bạn là hệ thống chuyên gia duyệt cấu hình PC của SP-CyberSoft.
-Hãy đọc ảnh báo giá, bóc tách linh kiện, phân loại vào các danh mục chuẩn, tính tổng giá và kiểm tra tương thích với đề bài.
-
-CHIẾN LƯỢC OCR BẮT BUỘC:
-1. Đọc bảng báo giá theo từng dòng từ trên xuống dưới.
-2. Chỉ lấy các dòng hàng hóa/linh kiện có tên sản phẩm và giá tiền; bỏ header, hotline, địa chỉ, logo, tổng phụ không phải linh kiện.
-3. Giữ nguyên mã sản phẩm quan trọng như CPU, mainboard, RAM bus/dung lượng, VGA, SSD, PSU watt, case.
-4. Giá tiền trong ảnh có thể dùng dấu "." hoặc "," để phân tách hàng nghìn; trả về số nguyên VND, không kèm ký tự tiền tệ.
-5. Nếu chữ hơi mờ, ưu tiên tên linh kiện đọc được rõ nhất và không tự bịa mã sản phẩm không thấy trong ảnh.
-
-DỮ LIỆU ĐỀ BÀI:
-- Nhu cầu khách hàng: "${expectedNeed}"
-- Ngân sách tối đa: ${expectedBudget > 0 ? expectedBudget.toLocaleString('vi-VN') + ' VNĐ' : 'Không giới hạn'}
-- Giới hạn được phép duyệt (ngân sách + 2%): ${approvedBudgetLimitText}
-- Yêu cầu cấu hình khác: "${expectedReqs}"
-
-DANH MỤC CHUẨN:
-cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan, monitor, keyboard_mouse, headphone, desk_chair.
-
-QUY TẮC:
-- Nếu một danh mục không có trong báo giá, trả về { "name": "", "price": 0 }.
-- total_price là tổng tiền thực tế của các linh kiện.
-- Đáp ứng yêu cầu đề bài là điều kiện kiểm tra đầu tiên. Cấu hình phải đúng nhu cầu khách hàng và các ràng buộc bắt buộc của đề bài (mục đích sử dụng, CPU/RAM/SSD/VGA tối thiểu, màn hình/phụ kiện nếu đề yêu cầu). Nếu sai hoặc thiếu yêu cầu trọng yếu, requirement_fit phải FAIL dù ngân sách hợp lệ.
-- Nếu không có card đồ họa rời (VGA trống/không có giá), CPU bắt buộc phải có iGPU/xuất hình. Intel đuôi F/KF không có iGPU; Intel không có đuôi F thường có iGPU. AMD Ryzen AM4 đa số không có iGPU trừ dòng G/GE; Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông thường có iGPU cơ bản. Nếu không có VGA rời và CPU chắc chắn không có iGPU -> display_output FAIL. Nếu có VGA rời -> PASS.
-- Nếu có tản nhiệt rời trong cooler_fan, kiểm tra tản nhiệt có bracket/ngàm hỗ trợ socket CPU tương ứng (LGA1700, LGA1200, AM4, AM5...). Đây là tiêu chí nhắc nhở mềm: PASS nếu tên/model nêu rõ hỗ trợ socket đó; WARN nếu không đủ thông tin hoặc có dấu hiệu chưa đảm bảo. Không dùng tiêu chí này để đánh rớt bài.
-- Budget PASS nếu tổng giá <= ngân sách. WARN nếu tổng giá > ngân sách nhưng <= ngân sách + 2%. FAIL nếu tổng giá vượt quá ngân sách + 2%.
-- isApproved=true chỉ khi: requirement_fit không FAIL, display_output không FAIL, total_price <= ngân sách + 2% VÀ không FAIL kỹ thuật (socket/ram/power/case). Budget WARN vẫn có thể isApproved=true.
-- Nếu isApproved=true: "reason" phải giải thích vì sao ĐẠT (kể cả nếu có cảnh báo nhẹ). Nếu isApproved=false: "reason" nêu rõ lý do cụ thể từ chối. Không được nói "vượt quá giới hạn ngân sách" khi isApproved=true.
-- Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
-${STRICT_PC_BUILD_REVIEW_RULES}
-
-BẮT BUỘC chỉ trả về JSON theo format:
-{
-  "matched_parts": {
-    "cpu": { "name": "...", "price": 0 },
-    "mainboard": { "name": "...", "price": 0 },
-    "ram": { "name": "...", "price": 0 },
-    "vga": { "name": "...", "price": 0 },
-    "ssd": { "name": "...", "price": 0 },
-    "psu": { "name": "...", "price": 0 },
-    "case": { "name": "...", "price": 0 },
-    "cooler_fan": { "name": "...", "price": 0 },
-    "monitor": { "name": "...", "price": 0 },
-    "keyboard_mouse": { "name": "...", "price": 0 },
-    "headphone": { "name": "...", "price": 0 },
-    "desk_chair": { "name": "...", "price": 0 },
-    "total_price": 0
-  },
-  "isApproved": false,
-  "reason": "Lý do ngắn gọn bằng tiếng Việt",
-  "checks": {
-    "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
-  }
-}`;
+    const visionCompatibilityPrompt = buildCompatibilityPrompt({
+      expectedNeed,
+      expectedBudget,
+      expectedReqs,
+      approvedBudgetLimitText,
+      rawItems: null,
+    });
 
     try {
       if (!isExcel && process.env.OPENAI_API_KEY) {
@@ -1271,7 +1495,7 @@ BẮT BUỘC chỉ trả về JSON theo format:
             openaiAI.chat.completions.create({
               model: MODEL_VISION_ONLY,
               messages: [
-                { role: "system", content: FINAL_ANALYSIS_PROMPT },
+                { role: "system", content: visionCompatibilityPrompt },
                 {
                   role: "user",
                   content: [
@@ -1293,7 +1517,10 @@ BẮT BUỘC chỉ trả về JSON theo format:
         console.log("[BackgroundWorker] Fast-path raw preview:", fastContent.slice(0, 500));
         const fastResult = ensureCompatibilityChecks(cleanAndParseJSON(fastContent));
         if (hasFinalPcBuildResult(fastResult)) {
-          result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(fastResult), expectedBudget);
+          result = enforcePcBuildBudgetLimit(
+            enforceRequirementFitGate(fastResult, `${expectedNeed}\n${expectedReqs}`),
+            expectedBudget
+          );
           console.log("[BackgroundWorker] Fast-path (Gemini) analysis completed successfully.");
         } else {
           console.warn("[BackgroundWorker] Fast-path (Gemini) returned unusable result:", JSON.stringify(fastResult).slice(0, 1000));
@@ -1403,101 +1630,13 @@ Nếu thông tin nào không rõ ràng, hãy để là null.`;
     }
 
     // 3. Call AI to match and perform compatibility check
-    const DEEPSEEK_PROMPT = `
-Bạn là hệ thống chuyên gia tự động hóa phân loại và duyệt cấu hình PC chuyên nghiệp của công ty SP-CyberSoft.
-Nhiệm vụ của bạn là phân tích danh sách linh kiện thô trích xuất từ hóa đơn (dưới dạng JSON), phân loại chúng vào các danh mục biểu mẫu chuẩn, tính toán tổng giá tiền và kiểm tra kỹ thuật khả năng tương thích của cấu hình, đối chiếu chặt chẽ với nhu cầu và ngân sách của đề bài.
-
-DỮ LIỆU ĐỀ BÀI (NẾU CÓ):
-- Nhu cầu khách hàng: "${expectedNeed}"
-- Ngân sách tối đa: ${expectedBudget > 0 ? expectedBudget.toLocaleString('vi-VN') + ' VNĐ' : 'Không giới hạn'}
-- Giới hạn được phép duyệt (ngân sách + 2%): ${approvedBudgetLimitText}
-- Yêu cầu cấu hình khác: "${expectedReqs}"
-
-LINH KIỆN THÔ TRÍCH XUẤT TỪ HÓA ĐƠN:
-${JSON.stringify(extractedRaw, null, 2)}
-
-QUY TẮC PHÂN LOẠI LINH KIỆN:
-Phân loại chuẩn xác vào các danh mục sau: cpu, mainboard, ram, vga, ssd, psu, case, cooler_fan (tản nhiệt khí/nước hoặc quạt case), monitor, keyboard_mouse, headphone, desk_chair.
-Nếu một danh mục không có trong hóa đơn, hãy trả về: { "name": "", "price": 0 }.
-
-QUY TẮC KIỂM TRA TƯƠNG THÍCH KỸ THUẬT (HÃY ĐÁNH GIÁ CHÍNH XÁC):
-1. Socket (CPU & Mainboard):
-   - CPU Intel Core thế hệ 12, 13, 14 (LGA1700) tương thích với Mainboard H610, B660, B760, Z690, Z790.
-   - CPU Intel Core thế hệ 10, 11 (LGA1200) tương thích với Mainboard H410, H510, B460, B560, Z490, Z590.
-   - CPU AMD Ryzen socket AM4 (Ryzen 1000 - 5000) đi với Mainboard A320, B450, B550, X570.
-   - CPU AMD Ryzen socket AM5 (Ryzen 7000 - 9000) đi với Mainboard A620, B650, X670.
-2. Display Output (Khả năng xuất hình):
-   - Nếu cấu hình không có card đồ họa rời trong vga, CPU bắt buộc phải có iGPU/xuất hình.
-   - Intel Core có hậu tố F hoặc KF không có iGPU; ví dụ i5-12400F, i5-13400F, i7-14700F -> nếu không có VGA rời thì FAIL.
-   - Intel Core không có hậu tố F thường có iGPU; ví dụ i5-12400, i5-13400, i7-14700 -> PASS nếu không có VGA rời.
-   - AMD Ryzen AM4 đa số không có iGPU trừ dòng G/GE; ví dụ Ryzen 5 5600/5700X không có iGPU -> nếu không có VGA rời thì FAIL, Ryzen 5 5600G/5700G -> PASS.
-   - AMD Ryzen 7500F không có iGPU; Ryzen AM5 phổ thông như 7600/7700/7900 thường có iGPU cơ bản -> PASS nếu không có VGA rời.
-   - Nếu có VGA rời hợp lệ -> display_output PASS.
-4. RAM (DDR4 / DDR5 & Mainboard):
-   - RAM DDR4 tương thích với Mainboard hỗ trợ DDR4. RAM DDR5 tương thích với Mainboard hỗ trợ DDR5.
-   - Nếu Mainboard hỗ trợ DDR4 nhưng chọn RAM DDR5 (hoặc ngược lại) -> Báo FAIL.
-5. Power (Nguồn PSU & VGA/CPU):
-   - Đảm bảo công suất nguồn (Watts) đủ tải cho CPU + VGA và có khoảng an toàn tối thiểu 100W-150W.
-   - RTX 3050/4060: tối thiểu 450W - 500W.
-   - RTX 3060/4060 Ti: tối thiểu 550W.
-   - RTX 3070/4070: tối thiểu 650W.
-   - RTX 3080/4080/4090: tối thiểu 750W - 850W.
-6. Case Size & Mainboard:
-   - Vỏ case Mini-Tower hoặc ITX nhỏ gọn có thể không vừa Mainboard ATX lớn (chỉ vừa m-ATX, ITX).
-   - Vỏ case Mid-Tower / Full-Tower thông thường đều vừa tất cả kích thước Mainboard (ATX, m-ATX, ITX).
-7. Budget (Ngân sách):
-   - Tổng tiền thực tế của cấu hình (matched_parts.total_price) không được vượt quá ngân sách tối đa của đề bài hơn 2%.
-   - Nếu tổng tiền thực tế <= ngân sách tối đa -> Đánh giá trạng thái budget là "PASS".
-   - Nếu tổng tiền thực tế > ngân sách tối đa nhưng <= ngân sách + 2% -> Đánh giá trạng thái budget là "WARN" kèm ghi chú vượt nhẹ nhưng vẫn hợp lệ.
-   - Nếu tổng tiền thực tế > ngân sách + 2% -> Đánh giá trạng thái budget là "FAIL".
-8. Requirement Fit (Mức độ đáp ứng yêu cầu đề bài):
-   - Đây là cổng kiểm tra đầu tiên và quan trọng nhất, phải đánh giá trước khi xét ngân sách.
-   - Đối chiếu cấu hình với nhu cầu khách hàng và toàn bộ ràng buộc bắt buộc: mục đích sử dụng, phân khúc CPU, dung lượng RAM, dung lượng SSD, yêu cầu VGA rời, màn hình/phụ kiện nếu đề bài yêu cầu.
-   - Nếu cấu hình sai mục đích, thiếu linh kiện bắt buộc, hoặc thấp hơn yêu cầu tối thiểu trọng yếu -> requirement_fit là "FAIL" và isApproved=false, kể cả khi tổng tiền nằm trong ngân sách.
-9. Peripherals (Phụ kiện/bộ hoàn thiện):
-   - Nếu đề không ghi rõ không yêu cầu, thiếu tản nhiệt rời, LCD/màn hình, bàn phím hoặc chuột thì checks.peripherals phải WARN hoặc FAIL tùy mức độ thiếu; nêu rõ đang thiếu món nào.
-
-QUY TẮC DUYỆT BÀI (isApproved):
-- Đặt "isApproved": true nếu thỏa mãn:
-  - Cấu hình đáp ứng đúng yêu cầu đề bài; requirement_fit không được FAIL.
-  - Nếu không có VGA rời, CPU phải có iGPU/xuất hình; display_output không được FAIL.
-  - Tổng giá (total_price) <= Ngân sách đề bài + 2%.
-  - Không bị FAIL ở bất kỳ kiểm tra kỹ thuật nghiêm trọng nào (Socket, RAM, Power).
-- Ngược lại đặt "isApproved": false.
-- QUY TẮC NHẤT QUÁN BẮT BUỘC: Nếu isApproved=true thì "reason" phải giải thích tích cực vì sao CẤU HÌNH ĐẠT (có thể nêu cảnh báo vượt nhỏ nhưng phải kết luận là hợp lệ). Nếu isApproved=false thì "reason" nêu rõ lý do từ chối. Không được viết reason mâu thuẫn với isApproved.
-${STRICT_PC_BUILD_REVIEW_RULES}
-
-BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
-{
-  "matched_parts": {
-    "cpu": { "name": "...", "price": 0 },
-    "mainboard": { "name": "...", "price": 0 },
-    "ram": { "name": "...", "price": 0 },
-    "vga": { "name": "...", "price": 0 },
-    "ssd": { "name": "...", "price": 0 },
-    "psu": { "name": "...", "price": 0 },
-    "case": { "name": "...", "price": 0 },
-    "cooler_fan": { "name": "...", "price": 0 },
-    "monitor": { "name": "...", "price": 0 },
-    "keyboard_mouse": { "name": "...", "price": 0 },
-    "headphone": { "name": "...", "price": 0 },
-    "desk_chair": { "name": "...", "price": 0 },
-    "total_price": 0
-  },
-  "isApproved": boolean,
-  "reason": "Giải thích tổng quan lý do duyệt hoặc từ chối ngắn gọn bằng tiếng Việt",
-  "checks": {
-    "socket": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "display_output": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "ram": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "power": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "case": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "requirement_fit": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "budget": { "status": "PASS" | "FAIL" | "WARN", "message": "..." },
-    "peripherals": { "status": "PASS" | "FAIL" | "WARN", "message": "..." }
-  }
-}
-`;
+    const itemsCompatibilityPrompt = buildCompatibilityPrompt({
+      expectedNeed,
+      expectedBudget,
+      expectedReqs,
+      approvedBudgetLimitText,
+      rawItems: extractedRaw,
+    });
 
     let compatibilityError: any = null;
 
@@ -1508,7 +1647,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
         const response = await withTimeout(
           defaultAI.chat.completions.create({
             model: MODEL_CHAT_FLASH,
-            messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+            messages: [{ role: "user", content: itemsCompatibilityPrompt }],
             response_format: { type: "json_object" },
           }),
           COMPATIBILITY_TIMEOUT_MS,
@@ -1525,7 +1664,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
         const response = await withTimeout(
           defaultAI.chat.completions.create({
             model: MODEL_CHAT_PRO,
-            messages: [{ role: "user", content: DEEPSEEK_PROMPT }],
+            messages: [{ role: "user", content: itemsCompatibilityPrompt }],
             response_format: { type: "json_object" },
           }),
           COMPATIBILITY_TIMEOUT_MS,
@@ -1559,7 +1698,10 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
     }
     }
 
-    result = enforcePcBuildBudgetLimit(enforceRequirementFitGate(ensureCompatibilityChecks(result)), expectedBudget);
+    result = enforcePcBuildBudgetLimit(
+      enforceRequirementFitGate(ensureCompatibilityChecks(result), `${expectedNeed}\n${expectedReqs}`),
+      expectedBudget
+    );
     result.requirements_text = `${expectedNeed}\n${expectedReqs}`;
 
     // Format output data to include partId: ""
@@ -1581,7 +1723,7 @@ BẮT BUỘC TRẢ VỀ JSON THEO ĐỊNH DẠNG SAU:
 
     const finalStatus = result.isApproved ? "AUTO_APPROVED" : "REJECTED";
     const strictScore = calculateStrictPcBuildScore(result, expectedBudget);
-    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Phụ kiện: ${result.checks?.peripherals?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
+    const feedback = `${result.reason || ""}\n\n[Báo cáo tương thích]\n- Đề bài: ${result.checks?.requirement_fit?.message || ""}\n- Xuất hình: ${result.checks?.display_output?.message || ""}\n- Socket: ${result.checks?.socket?.message || ""}\n- RAM: ${result.checks?.ram?.message || ""}\n- PSU: ${result.checks?.power?.message || ""}\n- Case: ${result.checks?.case?.message || ""}\n- Phụ kiện: ${result.checks?.peripherals?.message || ""}\n- Ngân sách: ${result.checks?.budget?.message || ""}`;
 
     // 4. Update database record
     if (type === "checkin") {
