@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import { isAuthExemptPath } from "@/lib/auth-exempt-paths";
 
 export const authConfig = {
   pages: {
@@ -13,7 +14,7 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
 
       if (!isLoggedIn) {
-        if (nextUrl.pathname === "/") return true;
+        if (isAuthExemptPath(nextUrl.pathname)) return true;
         return false;
       }
 

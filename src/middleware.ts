@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config";
+import { isAuthExemptPath } from "./lib/auth-exempt-paths";
 
 const { auth } = NextAuth(authConfig);
 
@@ -34,12 +35,7 @@ export const middleware = auth((request) => {
   // Middleware from NextAuth's authorized callback should have caught this,
   // but sometimes it doesn't due to race conditions or beta version quirks.
   const isLoggedIn = !!request.auth?.user;
-  const isPublicPath =
-    pathname === "/login" ||
-    pathname === "/login/" ||
-    pathname === "/maintenance" ||
-    pathname === "/" ||
-    pathname.startsWith("/api/payment/webhook"); // Cho phép SePay Webhook bypass middleware redirect
+  const isPublicPath = isAuthExemptPath(pathname);
 
   if (!isLoggedIn && !isPublicPath) {
     const loginUrl = new URL("/login", request.url);
