@@ -5,7 +5,7 @@ import { getStartOfDayVN } from "@/lib/pc-kho";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { cleanupExpiredBuildPcSubmissions } from "@/lib/pc-build-cleanup";
-import { getEffectivePlan } from "@/lib/plan-utils";
+import { getResolvedUserPlan } from "@/lib/plan-pause";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -29,15 +29,8 @@ export async function GET() {
   const tomorrow = getEndOfDayVN(today);
 
   // Fetch the user's effective plan
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, plan: true, plan_expires_at: true },
-  });
-  const effectivePlan = getEffectivePlan(
-    user?.role ?? "USER",
-    user?.plan ?? "FREE",
-    user?.plan_expires_at ?? null
-  );
+  const resolved = await getResolvedUserPlan(session.user.id);
+  const effectivePlan = resolved?.effectivePlan ?? "FREE";
 
   const [todaySubmissions, submissions] = await Promise.all([
     db.pcSubmission.findMany({
@@ -145,15 +138,8 @@ export async function POST(request: Request) {
 
   const today = getStartOfDayVN();
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, plan: true, plan_expires_at: true },
-  });
-  const effectivePlan = getEffectivePlan(
-    user?.role ?? "USER",
-    user?.plan ?? "FREE",
-    user?.plan_expires_at ?? null
-  );
+  const resolved = await getResolvedUserPlan(session.user.id);
+  const effectivePlan = resolved?.effectivePlan ?? "FREE";
 
   let todayCount = 0;
   if (effectivePlan === "FREE" || effectivePlan === "PRO") {

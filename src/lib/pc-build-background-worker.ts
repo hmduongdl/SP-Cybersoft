@@ -5,6 +5,7 @@ import { CACHE_TAGS } from "@/lib/cache";
 import sharp from "sharp";
 import * as XLSX from "xlsx";
 import { getEffectivePlan } from "@/lib/plan-utils";
+import { getPlanPauseState } from "@/lib/plan-pause";
 import {
   isKnownArrowLakePair,
   isPantherLakeDesktopMisread,
@@ -1000,7 +1001,12 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           include: { user: true },
         });
         if (checkin?.user) {
-          userPlan = getEffectivePlan(checkin.user.role, checkin.user.plan, checkin.user.plan_expires_at);
+          userPlan = getEffectivePlan(
+            checkin.user.role,
+            checkin.user.plan,
+            checkin.user.plan_expires_at,
+            getPlanPauseState(checkin.user)
+          );
         }
       } else {
         const submission = await db.pcSubmission.findUnique({
@@ -1008,7 +1014,12 @@ Nếu thông tin nào không rõ ràng, hãy để null.`;
           include: { user: true },
         });
         if (submission?.user) {
-          userPlan = getEffectivePlan(submission.user.role, submission.user.plan, submission.user.plan_expires_at);
+          userPlan = getEffectivePlan(
+            submission.user.role,
+            submission.user.plan,
+            submission.user.plan_expires_at,
+            getPlanPauseState(submission.user)
+          );
         }
       }
     } catch (err) {

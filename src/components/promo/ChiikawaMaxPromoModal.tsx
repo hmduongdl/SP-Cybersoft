@@ -44,7 +44,6 @@ interface PromoStatus {
   eligible: boolean;
   claimed: boolean;
   eventActive: boolean;
-  isAdminPreview?: boolean;
 }
 
 export function ChiikawaMaxPromoModal() {
@@ -68,7 +67,7 @@ export function ChiikawaMaxPromoModal() {
       }
 
       const data: PromoStatus = await res.json();
-      if (data.eligible && data.eventActive && (!data.claimed || data.isAdminPreview)) {
+      if (data.eligible && data.eventActive) {
         setOpen(true);
       } else {
         setOpen(false);
@@ -99,11 +98,6 @@ export function ChiikawaMaxPromoModal() {
 
       if (!res.ok) {
         toast.error(data.error || "Không thể nhận ưu đãi.");
-        return;
-      }
-
-      if (data.preview) {
-        setOpen(false);
         return;
       }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 import { uploadImage } from "@/lib/upload";
+import { resumePausedPlanIfNeeded } from "@/lib/plan-pause";
 import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export async function GET() {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    await resumePausedPlanIfNeeded(session.user.id);
 
     const user = await db.user.findUnique({
       where: { id: session.user.id },

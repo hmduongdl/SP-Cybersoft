@@ -1,5 +1,10 @@
 import { db } from "@/lib/db";
 import { getEffectivePlan, PLAN_FEATURES } from "@/lib/plan-utils";
+import {
+  getPlanPauseState,
+  PLAN_PAUSE_SELECT,
+  resumePausedPlanIfNeeded,
+} from "@/lib/plan-pause";
 
 export interface QuotaResult {
   allowed: boolean;
@@ -17,12 +22,12 @@ export async function checkAndResetQuota(
   estimatedCost: number
 ): Promise<QuotaResult> {
   try {
+    await resumePausedPlanIfNeeded(userId);
+
     const user = await db.user.findUnique({
       where: { id: userId },
       select: {
-        role: true,
-        plan: true,
-        plan_expires_at: true,
+        ...PLAN_PAUSE_SELECT,
         tokens_used_today: true,
         last_token_reset: true,
       },
@@ -30,7 +35,12 @@ export async function checkAndResetQuota(
 
     if (!user) return { allowed: false, message: "Không tìm thấy người dùng." };
 
-    const effectivePlan = getEffectivePlan(user.role, user.plan, user.plan_expires_at);
+    const effectivePlan = getEffectivePlan(
+      user.role,
+      user.plan,
+      user.plan_expires_at,
+      getPlanPauseState(user)
+    );
     const features = PLAN_FEATURES[effectivePlan];
     const monthlyLimit = features.aiTokenLimitMonthly;
 

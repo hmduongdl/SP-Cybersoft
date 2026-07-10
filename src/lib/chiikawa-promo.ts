@@ -10,13 +10,12 @@ export function isChiikawaPromoEligiblePlan(plan: string): boolean {
   return plan === "FREE" || plan === "PRO";
 }
 
-/** Admin luôn được xem modal để preview (không phụ thuộc gói / đã nhận). */
 export function canSeeChiikawaPromo(
   role: string,
   effectivePlan: string,
   claimed: boolean
 ): boolean {
-  if (role === "ADMIN") return true;
+  if (role === "ADMIN") return false;
   return !claimed && isChiikawaPromoEligiblePlan(effectivePlan);
 }
 

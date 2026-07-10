@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { getEffectivePlan } from "@/lib/plan-utils";
+import { getResolvedUserPlan } from "@/lib/plan-pause";
 import SeoToolsClient from "./seo-tools-client";
 import { PlanGate } from "@/components/shared/PlanGate";
 
@@ -13,16 +12,8 @@ export default async function SeoToolsPage() {
     redirect("/login");
   }
 
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { role: true, plan: true, plan_expires_at: true },
-  });
-
-  const effectivePlan = getEffectivePlan(
-    user?.role ?? "USER",
-    user?.plan ?? "FREE",
-    user?.plan_expires_at ?? null
-  );
+  const resolved = await getResolvedUserPlan(session.user.id);
+  const effectivePlan = resolved?.effectivePlan ?? "FREE";
 
   if (effectivePlan !== "MAX" && effectivePlan !== "PRO") {
     return (

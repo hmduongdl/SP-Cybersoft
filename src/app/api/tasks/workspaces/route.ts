@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { getEffectivePlan, PLAN_FEATURES } from "@/lib/plan-utils";
+import { PLAN_FEATURES } from "@/lib/plan-utils";
+import { getResolvedUserPlan } from "@/lib/plan-pause";
 
 export const dynamic = "force-dynamic";
 
@@ -42,16 +43,8 @@ export async function POST(req: Request) {
     if (!name) return NextResponse.json({ error: "Missing name" }, { status: 400 });
 
     // Lấy thông tin plan của user
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: { role: true, plan: true, plan_expires_at: true }
-    });
-
-    const effectivePlan = getEffectivePlan(
-      user?.role ?? "USER",
-      user?.plan ?? "FREE",
-      user?.plan_expires_at ?? null
-    );
+    const resolved = await getResolvedUserPlan(session.user.id);
+    const effectivePlan = resolved?.effectivePlan ?? "FREE";
 
     const maxWorkspaces = PLAN_FEATURES[effectivePlan].maxWorkspaces;
 

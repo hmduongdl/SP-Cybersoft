@@ -2,6 +2,11 @@ import { UserRole } from "@prisma/client";
 
 export type PlanType = "FREE" | "PRO" | "MAX";
 
+export interface PlanPauseState {
+  pausedPlan?: string | null;
+  pausedPlanExpiresAt?: Date | null;
+}
+
 export interface PlanFeatures {
   // AI
   aiChatEnabled: boolean;
@@ -80,17 +85,35 @@ export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
 /**
  * Lấy plan hiệu lực của user.
  * Admin luôn nhận MAX vĩnh viễn, bất kể plan field trong DB.
+ * Khi trial MAX hết hạn và có gói pause (vd. PRO Chiikawa), trả về gói đã pause.
  */
 export function getEffectivePlan(
   role: string | UserRole,
   plan: string | PlanType,
-  planExpiresAt?: Date | null
+  planExpiresAt?: Date | null,
+  pauseState?: PlanPauseState
 ): PlanType {
   // Admin luôn là MAX
   if (role === "ADMIN") return "MAX";
 
+  const now = new Date();
+  const maxTrialExpired =
+    plan === "MAX" && planExpiresAt && now > planExpiresAt;
+
+  if (maxTrialExpired && pauseState?.pausedPlan) {
+    const pausedExpires = pauseState.pausedPlanExpiresAt;
+    if (pausedExpires && now > pausedExpires) {
+      return "FREE";
+    }
+    const paused = pauseState.pausedPlan.toUpperCase();
+    if (paused === "PRO" || paused === "MAX" || paused === "FREE") {
+      return paused as PlanType;
+    }
+    return "FREE";
+  }
+
   // Kiểm tra plan đã hết hạn chưa
-  if (planExpiresAt && new Date() > planExpiresAt) {
+  if (planExpiresAt && now > planExpiresAt) {
     return "FREE";
   }
 
@@ -105,9 +128,10 @@ export function getEffectivePlan(
 export function getPlanFeatures(
   role: string,
   plan: string,
-  planExpiresAt?: Date | null
+  planExpiresAt?: Date | null,
+  pauseState?: PlanPauseState
 ): PlanFeatures {
-  const effectivePlan = getEffectivePlan(role, plan, planExpiresAt);
+  const effectivePlan = getEffectivePlan(role, plan, planExpiresAt, pauseState);
   return PLAN_FEATURES[effectivePlan];
 }
 
