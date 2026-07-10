@@ -1,8 +1,8 @@
 import { db } from "@/lib/db";
 import { deleteImage } from "@/lib/upload";
 
-const BUILD_PC_IMAGE_TTL_MS = 48 * 60 * 60 * 1000;
-const CLEANED_IMAGE_MARKER = "BUILD_PC_IMAGE_EXPIRED";
+const BUILD_PC_SUBMISSION_TTL_MS = 8 * 24 * 60 * 60 * 1000;
+const BATCH_SIZE = 100;
 
 function getStringArray(value: unknown): string[] {
   return Array.isArray(value)
@@ -10,14 +10,8 @@ function getStringArray(value: unknown): string[] {
     : [];
 }
 
-function getJsonObject(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
-}
-
 function shouldCleanUrl(url: string) {
-  return Boolean(url) && url !== "excel-parsed" && url !== CLEANED_IMAGE_MARKER;
+  return Boolean(url) && url !== "excel-parsed";
 }
 
 async function deleteUrls(urls: string[]) {
@@ -32,66 +26,76 @@ async function deleteUrls(urls: string[]) {
   );
 }
 
-export async function cleanupExpiredBuildPcImages(now = new Date()) {
-  const cutoff = new Date(now.getTime() - BUILD_PC_IMAGE_TTL_MS);
+async function cleanupExpiredBuildPcSubmissionsBatch(now = new Date()) {
+  const cutoff = new Date(now.getTime() - BUILD_PC_SUBMISSION_TTL_MS);
 
   const [submissions, checkins] = await Promise.all([
     db.pcSubmission.findMany({
-      where: {
-        submitted_at: { lt: cutoff },
-        NOT: { image_urls: { equals: [CLEANED_IMAGE_MARKER] } },
-      },
-      select: { id: true, image_urls: true, parts_answer: true },
-      take: 100,
+      where: { submitted_at: { lt: cutoff } },
+      select: { id: true, image_urls: true },
+      take: BATCH_SIZE,
     }),
     db.checkin.findMany({
       where: {
         task_type: "BUILD_PC",
         submitted_at: { lt: cutoff },
-        NOT: { image_url: CLEANED_IMAGE_MARKER },
       },
-      select: { id: true, image_url: true, build_data: true },
-      take: 100,
+      select: { id: true, image_url: true },
+      take: BATCH_SIZE,
     }),
   ]);
 
-  for (const submission of submissions) {
-    const urls = getStringArray(submission.image_urls);
-    const cleanableUrls = urls.filter(shouldCleanUrl);
-    if (cleanableUrls.length === 0) continue;
-
-    await deleteUrls(cleanableUrls);
-    const partsAnswer = getJsonObject(submission.parts_answer);
-    await db.pcSubmission.update({
-      where: { id: submission.id },
-      data: {
-        image_urls: [CLEANED_IMAGE_MARKER],
-        parts_answer: {
-          ...partsAnswer,
-          evidence_cleaned_at: now.toISOString(),
-          evidence_retention_hours: 48,
-        },
-      },
-    });
+  if (submissions.length === 0 && checkins.length === 0) {
+    return { submissions: 0, checkins: 0 };
   }
 
-  for (const checkin of checkins) {
-    if (!shouldCleanUrl(checkin.image_url)) continue;
+  const submissionIds = submissions.map((s) => s.id);
+  const checkinIds = checkins.map((c) => c.id);
 
-    await deleteUrls([checkin.image_url]);
-    const buildData = getJsonObject(checkin.build_data);
-    await db.checkin.update({
-      where: { id: checkin.id },
-      data: {
-        image_url: CLEANED_IMAGE_MARKER,
-        build_data: {
-          ...buildData,
-          evidence_cleaned_at: now.toISOString(),
-          evidence_retention_hours: 48,
+  const submissionImageUrls = submissions.flatMap((s) =>
+    getStringArray(s.image_urls).filter(shouldCleanUrl)
+  );
+  const checkinImageUrls = checkins
+    .map((c) => c.image_url)
+    .filter(shouldCleanUrl);
+
+  await deleteUrls([...submissionImageUrls, ...checkinImageUrls]);
+
+  const notificationDeletes: Promise<unknown>[] = [];
+  if (submissionIds.length > 0) {
+    notificationDeletes.push(
+      db.notification.deleteMany({
+        where: {
+          reference_id: { in: submissionIds },
+          reference_type: "pc_submission",
         },
-      },
-    });
+      })
+    );
   }
+  if (checkinIds.length > 0) {
+    notificationDeletes.push(
+      db.notification.deleteMany({
+        where: {
+          reference_id: { in: checkinIds },
+          reference_type: "checkin",
+        },
+      })
+    );
+  }
+  await Promise.all(notificationDeletes);
+
+  const recordDeletes: Promise<unknown>[] = [];
+  if (submissionIds.length > 0) {
+    recordDeletes.push(
+      db.pcSubmission.deleteMany({ where: { id: { in: submissionIds } } })
+    );
+  }
+  if (checkinIds.length > 0) {
+    recordDeletes.push(
+      db.checkin.deleteMany({ where: { id: { in: checkinIds } } })
+    );
+  }
+  await Promise.all(recordDeletes);
 
   return {
     submissions: submissions.length,
@@ -99,4 +103,25 @@ export async function cleanupExpiredBuildPcImages(now = new Date()) {
   };
 }
 
-export { CLEANED_IMAGE_MARKER };
+export async function cleanupExpiredBuildPcSubmissions(
+  now = new Date(),
+  maxBatches = 20
+) {
+  let totalSubmissions = 0;
+  let totalCheckins = 0;
+
+  for (let batch = 0; batch < maxBatches; batch += 1) {
+    const result = await cleanupExpiredBuildPcSubmissionsBatch(now);
+    totalSubmissions += result.submissions;
+    totalCheckins += result.checkins;
+    if (result.submissions === 0 && result.checkins === 0) break;
+  }
+
+  return {
+    submissions: totalSubmissions,
+    checkins: totalCheckins,
+    retentionDays: BUILD_PC_SUBMISSION_TTL_MS / (24 * 60 * 60 * 1000),
+  };
+}
+
+export { BUILD_PC_SUBMISSION_TTL_MS };

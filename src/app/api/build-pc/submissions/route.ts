@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { getStartOfDayVN } from "@/lib/pc-kho";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
-import { cleanupExpiredBuildPcImages } from "@/lib/pc-build-cleanup";
+import { cleanupExpiredBuildPcSubmissions } from "@/lib/pc-build-cleanup";
 import { getEffectivePlan } from "@/lib/plan-utils";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +23,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await cleanupExpiredBuildPcImages();
+  await cleanupExpiredBuildPcSubmissions();
 
   const today = getStartOfDayVN();
   const tomorrow = getEndOfDayVN(today);
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await cleanupExpiredBuildPcImages();
+  await cleanupExpiredBuildPcSubmissions();
 
   const body = await request.json();
   const { exercise_id, image_urls, explanation, extracted_items } = body;

@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/build-pc-submission-cleanup",
+      "schedule": "0 20 * * *"
+    }
+  ]
+}

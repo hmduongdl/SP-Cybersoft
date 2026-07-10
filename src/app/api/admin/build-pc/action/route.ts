@@ -12,7 +12,7 @@ import {
 import { sendAiReviewCompletedEmail } from "@/lib/ai-review-email";
 import { queueApprovedReviewEmail } from "@/lib/approval-success-email";
 import { createNotification } from "@/lib/notifications";
-import { cleanupExpiredBuildPcImages, CLEANED_IMAGE_MARKER } from "@/lib/pc-build-cleanup";
+import { cleanupExpiredBuildPcSubmissions } from "@/lib/pc-build-cleanup";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ function getEvidenceUrl(urls: unknown): string | null {
   if (!Array.isArray(urls)) return null;
   return urls
     .filter((url): url is string => typeof url === "string")
-    .find((url) => url !== CLEANED_IMAGE_MARKER && (url.startsWith("data:image/") || /^https?:\/\//.test(url))) || null;
+    .find((url) => url !== "excel-parsed" && (url.startsWith("data:image/") || /^https?:\/\//.test(url))) || null;
 }
 
 function buildFreshReviewPayload(
@@ -185,7 +185,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Vui lòng nhập lý do từ chối." }, { status: 400 });
     }
 
-    await cleanupExpiredBuildPcImages();
+    await cleanupExpiredBuildPcSubmissions();
 
     if (action === "PROCESS") {
       const subs = pcSubmissionIds.length
@@ -750,7 +750,7 @@ export async function POST(request: Request) {
       }
     }
 
-    await cleanupExpiredBuildPcImages();
+    await cleanupExpiredBuildPcSubmissions();
 
     revalidateTag(CACHE_TAGS.ADMIN_QUEUE, "default");
 

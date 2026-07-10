@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/shared/sidebar";
 import { SiteHeader } from "@/components/shared/site-header";
 import { AIAssistant } from "@/components/AIAssistant";
+import { ChiikawaMaxPromoModal } from "@/components/promo/ChiikawaMaxPromoModal";
 
 import { useLayout } from "@/components/shared/layout-context";
 
@@ -50,6 +51,8 @@ export default function ClientLayoutWrapper({ children }: { children: React.Reac
 
         {/* Global AI Assistant Pop-up Chat */}
         {!isSeoToolsPage && !isAiChatPage && <AIAssistant />}
+
+        <ChiikawaMaxPromoModal />
       </div>
     </div>
   );
