@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Copy, Sparkles, Code2, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { copyToClipboard, parseApiErrorResponse, readTextStream } from "@/lib/seo-client";
+import { copyToClipboard, handleSeoApiError, readTextStream } from "@/lib/seo-client";
 import { ARTICLE_TONE_VALUES, validateSeoMinOnly } from "@/lib/seo-schemas";
 import {
   AiTypingIndicator,
@@ -20,7 +20,12 @@ const TONE_OPTIONS = [
 
 type OutputTab = "code" | "preview";
 
-export function ArticleWriter() {
+interface SeoToolQuotaProps {
+  onQuotaConsumed?: () => void;
+  onQuotaExhausted?: () => void;
+}
+
+export function ArticleWriter({ onQuotaConsumed, onQuotaExhausted }: SeoToolQuotaProps = {}) {
   const [topic, setTopic] = useState("");
   const [tone, setTone] = useState<(typeof ARTICLE_TONE_VALUES)[number]>(ARTICLE_TONE_VALUES[0]);
   const [content, setContent] = useState("");
@@ -44,7 +49,8 @@ export function ArticleWriter() {
       });
 
       if (!res.ok) {
-        toast.error(await parseApiErrorResponse(res));
+        const quotaErr = await handleSeoApiError(res);
+        if (quotaErr?.quotaExceeded) onQuotaExhausted?.();
         return;
       }
 
@@ -54,6 +60,7 @@ export function ArticleWriter() {
         return;
       }
 
+      onQuotaConsumed?.();
       toast.success("Hoàn tất mô tả sản phẩm");
     } catch {
       toast.error("Không thể kết nối máy chủ. Vui lòng thử lại.");

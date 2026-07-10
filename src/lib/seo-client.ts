@@ -37,20 +37,13 @@ export async function readTextStream(
   return accumulated;
 }
 
-export async function parseApiErrorResponse(res: Response): Promise<string> {
-  try {
-    const data = await res.json();
-    if (typeof data?.error === "string" && data.error.trim()) {
-      return data.error;
-    }
-  } catch {
-    // ignore JSON parse failure
-  }
+import { handleQuotaApiError, type QuotaErrorPayload } from "@/lib/quota-client";
 
-  if (res.status === 400) return "Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.";
-  if (res.status === 401) return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
-  if (res.status === 500) return "Lỗi hệ thống. Vui lòng thử lại sau.";
-  return `Yêu cầu thất bại (${res.status})`;
+export { parseApiErrorResponse } from "@/lib/quota-client";
+
+/** Hiển thị toast lỗi API SEO — kèm nút nâng cấp khi chạm quota */
+export async function handleSeoApiError(res: Response): Promise<QuotaErrorPayload | null> {
+  return handleQuotaApiError(res);
 }
 
 /** Làm sạch code fence ```markdown / ``` nếu model bọc kết quả bảng. */

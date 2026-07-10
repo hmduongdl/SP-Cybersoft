@@ -28,7 +28,9 @@ import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/cache";
 import { computeAHash, hammingDistance, PHASH_DUPLICATE_THRESHOLD } from "@/lib/image-hash";
 import { processBackgroundCheckinReview } from "@/lib/checkin-background-worker";
-import { getPostDeadline } from "@/lib/utils";
+import { canSubmitWithinPlanWindow } from "@/lib/utils";
+import { getResolvedUserPlan } from "@/lib/plan-pause";
+import { PLAN_FEATURES } from "@/lib/plan-utils";
 
 // Cho phép body size lớn hơn mặc định 4 MB của Next.js
 export const dynamic = "force-dynamic";
@@ -286,14 +288,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // ── 4b. Kiểm tra cửa sổ nộp bài theo rule deadline (12h/15h ngày hôm sau) ─
-    // Người dùng không được nộp sau khi cửa sổ đã đóng, trừ khi Admin đã mở khóa nộp bù.
-    const windowEndMs = getPostDeadline(post.start_at).getTime();
-    if (Date.now() > windowEndMs && !post.allow_late_submit) {
+    // ── 4b. Kiểm tra cửa sổ nộp bài (deadline + giờ nộp muộn theo gói) ─────
+    const resolved = await getResolvedUserPlan(userId);
+    const effectivePlan = resolved?.effectivePlan ?? "FREE";
+    const planFeatures = PLAN_FEATURES[effectivePlan];
+
+    if (
+      !canSubmitWithinPlanWindow(post.start_at, planFeatures, post.allow_late_submit)
+    ) {
+      const lateHint =
+        planFeatures.allowLateSubmit && planFeatures.lateSubmitHours > 0
+          ? ` Gói ${effectivePlan} cho phép nộp muộn tối đa ${planFeatures.lateSubmitHours} tiếng sau deadline.`
+          : " Nâng cấp PRO để được nộp muộn.";
       return NextResponse.json(
         {
           success: false,
-          error: "Cửa sổ nộp bài đã kết thúc. Vui lòng liên hệ HR Admin nếu cần hỗ trợ.",
+          error: `Cửa sổ nộp bài đã kết thúc.${lateHint} Liên hệ HR Admin nếu cần hỗ trợ thêm.`,
         },
         { status: 422 }
       );

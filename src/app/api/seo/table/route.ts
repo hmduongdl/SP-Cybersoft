@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { buildTablePrompt } from "@/lib/seo-prompts";
 import { createSeoStreamResponse } from "@/lib/seo-stream-route";
 import { formatZodError, tableRequestSchema } from "@/lib/seo-schemas";
+import { guardAiStudioQuota } from "@/lib/seo-quota-guard";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -25,6 +26,9 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ error: formatZodError(parsed.error) }, { status: 400 });
     }
+
+    const quotaGuard = await guardAiStudioQuota(session.user.id);
+    if (quotaGuard.response) return quotaGuard.response;
 
     const { inputText } = parsed.data;
     const prompt = buildTablePrompt(inputText);

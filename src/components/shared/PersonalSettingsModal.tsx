@@ -17,6 +17,7 @@ import {
   Settings,
   ExternalLink,
   Camera,
+  ShieldCheck,
 } from "lucide-react";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useTheme } from "next-themes";
@@ -26,6 +27,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useTaskStore } from "@/store/useTaskStore";
 import { UserAvatar } from "./user-avatar";
+import { TrustScoreHistoryPanel } from "./TrustScoreHistoryPanel";
+import { useLayout, type PersonalSettingsTab } from "./layout-context";
 
 interface PersonalSettingsModalProps {
   isOpen: boolean;
@@ -33,7 +36,7 @@ interface PersonalSettingsModalProps {
 }
 
 // ── Tab definition ──
-type TabId = "profile" | "tags" | "workspaces" | "invitations" | "appearance";
+type TabId = PersonalSettingsTab;
 
 interface TabDef {
   id: TabId;
@@ -43,6 +46,7 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { id: "profile", label: "Hồ sơ tài khoản", icon: User },
+  { id: "trust", label: "Trust Score", icon: ShieldCheck },
   { id: "workspaces", label: "Không gian & Thẻ Tag", icon: Briefcase },
   { id: "appearance", label: "Giao diện hiển thị", icon: Paintbrush },
 ];
@@ -739,14 +743,20 @@ const AppearanceTab = React.memo(function AppearanceTab() {
 
 // ──────────────────── Main Modal ────────────────────
 export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModalProps) {
+  const { personalSettingsTab } = useLayout();
   const [activeTab, setActiveTab] = useState<TabId>("profile");
 
   useEffect(() => {
-    if (!isOpen) setActiveTab("profile");
-  }, [isOpen]);
+    if (isOpen) {
+      setActiveTab(personalSettingsTab);
+    } else {
+      setActiveTab("profile");
+    }
+  }, [isOpen, personalSettingsTab]);
 
-  const tabTitles = useMemo<Record<string, string>>(() => ({
+  const tabTitles = useMemo<Record<TabId, string>>(() => ({
     profile: "Hồ sơ tài khoản",
+    trust: "Trust Score",
     workspaces: "Quản lý Không gian & Thẻ Tag",
     appearance: "Giao diện hiển thị",
   }), []);
@@ -796,6 +806,9 @@ export function PersonalSettingsModal({ isOpen, onClose }: PersonalSettingsModal
             <div className="flex-1 overflow-y-auto p-4 md:p-6">
               <div className={activeTab === 'profile' ? 'block animate-fade-in' : 'hidden'}>
                 <ProfileTab onClose={onClose} />
+              </div>
+              <div className={activeTab === 'trust' ? 'block animate-fade-in' : 'hidden'}>
+                <TrustScoreHistoryPanel />
               </div>
               <div className={activeTab === 'workspaces' ? 'block animate-fade-in' : 'hidden'}>
                 <WorkspacesTab />

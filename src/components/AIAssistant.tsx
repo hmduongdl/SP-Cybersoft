@@ -5,6 +5,9 @@ import { Send, Sparkles, X, AlertTriangle, Bot } from "lucide-react";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { QuotaLimitNotice } from "@/components/shared/QuotaLimitNotice";
+import { buildQuotaExceededMessage } from "@/lib/plan-utils";
+import { handleQuotaApiError } from "@/lib/quota-client";
 
 interface Message {
   role: "user" | "assistant";
@@ -16,6 +19,10 @@ interface QuotaStatus {
   daily_token_limit: number;
   tokens_used_today: number;
   usage_percent: number;
+  effective_plan?: string;
+  upgrade_plan?: "PRO" | "MAX";
+  resets_at?: string;
+  quota_exceeded?: boolean;
 }
 
 function formatMessageContent(content: string): React.ReactNode {
@@ -183,6 +190,7 @@ export function AIAssistant() {
   const [isLoading, setIsLoading] = useState(false);
   const [quotaStatus, setQuotaStatus] = useState<QuotaStatus | null>(null);
   const [quotaExceeded, setQuotaExceeded] = useState(false);
+  const [quotaMessage, setQuotaMessage] = useState<string | null>(null);
   const [hasPulsed, setHasPulsed] = useState(false);
   const [showBubble, setShowBubble] = useState(false);
   const [bubbleText, setBubbleText] = useState("");
@@ -193,10 +201,22 @@ export function AIAssistant() {
     try {
       const res = await fetch("/api/user/quota-status");
       if (res.ok) {
-        const data = await res.json();
+        const data: QuotaStatus = await res.json();
         setQuotaStatus(data);
-        if (data.usage_percent >= 100) {
-          setQuotaExceeded(true);
+        const exceeded =
+          data.quota_exceeded === true ||
+          (data.daily_token_limit > 0 && data.tokens_used_today >= data.daily_token_limit);
+        setQuotaExceeded(exceeded);
+        if (exceeded && data.resets_at) {
+          setQuotaMessage(
+            buildQuotaExceededMessage(
+              "AI token hôm nay",
+              data.tokens_used_today,
+              data.daily_token_limit,
+              data.resets_at,
+              data.upgrade_plan ?? "MAX"
+            )
+          );
         }
       }
     } catch (err) {
@@ -205,7 +225,7 @@ export function AIAssistant() {
   }, []);
 
   useEffect(() => {
-    // Tạm thời vô hiệu hóa kiểm tra quota theo yêu cầu
+    if (isOpen) fetchQuota();
   }, [isOpen, fetchQuota]);
 
   useEffect(() => {
@@ -240,7 +260,7 @@ export function AIAssistant() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || quotaExceeded) return;
 
     const userMessage: Message = { role: "user", content: input.trim(), timestamp: new Date() };
     setInput("");
@@ -268,9 +288,16 @@ export function AIAssistant() {
       });
 
       if (response.status === 429) {
-        const errorData = await response.json().catch(() => ({}));
+        await handleQuotaApiError(response);
         setQuotaExceeded(true);
         setIsLoading(false);
+
+        try {
+          const errorData = await response.clone().json();
+          if (errorData.message) setQuotaMessage(errorData.message);
+        } catch {
+          // ignore
+        }
 
         setMessages((prev) => {
           const updated = [...prev];
@@ -280,9 +307,7 @@ export function AIAssistant() {
           return updated;
         });
 
-        toast.error(errorData.message || "Bạn đã vượt quá hạn mức sử dụng AI trong ngày hôm nay.", {
-          duration: 6000,
-        });
+        fetchQuota();
         return;
       }
 
@@ -494,28 +519,38 @@ export function AIAssistant() {
 
           {/* Input Area */}
           <div className="px-3 pb-3 pt-1 shrink-0">
-            <form
-              onSubmit={handleSend}
-              className="flex items-center gap-2 bg-surface-container rounded-xl px-3 py-2"
-            >
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading}
-                placeholder="Nhập tin nhắn..."
-                className="flex-1 bg-transparent text-xs text-on-surface placeholder-on-surface-variant/60 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed font-inter"
+            {quotaExceeded && quotaStatus ? (
+              <QuotaLimitNotice
+                featureLabel="AI token hôm nay"
+                used={quotaStatus.tokens_used_today}
+                limit={quotaStatus.daily_token_limit}
+                resetsAt={quotaStatus.resets_at}
+                upgradePlan={quotaStatus.upgrade_plan ?? "MAX"}
+                message={quotaMessage ?? undefined}
+                compact
               />
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="h-8 w-8 rounded-full gradient-primary text-on-primary flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+            ) : (
+              <form
+                onSubmit={handleSend}
+                className="flex items-center gap-2 bg-surface-container rounded-xl px-3 py-2"
               >
-                <Send className="h-3.5 w-3.5" />
-              </button>
-            </form>
-
-
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  disabled={isLoading}
+                  placeholder="Nhập tin nhắn..."
+                  className="flex-1 bg-transparent text-xs text-on-surface placeholder-on-surface-variant/60 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed font-inter"
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="h-8 w-8 rounded-full gradient-primary text-on-primary flex items-center justify-center shrink-0 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

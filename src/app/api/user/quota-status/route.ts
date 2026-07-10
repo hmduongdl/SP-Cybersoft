@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getEffectivePlan, getNextDailyResetDate, PLAN_FEATURES } from "@/lib/plan-utils";
+import { getPlanPauseState, PLAN_PAUSE_SELECT } from "@/lib/plan-pause";
 
 export async function GET() {
   try {
@@ -12,7 +14,7 @@ export async function GET() {
     const user = await db.user.findUnique({
       where: { id: session.user.id },
       select: {
-        daily_token_limit: true,
+        ...PLAN_PAUSE_SELECT,
         tokens_used_today: true,
         last_token_reset: true,
       },
@@ -22,24 +24,40 @@ export async function GET() {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Auto-detect if it's a new day (client also does this for fresh data)
+    const effectivePlan = getEffectivePlan(
+      user.role,
+      user.plan,
+      user.plan_expires_at,
+      getPlanPauseState(user)
+    );
+    const monthlyLimit = PLAN_FEATURES[effectivePlan].aiTokenLimitMonthly;
+    const dailyLimit = Math.floor(monthlyLimit / 30);
+
     const now = new Date();
     const lastReset = new Date(user.last_token_reset);
     const isNewDay =
-      now.getFullYear() !== lastReset.getFullYear() ||
-      now.getMonth() !== lastReset.getMonth() ||
-      now.getDate() !== lastReset.getDate();
+      now.getUTCFullYear() !== lastReset.getUTCFullYear() ||
+      now.getUTCMonth() !== lastReset.getUTCMonth() ||
+      now.getUTCDate() !== lastReset.getUTCDate();
 
     const tokensUsed = isNewDay ? 0 : (user.tokens_used_today ?? 0);
-    const limit = user.daily_token_limit ?? 100000;
-    const usagePercent = limit > 0 ? Math.min(100, Math.round((tokensUsed / limit) * 100)) : 0;
+    const usagePercent =
+      dailyLimit > 0 ? Math.min(100, Math.round((tokensUsed / dailyLimit) * 100)) : 0;
+
+    const upgradePlan = effectivePlan === "FREE" ? "PRO" : "MAX";
+    const quotaExceeded = dailyLimit > 0 && tokensUsed >= dailyLimit;
 
     return NextResponse.json({
-      daily_token_limit: limit,
+      daily_token_limit: dailyLimit,
       tokens_used_today: tokensUsed,
       usage_percent: usagePercent,
+      token_limit_monthly: monthlyLimit,
+      effective_plan: effectivePlan,
+      upgrade_plan: upgradePlan,
+      resets_at: getNextDailyResetDate().toISOString(),
+      quota_exceeded: quotaExceeded,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Quota status error:", error);
     return NextResponse.json(
       { error: "Không thể lấy thông tin hạn mức." },

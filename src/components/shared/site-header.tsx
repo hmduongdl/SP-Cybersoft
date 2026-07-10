@@ -151,7 +151,6 @@ export function SiteHeader() {
       posts: "Quản lý Post",
       accounts: "Quản lý Account",
       account: "Quản lý Account",
-      settings: "Cấu hình Hệ thống",
       login: "Đăng nhập",
       create: "Tạo mới",
       edit: "Chỉnh sửa",
@@ -227,13 +226,14 @@ export function SiteHeader() {
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Trust, Wallet, Score, and Department Badges */}
           <div className="hidden md:flex items-center gap-2">
-            <Link
-              href="/trust-score"
+            <button
+              type="button"
+              onClick={() => setOpenPersonalSettings(true, "trust")}
               className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2.5 py-0.5 text-xs font-bold text-blue-600 border border-blue-500/20 hover:bg-blue-500/20 transition-all duration-150"
             >
               <ShieldCheck className="h-3 w-3" />
               {profile?.trust_score ?? session?.user?.trust_score ?? "..."}
-            </Link>
+            </button>
             <Link
               href="/pricing"
               className={twMerge(

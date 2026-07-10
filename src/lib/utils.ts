@@ -46,3 +46,29 @@ export function getPostDeadline(startAt: Date | string | number): Date {
   const deadlineVnFakeUtc = new Date(Date.UTC(year, month, date + 1, deadlineHour, 0, 0, 0));
   return new Date(deadlineVnFakeUtc.getTime() - 7 * 60 * 60 * 1000);
 }
+
+export interface LateSubmitPlanFeatures {
+  allowLateSubmit: boolean;
+  lateSubmitHours: number;
+}
+
+/** Deadline + giờ nộp muộn theo gói (PRO +1h, MAX +5h). */
+export function getSubmitWindowEnd(
+  startAt: Date | string | number,
+  features: LateSubmitPlanFeatures
+): Date {
+  const deadline = getPostDeadline(startAt);
+  if (!features.allowLateSubmit || features.lateSubmitHours <= 0) {
+    return deadline;
+  }
+  return new Date(deadline.getTime() + features.lateSubmitHours * 60 * 60 * 1000);
+}
+
+export function canSubmitWithinPlanWindow(
+  startAt: Date | string | number,
+  features: LateSubmitPlanFeatures,
+  adminAllowLateSubmit: boolean
+): boolean {
+  if (adminAllowLateSubmit) return true;
+  return Date.now() <= getSubmitWindowEnd(startAt, features).getTime();
+}

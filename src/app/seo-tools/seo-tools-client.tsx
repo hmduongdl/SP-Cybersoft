@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { SpecSummary } from "@/components/modules/seo/SpecSummary";
 import { ArticleWriter } from "@/components/modules/seo/ArticleWriter";
 import { TableGenerator } from "@/components/modules/seo/TableGenerator";
+import { QuotaLimitNotice, QuotaUsageBar } from "@/components/shared/QuotaLimitNotice";
+import { useFeatureQuotas, isQuotaExhausted } from "@/hooks/useFeatureQuotas";
 
 type SeoTool = {
   id: string;
@@ -194,6 +196,9 @@ function ComingSoonPanel({ title }: { title: string }) {
 
 export default function SeoToolsClient() {
   const [activeTool, setActiveTool] = useState("article-writer");
+  const { aiStudio, refresh: refreshQuotas } = useFeatureQuotas();
+
+  const aiStudioExhausted = isQuotaExhausted(aiStudio);
 
   const activeToolMeta = SEO_TOOLS.find((t) => t.id === activeTool);
   const activeHeader = TOOL_HEADERS[activeTool];
@@ -214,13 +219,30 @@ export default function SeoToolsClient() {
       return <ComingSoonPanel title={activeHeader.title} />;
     }
 
+    if (aiStudioExhausted && aiStudio) {
+      return (
+        <QuotaLimitNotice
+          featureLabel="lượt AI Studio tháng này"
+          used={aiStudio.used}
+          limit={aiStudio.limit}
+          resetsAt={aiStudio.resetsAt}
+          blocked
+        />
+      );
+    }
+
+    const quotaCallbacks = {
+      onQuotaConsumed: () => refreshQuotas(),
+      onQuotaExhausted: () => refreshQuotas(),
+    };
+
     switch (activeTool) {
       case "article-writer":
-        return <ArticleWriter />;
+        return <ArticleWriter {...quotaCallbacks} />;
       case "table-generator":
-        return <TableGenerator />;
+        return <TableGenerator {...quotaCallbacks} />;
       case "spec-summary":
-        return <SpecSummary />;
+        return <SpecSummary {...quotaCallbacks} />;
       default:
         return null;
     }
@@ -246,9 +268,28 @@ export default function SeoToolsClient() {
             <p className="font-inter text-xs text-on-muted max-w-xl">
               Bộ công cụ AI hỗ trợ các tác vụ content chuẩn SEO, xử lý thông số kỹ thuật và báo cáo công việc hàng tuần cho nhân sự Song Phương.
             </p>
+            {aiStudio && !aiStudio.isUnlimited && !aiStudioExhausted && (
+              <div className="pt-3 max-w-xs">
+                <QuotaUsageBar
+                  label="Lượt AI Studio tháng này"
+                  used={aiStudio.used}
+                  limit={aiStudio.limit}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {aiStudioExhausted && aiStudio && (
+        <QuotaLimitNotice
+          featureLabel="lượt AI Studio tháng này"
+          used={aiStudio.used}
+          limit={aiStudio.limit}
+          resetsAt={aiStudio.resetsAt}
+          compact
+        />
+      )}
 
       {/* Grid Menu of Tools */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -7,22 +7,25 @@ export interface PlanPauseState {
   pausedPlanExpiresAt?: Date | null;
 }
 
+export type ReportPeriod = "day" | "week" | "month";
+
 export interface PlanFeatures {
   // AI
   aiChatEnabled: boolean;
   aiTokenLimitMonthly: number; // tokens/month, -1 = unlimited
 
   // Build PC
-  buildPcUnlimited: boolean;     // unlimited submits + instant result
-  buildPcResultLimit: number;    // max results visible (-1 = unlimited)
+  buildPcResultLimit: number; // max results visible/day (-1 = unlimited)
+  buildPcUnlimitedSubmit: boolean;
 
   // Submission
-  instantApproval: boolean;      // kết quả tức thì vs chờ admin
-  allowLateSubmit: boolean;      // có cho nộp muộn không
-  lateSubmitHours: number;       // số giờ muộn tối đa
+  instantApproval: boolean;
+  allowLateSubmit: boolean;
+  lateSubmitHours: number;
 
   // AI Studio
   aiStudioEnabled: boolean;
+  aiStudioMonthlyLimit: number; // -1 = unlimited
 
   // Task Manager
   vipTaskManager: boolean;
@@ -32,55 +35,118 @@ export interface PlanFeatures {
 
   // Reports
   periodicReports: boolean;
+  reportExportMonthlyLimit: number; // -1 = unlimited
+  reportAllowedPeriods: ReportPeriod[];
 
-  // Company workflow
+  // Company Workflow (chưa triển khai UI — config sẵn cho giai đoạn sau)
   companyWorkflow: boolean;
+  companyWorkflowEditLimit: number; // -1 = unlimited edits
 }
 
 export const PLAN_FEATURES: Record<PlanType, PlanFeatures> = {
   FREE: {
     aiChatEnabled: true,
-    aiTokenLimitMonthly: 500000, // ~500K tokens (giới hạn)
-    buildPcUnlimited: false,
+    aiTokenLimitMonthly: 500_000,
     buildPcResultLimit: 3,
+    buildPcUnlimitedSubmit: false,
     instantApproval: false,
     allowLateSubmit: false,
     lateSubmitHours: 0,
     aiStudioEnabled: false,
+    aiStudioMonthlyLimit: 0,
     vipTaskManager: false,
     maxWorkspaces: 3,
     periodicReports: false,
+    reportExportMonthlyLimit: 0,
+    reportAllowedPeriods: [],
     companyWorkflow: false,
+    companyWorkflowEditLimit: 0,
   },
   PRO: {
     aiChatEnabled: true,
-    aiTokenLimitMonthly: 15_000_000, // 15M tokens
-    buildPcUnlimited: true,
+    aiTokenLimitMonthly: 15_000_000,
     buildPcResultLimit: -1,
+    buildPcUnlimitedSubmit: true,
     instantApproval: true,
     allowLateSubmit: true,
     lateSubmitHours: 1,
     aiStudioEnabled: true,
+    aiStudioMonthlyLimit: 20,
     vipTaskManager: true,
     maxWorkspaces: 10,
-    periodicReports: false,
-    companyWorkflow: false,
+    periodicReports: true,
+    reportExportMonthlyLimit: 4,
+    reportAllowedPeriods: ["week"],
+    companyWorkflow: true,
+    companyWorkflowEditLimit: 2,
   },
   MAX: {
     aiChatEnabled: true,
-    aiTokenLimitMonthly: 50_000_000, // 50M tokens
-    buildPcUnlimited: true,
+    aiTokenLimitMonthly: 50_000_000,
     buildPcResultLimit: -1,
+    buildPcUnlimitedSubmit: true,
     instantApproval: true,
     allowLateSubmit: true,
     lateSubmitHours: 5,
     aiStudioEnabled: true,
+    aiStudioMonthlyLimit: -1,
     vipTaskManager: true,
     maxWorkspaces: 20,
     periodicReports: true,
+    reportExportMonthlyLimit: -1,
+    reportAllowedPeriods: ["day", "week", "month"],
     companyWorkflow: true,
+    companyWorkflowEditLimit: -1,
   },
 };
+
+/** Kiểm tra limit có phải unlimited không */
+export function isUnlimitedLimit(limit: number): boolean {
+  return limit < 0;
+}
+
+/** Ngày reset quota hàng ngày (00:00 ngày mai, giờ VN) */
+export function getNextDailyResetDate(from: Date = new Date()): Date {
+  const vnMs = from.getTime() + 7 * 60 * 60 * 1000;
+  const vn = new Date(vnMs);
+  const tomorrowFakeUtc = new Date(
+    Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), vn.getUTCDate() + 1, 0, 0, 0, 0)
+  );
+  return new Date(tomorrowFakeUtc.getTime() - 7 * 60 * 60 * 1000);
+}
+
+/** Ngày reset quota hàng tháng (00:00 ngày 1 tháng sau, giờ VN) */
+export function getNextMonthlyResetDate(from: Date = new Date()): Date {
+  const vnMs = from.getTime() + 7 * 60 * 60 * 1000;
+  const vn = new Date(vnMs);
+  const year = vn.getUTCFullYear();
+  const month = vn.getUTCMonth();
+  const nextMonthFakeUtc = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0));
+  return new Date(nextMonthFakeUtc.getTime() - 7 * 60 * 60 * 1000);
+}
+
+/** Format ngày reset cho thông báo UX */
+export function formatQuotaResetDate(date: Date | string): string {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleDateString("vi-VN", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Asia/Ho_Chi_Minh",
+  });
+}
+
+/** Thông báo chuẩn khi user chạm giới hạn quota (dùng chung client + server) */
+export function buildQuotaExceededMessage(
+  featureLabel: string,
+  used: number,
+  limit: number,
+  resetsAt: Date | string,
+  upgradePlan: "PRO" | "MAX" = "MAX"
+): string {
+  const resetLabel = formatQuotaResetDate(resetsAt);
+  return `Bạn đã dùng hết ${used}/${limit} ${featureLabel}. Nâng cấp ${upgradePlan} để dùng không giới hạn, hoặc đợi reset vào ${resetLabel}.`;
+}
 
 /**
  * Lấy plan hiệu lực của user.

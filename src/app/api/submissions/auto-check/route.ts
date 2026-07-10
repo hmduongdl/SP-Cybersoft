@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { getPostDeadline } from "@/lib/utils";
+import { canSubmitWithinPlanWindow } from "@/lib/utils";
+import { getResolvedUserPlan } from "@/lib/plan-pause";
+import { PLAN_FEATURES } from "@/lib/plan-utils";
 
 export async function POST(request: Request) {
   try {
@@ -35,11 +37,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Ràng buộc thời hạn theo rule deadline — bỏ qua nếu Admin đã mở khóa nộp bù
-    const serverTime = new Date();
-    const deadline = getPostDeadline(post.start_at);
+    // 2. Ràng buộc thời hạn — deadline + giờ nộp muộn theo gói
+    const resolved = await getResolvedUserPlan(session.user.id);
+    const effectivePlan = resolved?.effectivePlan ?? "FREE";
+    const planFeatures = PLAN_FEATURES[effectivePlan];
 
-    if (serverTime > deadline && !post.allow_late_submit) {
+    if (
+      !canSubmitWithinPlanWindow(post.start_at, planFeatures, post.allow_late_submit)
+    ) {
       return NextResponse.json(
         { success: false, message: "Quá thời hạn quy định để tự động check-in bài viết này." },
         { status: 400 }

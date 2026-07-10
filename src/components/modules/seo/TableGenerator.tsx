@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   cleanSeoTableMarkdown,
   copyToClipboard,
-  parseApiErrorResponse,
+  handleSeoApiError,
   readTextStream,
 } from "@/lib/seo-client";
 import { validateSeoMinOnly } from "@/lib/seo-schemas";
@@ -23,7 +23,12 @@ import {
 
 type OutputTab = "code" | "preview";
 
-export function TableGenerator() {
+interface SeoToolQuotaProps {
+  onQuotaConsumed?: () => void;
+  onQuotaExhausted?: () => void;
+}
+
+export function TableGenerator({ onQuotaConsumed, onQuotaExhausted }: SeoToolQuotaProps = {}) {
   const [inputText, setInputText] = useState("");
   const [markdown, setMarkdown] = useState("");
   const [activeTab, setActiveTab] = useState<OutputTab>("preview");
@@ -46,7 +51,8 @@ export function TableGenerator() {
       });
 
       if (!res.ok) {
-        toast.error(await parseApiErrorResponse(res));
+        const quotaErr = await handleSeoApiError(res);
+        if (quotaErr?.quotaExceeded) onQuotaExhausted?.();
         return;
       }
 
@@ -63,6 +69,7 @@ export function TableGenerator() {
         return;
       }
 
+      onQuotaConsumed?.();
       toast.success("Hoàn tất bảng thông số");
     } catch {
       toast.error("Không thể kết nối máy chủ. Vui lòng thử lại.");

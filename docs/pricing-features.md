@@ -1,6 +1,6 @@
 # So sánh tính năng các gói — FREE / PRO / MAX
 
-> Cập nhật: 10/07/2026
+> Cập nhật: 10/07/2026 — Mô hình PRO mở khóa + quota, MAX dùng thả ga
 
 ## Bảng tổng quan
 
@@ -14,19 +14,19 @@
 | | | | |
 | **Build PC** | ⚠️ Giới hạn | ✅ | ✅ |
 | Số kết quả xem tối đa | 3 | Không giới hạn | Không giới hạn |
-| Submit không giới hạn | ❌ | ✅ | ✅ |
+| Submit | Giới hạn | Không giới hạn | Không giới hạn |
 | | | | |
 | **Duyệt bài** | | | |
 | Instant Approval (tự động duyệt) | ❌ | ✅ | ✅ |
 | Cho phép nộp muộn | ❌ | ✅ (tối đa 1 tiếng) | ✅ (tối đa 5 tiếng) |
 | | | | |
-| **AI Studio** | ❌ | ✅ | ✅ |
+| **AI Studio** | ❌ | ✅ (20 lượt/tháng) | ✅ Không giới hạn |
 | **VIP Task Manager** | ❌ | ✅ | ✅ |
 | | | | |
 | **Workspace tối đa** | 3 | 10 | 20 |
 | | | | |
-| **Báo cáo định kỳ** | ❌ | ❌ | ✅ |
-| **Company Workflow** | ❌ | ❌ | ✅ |
+| **Báo cáo định kỳ** | ❌ | ✅ (chỉ tuần, xuất tối đa 4 lần/tháng) | ✅ Ngày/tuần/tháng, không giới hạn |
+| **Company Workflow** | ❌ | ✅ (xem toàn bộ, sửa tối đa 2 quy trình) | ✅ Toàn quyền |
 
 ---
 
@@ -41,23 +41,36 @@ Dành cho cá nhân bắt đầu trải nghiệm:
 - Tối đa 3 workspace
 
 ### PRO — 18.000 ₫/tháng | 189.000 ₫/năm
-Nâng cấp cho học viên chuyên nghiệp:
+Mở khóa đầy đủ tính năng, giới hạn quota sử dụng:
 - AI Chat: 15.000.000 token/tháng
 - Build PC không giới hạn submit và kết quả
 - Instant Approval: kết quả tự động, không chờ admin
+- AI Studio: 20 lượt/tháng
+- Báo cáo tuần: xuất tối đa 4 lần/tháng
+- Company Workflow: xem toàn bộ, chỉnh sửa tối đa 2 quy trình
 - Cho phép nộp muộn tối đa 1 tiếng
-- AI Studio
 - VIP Task Manager
 - Tối đa 10 workspace
 
 ### MAX — 69.000 ₫/tháng | 689.000 ₫/năm
-Gói cao cấp nhất cho tổ chức/doanh nghiệp:
+Dùng thả ga — bỏ giới hạn quota của PRO:
 - AI Chat: 50.000.000 token/tháng
-- Tất cả tính năng của PRO
+- Tất cả tính năng của PRO, không giới hạn lượt dùng
+- AI Studio không giới hạn
+- Báo cáo ngày/tuần/tháng, xuất không giới hạn
+- Company Workflow toàn quyền
 - Cho phép nộp muộn tối đa 5 tiếng
 - Tối đa 20 workspace
-- Báo cáo định kỳ
-- Company Workflow
+
+---
+
+## UX khi chạm giới hạn
+
+Khi user PRO dùng hết quota (ví dụ hết 20 lượt AI Studio), hệ thống hiển thị:
+
+> "Bạn đã dùng hết 20/20 lượt AI Studio tháng này. Nâng cấp MAX để dùng không giới hạn, hoặc đợi reset vào [ngày X]."
+
+Kèm nút **Nâng cấp MAX** ngay tại điểm chạm giới hạn.
 
 ---
 

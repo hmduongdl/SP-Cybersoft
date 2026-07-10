@@ -25,7 +25,6 @@
 | **Quản lý Post** | `/admin/posts` | Tạo/sửa/archive bài viết Facebook check-in |
 | **Quản lý Account** | `/admin/accounts` | CRUD user, phân quyền, xác thực Facebook |
 | **Analytics** | `/admin/analytics` | Thống kê hiệu suất bài viết, nhân sự, phòng ban — xuất Excel |
-| **Cấu hình hệ thống** | `/admin/settings` | Phòng ban, workspace, cấu hình AI model & API key |
 
 ## Công nghệ
 

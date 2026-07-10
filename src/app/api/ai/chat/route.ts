@@ -461,7 +461,16 @@ Nội dung:
     const quota = await checkAndResetQuota(session.user.id, estimatedCost);
     if (!quota.allowed) {
       return NextResponse.json(
-        { error: "Daily quota exceeded", message: quota.message },
+        {
+          error: quota.message,
+          message: quota.message,
+          quotaExceeded: true,
+          upgradePlan: quota.upgradePlan ?? "MAX",
+          used: quota.tokensUsedToday,
+          limit: quota.dailyLimit,
+          resetsAt: quota.resetsAt?.toISOString(),
+          effectivePlan: quota.effectivePlan,
+        },
         { status: 429 }
       );
     }

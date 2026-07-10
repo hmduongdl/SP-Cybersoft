@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import ExcelJS from 'exceljs';
+import {
+  checkReportExportQuota,
+  quotaExceededResponse,
+  recordReportExport,
+} from '@/lib/plan-quota';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +20,13 @@ export async function GET(request: Request) {
     const userId = session.user.id;
 
     const { searchParams } = new URL(request.url);
+    const period = (searchParams.get('period') || 'week') as 'day' | 'week' | 'month';
+
+    const quota = await checkReportExportQuota(userId, period);
+    if (!quota.allowed) {
+      return NextResponse.json(quotaExceededResponse(quota), { status: 403 });
+    }
+
     const startDateStr = searchParams.get('startDate') || searchParams.get('start_date');
     const endDateStr = searchParams.get('endDate') || searchParams.get('end_date');
 
@@ -217,6 +229,8 @@ export async function GET(request: Request) {
 
     // ---- Output ----
     const buffer = await workbook.xlsx.writeBuffer();
+
+    await recordReportExport(userId);
 
     const monthPart = startDateStr
       ? `Thang ${new Date(startDateStr).getMonth() + 1}-${new Date(startDateStr).getFullYear()}`

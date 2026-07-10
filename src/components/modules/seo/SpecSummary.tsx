@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Copy, Sparkles } from "lucide-react";
-import { copyToClipboard, parseApiErrorResponse, readTextStream } from "@/lib/seo-client";
+import { copyToClipboard, handleSeoApiError, readTextStream } from "@/lib/seo-client";
 import { validateSeoMinOnly } from "@/lib/seo-schemas";
 import {
   AiTypingIndicator,
@@ -15,7 +15,12 @@ import {
   TemplateChips,
 } from "@/components/modules/seo/seo-helpers";
 
-export function SpecSummary() {
+interface SeoToolQuotaProps {
+  onQuotaConsumed?: () => void;
+  onQuotaExhausted?: () => void;
+}
+
+export function SpecSummary({ onQuotaConsumed, onQuotaExhausted }: SeoToolQuotaProps = {}) {
   const [inputText, setInputText] = useState("");
   const [summary, setSummary] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -36,7 +41,8 @@ export function SpecSummary() {
       });
 
       if (!res.ok) {
-        toast.error(await parseApiErrorResponse(res));
+        const quotaErr = await handleSeoApiError(res);
+        if (quotaErr?.quotaExceeded) onQuotaExhausted?.();
         return;
       }
 
@@ -46,6 +52,7 @@ export function SpecSummary() {
         return;
       }
 
+      onQuotaConsumed?.();
       toast.success("Hoàn tất tóm tắt thông số");
     } catch {
       toast.error("Không thể kết nối máy chủ. Vui lòng thử lại.");

@@ -1,5 +1,10 @@
 import { db } from "@/lib/db";
-import { getEffectivePlan, PLAN_FEATURES } from "@/lib/plan-utils";
+import {
+  buildQuotaExceededMessage,
+  getEffectivePlan,
+  getNextDailyResetDate,
+  PLAN_FEATURES,
+} from "@/lib/plan-utils";
 import {
   getPlanPauseState,
   PLAN_PAUSE_SELECT,
@@ -9,8 +14,13 @@ import {
 export interface QuotaResult {
   allowed: boolean;
   message?: string;
-  tokensUsedThisMonth?: number;
+  tokensUsedToday?: number;
+  dailyLimit?: number;
   tokenLimitMonthly?: number;
+  effectivePlan?: string;
+  upgradePlan?: "PRO" | "MAX";
+  resetsAt?: Date;
+  quotaExceeded?: boolean;
 }
 
 /**
@@ -65,24 +75,37 @@ export async function checkAndResetQuota(
     const dailyLimit = Math.floor(monthlyLimit / 30);
 
     if (tokensUsed + estimatedCost > dailyLimit) {
-      const planLabel =
-        effectivePlan === "FREE"
-          ? "Miễn phí"
-          : effectivePlan === "PRO"
-          ? "Pro"
-          : "MAX";
+      const resetsAt = getNextDailyResetDate();
+      const upgradePlan = effectivePlan === "FREE" ? "PRO" : "MAX";
+      const message =
+        effectivePlan === "MAX"
+          ? `Bạn đã đạt giới hạn AI token hôm nay (${tokensUsed.toLocaleString("vi-VN")}/${dailyLimit.toLocaleString("vi-VN")}). Đợi reset vào ${resetsAt.toLocaleDateString("vi-VN", { day: "numeric", month: "long", timeZone: "Asia/Ho_Chi_Minh" })}.`
+          : buildQuotaExceededMessage(
+              "AI token hôm nay",
+              tokensUsed,
+              dailyLimit,
+              resetsAt,
+              upgradePlan
+            );
       return {
         allowed: false,
-        tokensUsedThisMonth: tokensUsed,
+        tokensUsedToday: tokensUsed,
+        dailyLimit,
         tokenLimitMonthly: monthlyLimit,
-        message: `Bạn đã đạt giới hạn AI hôm nay (gói ${planLabel}). Nâng cấp gói để tiếp tục sử dụng.`,
+        effectivePlan,
+        upgradePlan,
+        resetsAt,
+        quotaExceeded: true,
+        message,
       };
     }
 
     return {
       allowed: true,
-      tokensUsedThisMonth: tokensUsed,
+      tokensUsedToday: tokensUsed,
+      dailyLimit,
       tokenLimitMonthly: monthlyLimit,
+      effectivePlan,
     };
   } catch {
     // Nếu có lỗi, cho phép qua để tránh block người dùng
