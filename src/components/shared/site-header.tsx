@@ -110,7 +110,7 @@ export function SiteHeader() {
         return ct.includes("application/json") ? res.json() : {};
       }),
     ])
-      .then(([postsData, notifData]) => {
+      .then(([postsData, notifData]: [any, any]) => {
         if (postsData.posts) {
           const now = new Date();
           const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
