@@ -36,7 +36,7 @@ export function shouldResumePausedPlan(user: {
   return new Date() > user.plan_expires_at;
 }
 
-/** Khôi phục gói PRO (hoặc gói đã pause) sau khi hết hạn trial MAX Chiikawa. */
+/** Khôi phục gói đã pause sau khi hết hạn trial MAX. */
 export async function resumePausedPlanIfNeeded(userId: string): Promise<void> {
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -71,30 +71,6 @@ export async function resumePausedPlanIfNeeded(userId: string): Promise<void> {
       },
     });
   });
-}
-
-export function buildChiikawaClaimUpdate(
-  effectivePlan: string,
-  currentPlan: string,
-  currentPlanExpiresAt: Date | null,
-  now: Date,
-  trialExpiresAt: Date
-) {
-  const data = {
-    plan: "MAX" as UserPlan,
-    plan_expires_at: trialExpiresAt,
-    chiikawa_promo_claimed_at: now,
-  };
-
-  if (effectivePlan === "PRO" && currentPlan === "PRO") {
-    return {
-      ...data,
-      paused_plan: "PRO" as UserPlan,
-      paused_plan_expires_at: currentPlanExpiresAt,
-    };
-  }
-
-  return data;
 }
 
 export async function getResolvedUserPlan(userId: string) {

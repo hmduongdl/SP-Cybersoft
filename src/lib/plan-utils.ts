@@ -151,7 +151,7 @@ export function buildQuotaExceededMessage(
 /**
  * Lấy plan hiệu lực của user.
  * Admin luôn nhận MAX vĩnh viễn, bất kể plan field trong DB.
- * Khi trial MAX hết hạn và có gói pause (vd. PRO Chiikawa), trả về gói đã pause.
+ * Khi trial MAX hết hạn và có gói pause, trả về gói đã pause.
  */
 export function getEffectivePlan(
   role: string | UserRole,

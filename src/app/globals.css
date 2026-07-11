@@ -244,42 +244,8 @@
     box-shadow: 0 20px 40px rgba(19, 27, 46, 0.06);
   }
 
-  @keyframes chiikawa-rgb-shift {
-    0% {
-      background-position: 0% 50%;
-    }
-    50% {
-      background-position: 100% 50%;
-    }
-    100% {
-      background-position: 0% 50%;
-    }
-  }
-
-  .chiikawa-rgb-text {
-    background-image: linear-gradient(
-      90deg,
-      #0050cb,
-      #ff2d95,
-      #ff6b35,
-      #ffd23f,
-      #3ddc97,
-      #00c2ff,
-      #7b61ff,
-      #0050cb
-    );
-    background-size: 400% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: chiikawa-rgb-shift 4.5s linear infinite;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .chiikawa-rgb-text {
-      animation: none;
-      background-position: 0% 50%;
-    }
+  .ambient-shadow {
+    box-shadow: 0 20px 40px rgba(19, 27, 46, 0.06);
   }
 
   .dark .ambient-shadow {

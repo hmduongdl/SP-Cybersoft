@@ -22,7 +22,6 @@ model User {
   plan_expires_at       DateTime?
   paused_plan           UserPlan?
   paused_plan_expires_at DateTime?
-  chiikawa_promo_claimed_at DateTime?
   department            String
   avatar_url            String?
   facebook_verified     Boolean                 @default(false)

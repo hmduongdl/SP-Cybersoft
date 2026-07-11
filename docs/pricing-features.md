@@ -79,4 +79,3 @@ Kèm nút **Nâng cấp MAX** ngay tại điểm chạm giới hạn.
 - Admin luôn có quyền tương đương MAX, không phụ thuộc vào gói đã đăng ký.
 - Khi gói MAX hết hạn, hệ thống tự động quay về FREE (hoặc gói đã pause nếu có).
 - Giá năm tiết kiệm ~20% so với giá tháng.
-- Hiện có chương trình **Chiikawa MAX Trial** (10/07 → 13/07/2026): tặng dùng thử MAX 7 ngày miễn phí cho user FREE/PRO.
