@@ -35,7 +35,10 @@ export function Sidebar() {
 
   const fetchProfile = () => {
     fetch("/api/user/profile", { cache: "no-store" })
-      .then((res) => res.json())
+      .then((res) => {
+        const contentType = res.headers.get("content-type") ?? "";
+        return contentType.includes("application/json") ? res.json() : Promise.reject("non-JSON response");
+      })
       .then((data) => {
         if (data.user) setProfile(data.user);
       })
@@ -47,7 +50,10 @@ export function Sidebar() {
     if (!isAdmin) return;
 
     fetch("/api/admin/pending-count")
-      .then((res) => res.json())
+      .then((res) => {
+        const contentType = res.headers.get("content-type") ?? "";
+        return contentType.includes("application/json") ? res.json() : Promise.reject("non-JSON response");
+      })
       .then((data) => {
         if (typeof data.pendingCount === "number") {
           setPendingCount(data.pendingCount);

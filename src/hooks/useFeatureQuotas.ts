@@ -25,6 +25,8 @@ export function useFeatureQuotas(): FeatureQuotasState {
     try {
       const res = await fetch("/api/user/feature-quotas");
       if (!res.ok) return;
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) return;
       const data = await res.json();
       if (data?.aiStudio) setAiStudio(data.aiStudio);
       if (data?.reportExport) setReportExport(data.reportExport);

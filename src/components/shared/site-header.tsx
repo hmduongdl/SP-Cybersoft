@@ -76,7 +76,10 @@ export function SiteHeader() {
   // Fetch profile to display actual department
   const fetchProfile = () => {
     fetch("/api/user/profile", { cache: "no-store" })
-      .then((res) => res.json())
+      .then((res) => {
+        const contentType = res.headers.get("content-type") ?? "";
+        return contentType.includes("application/json") ? res.json() : Promise.reject("non-JSON response");
+      })
       .then((data) => {
         if (data.user) setProfile(data.user);
       })
@@ -98,8 +101,14 @@ export function SiteHeader() {
   // Fetch recent posts and app notifications
   const fetchNotifications = () => {
     Promise.all([
-      fetch("/api/posts?page=1&limit=5", { cache: "no-store" }).then(res => res.json()),
-      fetch("/api/notifications", { cache: "no-store" }).then(res => res.json()),
+      fetch("/api/posts?page=1&limit=5", { cache: "no-store" }).then(res => {
+        const ct = res.headers.get("content-type") ?? "";
+        return ct.includes("application/json") ? res.json() : {};
+      }),
+      fetch("/api/notifications", { cache: "no-store" }).then(res => {
+        const ct = res.headers.get("content-type") ?? "";
+        return ct.includes("application/json") ? res.json() : {};
+      }),
     ])
       .then(([postsData, notifData]) => {
         if (postsData.posts) {

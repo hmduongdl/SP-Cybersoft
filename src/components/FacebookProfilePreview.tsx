@@ -31,8 +31,10 @@ export default function FacebookProfilePreview({ facebookLink }: FacebookProfile
       const res = await fetch(
         `/api/admin/og-scraper?url=${encodeURIComponent(facebookLink)}`
       );
+      if (!res.ok) throw new Error("Scrape failed");
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) throw new Error("non-JSON response");
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Scrape failed");
       setOgData(data);
     } catch {
       setError(true);
